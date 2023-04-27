@@ -21,6 +21,22 @@ jobs:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
+    - name: Install Rust nightly
+      run: |
+        rustup install nightly
+        rustup default nightly
+        rustup update nightly
+        rustup target add wasm32-unknown-unknown --toolchain nightly
+
+      # - name: Install toolchain
+      #   uses: actions-rs/toolchain@v1
+      #   with:
+      #     profile: minimal
+      #     toolchain: nightly-2022-11-15
+      #     components: rustfmt
+      #     target: wasm32-unknown-unknown
+      #     default: true
+
       - name: Srtool build
         id: srtool_build
         uses: chevdor/srtool-actions@v0.6.0
