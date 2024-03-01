@@ -27,54 +27,7 @@ jobs:
           target: wasm32-unknown-unknown
           toolchain: nightly-2023-05-22
 
-      - name: Download kusama strool result
-        uses: actions/download-artifact@v4
-        with:
-          name: bifrost-kusama-runtime
-          path: ${{ github.workspace }}/artifacts
-
-      - name: Download polkadot strool result
-        uses: actions/download-artifact@v4
-        with:
-          name: bifrost-polkadot-runtime
-          path: ${{ github.workspace }}/artifacts
-
-      - name: Build bifrost
-        working-directory: ${{ github.workspace }}
-        run: |
-          sudo apt-get install -y protobuf-compiler
-          make production-release
-          mkdir -p ${{ github.workspace }}/artifacts
-          mv ${{ github.workspace }}/target/production/bifrost ${{ github.workspace }}/artifacts/
-          mv ${{ github.workspace }}/artifacts/runtime/bifrost-kusama/target/srtool/release/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm ${{ github.workspace }}/artifacts/
-          mv ${{ github.workspace }}/artifacts/runtime/bifrost-polkadot/target/srtool/release/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm ${{ github.workspace }}/artifacts/
-          pushd ${{ github.workspace }}/artifacts
-          sha256sum bifrost | tee bifrost.sha256
-          shasum -c bifrost.sha256
-          popd
-
-      # We now get extra information thanks to subwasm,
-      - name: Install subwasm ${{ env.SUBWASM_VERSION }}
-        run: |
-          wget https://github.com/chevdor/subwasm/releases/download/v${{ env.SUBWASM_VERSION }}/subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
-          sudo dpkg -i subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
-          subwasm --version
-
-      - name: Subwasm info
-        run: |
-          echo "# Upgrade Priority
-
-          Low: This is a low priority release and you may upgrade at your convenience." >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "## Bifrost Kusama Runtime" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
-          subwasm info ${{ github.workspace }}/artifacts/bifrost_kusama_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
-          echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
-          echo ' ' >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "## Bifrost Polkadot Runtime" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
-          subwasm info ${{ github.workspace }}/artifacts/bifrost_polkadot_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
-          echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
-
+     
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -84,16 +37,5 @@ jobs:
           body_path: ${{ github.workspace }}-CHANGELOG.txt
           append_body: true
           prerelease: true
-          files: |
-            ${{ github.workspace }}/artifacts/bifrost
-            ${{ github.workspace }}/artifacts/bifrost.sha256
-            ${{ github.workspace }}/artifacts/bifrost_kusama_runtime.compact.compressed.wasm
-            ${{ github.workspace }}/artifacts/bifrost_polkadot_runtime.compact.compressed.wasm
 
-      - uses: 8398a7/action-slack@v3
-        if: always()
-        with:
-          status: ${{ job.status }}
-          fields: repo,author,eventName,workflow,ref,commit
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
+
