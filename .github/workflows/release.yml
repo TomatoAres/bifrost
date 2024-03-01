@@ -31,7 +31,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true
-          body_path: CHANGELOG.txt
+          # body_path: CHANGELOG.txt
           append_body: true
           prerelease: true
 

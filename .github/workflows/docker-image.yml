@@ -3,7 +3,7 @@ name: docker-image-build
 on:
   push:
     tags:
-      - 'bifrost-*'
+      # - 'bifrost-*'
   workflow_dispatch:
 
 jobs:
