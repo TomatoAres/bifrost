@@ -10,8 +10,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  srtool:
-    uses: ./.github/workflows/srtool.yml
   release:
     name: Create Release
     needs: srtool
