@@ -12,7 +12,6 @@ on:
 jobs:
   release:
     name: Create Release
-    needs: srtool
     runs-on: ubuntu-latest
     steps:
       - name: Check to latest commit
@@ -35,5 +34,4 @@ jobs:
           body_path: ${{ github.workspace }}-CHANGELOG.txt
           append_body: true
           prerelease: true
-
 
