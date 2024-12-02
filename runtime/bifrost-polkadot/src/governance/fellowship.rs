@@ -361,4 +361,5 @@ impl pallet_ranked_collective::Config<FellowshipCollectiveInstance> for Runtime 
 	type RemoveOrigin = Self::DemoteOrigin;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkSetup = ();
+	type MaxMemberCount = ();
 }

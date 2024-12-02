@@ -362,4 +362,5 @@ impl pallet_ranked_collective::Config<FellowshipCollectiveInstance> for Runtime 
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkSetup = ();
 	type MemberSwappedHandler = ();
+	type MaxMemberCount = ();
 }

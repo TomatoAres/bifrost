@@ -92,7 +92,7 @@ polkadot-runtime-common = { workspace = true }
 xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
-xcm-fee-payment-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # orml
 orml-tokens = { workspace = true }
@@ -243,7 +243,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"xcm-fee-payment-runtime-api/std",
+	"xcm-runtime-apis/std",
 
 	"orml-tokens/std",
 	"orml-traits/std",
