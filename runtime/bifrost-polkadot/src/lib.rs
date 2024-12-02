@@ -1902,6 +1902,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_channel_commission::migrations::v1::MigrateToV1<Runtime>,
 	);
 }
 

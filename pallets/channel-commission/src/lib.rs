@@ -38,6 +38,7 @@ pub use weights::WeightInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod migrations;
 mod mock;
 mod tests;
 pub mod weights;
@@ -289,8 +290,11 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(PhantomData<T>);
 
 	#[pallet::hooks]
@@ -485,6 +489,7 @@ pub mod pallet {
 			if let Some(commission_token) = commission_token_op {
 				// set the commission token
 				CommissionTokens::<T>::insert(vtoken, commission_token);
+				PeriodClearedCommissions::<T>::insert(vtoken, BalanceOf::<T>::zero());
 
 				// set VtokenIssuanceSnapshots for the vtoken
 				let issuance = T::MultiCurrency::total_issuance(vtoken);
@@ -825,6 +830,9 @@ impl<T: Config> Pallet<T> {
 			// get the cleared amount from the PeriodClearedCommissions storage
 			let cleared_commission = PeriodClearedCommissions::<T>::get(commission_token);
 
+			// Reset the PeriodClearedCommissions of commission_token to 0.
+			PeriodClearedCommissions::<T>::insert(commission_token, BalanceOf::<T>::zero());
+
 			// calculate the bifrost commission amount
 			let bifrost_commission = total_commission.saturating_sub(cleared_commission);
 
@@ -852,18 +860,6 @@ impl<T: Config> Pallet<T> {
 				});
 			}
 		});
-
-		// clear PeriodClearedCommissions
-		let res = PeriodClearedCommissions::<T>::clear(REMOVE_TOKEN_LIMIT, None);
-		let executed_num = res.backend;
-		if let Err(_) = Self::check_removed_all(res) {
-			log::error!("The removal process was not complete; cursor is still present.");
-			Self::deposit_event(Event::RemovalNotCompleteError {
-				target_num: PeriodClearedCommissions::<T>::iter().count() as u32,
-				limit: REMOVE_TOKEN_LIMIT,
-				executed_num,
-			});
-		}
 	}
 
 	pub(crate) fn calculate_mul_div_result(
