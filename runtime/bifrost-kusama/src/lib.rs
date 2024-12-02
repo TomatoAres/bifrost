@@ -996,7 +996,10 @@ parameter_types! {
 	/// Rounds before the reward is paid
 	pub const RewardPaymentDelay: u32 = 2;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	pub const MinSelectedCandidates: u32 = prod_or_fast!(16,6);
+	/// The collator incentives on Bifrost-Kusama will be discontinued. The number of active
+	/// collators will be set to 4, ensuring that all collators are nodes operated by Bifrost
+	/// itself.
+	pub const MinSelectedCandidates: u32 = prod_or_fast!(4,4);
 	/// Maximum top delegations per candidate
 	pub const MaxTopDelegationsPerCandidate: u32 = 300;
 	/// Maximum bottom delegations per candidate
