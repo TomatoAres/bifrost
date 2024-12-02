@@ -18,7 +18,6 @@
 
 use crate::{BalanceOf, Config};
 use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
 use sp_arithmetic::Percent;
 use sp_core::H160;
 use sp_runtime::{
@@ -26,7 +25,7 @@ use sp_runtime::{
 	RuntimeDebug,
 };
 use sp_std::{boxed::Box, vec::Vec};
-use xcm::{opaque::v3::WeightLimit, VersionedLocation};
+use xcm::{opaque::v3::WeightLimit, VersionedAssets, VersionedLocation};
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
 pub enum MoonbeamCall<T: Config> {
@@ -36,8 +35,8 @@ pub enum MoonbeamCall<T: Config> {
 	Staking(MoonbeamParachainStakingCall<T>),
 	#[codec(index = 30)]
 	Utility(Box<MoonbeamUtilityCall<Self>>),
-	#[codec(index = 106)]
-	Xtokens(MoonbeamXtokensCall<T>),
+	#[codec(index = 103)]
+	PolkadotXcm(PolkadotXcmCall),
 }
 
 impl<T: Config> MoonbeamCall<T> {
@@ -89,17 +88,13 @@ pub enum MoonbeamParachainStakingCall<T: Config> {
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
-pub enum MoonbeamXtokensCall<T: Config> {
-	#[codec(index = 0)]
-	Transfer(MoonbeamCurrencyId, BalanceOf<T>, Box<VersionedLocation>, WeightLimit),
-}
-
-#[derive(PartialEq, Eq, Copy, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub enum MoonbeamCurrencyId {
-	// Our native token
-	SelfReserve,
-	// Assets representing other chains native tokens
-	ForeignAsset(u128),
-	// Our local assets
-	LocalAssetReserve(u128),
+pub enum PolkadotXcmCall {
+	#[codec(index = 11)]
+	TransferAssets(
+		Box<VersionedLocation>,
+		Box<VersionedLocation>,
+		Box<VersionedAssets>,
+		u32,
+		WeightLimit,
+	),
 }
