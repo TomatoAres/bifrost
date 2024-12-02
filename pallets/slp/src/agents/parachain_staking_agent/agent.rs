@@ -16,9 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use super::types::{
-	MoonbeamCall, MoonbeamCurrencyId, MoonbeamParachainStakingCall, MoonbeamXtokensCall,
-};
+use super::types::{MoonbeamCall, MoonbeamParachainStakingCall, PolkadotXcmCall};
 use crate::{
 	agents::{MantaCall, MantaCurrencyId, MantaParachainStakingCall, MantaXtokensCall},
 	pallet::{Error, Event},
@@ -48,11 +46,13 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use xcm::{
+	latest::{AssetId, Assets},
 	opaque::v3::{
 		Junction::{AccountId32, Parachain},
 		MultiLocation,
 	},
 	v3::prelude::*,
+	v4::Asset,
 	VersionedLocation,
 };
 
@@ -1370,6 +1370,8 @@ impl<T: Config>
 
 		// Make sure the receiving account is the Exit_account from vtoken-minting module.
 		let (entrance_account, _) = T::VtokenMinting::get_entrance_and_exit_accounts();
+		let entrance_account_id =
+			entrance_account.encode().try_into().map_err(|_| Error::<T>::FailToConvert)?;
 
 		if currency_id == BNC {
 			let from_account = Pallet::<T>::multilocation_to_account(from)?;
@@ -1381,22 +1383,35 @@ impl<T: Config>
 				parents: 1,
 				interior: X2(
 					Parachain(T::ParachainId::get().into()),
-					AccountId32 {
-						network: None,
-						id: entrance_account
-							.encode()
-							.try_into()
-							.map_err(|_| Error::<T>::FailToConvert)?,
-					},
+					AccountId32 { network: None, id: entrance_account_id },
 				),
 			}));
 
 			// Construct xcm message.
 			let call: Vec<u8> = match currency_id {
-				MOVR | GLMR => MoonbeamCall::Xtokens(MoonbeamXtokensCall::<T>::Transfer(
-					MoonbeamCurrencyId::SelfReserve,
-					amount.unique_saturated_into(),
-					dest,
+				MOVR | GLMR => MoonbeamCall::<T>::PolkadotXcm(PolkadotXcmCall::TransferAssets(
+					Box::new(
+						Location::new(1, X1(Parachain(T::ParachainId::get().into())))
+							.into_versioned(),
+					),
+					Box::new(
+						Location::new(
+							0,
+							X1(AccountId32 { network: None, id: entrance_account_id }),
+						)
+						.into_versioned(),
+					),
+					Box::new(
+						Assets::from(vec![Asset {
+							id: AssetId(xcm::v4::Location::new(
+								0,
+								xcm::v4::prelude::PalletInstance(10),
+							)),
+							fun: xcm::v4::Fungibility::Fungible(amount.unique_saturated_into()),
+						}])
+						.into(),
+					),
+					0,
 					Unlimited,
 				))
 				.encode()

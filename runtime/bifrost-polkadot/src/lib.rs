@@ -1392,7 +1392,7 @@ impl bifrost_vtoken_minting::OnRedeemSuccess<AccountId, CurrencyId, Balance> for
 
 parameter_types! {
 	pub const MaximumUnlockIdOfUser: u32 = 10;
-	pub const MaximumUnlockIdOfTimeUnit: u32 = 50;
+	pub const MaximumUnlockIdOfTimeUnit: u32 = 1000;
 	pub BifrostFeeAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 

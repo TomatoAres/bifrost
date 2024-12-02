@@ -537,8 +537,8 @@ impl<T: Config> Pallet<T> {
 						&redeemer,
 						redeem_currency_amount,
 					)?;
+					return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
 				}
-				return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
 			}
 			Ok((Default::default(), RedeemTo::Native(redeemer)))
 		}
