@@ -17,4 +17,5 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod account_fee_currency;
+pub mod evm_permit;
 pub mod on_charge_transaction;

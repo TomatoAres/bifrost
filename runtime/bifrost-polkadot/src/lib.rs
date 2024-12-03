@@ -982,6 +982,8 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type XcmRouter = XcmRouter;
 	type PalletId = FlexibleFeePalletId;
 	type OraclePriceProvider = Prices;
+	type InspectEvmAccounts = EVMAccounts;
+	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 }
 
 parameter_types! {
