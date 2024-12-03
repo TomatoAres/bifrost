@@ -132,23 +132,6 @@ impl<T: frame_system::Config> bifrost_farming::WeightInfo for BifrostWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	// Storage: Farming GaugePoolInfos (r:1 w:1)
-	// Proof Skipped: Farming GaugePoolInfos (max_values: None, max_size: None, mode: Measured)
-	// Storage: Farming GaugeInfos (r:1 w:1)
-	// Proof Skipped: Farming GaugeInfos (max_values: None, max_size: None, mode: Measured)
-	// Storage: Farming PoolInfos (r:1 w:0)
-	// Proof Skipped: Farming PoolInfos (max_values: None, max_size: None, mode: Measured)
-	// Storage: Farming SharesAndWithdrawnRewards (r:1 w:0)
-	// Proof Skipped: Farming SharesAndWithdrawnRewards (max_values: None, max_size: None, mode: Measured)
-	fn gauge_withdraw() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `832`
-		//  Estimated: `4297`
-		// Minimum execution time: 82_224 nanoseconds.
-		Weight::from_parts(84_369_000, 4297)
-			.saturating_add(T::DbWeight::get().reads(4))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
 	// Storage: Farming PoolInfos (r:1 w:0)
 	// Proof Skipped: Farming PoolInfos (max_values: None, max_size: None, mode: Measured)
 	// Storage: Farming SharesAndWithdrawnRewards (r:1 w:1)
