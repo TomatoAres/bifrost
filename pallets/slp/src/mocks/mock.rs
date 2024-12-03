@@ -45,7 +45,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, Convert, IdentityLookup, TrailingZeroInput},
 	AccountId32, BuildStorage,
 };
-use sp_std::{boxed::Box, vec::Vec};
+use sp_std::vec::Vec;
 use xcm::v3::{prelude::*, MultiLocation, Weight};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;

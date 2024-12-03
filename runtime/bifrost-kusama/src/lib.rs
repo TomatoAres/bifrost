@@ -147,7 +147,7 @@ pub use xcm_config::{
 	SiblingParachainConvertsVia, XcmConfig, XcmRouter,
 };
 use xcm_executor::{traits::QueryHandler, XcmExecutor};
-use xcm_fee_payment_runtime_api::{
+use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
 };
@@ -830,13 +830,7 @@ parameter_types! {
 	pub const MaxBalance: Balance = 800_000 * BNCS;
 }
 
-type ApproveOrigin = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
->;
-
 impl pallet_treasury::Config for Runtime {
-	type ApproveOrigin = ApproveOrigin;
 	type SpendOrigin = EitherOf<EnsureRootWithSuccess<AccountId, MaxBalance>, Spender>;
 	type Burn = Burn;
 	type BurnDestination = ();
@@ -851,11 +845,7 @@ impl pallet_treasury::Config for Runtime {
 	type PayoutPeriod = PayoutSpendPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type OnSlash = Treasury;
 	type PalletId = TreasuryPalletId;
-	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ProposalBondMinimum;
-	type ProposalBondMaximum = ProposalBondMaximum;
 	type RejectOrigin = MoreThanHalfCouncil;
 	type SpendFunds = ();
 	type SpendPeriod = SpendPeriod;
@@ -2179,7 +2169,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::fees::XcmPaymentApi<Block> for Runtime {
+	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			let acceptable_assets = AssetRegistry::asset_ids();
 			PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
@@ -2212,7 +2202,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
 		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
 			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call)
 		}

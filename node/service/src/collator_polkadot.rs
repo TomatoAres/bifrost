@@ -247,7 +247,7 @@ fn start_consensus(
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
 	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
-	sync_oracle: Arc<SyncingService<Block>>,
+	_sync_oracle: Arc<SyncingService<Block>>,
 	keystore: KeystorePtr,
 	relay_chain_slot_duration: Duration,
 	para_id: ParaId,
@@ -281,7 +281,6 @@ fn start_consensus(
 		code_hash_provider: move |block_hash| {
 			client.code_at(block_hash).ok().map(|c| ValidationCode::from(c).hash())
 		},
-		sync_oracle,
 		keystore,
 		collator_key,
 		para_id,
@@ -294,10 +293,9 @@ fn start_consensus(
 		reinitialize: false,
 	};
 
-	let fut =
-		aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(
-			params,
-		);
+	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(
+		params,
+	);
 	task_manager.spawn_essential_handle().spawn("aura", None, fut);
 
 	Ok(())
