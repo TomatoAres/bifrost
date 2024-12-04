@@ -35,7 +35,6 @@ pub mod bifrost_slp;
 pub mod bifrost_slp_v2;
 pub mod bifrost_slpx;
 pub mod bifrost_stable_pool;
-pub mod bifrost_system_maker;
 pub mod bifrost_system_staking;
 pub mod bifrost_vesting;
 pub mod bifrost_vstoken_conversion;

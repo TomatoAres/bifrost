@@ -318,6 +318,7 @@ impl slpx::Config for Test {
 	type ParachainId = ParachainId;
 	type WeightInfo = ();
 	type MaxOrderSize = ConstU32<500>;
+	type BlockNumberProvider = System;
 }
 
 // Build genesis storage according to the mock runtime.

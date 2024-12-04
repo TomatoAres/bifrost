@@ -97,6 +97,7 @@ pub mod pallet {
 	use frame_support::dispatch::GetDispatchInfo;
 	use orml_traits::XcmTransfer;
 	use pallet_xcm::ensure_response;
+	use sp_runtime::traits::BlockNumberProvider;
 	use xcm::v3::{MaybeErrorCode, Response};
 
 	#[pallet::config]
@@ -168,6 +169,9 @@ pub mod pallet {
 
 		// asset registry to get asset metadata
 		type AssetIdMaps: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		#[pallet::constant]
 		type TreasuryAccount: Get<Self::AccountId>;
@@ -1180,7 +1184,7 @@ pub mod pallet {
 
 			let last_update_block = LastTimeUpdatedOngoingTimeUnit::<T>::get(currency_id)
 				.ok_or(Error::<T>::LastTimeUpdatedOngoingTimeUnitNotExist)?;
-			let current_block = frame_system::Pallet::<T>::block_number();
+			let current_block = T::BlockNumberProvider::current_block_number();
 			let blocks_between =
 				current_block.checked_sub(&last_update_block).ok_or(Error::<T>::UnderFlow)?;
 
@@ -1885,7 +1889,7 @@ pub mod pallet {
 				Pallet::<T>::check_length_and_deduplicate(currency_id, validator_list)?;
 
 			// get current block number
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 			// get the due block number
 			let due_block_number = current_block_number
 				.checked_add(&BlockNumberFor::<T>::from(SIX_MONTHS))
@@ -1957,7 +1961,7 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			// get current block number
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 
 			// get the due block number if the validator is not in the validator boost list
 			let mut due_block_number = current_block_number
@@ -2155,7 +2159,7 @@ pub mod pallet {
 				0
 			};
 
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 			let mut remove_num = 0;
 			// for each validator in the validator boost list, if the due block number is less than
 			// or equal to the current block number, remove it

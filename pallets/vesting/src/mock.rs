@@ -79,6 +79,7 @@ impl Config for Test {
 	type MinVestedTransfer = MinVestedTransfer;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
+	type BlockNumberProvider = System;
 }
 
 pub struct ExtBuilder {
