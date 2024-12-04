@@ -49,7 +49,9 @@ use parity_scale_codec::{Decode, Encode};
 use polkadot_parachain_primitives::primitives::{Id, Sibling};
 use sp_core::{Hasher, H160, U256};
 use sp_runtime::{
-	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, UniqueSaturatedFrom},
+	traits::{
+		AccountIdConversion, BlakeTwo256, BlockNumberProvider, CheckedSub, UniqueSaturatedFrom,
+	},
 	BoundedVec, DispatchError,
 };
 use sp_std::{vec, vec::Vec};
@@ -81,6 +83,7 @@ pub mod pallet {
 		weights::WeightMeter,
 	};
 	use frame_system::ensure_root;
+	use sp_runtime::traits::BlockNumberProvider;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
@@ -104,7 +107,8 @@ pub mod pallet {
 			CurrencyIdOf<Self>,
 			BalanceOf<Self>,
 		>;
-
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 		/// xtokens xcm transfer interface
 		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
 		/// Send Xcm
@@ -302,7 +306,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(n: BlockNumberFor<T>, limit: Weight) -> Weight {
+		fn on_idle(_: BlockNumberFor<T>, limit: Weight) -> Weight {
 			let mut weight = Weight::default();
 
 			if WeightMeter::with_limit(limit)
@@ -312,14 +316,19 @@ pub mod pallet {
 				return weight;
 			}
 
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 			let mut is_handle_xcm_oracle = false;
 
-			if let Err(error) = Self::handle_xcm_oracle(n, &mut is_handle_xcm_oracle, &mut weight) {
+			if let Err(error) = Self::handle_xcm_oracle(
+				current_block_number,
+				&mut is_handle_xcm_oracle,
+				&mut weight,
+			) {
 				Self::deposit_event(Event::<T>::XcmOracleFailed { error });
 			}
 
 			if !is_handle_xcm_oracle {
-				let _ = Self::handle_order_queue(n, &mut weight);
+				let _ = Self::handle_order_queue(current_block_number, &mut weight);
 			}
 			weight
 		}
@@ -547,7 +556,7 @@ pub mod pallet {
 				xcm_fee,
 				xcm_weight,
 				period,
-				last_block: frame_system::Pallet::<T>::block_number(),
+				last_block: T::BlockNumberProvider::current_block_number(),
 				contract,
 			});
 			Self::deposit_event(Event::SetXcmOracleConfiguration {
@@ -828,7 +837,7 @@ impl<T: Config> Pallet<T> {
 		let order_type = Self::order_type(currency_id)?;
 		let derivative_account = Self::frontier_derivative_account(&source_chain_caller);
 		let order = Order {
-			create_block_number: <frame_system::Pallet<T>>::block_number(),
+			create_block_number: T::BlockNumberProvider::current_block_number(),
 			order_type,
 			currency_id,
 			currency_amount,

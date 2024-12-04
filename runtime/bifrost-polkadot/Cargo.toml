@@ -130,6 +130,7 @@ pallet-evm-precompile-dispatch = { workspace = true }
 pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-sha3fips = { workspace = true }
 pallet-evm-precompile-simple = { workspace = true }
+pallet-evm-precompile-call-permit = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-accounts = { workspace = true }
@@ -155,7 +156,6 @@ bifrost-slp-v2 = { workspace = true, features = ["polkadot"] }
 bifrost-slpx = { workspace = true }
 bifrost-stable-pool = { workspace = true }
 bifrost-stable-pool-rpc-runtime-api = { workspace = true }
-bifrost-system-maker = { workspace = true }
 bifrost-system-staking = { workspace = true }
 bb-bnc = { workspace = true }
 bb-bnc-rpc-runtime-api = { workspace = true }
@@ -275,7 +275,6 @@ std = [
 	"bifrost-slpx/std",
 	"bifrost-stable-pool-rpc-runtime-api/std",
 	"bifrost-stable-pool/std",
-	"bifrost-system-maker/std",
 	"bifrost-system-staking/std",
 	"bb-bnc-rpc-runtime-api/std",
 	"bb-bnc/std",
@@ -303,6 +302,7 @@ std = [
 	"pallet-evm-precompile-modexp/std",
 	"pallet-evm-precompile-sha3fips/std",
 	"pallet-evm-precompile-simple/std",
+	"pallet-evm-precompile-call-permit/std",
 	"pallet-evm-precompile-bn128/std",
 	"pallet-evm-precompile-blake2/std",
 	"pallet-evm-accounts/std",
@@ -373,7 +373,6 @@ try-runtime = [
 	"bifrost-slpx/try-runtime",
 	"bifrost-stable-asset/try-runtime",
 	"bifrost-stable-pool/try-runtime",
-	"bifrost-system-maker/try-runtime",
 	"bifrost-system-staking/try-runtime",
 	"bb-bnc/try-runtime",
 	"bifrost-vesting/try-runtime",

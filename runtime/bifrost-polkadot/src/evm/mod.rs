@@ -34,6 +34,7 @@ use bifrost_primitives::{currency::WETH, CurrencyId};
 
 mod accounts_conversion;
 mod evm_fee;
+pub mod permit;
 pub mod precompiles;
 mod runner;
 

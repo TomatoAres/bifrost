@@ -212,7 +212,7 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub const SS58Prefix: u8 = 6;
+	pub const SS58Prefix: u8 = 0;
 }
 
 parameter_types! {
@@ -1090,6 +1090,7 @@ impl bifrost_vesting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vesting::BifrostWeight<Runtime>;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	const MAX_VESTING_SCHEDULES: u32 = 28;
+	type BlockNumberProvider = System;
 }
 
 // Bifrost modules start
@@ -1114,6 +1115,8 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type XcmRouter = XcmRouter;
 	type PalletId = FlexibleFeePalletId;
 	type OraclePriceProvider = Prices;
+	type InspectEvmAccounts = ();
+	type EvmPermit = bifrost_flexible_fee::impls::evm_permit::DisabledEvmPermitHandler<Runtime>;
 }
 
 parameter_types! {
@@ -1327,6 +1330,7 @@ impl bifrost_slp::Config for Runtime {
 	type StablePoolHandler = StablePool;
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_vstoken_conversion::Config for Runtime {
@@ -1571,6 +1575,7 @@ impl bifrost_slpx::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
+	type BlockNumberProvider = System;
 }
 
 pub struct EnsurePoolAssetId;

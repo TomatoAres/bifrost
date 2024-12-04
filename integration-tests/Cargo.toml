@@ -49,3 +49,6 @@ xcm-builder                   = { workspace = true }
 xcm-emulator                  = { workspace = true }
 xcm-executor                  = { workspace = true }
 xcm-simulator                 = { workspace = true }
+
+[features]
+try-runtime = []

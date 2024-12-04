@@ -458,6 +458,7 @@ impl Config for Runtime {
 	type StablePoolHandler = ();
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
+	type BlockNumberProvider = System;
 }
 
 pub struct XcmDestWeightAndFee;

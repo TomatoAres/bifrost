@@ -27,6 +27,7 @@ use bifrost_primitives::{
 use frame_support::ensure;
 use parity_scale_codec::Encode;
 use sp_core::Get;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_std::prelude::*;
 use xcm::v3::{prelude::*, MultiLocation};
 
@@ -215,7 +216,7 @@ impl<T: Config> Pallet<T> {
 		let (entry, timeout) =
 			DelegatorLedgerXcmUpdateQueue::<T>::get(query_id).ok_or(Error::<T>::QueryNotExist)?;
 
-		let now = frame_system::Pallet::<T>::block_number();
+		let now = T::BlockNumberProvider::current_block_number();
 		let mut updated = true;
 		if now <= timeout {
 			let currency_id = match entry.clone() {
@@ -249,7 +250,7 @@ impl<T: Config> Pallet<T> {
 		let (entry, timeout) = ValidatorsByDelegatorXcmUpdateQueue::<T>::get(query_id)
 			.ok_or(Error::<T>::QueryNotExist)?;
 
-		let now = frame_system::Pallet::<T>::block_number();
+		let now = T::BlockNumberProvider::current_block_number();
 		let mut updated = true;
 		if now <= timeout {
 			let currency_id = match entry.clone() {

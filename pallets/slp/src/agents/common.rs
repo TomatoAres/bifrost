@@ -34,7 +34,10 @@ use orml_traits::{MultiCurrency, XcmTransfer};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_core::{Get, U256};
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedAdd, UniqueSaturatedFrom, UniqueSaturatedInto},
+	traits::{
+		AccountIdConversion, BlockNumberProvider, CheckedAdd, UniqueSaturatedFrom,
+		UniqueSaturatedInto,
+	},
 	DispatchResult, Saturating,
 };
 use xcm::v3::{prelude::*, MultiLocation};
@@ -348,7 +351,7 @@ impl<T: Config> Pallet<T> {
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<(QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v4::Xcm<()>), Error<T>> {
 		// prepare the query_id for reporting back transact status
-		let now = frame_system::Pallet::<T>::block_number();
+		let now = T::BlockNumberProvider::current_block_number();
 		let timeout = BlockNumberFor::<T>::from(TIMEOUT_BLOCKS).saturating_add(now);
 		let (query_id, notify_call_weight) =
 			Self::get_query_id_and_notify_call_weight(currency_id, &operation)?;
@@ -377,7 +380,7 @@ impl<T: Config> Pallet<T> {
 		currency_id: CurrencyId,
 		operation: &XcmOperationType,
 	) -> Result<(QueryId, Weight), Error<T>> {
-		let now = frame_system::Pallet::<T>::block_number();
+		let now = T::BlockNumberProvider::current_block_number();
 		let timeout = BlockNumberFor::<T>::from(TIMEOUT_BLOCKS).saturating_add(now);
 		let responder = Self::convert_currency_to_dest_location(currency_id)?;
 

@@ -29,7 +29,9 @@ use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	pallet_prelude::*,
+	dispatch::PostDispatchInfo,
+	pallet_prelude::{ValidateUnsigned, *},
+	storage::with_transaction,
 	traits::{
 		fungibles::Inspect,
 		tokens::{Fortitude, Preservation},
@@ -41,11 +43,13 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
+use pallet_traits::evm::InspectEvmAccounts;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::traits::UniqueSaturatedInto;
+use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	traits::{AccountIdConversion, One},
-	BoundedVec,
+	BoundedVec, ModuleError, TransactionOutcome,
 };
 use sp_std::{boxed::Box, cmp::Ordering, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -63,6 +67,9 @@ pub mod weights;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T>>>::Balance;
+pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+	<T as frame_system::Config>::AccountId,
+>>::CurrencyId;
 pub type RawCallName = BoundedVec<u8, ConstU32<32>>;
 
 #[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -74,7 +81,7 @@ pub enum TargetChain {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use bifrost_primitives::{Balance, OraclePriceProvider};
+	use bifrost_primitives::{Balance, EvmPermit, OraclePriceProvider};
 	use frame_support::traits::fungibles::Inspect;
 
 	#[pallet::config]
@@ -96,6 +103,9 @@ pub mod pallet {
 		type ControlOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Get the weight and fee for executing Xcm.
 		type XcmWeightAndFeeHandler: XcmDestWeightAndFeeHandler<CurrencyId, Balance>;
+		/// EVM Accounts info
+		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, H160>;
+		type EvmPermit: EvmPermit;
 		/// Get TreasuryAccount
 		#[pallet::constant]
 		type TreasuryAccount: Get<Self::AccountId>;
@@ -202,6 +212,14 @@ pub mod pallet {
 		CurrencyNotSupport,
 		/// The maximum number of currencies that can be handled has been reached.
 		MaxCurrenciesReached,
+		/// EVM permit expired.
+		EvmPermitExpired,
+		/// EVM permit is invalid.
+		EvmPermitInvalid,
+		/// EVM permit call failed.
+		EvmPermitCallExecutionError,
+		/// EVM permit call failed.
+		EvmPermitRunnerError,
 	}
 
 	#[pallet::call]
@@ -264,6 +282,139 @@ pub mod pallet {
 			};
 			Self::deposit_event(Event::<T>::SetExtraFee { raw_call_name, fee_info });
 			Ok(())
+		}
+
+		/// Dispatch EVM permit.
+		/// The main purpose of this function is to allow EVM accounts to pay for the transaction
+		/// fee in non-native currency by allowing them to self-dispatch pre-signed permit.
+		/// The EVM fee is paid in the currency set for the account.
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::EvmPermit::dispatch_weight(*gas_limit))]
+		pub fn dispatch_permit(
+			origin: OriginFor<T>,
+			from: H160,
+			to: H160,
+			value: U256,
+			data: Vec<u8>,
+			gas_limit: u64,
+			deadline: U256,
+			v: u8,
+			r: H256,
+			s: H256,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
+
+			// dispatch permit should never return error.
+			// validate_unsigned should prevent the transaction getting to this point in case of
+			// invalid permit. In case of any error, we call error handler ( which should pause
+			// this transaction) and return ok.
+			if T::EvmPermit::validate_permit(
+				from,
+				to,
+				data.clone(),
+				value,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			)
+			.is_err()
+			{
+				T::EvmPermit::on_dispatch_permit_error();
+				return Ok(PostDispatchInfo::default());
+			};
+
+			let (gas_price, _) = T::EvmPermit::gas_price();
+
+			let result = T::EvmPermit::dispatch_permit(
+				from,
+				to,
+				data,
+				value,
+				gas_limit,
+				gas_price,
+				None,
+				None,
+				vec![],
+			)
+			.unwrap_or_else(|e| {
+				// In case of runner error, account has not been charged, so we need to call error
+				// handler to pause dispatch error
+				if e.error == Error::<T>::EvmPermitRunnerError.into() {
+					T::EvmPermit::on_dispatch_permit_error();
+				}
+				e.post_info
+			});
+
+			Ok(result)
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::dispatch_permit { from, to, value, data, gas_limit, deadline, v, r, s } => {
+					// We need to wrap this as separate tx, and since we also "dry-run" the
+					// dispatch, we need to rollback the changes if any
+					let result = with_transaction::<(), DispatchError, _>(|| {
+						// First verify signature
+						let result = T::EvmPermit::validate_permit(
+							*from,
+							*to,
+							data.clone(),
+							*value,
+							*gas_limit,
+							*deadline,
+							*v,
+							*r,
+							*s,
+						);
+						if let Some(error_res) = result.err() {
+							return TransactionOutcome::Rollback(Err(error_res));
+						}
+
+						let (gas_price, _) = T::EvmPermit::gas_price();
+
+						let result = T::EvmPermit::dispatch_permit(
+							*from,
+							*to,
+							data.clone(),
+							*value,
+							*gas_limit,
+							gas_price,
+							None,
+							None,
+							vec![],
+						);
+						match result {
+							Ok(_post_info) => TransactionOutcome::Rollback(Ok(())),
+							Err(e) => TransactionOutcome::Rollback(Err(e.error)),
+						}
+					});
+					let nonce = T::EvmPermit::permit_nonce(*from);
+					match result {
+						Ok(()) => ValidTransaction::with_tag_prefix("EvmPermit")
+							.and_provides((nonce, from))
+							.priority(0)
+							.longevity(64)
+							.propagate(true)
+							.build(),
+						Err(e) => {
+							let error_number = match e {
+								DispatchError::Module(ModuleError { error, .. }) => error[0],
+								_ => 0, /* this case should never happen because an Error is
+								         * always converted to DispatchError::Module(ModuleError) */
+							};
+							InvalidTransaction::Custom(error_number).into()
+						},
+					}
+				},
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 }
@@ -380,7 +531,11 @@ impl<T: Config> Pallet<T> {
 			fee_currency_list.insert(first_fee_currency_index, default_fee_currency);
 		};
 
-		fee_currency_list
+		if fee_currency_list.is_empty() {
+			vec![BNC]
+		} else {
+			fee_currency_list
+		}
 	}
 
 	fn get_fee_currency_and_fee_amount(

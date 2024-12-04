@@ -209,3 +209,8 @@ impl ExtBuilder {
 		t.into()
 	}
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
+	ExtBuilder::default().build()
+}

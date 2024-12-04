@@ -23,7 +23,6 @@ members = [
 	"pallets/vtoken-minting",
 	"pallets/vtoken-voting",
 	"pallets/system-staking",
-	"pallets/deprecated/system-maker",
 	"pallets/fee-share",
 	"pallets/parachain-staking",
 	"pallets/bb-bnc",
@@ -37,6 +36,8 @@ members = [
 
 	"runtime/bifrost-kusama",
 	"runtime/bifrost-polkadot/src/evm/evm-utility/macro",
+	"runtime/bifrost-polkadot/src/evm/precompiles/utils",
+	"runtime/bifrost-polkadot/src/evm/precompiles/call-permit",
 	"runtime/bifrost-polkadot",
 
 	"integration-tests"
@@ -84,7 +85,6 @@ bifrost-slpx                           = { path = "pallets/slpx", default-featur
 bifrost-stable-asset                   = { path = "pallets/stable-asset", default-features = false }
 bifrost-stable-pool                    = { path = "pallets/stable-pool", default-features = false }
 bifrost-stable-pool-rpc-runtime-api    = { path = "pallets/stable-pool/rpc/runtime-api", default-features = false }
-bifrost-system-maker                   = { path = "pallets/deprecated/system-maker", default-features = false }
 bifrost-system-staking                 = { path = "pallets/system-staking", default-features = false }
 bifrost-token-issuer                   = { path = "pallets/token-issuer", default-features = false }
 bifrost-vbnc-convert                   = { path = "pallets/vbnc-convert", default-features = false }
@@ -100,6 +100,8 @@ lend-market                            = { path = "pallets/lend-market", default
 lend-market-rpc-runtime-api            = { path = "pallets/lend-market/rpc/runtime-api", default-features = false }
 leverage-staking                       = { path = "pallets/leverage-staking", default-features = false }
 module-evm-utility-macro               = { path = "runtime/bifrost-polkadot/src/evm/evm-utility/macro", default-features = false }
+pallet-evm-precompile-call-permit      = { path = "runtime/bifrost-polkadot/src/evm/precompiles/call-permit", default-features = false }
+precompile-utils 					   = { path = "runtime/bifrost-polkadot/src/evm/precompiles/utils", default-features = false }
 pallet-evm-accounts                    = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api    = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-prices                          = { path = "pallets/prices", default-features = false }
@@ -151,6 +153,7 @@ pallet-evm-precompile-dispatch = { git = "https://github.com/bifrost-io/frontier
 pallet-evm-precompile-modexp   = { git = "https://github.com/bifrost-io/frontier", branch = "release-polkadot-stable2407", default-features = false }
 pallet-evm-precompile-sha3fips = { git = "https://github.com/bifrost-io/frontier", branch = "release-polkadot-stable2407", default-features = false }
 pallet-evm-precompile-simple   = { git = "https://github.com/bifrost-io/frontier", branch = "release-polkadot-stable2407", default-features = false }
+
 
 # polkadot-sdk (wasm)
 cumulus-client-collator                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
@@ -308,6 +311,15 @@ xcm-emulator                                  = { git = "https://github.com/pari
 xcm-simulator                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407" }
 
 # Other
+affix = "0.1.2"
+case = "1.0"
+slices = "0.2.0"
+derive_more = "0.99.18"
+libsecp256k1 = { version = "0.7", default-features = false }
+environmental = { version = "1.1.2", default-features = false }
+prettyplease = "0.1.18"
+macrotest = "1.0.9"
+trybuild = "1.0"
 async-trait           = { version = "0.1.83" }
 bstringify            = { version = "0.1.2" }
 clap                  = { version = "4.5.18" }
@@ -327,7 +339,7 @@ num-traits            = { version = "0.2.19", default-features = false }
 num_enum              = { version = "0.7.3", default-features = false }
 parity-scale-codec    = { version = "3.6.12", default-features = false }
 paste                 = { version = "1.0.15" }
-primitive-types       = { version = "0.12.0", default-features = false }
+primitive-types       = { version = "0.12.1", default-features = false }
 proc-macro2           = { version = "1.0.89" }
 quote                 = { version = "1.0.20" }
 scale-info            = { version = "2.11.3", default-features = false }

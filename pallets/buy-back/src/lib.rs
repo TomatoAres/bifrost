@@ -301,7 +301,7 @@ pub mod pallet {
 					_ => (),
 				}
 			}
-			T::WeightInfo::on_idle()
+			T::WeightInfo::on_initialize()
 		}
 	}
 
