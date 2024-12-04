@@ -17,7 +17,7 @@
   "protocolId": "bifrost",
   "forkId": null,
   "properties": {
-    "ss58Format": 6,
+    "ss58Format": 0,
     "tokenDecimals": [
       12,
       12,
