@@ -896,7 +896,7 @@ fn notify_vote_success_max_works() {
 fn notify_vote_success_exceed_max_fail() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
-			for poll_index in 0..50 {
+			for poll_index in 0..100 {
 				assert_ok!(VtokenVoting::vote(
 					RuntimeOrigin::signed(ALICE),
 					vtoken,
@@ -909,7 +909,7 @@ fn notify_vote_success_exceed_max_fail() {
 					response_success()
 				));
 			}
-			let poll_index = 50;
+			let poll_index = 100;
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,

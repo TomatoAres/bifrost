@@ -147,4 +147,8 @@ impl<T: Config> VotingAgent<T> for BifrostAgent<T> {
 		Ok(<BifrostCall<T> as ConvictionVotingCall<T>>::remove_vote(Some(class), poll_index)
 			.encode())
 	}
+
+	fn block_number(&self) -> BlockNumberFor<T> {
+		T::LocalBlockNumberProvider::current_block_number()
+	}
 }

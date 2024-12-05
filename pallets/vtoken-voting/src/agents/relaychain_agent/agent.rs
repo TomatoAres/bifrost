@@ -117,4 +117,8 @@ impl<T: Config> VotingAgent<T> for RelaychainAgent<T> {
 		)
 		.encode())
 	}
+
+	fn block_number(&self) -> BlockNumberFor<T> {
+		BlockNumberFor::<T>::from(T::RelaychainBlockNumberProvider::current_block_number())
+	}
 }

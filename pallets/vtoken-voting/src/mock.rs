@@ -442,6 +442,7 @@ impl vtoken_voting::Config for Runtime {
 	type ReferendumCheckInterval = ReferendumCheckInterval;
 	type WeightInfo = ();
 	type PalletsOrigin = OriginCaller;
+	type LocalBlockNumberProvider = System;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

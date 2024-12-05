@@ -188,7 +188,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_polkadot"),
 	impl_name: create_runtime_str!("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 15001,
+	spec_version: 15002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1334,6 +1334,7 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type ReferendumCheckInterval = ReferendumCheckInterval;
 	type WeightInfo = weights::bifrost_vtoken_voting::BifrostWeight<Runtime>;
 	type PalletsOrigin = OriginCaller;
+	type LocalBlockNumberProvider = System;
 }
 
 // Bifrost modules end
