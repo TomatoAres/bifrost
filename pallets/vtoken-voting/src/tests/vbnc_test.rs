@@ -143,7 +143,7 @@ fn successful_but_zero_conviction_vote_balance_can_be_unlocked() {
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(BOB), vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &BOB), 20);
 
-			RelaychainDataProvider::set_block_number(13);
+			System::set_block_number(13);
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
@@ -181,7 +181,7 @@ fn unsuccessful_conviction_vote_balance_can_be_unlocked() {
 				poll_index,
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
-			RelaychainDataProvider::set_block_number(13);
+			System::set_block_number(13);
 			assert_ok!(VtokenVoting::try_remove_vote(&ALICE, vtoken, poll_index, UnvoteScope::Any));
 			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
@@ -221,7 +221,7 @@ fn ensure_balance_after_unlock() {
 				poll_index,
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
-			RelaychainDataProvider::set_block_number(13);
+			System::set_block_number(13);
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 10);
@@ -269,7 +269,7 @@ fn ensure_comprehensive_balance_after_unlock() {
 				poll_index,
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
-			RelaychainDataProvider::set_block_number(13);
+			System::set_block_number(13);
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 2);
@@ -314,7 +314,7 @@ fn successful_conviction_vote_balance_stays_locked_for_correct_time() {
 				poll_index,
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
-			RelaychainDataProvider::set_block_number(163);
+			System::set_block_number(163);
 			for i in 1..=5 {
 				assert_ok!(VtokenVoting::try_remove_vote(&i, vtoken, poll_index, UnvoteScope::Any));
 			}
@@ -392,7 +392,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 					.unwrap()
 			);
 
-			RelaychainDataProvider::set_block_number(10);
+			System::set_block_number(10);
 			assert_noop!(
 				VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 0),
 				Error::<Runtime>::NoPermissionYet
@@ -400,7 +400,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 
-			RelaychainDataProvider::set_block_number(11);
+			System::set_block_number(11);
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 0));
 			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
@@ -410,7 +410,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 					.unwrap()
 			);
 
-			RelaychainDataProvider::set_block_number(11);
+			System::set_block_number(11);
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 1));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
@@ -419,7 +419,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 					.unwrap()
 			);
 
-			RelaychainDataProvider::set_block_number(21);
+			System::set_block_number(21);
 			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 2));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 			assert_eq!(
@@ -507,7 +507,7 @@ fn errors_with_vote_works() {
 				Error::<Runtime>::InsufficientFunds
 			);
 
-			for poll_index in 0..256 {
+			for poll_index in 0..100 {
 				assert_ok!(VtokenVoting::vote(
 					RuntimeOrigin::signed(1),
 					vtoken,
@@ -516,8 +516,8 @@ fn errors_with_vote_works() {
 				));
 			}
 			assert_noop!(
-				VtokenVoting::vote(RuntimeOrigin::signed(1), vtoken, 256, aye(10, 0)),
-				Error::<Runtime>::MaxVotesReached
+				VtokenVoting::vote(RuntimeOrigin::signed(1), vtoken, 100, aye(10, 0)),
+				Error::<Runtime>::TooMany
 			);
 		});
 	}
