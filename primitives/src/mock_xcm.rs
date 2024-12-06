@@ -50,7 +50,10 @@ impl XcmTransfer<AccountId, Balance, CurrencyId> for MockXcmTransfer {
 		Ok(Transferred {
 			sender: who,
 			assets: Default::default(),
-			fee: Asset { id: AssetId(Location::here()), fun: Fungible(amount) },
+			fee: Asset {
+				id: AssetId(Location::here()),
+				fun: Fungible(amount),
+			},
 			dest,
 		})
 	}
@@ -127,7 +130,9 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
 		_hash: &mut XcmHash,
 		_weight_credit: Weight,
 	) -> Outcome {
-		Outcome::Complete { used: Weight::default() }
+		Outcome::Complete {
+			used: Weight::default(),
+		}
 	}
 
 	fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> XcmResult {

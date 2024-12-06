@@ -134,7 +134,10 @@ pub mod pallet {
 			Self::ensure_pool_balance_enough(VBNC_P, vbnc_p_amount)?;
 
 			let existential_deposit = T::MultiCurrency::minimum_balance(VBNC_P);
-			ensure!(vbnc_p_amount >= existential_deposit, Error::<T>::LessThanExistentialDeposit);
+			ensure!(
+				vbnc_p_amount >= existential_deposit,
+				Error::<T>::LessThanExistentialDeposit
+			);
 
 			// transfer vBNC-p from pool to user
 			let vbnc_pool_account = Self::vbnc_p_pool_account();
@@ -144,7 +147,10 @@ pub mod pallet {
 			T::MultiCurrency::withdraw(currency, &who, value)?;
 
 			// deposit event
-			Self::deposit_event(Event::VBNCPConverted { to: who, value: vbnc_p_amount });
+			Self::deposit_event(Event::VBNCPConverted {
+				to: who,
+				value: vbnc_p_amount,
+			});
 
 			Ok(())
 		}

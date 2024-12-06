@@ -79,7 +79,10 @@ where
 		let timestamp: u128 = <R as pallet_evm::Config>::Timestamp::now().unique_saturated_into();
 		let timestamp: U256 = U256::from(timestamp / 1000);
 
-		ensure!(deadline >= timestamp, bifrost_flexible_fee::Error::<R>::EvmPermitExpired);
+		ensure!(
+			deadline >= timestamp,
+			bifrost_flexible_fee::Error::<R>::EvmPermitExpired
+		);
 
 		let mut sig = [0u8; 65];
 		sig[0..32].copy_from_slice(r.as_bytes());
@@ -131,14 +134,15 @@ where
 			<R as pallet_evm::Config>::config(),
 		) {
 			Ok(info) => info,
-			Err(e) =>
+			Err(e) => {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(e.weight),
 						pays_fee: Pays::Yes,
 					},
 					error: bifrost_flexible_fee::Error::<R>::EvmPermitRunnerError.into(),
-				}),
+				})
+			}
 		};
 		let account_source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
 		debug_assert_eq!(
@@ -162,7 +166,10 @@ where
 			}
 		}
 		let actual_weight = gas_to_weight;
-		let post_info = PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::No };
+		let post_info = PostDispatchInfo {
+			actual_weight: Some(actual_weight),
+			pays_fee: Pays::No,
+		};
 
 		match info.exit_reason {
 			ExitReason::Succeed(_) => Ok(post_info),

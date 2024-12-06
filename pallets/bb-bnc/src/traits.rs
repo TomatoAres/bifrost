@@ -117,7 +117,10 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 			.checked_mul(&T::Week::get())
 			.ok_or(ArithmeticError::Overflow)?;
 		ensure!(unlock_time <= max_block, Error::<T>::ArgumentsError);
-		ensure!(_locked.amount == BalanceOf::<T>::zero(), Error::<T>::LockExist); // Withdraw old tokens first
+		ensure!(
+			_locked.amount == BalanceOf::<T>::zero(),
+			Error::<T>::LockExist
+		); // Withdraw old tokens first
 
 		Self::_deposit_for(who, new_position, _value, unlock_time, _locked)?;
 		Self::deposit_event(Event::LockCreated {
@@ -158,7 +161,10 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 			.checked_mul(&T::Week::get())
 			.ok_or(ArithmeticError::Overflow)?;
 		ensure!(unlock_time <= max_block, Error::<T>::ArgumentsError);
-		ensure!(_locked.amount > BalanceOf::<T>::zero(), Error::<T>::LockNotExist);
+		ensure!(
+			_locked.amount > BalanceOf::<T>::zero(),
+			Error::<T>::LockNotExist
+		);
 		ensure!(_locked.end > current_block_number, Error::<T>::Expired); // Cannot add to expired/non-existent lock
 
 		Self::_deposit_for(who, position, BalanceOf::<T>::zero(), unlock_time, _locked)?;
@@ -178,11 +184,18 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 		let bb_config = BbConfigs::<T>::get();
 		ensure!(value >= bb_config.min_mint, Error::<T>::BelowMinimumMint);
 		let _locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> = Locked::<T>::get(position);
-		ensure!(_locked.amount > BalanceOf::<T>::zero(), Error::<T>::LockNotExist); // Need to be executed after create_lock
+		ensure!(
+			_locked.amount > BalanceOf::<T>::zero(),
+			Error::<T>::LockNotExist
+		); // Need to be executed after create_lock
 		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
 		ensure!(_locked.end > current_block_number, Error::<T>::Expired); // Cannot add to expired/non-existent lock
 		Self::_deposit_for(who, position, value, Zero::zero(), _locked)?;
-		Self::deposit_event(Event::AmountIncreased { who: who.to_owned(), position, value });
+		Self::deposit_event(Event::AmountIncreased {
+			who: who.to_owned(),
+			position,
+			value,
+		});
 		Ok(())
 	}
 

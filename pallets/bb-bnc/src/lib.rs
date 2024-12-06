@@ -141,7 +141,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// The minimum number of TokenType and minimum time that users can lock has been set.
-		ConfigSet { config: BbConfig<BalanceOf<T>, BlockNumberFor<T>> },
+		ConfigSet {
+			config: BbConfig<BalanceOf<T>, BlockNumberFor<T>>,
+		},
 		/// A successful call of the `create_lock` function.
 		Minted {
 			/// the user who mint
@@ -210,7 +212,10 @@ pub mod pallet {
 		/// The rewards for this round have been added to the system account.
 		RewardAdded { rewards: Vec<CurrencyIdOf<T>> },
 		/// The user has received the reward.
-		Rewarded { who: AccountIdOf<T>, rewards: Vec<(CurrencyIdOf<T>, BalanceOf<T>)> },
+		Rewarded {
+			who: AccountIdOf<T>,
+			rewards: Vec<(CurrencyIdOf<T>, BalanceOf<T>)>,
+		},
 		/// This currency_id has been refreshed.
 		AllRefreshed { currency_id: CurrencyIdOf<T> },
 		/// This currency_id has been partially refreshed.
@@ -227,7 +232,10 @@ pub mod pallet {
 			value: BalanceOf<T>,
 		},
 		/// Markup has been withdrawn.
-		MarkupWithdrawn { who: AccountIdOf<T>, currency_id: CurrencyIdOf<T> },
+		MarkupWithdrawn {
+			who: AccountIdOf<T>,
+			currency_id: CurrencyIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -398,7 +406,9 @@ pub mod pallet {
 						"Received invalid justification for {:?}",
 						e,
 					);
-					Self::deposit_event(Event::NotifyRewardFailed { rewards: conf.last_reward });
+					Self::deposit_event(Event::NotifyRewardFailed {
+						rewards: conf.last_reward,
+					});
 				}
 			}
 
@@ -656,8 +666,8 @@ pub mod pallet {
 				u_old.bias = u_old
 					.slope
 					.checked_mul(
-						(old_locked.end.saturated_into::<u128>() as i128) -
-							(current_block_number.saturated_into::<u128>() as i128),
+						(old_locked.end.saturated_into::<u128>() as i128)
+							- (current_block_number.saturated_into::<u128>() as i128),
 					)
 					.ok_or(ArithmeticError::Overflow)?;
 			}
@@ -671,8 +681,8 @@ pub mod pallet {
 				u_new.bias = u_new
 					.slope
 					.checked_mul(
-						(new_locked.end.saturated_into::<u128>() as i128) -
-							(current_block_number.saturated_into::<u128>() as i128),
+						(new_locked.end.saturated_into::<u128>() as i128)
+							- (current_block_number.saturated_into::<u128>() as i128),
 					)
 					.ok_or(ArithmeticError::Overflow)?;
 			}
@@ -703,7 +713,9 @@ pub mod pallet {
 				.checked_mul(&T::Week::get())
 				.ok_or(ArithmeticError::Overflow)?;
 			for _i in 0..255 {
-				t_i = t_i.checked_add(&T::Week::get()).ok_or(ArithmeticError::Overflow)?;
+				t_i = t_i
+					.checked_add(&T::Week::get())
+					.ok_or(ArithmeticError::Overflow)?;
 				let mut d_slope = Zero::zero();
 				if t_i > current_block_number {
 					t_i = current_block_number
@@ -725,8 +737,10 @@ pub mod pallet {
 					)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				last_point.slope =
-					last_point.slope.checked_add(d_slope).ok_or(ArithmeticError::Overflow)?;
+				last_point.slope = last_point
+					.slope
+					.checked_add(d_slope)
+					.ok_or(ArithmeticError::Overflow)?;
 				if last_point.slope < 0_i128 {
 					//This cannot happen - just in case
 					last_point.slope = 0_i128
@@ -738,7 +752,9 @@ pub mod pallet {
 
 				last_checkpoint = t_i;
 				last_point.block = t_i;
-				g_epoch = g_epoch.checked_add(U256::one()).ok_or(ArithmeticError::Overflow)?;
+				g_epoch = g_epoch
+					.checked_add(U256::one())
+					.ok_or(ArithmeticError::Overflow)?;
 
 				// Fill for the current block, if applicable
 				if t_i == current_block_number {
@@ -772,19 +788,22 @@ pub mod pallet {
 
 			if old_locked.end > current_block_number {
 				// old_dslope was <something> - u_old.slope, so we cancel that
-				old_dslope =
-					old_dslope.checked_add(u_old.slope).ok_or(ArithmeticError::Overflow)?;
+				old_dslope = old_dslope
+					.checked_add(u_old.slope)
+					.ok_or(ArithmeticError::Overflow)?;
 				if new_locked.end == old_locked.end {
-					old_dslope =
-						old_dslope.checked_sub(u_new.slope).ok_or(ArithmeticError::Overflow)?;
+					old_dslope = old_dslope
+						.checked_sub(u_new.slope)
+						.ok_or(ArithmeticError::Overflow)?;
 				} // It was a new deposit, not extension
 				SlopeChanges::<T>::insert(old_locked.end, old_dslope);
 			}
 
 			if new_locked.end > current_block_number {
 				if new_locked.end > old_locked.end {
-					new_dslope =
-						new_dslope.checked_sub(u_new.slope).ok_or(ArithmeticError::Overflow)?;
+					new_dslope = new_dslope
+						.checked_sub(u_new.slope)
+						.ok_or(ArithmeticError::Overflow)?;
 					SlopeChanges::<T>::insert(new_locked.end, new_dslope);
 				}
 				// else: we recorded it already in old_dslope
@@ -812,11 +831,16 @@ pub mod pallet {
 			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
 			let mut _locked = locked_balance;
 			let supply_before = Supply::<T>::get();
-			let supply_after = supply_before.checked_add(value).ok_or(ArithmeticError::Overflow)?;
+			let supply_after = supply_before
+				.checked_add(value)
+				.ok_or(ArithmeticError::Overflow)?;
 			Supply::<T>::set(supply_after);
 
 			let old_locked = _locked.clone();
-			_locked.amount = _locked.amount.checked_add(value).ok_or(ArithmeticError::Overflow)?;
+			_locked.amount = _locked
+				.amount
+				.checked_add(value)
+				.ok_or(ArithmeticError::Overflow)?;
 			if unlock_time != Zero::zero() {
 				_locked.end = unlock_time
 			}
@@ -827,7 +851,10 @@ pub mod pallet {
 				let new_locked_balance = UserLocked::<T>::get(who)
 					.checked_add(value)
 					.ok_or(ArithmeticError::Overflow)?;
-				ensure!(new_locked_balance <= free_balance, Error::<T>::NotEnoughBalance);
+				ensure!(
+					new_locked_balance <= free_balance,
+					Error::<T>::NotEnoughBalance
+				);
 				Self::set_ve_locked(who, new_locked_balance)?;
 			}
 
@@ -847,7 +874,10 @@ pub mod pallet {
 				end: _locked.end,
 				now: current_block_number,
 			});
-			Self::deposit_event(Event::Supply { supply_before, supply: supply_after });
+			Self::deposit_event(Event::Supply {
+				supply_before,
+				supply: supply_after,
+			});
 			Ok(())
 		}
 
@@ -913,7 +943,9 @@ pub mod pallet {
 				if UserPointHistory::<T>::get(position, _mid).block <= block {
 					_min = _mid
 				} else {
-					_max = _mid.checked_sub(U256::one()).ok_or(ArithmeticError::Overflow)?
+					_max = _mid
+						.checked_sub(U256::one())
+						.ok_or(ArithmeticError::Overflow)?
 				}
 			}
 
@@ -1006,7 +1038,9 @@ pub mod pallet {
 			ensure!(!value.is_zero(), Error::<T>::ArgumentsError);
 
 			TotalLock::<T>::try_mutate(currency_id, |total_lock| -> DispatchResult {
-				*total_lock = total_lock.checked_add(value).ok_or(ArithmeticError::Overflow)?;
+				*total_lock = total_lock
+					.checked_add(value)
+					.ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
 
@@ -1038,11 +1072,13 @@ pub mod pallet {
 
 			let currency_id_markup_coefficient: FixedU128 =
 				left.checked_add(&right).ok_or(ArithmeticError::Overflow)?;
-			let new_markup_coefficient =
-				match markup_coefficient.hardcap.cmp(&currency_id_markup_coefficient) {
-					Ordering::Less => markup_coefficient.hardcap,
-					Ordering::Equal | Ordering::Greater => currency_id_markup_coefficient,
-				};
+			let new_markup_coefficient = match markup_coefficient
+				.hardcap
+				.cmp(&currency_id_markup_coefficient)
+			{
+				Ordering::Less => markup_coefficient.hardcap,
+				Ordering::Equal | Ordering::Greater => currency_id_markup_coefficient,
+			};
 			Self::update_markup_info(
 				&who,
 				user_markup_info
@@ -1072,7 +1108,11 @@ pub mod pallet {
 			)?;
 
 			// Locked cannot be updated because it is markup, not a lock vBNC
-			Self::deposit_event(Event::MarkupDeposited { who: who.clone(), currency_id, value });
+			Self::deposit_event(Event::MarkupDeposited {
+				who: who.clone(),
+				currency_id,
+				value,
+			});
 			Ok(())
 		}
 
@@ -1094,8 +1134,9 @@ pub mod pallet {
 				&mut user_markup_info,
 			);
 			TotalLock::<T>::try_mutate(currency_id, |total_lock| -> DispatchResult {
-				*total_lock =
-					total_lock.checked_sub(locked_token.amount).ok_or(ArithmeticError::Overflow)?;
+				*total_lock = total_lock
+					.checked_sub(locked_token.amount)
+					.ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
 			T::MultiCurrency::remove_lock(MARKUP_LOCK_ID, currency_id, &who)?;
@@ -1116,7 +1157,10 @@ pub mod pallet {
 				},
 			)?;
 
-			Self::deposit_event(Event::MarkupWithdrawn { who: who.clone(), currency_id });
+			Self::deposit_event(Event::MarkupWithdrawn {
+				who: who.clone(),
+				currency_id,
+			});
 			Ok(())
 		}
 
@@ -1160,11 +1204,13 @@ pub mod pallet {
 					let mut user_markup_info =
 						UserMarkupInfos::<T>::get(&who).ok_or(Error::<T>::LockNotExist)?;
 
-					let new_markup_coefficient =
-						match markup_coefficient.hardcap.cmp(&currency_id_markup_coefficient) {
-							Ordering::Less => markup_coefficient.hardcap,
-							Ordering::Equal | Ordering::Greater => currency_id_markup_coefficient,
-						};
+					let new_markup_coefficient = match markup_coefficient
+						.hardcap
+						.cmp(&currency_id_markup_coefficient)
+					{
+						Ordering::Less => markup_coefficient.hardcap,
+						Ordering::Equal | Ordering::Greater => currency_id_markup_coefficient,
+					};
 					Self::update_markup_info(
 						&who,
 						user_markup_info
@@ -1224,7 +1270,9 @@ pub mod pallet {
 			Locked::<T>::insert(position, _locked.clone());
 
 			let supply_before = Supply::<T>::get();
-			let supply_after = supply_before.checked_sub(value).ok_or(ArithmeticError::Overflow)?;
+			let supply_after = supply_before
+				.checked_sub(value)
+				.ok_or(ArithmeticError::Overflow)?;
 			Supply::<T>::set(supply_after);
 
 			// BNC should be transferred before checkpoint
@@ -1232,8 +1280,9 @@ pub mod pallet {
 				positions.retain(|&x| x != position);
 			});
 			UserPointEpoch::<T>::remove(position);
-			let new_locked_balance =
-				UserLocked::<T>::get(who).checked_sub(value).ok_or(ArithmeticError::Underflow)?;
+			let new_locked_balance = UserLocked::<T>::get(who)
+				.checked_sub(value)
+				.ok_or(ArithmeticError::Underflow)?;
 			Self::set_ve_locked(who, new_locked_balance)?;
 			if let Some(fast) = if_fast {
 				if fast != FixedU128::zero() {
@@ -1241,15 +1290,23 @@ pub mod pallet {
 						T::TokenType::get(),
 						who,
 						&T::BuyBackAccount::get().into_account_truncating(),
-						fast.checked_mul_int(value).ok_or(ArithmeticError::Overflow)?,
+						fast.checked_mul_int(value)
+							.ok_or(ArithmeticError::Overflow)?,
 					)?;
 				}
 			}
 
 			Self::_checkpoint(who, position, old_locked, _locked.clone())?;
 
-			Self::deposit_event(Event::Withdrawn { who: who.clone(), position, value });
-			Self::deposit_event(Event::Supply { supply_before, supply: supply_after });
+			Self::deposit_event(Event::Withdrawn {
+				who: who.clone(),
+				position,
+				value,
+			});
+			Self::deposit_event(Event::Supply {
+				supply_before,
+				supply: supply_after,
+			});
 			Ok(())
 		}
 
@@ -1285,7 +1342,7 @@ pub mod pallet {
 				0 => {
 					// Can not set lock to zero, should remove it.
 					T::MultiCurrency::remove_lock(BB_LOCK_ID, T::TokenType::get(), who)?;
-				},
+				}
 				_ => {
 					T::MultiCurrency::set_lock(
 						BB_LOCK_ID,
@@ -1293,7 +1350,7 @@ pub mod pallet {
 						who,
 						new_locked_balance,
 					)?;
-				},
+				}
 			};
 			UserLocked::<T>::set(who, new_locked_balance);
 			Ok(())

@@ -124,7 +124,12 @@ impl PrecompileHandle for MockHandle {
 
 		match &mut self.subcall_handle {
 			Some(handle) => {
-				let SubcallOutput { reason, output, cost, logs } = handle(Subcall {
+				let SubcallOutput {
+					reason,
+					output,
+					cost,
+					logs,
+				} = handle(Subcall {
 					address,
 					transfer,
 					input,
@@ -138,11 +143,12 @@ impl PrecompileHandle for MockHandle {
 				}
 
 				for log in logs {
-					self.log(log.address, log.topics, log.data).expect("cannot fail");
+					self.log(log.address, log.topics, log.data)
+						.expect("cannot fail");
 				}
 
 				(reason, output)
-			},
+			}
 			None => panic!("no subcall handle registered"),
 		}
 	}
@@ -162,7 +168,11 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
-		self.logs.push(PrettyLog(Log { address, topics, data }));
+		self.logs.push(PrettyLog(Log {
+			address,
+			topics,
+			data,
+		}));
 		Ok(())
 	}
 

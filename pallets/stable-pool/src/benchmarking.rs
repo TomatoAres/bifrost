@@ -467,7 +467,13 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(RawOrigin::Root, 0, Some(1000u128.into()), Some(1000u128.into()), Some(1000u128.into()));
+		_(
+			RawOrigin::Root,
+			0,
+			Some(1000u128.into()),
+			Some(1000u128.into()),
+			Some(1000u128.into()),
+		);
 
 		Ok(())
 	}
@@ -493,7 +499,12 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(RawOrigin::Root, 0, Some(test_account.clone()), Some(test_account));
+		_(
+			RawOrigin::Root,
+			0,
+			Some(test_account.clone()),
+			Some(test_account),
+		);
 
 		Ok(())
 	}
@@ -506,5 +517,9 @@ mod benchmarks {
 	//
 	// The line generates three steps per benchmark, with repeat=1 and the three steps are
 	//   [low, mid, high] of the range.
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Test);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Test
+	);
 }

@@ -169,7 +169,10 @@ impl<'inner> Reader<'inner> {
 			return Err(RevertReason::PointerToOutofBound.into());
 		}
 
-		Ok(Self { input: &self.input[offset..], cursor: 0 })
+		Ok(Self {
+			input: &self.input[offset..],
+			cursor: 0,
+		})
 	}
 
 	/// Read remaining bytes
@@ -189,7 +192,10 @@ impl<'inner> Reader<'inner> {
 	/// Checks cursor overflows.
 	fn move_cursor(&mut self, len: usize) -> MayRevert<Range<usize>> {
 		let start = self.cursor;
-		let end = self.cursor.checked_add(len).ok_or_else(|| RevertReason::CursorOverflow)?;
+		let end = self
+			.cursor
+			.checked_add(len)
+			.ok_or_else(|| RevertReason::CursorOverflow)?;
 
 		self.cursor = end;
 
@@ -224,14 +230,22 @@ struct OffsetChunk {
 impl Writer {
 	/// Creates a new empty output builder (without selector).
 	pub fn new() -> Self {
-		Self { data: vec![], offset_data: vec![], selector: None }
+		Self {
+			data: vec![],
+			offset_data: vec![],
+			selector: None,
+		}
 	}
 
 	/// Creates a new empty output builder with provided selector.
 	/// Selector will only be appended before the data when calling
 	/// `build` to not mess with the offsets.
 	pub fn new_with_selector(selector: impl Into<u32>) -> Self {
-		Self { data: vec![], offset_data: vec![], selector: Some(selector.into()) }
+		Self {
+			data: vec![],
+			offset_data: vec![],
+			selector: Some(selector.into()),
+		}
 	}
 
 	// Return the built data.
@@ -293,7 +307,11 @@ impl Writer {
 		let offset_position = self.data.len();
 		H256::write(self, H256::repeat_byte(0xff));
 
-		self.offset_data.push(OffsetChunk { offset_position, data, offset_shift: 0 });
+		self.offset_data.push(OffsetChunk {
+			offset_position,
+			data,
+			offset_shift: 0,
+		});
 	}
 }
 
@@ -308,7 +326,10 @@ pub struct Convert<P, C> {
 
 impl<P, C> From<C> for Convert<P, C> {
 	fn from(value: C) -> Self {
-		Self { inner: value, _phantom: PhantomData }
+		Self {
+			inner: value,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -328,7 +349,10 @@ where
 			.try_into()
 			.map_err(|_| RevertReason::value_is_too_large(C::signature()))?;
 
-		Ok(Self { inner: c, _phantom: PhantomData })
+		Ok(Self {
+			inner: c,
+			_phantom: PhantomData,
+		})
 	}
 
 	fn write(writer: &mut Writer, value: Self) {

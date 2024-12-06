@@ -22,11 +22,10 @@ use crate::{
 	collator_polkadot::FullClient,
 	eth::{spawn_frontier_tasks, EthConfiguration},
 };
-use bifrost_polkadot_runtime::{constants::time::SLOT_DURATION, TransactionConverter};
+use bifrost_polkadot_runtime::TransactionConverter;
 use cumulus_client_parachain_inherent::{MockValidationDataInherentDataProvider, MockXcmConfig};
 use cumulus_primitives_core::{relay_chain::Hash, ParaId};
 use fc_storage::StorageOverrideHandler;
-use jsonrpsee::core::async_trait;
 use sc_client_api::Backend;
 use sc_network::NetworkBackend;
 use sc_service::{Configuration, TaskManager};
@@ -39,32 +38,6 @@ pub type FullBackend = sc_service::TFullBackend<Block>;
 pub type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
 thread_local!(static TIMESTAMP: RefCell<u64> = const { RefCell::new(0) });
-
-/// Provide a mock duration starting at 0 in millisecond for timestamp inherent.
-/// Each call will increment timestamp by slot_duration making Aura think time has passed.
-struct MockTimestampInherentDataProvider;
-
-#[async_trait]
-impl sp_inherents::InherentDataProvider for MockTimestampInherentDataProvider {
-	async fn provide_inherent_data(
-		&self,
-		inherent_data: &mut sp_inherents::InherentData,
-	) -> Result<(), sp_inherents::Error> {
-		TIMESTAMP.with(|x| {
-			*x.borrow_mut() += SLOT_DURATION;
-			inherent_data.put_data(sp_timestamp::INHERENT_IDENTIFIER, &*x.borrow())
-		})
-	}
-
-	async fn try_handle_error(
-		&self,
-		_identifier: &sp_inherents::InherentIdentifier,
-		_error: &[u8],
-	) -> Option<Result<(), sp_inherents::Error>> {
-		// The pallet never reports error.
-		None
-	}
-}
 
 /// Builds a new development service. This service uses manual seal, and mocks
 /// the parachain inherent.
@@ -95,7 +68,10 @@ where
 	let net_config =
 		sc_network::config::FullNetworkConfiguration::<_, _, Net>::new(&parachain_config.network);
 	let metrics = Net::register_notification_metrics(
-		parachain_config.prometheus_config.as_ref().map(|cfg| &cfg.registry),
+		parachain_config
+			.prometheus_config
+			.as_ref()
+			.map(|cfg| &cfg.registry),
 	);
 
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
@@ -180,8 +156,9 @@ where
 					let current_para_block = maybe_current_para_block?
 						.ok_or(sp_blockchain::Error::UnknownBlock(block.to_string()))?;
 
-					let current_para_block_head =
-						Some(polkadot_primitives::HeadData(maybe_current_para_head?.encode()));
+					let current_para_block_head = Some(polkadot_primitives::HeadData(
+						maybe_current_para_head?.encode(),
+					));
 
 					let mocked_parachain = MockValidationDataInherentDataProvider {
 						current_para_block,

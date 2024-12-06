@@ -25,7 +25,14 @@ use syn::{parse_macro_input, Expr, ExprLit, Ident, ItemEnum, Lit, LitByteStr, Li
 pub fn generate_function_selector(_: TokenStream, input: TokenStream) -> TokenStream {
 	let item = parse_macro_input!(input as ItemEnum);
 
-	let ItemEnum { attrs, vis, enum_token, ident, variants, .. } = item;
+	let ItemEnum {
+		attrs,
+		vis,
+		enum_token,
+		ident,
+		variants,
+		..
+	} = item;
 
 	let mut ident_expressions: Vec<Ident> = vec![];
 	let mut variant_expressions: Vec<Expr> = vec![];
@@ -64,7 +71,10 @@ pub fn keccak256(input: TokenStream) -> TokenStream {
 
 	let result = module_evm_utility::sha3_256(&lit_str.value());
 
-	let eval = Lit::ByteStr(LitByteStr::new(result.as_ref(), proc_macro2::Span::call_site()));
+	let eval = Lit::ByteStr(LitByteStr::new(
+		result.as_ref(),
+		proc_macro2::Span::call_site(),
+	));
 
 	quote!(#eval).into()
 }

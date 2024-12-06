@@ -85,7 +85,9 @@ fn valid_permit_returns() {
 				.prepare_test(
 					CryptoAlith,
 					CallPermit,
-					PCall::nonces { owner: Address(CryptoAlith.into()) },
+					PCall::nonces {
+						owner: Address(CryptoAlith.into()),
+					},
 				)
 				.expect_cost(0) // TODO: Test db read/write costs
 				.expect_no_logs()
@@ -110,8 +112,14 @@ fn valid_permit_returns() {
 					},
 				)
 				.with_subcall_handle(move |subcall| {
-					let Subcall { address, transfer, input, target_gas, is_static, context } =
-						subcall;
+					let Subcall {
+						address,
+						transfer,
+						input,
+						target_gas,
+						is_static,
+						context,
+					} = subcall;
 
 					// Called on the behalf of the permit maker.
 					assert_eq!(context.caller, CryptoAlith.into());
@@ -176,7 +184,9 @@ fn valid_permit_reverts() {
 				.prepare_test(
 					CryptoAlith,
 					CallPermit,
-					PCall::nonces { owner: Address(CryptoAlith.into()) },
+					PCall::nonces {
+						owner: Address(CryptoAlith.into()),
+					},
 				)
 				.expect_cost(0) // TODO: Test db read/write costs
 				.expect_no_logs()
@@ -201,8 +211,14 @@ fn valid_permit_reverts() {
 					},
 				)
 				.with_subcall_handle(move |subcall| {
-					let Subcall { address, transfer, input, target_gas, is_static, context } =
-						subcall;
+					let Subcall {
+						address,
+						transfer,
+						input,
+						target_gas,
+						is_static,
+						context,
+					} = subcall;
 
 					// Called on the behalf of the permit maker.
 					assert_eq!(context.caller, CryptoAlith.into());
@@ -266,7 +282,9 @@ fn invalid_permit_nonce() {
 				.prepare_test(
 					CryptoAlith,
 					CallPermit,
-					PCall::nonces { owner: Address(CryptoAlith.into()) },
+					PCall::nonces {
+						owner: Address(CryptoAlith.into()),
+					},
 				)
 				.expect_cost(0) // TODO: Test db read/write costs
 				.expect_no_logs()
@@ -330,7 +348,9 @@ fn invalid_permit_gas_limit_too_low() {
 				.prepare_test(
 					CryptoAlith,
 					CallPermit,
-					PCall::nonces { owner: Address(CryptoAlith.into()) },
+					PCall::nonces {
+						owner: Address(CryptoAlith.into()),
+					},
 				)
 				.expect_cost(0) // TODO: Test db read/write costs
 				.expect_no_logs()
@@ -396,7 +416,9 @@ fn invalid_permit_gas_limit_overflow() {
 				.prepare_test(
 					CryptoAlith,
 					CallPermit,
-					PCall::nonces { owner: Address(CryptoAlith.into()) },
+					PCall::nonces {
+						owner: Address(CryptoAlith.into()),
+					},
 				)
 				.expect_cost(0) // TODO: Test db read/write costs
 				.expect_no_logs()
@@ -582,7 +604,9 @@ fn valid_permit_returns_with_metamask_signed_data() {
 				.prepare_test(
 					CryptoAlith,
 					CallPermit,
-					PCall::nonces { owner: Address(CryptoAlith.into()) },
+					PCall::nonces {
+						owner: Address(CryptoAlith.into()),
+					},
 				)
 				.expect_cost(0) // TODO: Test db read/write costs
 				.expect_no_logs()
@@ -607,8 +631,14 @@ fn valid_permit_returns_with_metamask_signed_data() {
 					},
 				)
 				.with_subcall_handle(move |subcall| {
-					let Subcall { address, transfer, input, target_gas, is_static, context } =
-						subcall;
+					let Subcall {
+						address,
+						transfer,
+						input,
+						target_gas,
+						is_static,
+						context,
+					} = subcall;
 
 					// Called on the behalf of the permit maker.
 					assert_eq!(context.caller, CryptoAlith.into());

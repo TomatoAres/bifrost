@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::*;
 use frame_support::{pallet_prelude::*, storage_alias, traits::OnRuntimeUpgrade};
 use log;
@@ -60,13 +62,29 @@ pub mod v0 {
 			>,
 		),
 		/// Referendum finished with approval. Submission deposit is held.
-		Approved(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		Approved(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished with rejection. Submission deposit is held.
-		Rejected(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		Rejected(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished with cancellation. Submission deposit is held.
-		Cancelled(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		Cancelled(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished and was never decided. Submission deposit is held.
-		TimedOut(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		TimedOut(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished with a kill.
 		Killed(Moment),
 	}
@@ -137,40 +155,64 @@ pub mod v1 {
 					v0::ReferendumInfo::Ongoing(_) | v0::ReferendumInfo::Killed(_) => None,
 					v0::ReferendumInfo::Approved(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::Approved(e, s, d))
-					},
+					}
 					v0::ReferendumInfo::Rejected(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::Rejected(e, s, d))
-					},
+					}
 					v0::ReferendumInfo::Cancelled(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::Cancelled(e, s, d))
-					},
+					}
 					v0::ReferendumInfo::TimedOut(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::TimedOut(e, s, d))
-					},
+					}
 				};
 				if let Some(new_value) = maybe_new_value {
 					weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
@@ -190,7 +232,10 @@ pub mod v1 {
 			let pre_referendum_count: u32 = Decode::decode(&mut &state[..])
 				.expect("failed to decode the state from pre-upgrade.");
 			let post_referendum_count = ReferendumInfoFor::<T, I>::iter().count() as u32;
-			ensure!(post_referendum_count == pre_referendum_count, "must migrate all referendums.");
+			ensure!(
+				post_referendum_count == pre_referendum_count,
+				"must migrate all referendums."
+			);
 
 			let result: Vec<ForeignReferendumInfo<T::AccountId, BalanceOf<T, I>>> =
 				serde_json::from_str(R::get()).expect("Failed to deserialize JSON");
@@ -200,15 +245,15 @@ pub mod v1 {
 
 				match referendum_info {
 					ReferendumInfo::Ongoing(_) | ReferendumInfo::Killed(_) => (),
-					ReferendumInfo::Approved(_e, s, d) |
-					ReferendumInfo::Rejected(_e, s, d) |
-					ReferendumInfo::Cancelled(_e, s, d) |
-					ReferendumInfo::TimedOut(_e, s, d) => {
+					ReferendumInfo::Approved(_e, s, d)
+					| ReferendumInfo::Rejected(_e, s, d)
+					| ReferendumInfo::Cancelled(_e, s, d)
+					| ReferendumInfo::TimedOut(_e, s, d) => {
 						match (s, item.deposit1) {
 							(Some(s), Some(a)) => {
 								ensure!(s.amount == a.amount, "amount not equal");
 								ensure!(s.who == a.who, "who not equal");
-							},
+							}
 							(None, None) => (),
 							_ => return Err(TryRuntimeError::Other("Referenda Data mismatch")),
 						}
@@ -216,12 +261,12 @@ pub mod v1 {
 							(Some(d), Some(a)) => {
 								ensure!(d.amount == a.amount, "amount not equal");
 								ensure!(d.who == a.who, "who not equal");
-							},
+							}
 							(None, None) => (),
 							_ => return Err(TryRuntimeError::Other("Referenda Data mismatch")),
 						}
 						()
-					},
+					}
 				};
 			}
 

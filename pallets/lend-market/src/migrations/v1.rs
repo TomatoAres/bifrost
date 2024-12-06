@@ -18,11 +18,9 @@
 
 use crate::*;
 use frame_support::{
-	ensure,
 	pallet_prelude::StorageVersion,
-	traits::{GetStorageVersion, Len, OnRuntimeUpgrade},
+	traits::{GetStorageVersion, OnRuntimeUpgrade},
 };
-use parity_scale_codec::{Decode, Encode};
 #[cfg(feature = "try-runtime")]
 use sp_runtime::TryRuntimeError;
 
@@ -95,7 +93,11 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 		// print out the pre-migrate storage count
 		log::info!(target: LOG_TARGET, "LiquidationFreeCollaterals pre-migrate storage count: {:?}", liquidation_free_collaterals_count);
 		log::info!(target: LOG_TARGET, "MarketBond pre-migrate storage count: {:?}", market_bond_count);
-		Ok((liquidation_free_collaterals_count as u64, market_bond_count as u64).encode())
+		Ok((
+			liquidation_free_collaterals_count as u64,
+			market_bond_count as u64,
+		)
+			.encode())
 	}
 
 	#[cfg(feature = "try-runtime")]

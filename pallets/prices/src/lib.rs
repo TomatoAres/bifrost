@@ -187,7 +187,8 @@ impl<T: Config> Pallet<T> {
 				asset_id,
 				mantissa
 			);
-			p.checked_div(&FixedU128::from_inner(mantissa)).map(|price| (price, 0))
+			p.checked_div(&FixedU128::from_inner(mantissa))
+				.map(|price| (price, 0))
 		})
 	}
 
@@ -263,8 +264,9 @@ impl<T: Config> OraclePriceProvider for Pallet<T> {
 		let total_value = price_in
 			.mul(FixedU128::from_inner(amount_in))
 			.div(FixedU128::from_inner(currency_in_mantissa));
-		let amount_out =
-			total_value.mul(FixedU128::from_inner(currency_out_mantissa)).div(price_out);
+		let amount_out = total_value
+			.mul(FixedU128::from_inner(currency_out_mantissa))
+			.div(price_out);
 		Some(amount_out.into_inner())
 	}
 

@@ -62,7 +62,10 @@ pub struct LendMarket<C, B> {
 impl<C, B> LendMarket<C, B> {
 	/// Create new `LendMarket` with the given reference to the client.
 	pub fn new(client: Arc<C>) -> Self {
-		Self { client, _marker: Default::default() }
+		Self {
+			client,
+			_marker: Default::default(),
+		}
 	}
 }
 
@@ -159,7 +162,11 @@ where
 
 /// Converts a runtime trap into an RPC error.
 fn runtime_error_into_rpc_error(err: impl std::fmt::Debug) -> ErrorObject<'static> {
-	ErrorObject::owned(Error::RuntimeError.into(), "Runtime trapped", Some(format!("{:?}", err)))
+	ErrorObject::owned(
+		Error::RuntimeError.into(),
+		"Runtime trapped",
+		Some(format!("{:?}", err)),
+	)
 }
 
 /// Converts an account liquidity error into an RPC error.

@@ -76,7 +76,7 @@ macro_rules! assert_event_emitted {
 					e,
 					crate::mock::events()
 				);
-			},
+			}
 		}
 	};
 }
@@ -93,7 +93,7 @@ macro_rules! assert_event_not_emitted {
 					e,
 					crate::mock::events()
 				);
-			},
+			}
 		}
 	};
 }

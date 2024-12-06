@@ -169,7 +169,10 @@ pub mod pallet {
 			let exchanger = ensure_signed(origin)?;
 			let user_vsbond_balance =
 				T::MultiCurrency::free_balance(vs_bond_currency_id, &exchanger);
-			ensure!(user_vsbond_balance >= vsbond_amount, Error::<T>::NotEnoughBalance);
+			ensure!(
+				user_vsbond_balance >= vsbond_amount,
+				Error::<T>::NotEnoughBalance
+			);
 			ensure!(
 				minimum_vstoken >= T::MultiCurrency::minimum_balance(T::RelayCurrencyId::get()),
 				Error::<T>::NotEnoughBalance
@@ -178,9 +181,9 @@ pub mod pallet {
 			// Calculate lease
 			let relay_lease = RelaychainLease::<T>::get();
 			let mut remaining_due_lease: i32 = match vs_bond_currency_id {
-				CurrencyId::VSBond(TokenSymbol::KSM, .., expire_lease) |
-				CurrencyId::VSBond(TokenSymbol::BNC, .., expire_lease) |
-				CurrencyId::VSBond2(.., expire_lease) => {
+				CurrencyId::VSBond(TokenSymbol::KSM, .., expire_lease)
+				| CurrencyId::VSBond(TokenSymbol::BNC, .., expire_lease)
+				| CurrencyId::VSBond2(.., expire_lease) => {
 					let mut remaining_due_lease: i32 = (expire_lease as i64 - relay_lease as i64)
 						.try_into()
 						.map_err(|_| Error::<T>::CalculationOverflow)?;
@@ -188,7 +191,7 @@ pub mod pallet {
 						.checked_add(1i32)
 						.ok_or(Error::<T>::CalculationOverflow)?;
 					remaining_due_lease
-				},
+				}
 				_ => return Err(Error::<T>::NotSupportTokenType.into()),
 			};
 			ensure!(remaining_due_lease <= 9i32, Error::<T>::NotSupportTokenType);
@@ -203,7 +206,10 @@ pub mod pallet {
 				.checked_sub(&exchange_fee.vsbond_exchange_fee_of_vstoken)
 				.ok_or(Error::<T>::CalculationOverflow)?;
 			let vstoken_balance = exchange_rate.vsbond_convert_to_vstoken * vsbond_balance;
-			ensure!(vstoken_balance >= minimum_vstoken, Error::<T>::NotEnoughBalance);
+			ensure!(
+				vstoken_balance >= minimum_vstoken,
+				Error::<T>::NotEnoughBalance
+			);
 
 			T::MultiCurrency::transfer(
 				vs_bond_currency_id,
@@ -247,7 +253,10 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::NotSupportTokenType)?;
 			let user_vstoken_balance =
 				T::MultiCurrency::free_balance(vs_token_currency_id, &exchanger);
-			ensure!(user_vstoken_balance >= vstoken_amount, Error::<T>::NotEnoughBalance);
+			ensure!(
+				user_vstoken_balance >= vstoken_amount,
+				Error::<T>::NotEnoughBalance
+			);
 			ensure!(
 				minimum_vsbond >= T::MultiCurrency::minimum_balance(currency_id),
 				Error::<T>::NotEnoughBalance
@@ -256,9 +265,9 @@ pub mod pallet {
 			// Calculate lease
 			let relay_lease = RelaychainLease::<T>::get();
 			let mut remaining_due_lease: i32 = match currency_id {
-				CurrencyId::VSBond(TokenSymbol::KSM, .., expire_lease) |
-				CurrencyId::VSBond(TokenSymbol::BNC, .., expire_lease) |
-				CurrencyId::VSBond2(.., expire_lease) => {
+				CurrencyId::VSBond(TokenSymbol::KSM, .., expire_lease)
+				| CurrencyId::VSBond(TokenSymbol::BNC, .., expire_lease)
+				| CurrencyId::VSBond2(.., expire_lease) => {
 					let mut remaining_due_lease: i32 = (expire_lease as i64 - relay_lease as i64)
 						.try_into()
 						.map_err(|_| Error::<T>::CalculationOverflow)?;
@@ -266,7 +275,7 @@ pub mod pallet {
 						.checked_add(1i32)
 						.ok_or(Error::<T>::CalculationOverflow)?;
 					remaining_due_lease
-				},
+				}
 				_ => return Err(Error::<T>::NotSupportTokenType.into()),
 			};
 			ensure!(remaining_due_lease <= 9i32, Error::<T>::NotSupportTokenType);
@@ -288,7 +297,10 @@ pub mod pallet {
 			let vsbond_balance = exchange_rate
 				.vstoken_convert_to_vsbond
 				.saturating_reciprocal_mul(vstoken_balance);
-			ensure!(vsbond_balance >= minimum_vsbond, Error::<T>::NotEnoughBalance);
+			ensure!(
+				vsbond_balance >= minimum_vsbond,
+				Error::<T>::NotEnoughBalance
+			);
 
 			T::MultiCurrency::transfer(
 				currency_id,
@@ -341,7 +353,10 @@ pub mod pallet {
 				*old_exchange_rate = exchange_rate.clone();
 			});
 
-			Self::deposit_event(Event::ExchangeRateSet { lease, exchange_rate });
+			Self::deposit_event(Event::ExchangeRateSet {
+				lease,
+				exchange_rate,
+			});
 			Ok(())
 		}
 

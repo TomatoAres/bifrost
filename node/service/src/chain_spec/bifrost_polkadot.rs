@@ -71,7 +71,11 @@ pub fn inflation_config() -> InflationInfo<Balance> {
 	};
 	InflationInfo {
 		// staking expectations
-		expect: Range { min: 100_000 * DOLLARS, ideal: 200_000 * DOLLARS, max: 500_000 * DOLLARS },
+		expect: Range {
+			min: 100_000 * DOLLARS,
+			ideal: 200_000 * DOLLARS,
+			max: 500_000 * DOLLARS,
+		},
 		// annual inflation
 		annual,
 		round: to_round_inflation(annual),
@@ -196,7 +200,11 @@ pub fn local_testnet_config() -> ChainSpec {
 		whitelisted_caller(), // Benchmarking whitelist_account
 		account("bechmarking_account_1", 0, 0),
 	];
-	let balances = endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT())).collect();
+	let balances = endowed_accounts
+		.iter()
+		.cloned()
+		.map(|x| (x, ENDOWMENT()))
+		.collect();
 	let tokens = endowed_accounts
 		.iter()
 		.flat_map(|x| {
@@ -215,24 +223,60 @@ pub fn local_testnet_config() -> ChainSpec {
 		(
 			BNC,
 			10_000_000_000,
-			Some((String::from("Bifrost Native Coin"), String::from("BNC"), 12u8)),
+			Some((
+				String::from("Bifrost Native Coin"),
+				String::from("BNC"),
+				12u8,
+			)),
 		),
-		(DOT, 1_000_000, Some((String::from("Polkadot DOT"), String::from("DOT"), 10u8))),
+		(
+			DOT,
+			1_000_000,
+			Some((String::from("Polkadot DOT"), String::from("DOT"), 10u8)),
+		),
 		(
 			GLMR,
 			1_000_000_000_000,
-			Some((String::from("Moonbeam Native Token"), String::from("GLMR"), 18u8)),
+			Some((
+				String::from("Moonbeam Native Token"),
+				String::from("GLMR"),
+				18u8,
+			)),
 		),
-		(DOT_U, 1_000, Some((String::from("Tether USD"), String::from("USDT"), 6u8))),
-		(ASTR, 10_000_000_000_000_000, Some((String::from("Astar"), String::from("ASTR"), 18u8))),
+		(
+			DOT_U,
+			1_000,
+			Some((String::from("Tether USD"), String::from("USDT"), 6u8)),
+		),
+		(
+			ASTR,
+			10_000_000_000_000_000,
+			Some((String::from("Astar"), String::from("ASTR"), 18u8)),
+		),
 		(
 			FIL,
 			1_000_000_000_000,
-			Some((String::from("Filecoin Network Token"), String::from("FIL"), 18u8)),
+			Some((
+				String::from("Filecoin Network Token"),
+				String::from("FIL"),
+				18u8,
+			)),
 		),
-		(USDC, 1_000, Some((String::from("USD Coin"), String::from("USDC"), 6u8))),
-		(IBTC, 100, Some((String::from("interBTC"), String::from("IBTC"), 8u8))),
-		(INTR, 10_000_000, Some((String::from("Interlay"), String::from("INTR"), 10u8))),
+		(
+			USDC,
+			1_000,
+			Some((String::from("USD Coin"), String::from("USDC"), 6u8)),
+		),
+		(
+			IBTC,
+			100,
+			Some((String::from("interBTC"), String::from("IBTC"), 8u8)),
+		),
+		(
+			INTR,
+			10_000_000,
+			Some((String::from("Interlay"), String::from("INTR"), 10u8)),
+		),
 		(
 			MANTA,
 			10_000_000_000_000,
@@ -241,14 +285,38 @@ pub fn local_testnet_config() -> ChainSpec {
 		(
 			BNCS,
 			10_000_000_000,
-			Some((String::from("bncs-20 inscription token BNCS"), String::from("BNCS"), 12u8)),
+			Some((
+				String::from("bncs-20 inscription token BNCS"),
+				String::from("BNCS"),
+				12u8,
+			)),
 		),
-		(PINK, 100_000_000, Some((String::from("PINK"), String::from("PINK"), 10u8))),
-		(DED, 1, Some((String::from("DED"), String::from("DED"), 10u8))),
-		(PEN, 100_000_000, Some((String::from("Pendulum"), String::from("PEN"), 12u8))),
-		(WETH, 100_000_000, Some((String::from("SnowBridge WETH"), String::from("SWETH"), 18u8))),
+		(
+			PINK,
+			100_000_000,
+			Some((String::from("PINK"), String::from("PINK"), 10u8)),
+		),
+		(
+			DED,
+			1,
+			Some((String::from("DED"), String::from("DED"), 10u8)),
+		),
+		(
+			PEN,
+			100_000_000,
+			Some((String::from("Pendulum"), String::from("PEN"), 12u8)),
+		),
+		(
+			WETH,
+			100_000_000,
+			Some((String::from("SnowBridge WETH"), String::from("SWETH"), 18u8)),
+		),
 	];
-	let vcurrency = vec![VSToken2(DOT_TOKEN_ID), VToken(TokenSymbol::BNC), VToken2(DOT_TOKEN_ID)];
+	let vcurrency = vec![
+		VSToken2(DOT_TOKEN_ID),
+		VToken(TokenSymbol::BNC),
+		VToken2(DOT_TOKEN_ID),
+	];
 
 	let mut evm_accounts = BTreeMap::new();
 	evm_accounts.insert(
@@ -315,7 +383,11 @@ pub fn dev_config() -> ChainSpec {
 		whitelisted_caller(), // Benchmarking whitelist_account
 		account("bechmarking_account_1", 0, 0),
 	];
-	let balances = endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT())).collect();
+	let balances = endowed_accounts
+		.iter()
+		.cloned()
+		.map(|x| (x, ENDOWMENT()))
+		.collect();
 	let tokens = endowed_accounts
 		.iter()
 		.flat_map(|x| {
@@ -334,24 +406,60 @@ pub fn dev_config() -> ChainSpec {
 		(
 			BNC,
 			10_000_000_000,
-			Some((String::from("Bifrost Native Coin"), String::from("BNC"), 12u8)),
+			Some((
+				String::from("Bifrost Native Coin"),
+				String::from("BNC"),
+				12u8,
+			)),
 		),
-		(DOT, 1_000_000, Some((String::from("Polkadot DOT"), String::from("DOT"), 10u8))),
+		(
+			DOT,
+			1_000_000,
+			Some((String::from("Polkadot DOT"), String::from("DOT"), 10u8)),
+		),
 		(
 			GLMR,
 			1_000_000_000_000,
-			Some((String::from("Moonbeam Native Token"), String::from("GLMR"), 18u8)),
+			Some((
+				String::from("Moonbeam Native Token"),
+				String::from("GLMR"),
+				18u8,
+			)),
 		),
-		(DOT_U, 1_000, Some((String::from("Tether USD"), String::from("USDT"), 6u8))),
-		(ASTR, 10_000_000_000_000_000, Some((String::from("Astar"), String::from("ASTR"), 18u8))),
+		(
+			DOT_U,
+			1_000,
+			Some((String::from("Tether USD"), String::from("USDT"), 6u8)),
+		),
+		(
+			ASTR,
+			10_000_000_000_000_000,
+			Some((String::from("Astar"), String::from("ASTR"), 18u8)),
+		),
 		(
 			FIL,
 			1_000_000_000_000,
-			Some((String::from("Filecoin Network Token"), String::from("FIL"), 18u8)),
+			Some((
+				String::from("Filecoin Network Token"),
+				String::from("FIL"),
+				18u8,
+			)),
 		),
-		(USDC, 1_000, Some((String::from("USD Coin"), String::from("USDC"), 6u8))),
-		(IBTC, 100, Some((String::from("interBTC"), String::from("IBTC"), 8u8))),
-		(INTR, 10_000_000, Some((String::from("Interlay"), String::from("INTR"), 10u8))),
+		(
+			USDC,
+			1_000,
+			Some((String::from("USD Coin"), String::from("USDC"), 6u8)),
+		),
+		(
+			IBTC,
+			100,
+			Some((String::from("interBTC"), String::from("IBTC"), 8u8)),
+		),
+		(
+			INTR,
+			10_000_000,
+			Some((String::from("Interlay"), String::from("INTR"), 10u8)),
+		),
 		(
 			MANTA,
 			10_000_000_000_000,
@@ -360,14 +468,38 @@ pub fn dev_config() -> ChainSpec {
 		(
 			BNCS,
 			10_000_000_000,
-			Some((String::from("bncs-20 inscription token BNCS"), String::from("BNCS"), 12u8)),
+			Some((
+				String::from("bncs-20 inscription token BNCS"),
+				String::from("BNCS"),
+				12u8,
+			)),
 		),
-		(PINK, 100_000_000, Some((String::from("PINK"), String::from("PINK"), 10u8))),
-		(DED, 1, Some((String::from("DED"), String::from("DED"), 10u8))),
-		(PEN, 100_000_000, Some((String::from("Pendulum"), String::from("PEN"), 12u8))),
-		(WETH, 100_000_000, Some((String::from("SnowBridge WETH"), String::from("SWETH"), 18u8))),
+		(
+			PINK,
+			100_000_000,
+			Some((String::from("PINK"), String::from("PINK"), 10u8)),
+		),
+		(
+			DED,
+			1,
+			Some((String::from("DED"), String::from("DED"), 10u8)),
+		),
+		(
+			PEN,
+			100_000_000,
+			Some((String::from("Pendulum"), String::from("PEN"), 12u8)),
+		),
+		(
+			WETH,
+			100_000_000,
+			Some((String::from("SnowBridge WETH"), String::from("SWETH"), 18u8)),
+		),
 	];
-	let vcurrency = vec![VSToken2(DOT_TOKEN_ID), VToken(TokenSymbol::BNC), VToken2(DOT_TOKEN_ID)];
+	let vcurrency = vec![
+		VSToken2(DOT_TOKEN_ID),
+		VToken(TokenSymbol::BNC),
+		VToken2(DOT_TOKEN_ID),
+	];
 
 	let mut evm_accounts = BTreeMap::new();
 	evm_accounts.insert(
@@ -467,7 +599,11 @@ pub fn paseo_config() -> ChainSpec {
 		// c9eHvgbxTFzijvY3AnAKiRTHhi2hzS5SLCPzCkb4jP79MLu
 		hex!["12d3ab675d6503279133898efe246a63fdc8be685cc3f7bce079aac064108a7a"].into(),
 	];
-	let balances = endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT())).collect();
+	let balances = endowed_accounts
+		.iter()
+		.cloned()
+		.map(|x| (x, ENDOWMENT()))
+		.collect();
 
 	let salp_multisig: AccountId =
 		hex!["e4da05f08e89bf6c43260d96f26fffcfc7deae5b465da08669a9d008e64c2c63"].into();

@@ -30,7 +30,10 @@ fn eth_address_should_convert_to_truncated_address_when_not_bound() {
 			"d2efb4a4ab6b9c7dff8d8e1aa76dc53a0aab3a0d93747eb25db1bb7b08a76a09"
 		]);
 
-		assert_eq!(EVMAccounts::convert_account_id(evm_address), truncated_address.clone());
+		assert_eq!(
+			EVMAccounts::convert_account_id(evm_address),
+			truncated_address.clone()
+		);
 
 		// Act & Assert
 		assert_eq!(EVMAccounts::bound_account_id(evm_address), None);
@@ -55,12 +58,15 @@ fn eth_address_should_convert_to_full_address_when_bound() {
 
 #[test]
 fn bind_address_should_fail_when_nonce_is_not_zero() {
-	ExtBuilder::default().with_non_zero_nonce(ALICE).build().execute_with(|| {
-		assert_noop!(
-			EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE)),
-			Error::<Test>::TruncatedAccountAlreadyUsed
-		);
-	});
+	ExtBuilder::default()
+		.with_non_zero_nonce(ALICE)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE)),
+				Error::<Test>::TruncatedAccountAlreadyUsed
+			);
+		});
 }
 
 #[test]
@@ -82,13 +88,19 @@ fn add_contract_deployer_should_store_address_in_the_storage() {
 		assert!(!EVMAccounts::can_deploy_contracts(evm_address));
 
 		// Act
-		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert_ok!(EVMAccounts::add_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
 
 		// Assert
 		assert!(EVMAccounts::can_deploy_contracts(evm_address));
 
 		// adding the address again should be ok
-		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert_ok!(EVMAccounts::add_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
 	});
 }
 
@@ -97,17 +109,26 @@ fn remove_contract_deployer_should_remove_address_from_the_storage() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let evm_address = EVMAccounts::evm_address(&ALICE);
-		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert_ok!(EVMAccounts::add_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
 		assert!(EVMAccounts::can_deploy_contracts(evm_address));
 
 		// Act
-		assert_ok!(EVMAccounts::remove_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert_ok!(EVMAccounts::remove_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
 
 		// Assert
 		assert!(!EVMAccounts::can_deploy_contracts(evm_address));
 
 		// removing the address again should be ok
-		assert_ok!(EVMAccounts::remove_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert_ok!(EVMAccounts::remove_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
 	});
 }
 
@@ -116,16 +137,23 @@ fn renounce_contract_deployer_should_remove_address_from_the_storage() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let evm_address = EVMAccounts::evm_address(&ALICE);
-		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert_ok!(EVMAccounts::add_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
 		assert!(EVMAccounts::can_deploy_contracts(evm_address));
 
 		// Act
-		assert_ok!(EVMAccounts::renounce_contract_deployer(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(EVMAccounts::renounce_contract_deployer(
+			RuntimeOrigin::signed(ALICE)
+		));
 
 		// Assert
 		assert!(!EVMAccounts::can_deploy_contracts(evm_address));
 
 		// ronouncing the address again should be ok
-		assert_ok!(EVMAccounts::renounce_contract_deployer(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(EVMAccounts::renounce_contract_deployer(
+			RuntimeOrigin::signed(ALICE)
+		));
 	});
 }

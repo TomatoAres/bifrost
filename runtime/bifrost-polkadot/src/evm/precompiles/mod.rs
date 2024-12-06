@@ -139,7 +139,9 @@ where
 		} else if address == CALLPERMIT {
 			Some(pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::execute(handle))
 		} else if address == DISPATCH_ADDR {
-			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
+			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(
+				handle,
+			))
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
 		} else {
@@ -148,10 +150,13 @@ where
 	}
 
 	fn is_precompile(&self, address: H160, _remaining_gas: u64) -> IsPrecompileResult {
-		let is_precompile = address == DISPATCH_ADDR ||
-			is_asset_address(address) ||
-			is_standard_precompile(address);
-		IsPrecompileResult::Answer { is_precompile, extra_cost: 0 }
+		let is_precompile = address == DISPATCH_ADDR
+			|| is_asset_address(address)
+			|| is_standard_precompile(address);
+		IsPrecompileResult::Answer {
+			is_precompile,
+			extra_cost: 0,
+		}
 	}
 }
 
@@ -161,7 +166,9 @@ where
 // function.
 pub const fn addr(a: u64) -> H160 {
 	let b = a.to_be_bytes();
-	H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
+	H160([
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+	])
 }
 
 pub fn revert(output: impl AsRef<[u8]>) -> PrecompileFailure {
@@ -172,7 +179,10 @@ pub fn revert(output: impl AsRef<[u8]>) -> PrecompileFailure {
 }
 
 pub fn succeed(output: impl AsRef<[u8]>) -> PrecompileOutput {
-	PrecompileOutput { exit_status: ExitSucceed::Returned, output: output.as_ref().to_owned() }
+	PrecompileOutput {
+		exit_status: ExitSucceed::Returned,
+		output: output.as_ref().to_owned(),
+	}
 }
 
 pub struct Output;

@@ -467,20 +467,26 @@ pub mod pallet {
 			market: Market<BalanceOf<T>>,
 		) -> DispatchResultWithPostInfo {
 			T::UpdateOrigin::ensure_origin(origin)?;
-			ensure!(!Markets::<T>::contains_key(asset_id), Error::<T>::MarketAlreadyExists);
+			ensure!(
+				!Markets::<T>::contains_key(asset_id),
+				Error::<T>::MarketAlreadyExists
+			);
 			ensure!(
 				market.state == MarketState::Pending,
 				Error::<T>::NewMarketMustHavePendingState
 			);
-			ensure!(market.rate_model.check_model(), Error::<T>::InvalidRateModelParam);
 			ensure!(
-				market.collateral_factor >= Ratio::zero() &&
-					market.collateral_factor < Ratio::one(),
+				market.rate_model.check_model(),
+				Error::<T>::InvalidRateModelParam
+			);
+			ensure!(
+				market.collateral_factor >= Ratio::zero()
+					&& market.collateral_factor < Ratio::one(),
 				Error::<T>::InvalidFactor,
 			);
 			ensure!(
-				market.liquidation_threshold < Ratio::one() &&
-					market.liquidation_threshold >= market.collateral_factor,
+				market.liquidation_threshold < Ratio::one()
+					&& market.liquidation_threshold >= market.collateral_factor,
 				Error::<T>::InvalidFactor
 			);
 			ensure!(
@@ -488,11 +494,14 @@ pub mod pallet {
 				Error::<T>::InvalidFactor,
 			);
 			ensure!(
-				market.liquidate_incentive_reserved_factor > Ratio::zero() &&
-					market.liquidate_incentive_reserved_factor < Ratio::one(),
+				market.liquidate_incentive_reserved_factor > Ratio::zero()
+					&& market.liquidate_incentive_reserved_factor < Ratio::one(),
 				Error::<T>::InvalidFactor,
 			);
-			ensure!(market.supply_cap > Zero::zero(), Error::<T>::InvalidSupplyCap,);
+			ensure!(
+				market.supply_cap > Zero::zero(),
+				Error::<T>::InvalidSupplyCap,
+			);
 
 			// Ensures a given `lend_token_id` not exists on the `Market` and `UnderlyingAssetId`.
 			Self::ensure_lend_token(market.lend_token_id)?;
@@ -643,7 +652,10 @@ pub mod pallet {
 			market: Market<BalanceOf<T>>,
 		) -> DispatchResultWithPostInfo {
 			T::UpdateOrigin::ensure_origin(origin)?;
-			ensure!(market.rate_model.check_model(), Error::<T>::InvalidRateModelParam);
+			ensure!(
+				market.rate_model.check_model(),
+				Error::<T>::InvalidRateModelParam
+			);
 			if UnderlyingAssetId::<T>::contains_key(market.lend_token_id) {
 				ensure!(
 					Self::underlying_id(market.lend_token_id)? == asset_id,
@@ -676,7 +688,13 @@ pub mod pallet {
 			let reward_asset = T::RewardAssetId::get();
 			let pool_account = Self::reward_account_id()?;
 
-			T::Assets::transfer(reward_asset, &who, &pool_account, amount, Preservation::Preserve)?;
+			T::Assets::transfer(
+				reward_asset,
+				&who,
+				&pool_account,
+				amount,
+				Preservation::Preserve,
+			)?;
 
 			Self::deposit_event(Event::<T>::RewardAdded(who, amount));
 
@@ -923,7 +941,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			Self::ensure_active_market(asset_id)?;
-			ensure!(AccountDeposits::<T>::contains_key(asset_id, &who), Error::<T>::NoDeposit);
+			ensure!(
+				AccountDeposits::<T>::contains_key(asset_id, &who),
+				Error::<T>::NoDeposit
+			);
 			let deposits = AccountDeposits::<T>::get(asset_id, &who);
 			if deposits.is_collateral == enable {
 				return Err(Error::<T>::DuplicateOperation.into());
@@ -995,8 +1016,9 @@ pub mod pallet {
 				Preservation::Expendable,
 			)?;
 			let total_reserves = TotalReserves::<T>::get(asset_id);
-			let total_reserves_new =
-				total_reserves.checked_add(add_amount).ok_or(ArithmeticError::Overflow)?;
+			let total_reserves_new = total_reserves
+				.checked_add(add_amount)
+				.ok_or(ArithmeticError::Overflow)?;
 			TotalReserves::<T>::insert(asset_id, total_reserves_new);
 
 			Self::deposit_event(Event::<T>::ReservesAdded(
@@ -1033,8 +1055,9 @@ pub mod pallet {
 			if reduce_amount > total_reserves {
 				return Err(Error::<T>::InsufficientReserves.into());
 			}
-			let total_reserves_new =
-				total_reserves.checked_sub(reduce_amount).ok_or(ArithmeticError::Underflow)?;
+			let total_reserves_new = total_reserves
+				.checked_sub(reduce_amount)
+				.ok_or(ArithmeticError::Underflow)?;
 			TotalReserves::<T>::insert(asset_id, total_reserves_new);
 			T::Assets::transfer(
 				asset_id,
@@ -1130,7 +1153,10 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::ConversionError)?,
 			);
 
-			Self::deposit_event(Event::<T>::MarketBonded { asset_id, market_bond });
+			Self::deposit_event(Event::<T>::MarketBonded {
+				asset_id,
+				market_bond,
+			});
 			Ok(().into())
 		}
 	}
@@ -1190,7 +1216,10 @@ impl<T: Config> Pallet<T> {
 			lf_borrowed_value.into_inner(),
 			lf_base_position.into_inner(),
 		);
-		match (total_collateral_value > total_borrow_value, lf_base_position > lf_borrowed_value) {
+		match (
+			total_collateral_value > total_borrow_value,
+			lf_base_position > lf_borrowed_value,
+		) {
 			(true, true) => Ok((
 				total_collateral_value - total_borrow_value,
 				FixedU128::zero(),
@@ -1237,7 +1266,10 @@ impl<T: Config> Pallet<T> {
 			lf_base_position.into_inner(),
 		);
 
-		match (total_collateral_value > total_borrow_value, lf_base_position > lf_borrowed_value) {
+		match (
+			total_collateral_value > total_borrow_value,
+			lf_base_position > lf_borrowed_value,
+		) {
 			(true, true) => Ok((
 				total_collateral_value - total_borrow_value,
 				FixedU128::zero(),
@@ -1352,7 +1384,9 @@ impl<T: Config> Pallet<T> {
 		let mut total_asset_value: FixedU128 = FixedU128::zero();
 		for (asset_id, _market) in Self::active_markets() {
 			total_asset_value = total_asset_value
-				.checked_add(&Self::liquidation_threshold_asset_value(borrower, asset_id)?)
+				.checked_add(&Self::liquidation_threshold_asset_value(
+					borrower, asset_id,
+				)?)
 				.ok_or(ArithmeticError::Overflow)?;
 		}
 
@@ -1432,8 +1466,9 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 		TotalSupply::<T>::try_mutate(asset_id, |total_balance| -> DispatchResult {
-			let new_balance =
-				total_balance.checked_sub(voucher_amount).ok_or(ArithmeticError::Underflow)?;
+			let new_balance = total_balance
+				.checked_sub(voucher_amount)
+				.ok_or(ArithmeticError::Underflow)?;
 			*total_balance = new_balance;
 			Ok(())
 		})?;
@@ -1501,8 +1536,9 @@ impl<T: Config> Pallet<T> {
 			repay_amount,
 			Preservation::Expendable,
 		)?;
-		let account_borrows_new =
-			account_borrows.checked_sub(repay_amount).ok_or(ArithmeticError::Underflow)?;
+		let account_borrows_new = account_borrows
+			.checked_sub(repay_amount)
+			.ok_or(ArithmeticError::Underflow)?;
 		let total_borrows = TotalBorrows::<T>::get(asset_id);
 		// NOTE : total_borrows use a different way to calculate interest
 		// so when user repays all borrows, total_borrows can be less than account_borrows
@@ -1613,8 +1649,10 @@ impl<T: Config> Pallet<T> {
 			account_borrows_value
 		};
 
-		if market.close_factor.mul_ceil(effects_borrows_value.into_inner()) <
-			repay_value.into_inner()
+		if market
+			.close_factor
+			.mul_ceil(effects_borrows_value.into_inner())
+			< repay_value.into_inner()
 		{
 			return Err(Error::<T>::TooMuchRepay.into());
 		}
@@ -1736,11 +1774,13 @@ impl<T: Config> Pallet<T> {
 
 		// 2.the system reduce borrower's debt
 		let account_borrows = Self::current_borrow_balance(borrower, liquidation_asset_id)?;
-		let account_borrows_new =
-			account_borrows.checked_sub(repay_amount).ok_or(ArithmeticError::Underflow)?;
+		let account_borrows_new = account_borrows
+			.checked_sub(repay_amount)
+			.ok_or(ArithmeticError::Underflow)?;
 		let total_borrows = TotalBorrows::<T>::get(liquidation_asset_id);
-		let total_borrows_new =
-			total_borrows.checked_sub(repay_amount).ok_or(ArithmeticError::Underflow)?;
+		let total_borrows_new = total_borrows
+			.checked_sub(repay_amount)
+			.ok_or(ArithmeticError::Underflow)?;
 		AccountBorrows::<T>::insert(
 			liquidation_asset_id,
 			borrower,
@@ -1831,8 +1871,13 @@ impl<T: Config> Pallet<T> {
 		let market = Self::market(asset_id)?;
 		// Assets holded by market currently.
 		let current_cash = T::Assets::balance(asset_id, &Self::account_id());
-		let total_cash = current_cash.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
-		ensure!(total_cash <= market.supply_cap, Error::<T>::SupplyCapacityExceeded);
+		let total_cash = current_cash
+			.checked_add(amount)
+			.ok_or(ArithmeticError::Overflow)?;
+		ensure!(
+			total_cash <= market.supply_cap,
+			Error::<T>::SupplyCapacityExceeded
+		);
 
 		Ok(())
 	}
@@ -1841,9 +1886,13 @@ impl<T: Config> Pallet<T> {
 	fn ensure_under_borrow_cap(asset_id: AssetIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		let market = Self::market(asset_id)?;
 		let total_borrows = TotalBorrows::<T>::get(asset_id);
-		let new_total_borrows =
-			total_borrows.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
-		ensure!(new_total_borrows <= market.borrow_cap, Error::<T>::BorrowCapacityExceeded);
+		let new_total_borrows = total_borrows
+			.checked_add(amount)
+			.ok_or(ArithmeticError::Overflow)?;
+		ensure!(
+			new_total_borrows <= market.borrow_cap,
+			Error::<T>::BorrowCapacityExceeded
+		);
 
 		Ok(())
 	}
@@ -1869,7 +1918,10 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// The lend token id should not be the same as the id of any asset in markets
-		ensure!(!Markets::<T>::contains_key(lend_token_id), Error::<T>::InvalidLendTokenId);
+		ensure!(
+			!Markets::<T>::contains_key(lend_token_id),
+			Error::<T>::InvalidLendTokenId
+		);
 
 		Ok(())
 	}
@@ -1931,7 +1983,9 @@ impl<T: Config> Pallet<T> {
 		voucher_amount: BalanceOf<T>,
 		exchange_rate: Rate,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		Ok(exchange_rate.checked_mul_int(voucher_amount).ok_or(ArithmeticError::Overflow)?)
+		Ok(exchange_rate
+			.checked_mul_int(voucher_amount)
+			.ok_or(ArithmeticError::Overflow)?)
 	}
 
 	pub fn calc_collateral_amount(
@@ -2007,12 +2061,15 @@ impl<T: Config> Pallet<T> {
 	where
 		F: FnOnce(&mut Market<BalanceOf<T>>) -> Market<BalanceOf<T>>,
 	{
-		Markets::<T>::try_mutate(asset_id, |opt| -> Result<Market<BalanceOf<T>>, DispatchError> {
-			if let Some(market) = opt {
-				return Ok(cb(market));
-			}
-			Err(Error::<T>::MarketDoesNotExist.into())
-		})
+		Markets::<T>::try_mutate(
+			asset_id,
+			|opt| -> Result<Market<BalanceOf<T>>, DispatchError> {
+				if let Some(market) = opt {
+					return Ok(cb(market));
+				}
+				Err(Error::<T>::MarketDoesNotExist.into())
+			},
+		)
 	}
 
 	// All markets that are `MarketStatus::Active`.
@@ -2097,8 +2154,9 @@ impl<T: Config> LendMarketTrait<AssetIdOf<T>, AccountIdOf<T>, BalanceOf<T>> for 
 			Ok(())
 		})?;
 		TotalSupply::<T>::try_mutate(asset_id, |total_balance| -> DispatchResult {
-			let new_balance =
-				total_balance.checked_add(voucher_amount).ok_or(ArithmeticError::Overflow)?;
+			let new_balance = total_balance
+				.checked_add(voucher_amount)
+				.ok_or(ArithmeticError::Overflow)?;
 			*total_balance = new_balance;
 			Ok(())
 		})?;
@@ -2122,11 +2180,13 @@ impl<T: Config> LendMarketTrait<AssetIdOf<T>, AccountIdOf<T>, BalanceOf<T>> for 
 		Self::distribute_borrower_reward(asset_id, borrower)?;
 
 		let account_borrows = Self::current_borrow_balance(borrower, asset_id)?;
-		let account_borrows_new =
-			account_borrows.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+		let account_borrows_new = account_borrows
+			.checked_add(amount)
+			.ok_or(ArithmeticError::Overflow)?;
 		let total_borrows = TotalBorrows::<T>::get(asset_id);
-		let total_borrows_new =
-			total_borrows.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+		let total_borrows_new = total_borrows
+			.checked_add(amount)
+			.ok_or(ArithmeticError::Overflow)?;
 		AccountBorrows::<T>::insert(
 			asset_id,
 			borrower,
@@ -2153,7 +2213,10 @@ impl<T: Config> LendMarketTrait<AssetIdOf<T>, AccountIdOf<T>, BalanceOf<T>> for 
 		enable: bool,
 	) -> Result<(), DispatchError> {
 		Self::ensure_active_market(asset_id)?;
-		ensure!(AccountDeposits::<T>::contains_key(asset_id, supplier), Error::<T>::NoDeposit);
+		ensure!(
+			AccountDeposits::<T>::contains_key(asset_id, supplier),
+			Error::<T>::NoDeposit
+		);
 		let mut deposits = AccountDeposits::<T>::get(asset_id, supplier);
 		// turn on the collateral button
 		if enable {
@@ -2173,8 +2236,8 @@ impl<T: Config> LendMarketTrait<AssetIdOf<T>, AccountIdOf<T>, BalanceOf<T>> for 
 			collateral_asset_value.into_inner(),
 			total_borrowed_value.into_inner(),
 		);
-		if total_collateral_value <
-			total_borrowed_value
+		if total_collateral_value
+			< total_borrowed_value
 				.checked_add(&collateral_asset_value)
 				.ok_or(ArithmeticError::Overflow)?
 		{
@@ -2183,7 +2246,10 @@ impl<T: Config> LendMarketTrait<AssetIdOf<T>, AccountIdOf<T>, BalanceOf<T>> for 
 		deposits.is_collateral = false;
 		AccountDeposits::<T>::insert(asset_id, supplier, deposits);
 
-		Self::deposit_event(Event::<T>::CollateralAssetRemoved(supplier.clone(), asset_id));
+		Self::deposit_event(Event::<T>::CollateralAssetRemoved(
+			supplier.clone(),
+			asset_id,
+		));
 
 		Ok(())
 	}
@@ -2212,7 +2278,11 @@ impl<T: Config> LendMarketTrait<AssetIdOf<T>, AccountIdOf<T>, BalanceOf<T>> for 
 		Self::update_earned_stored(supplier, asset_id, exchange_rate)?;
 		let voucher_amount = Self::calc_collateral_amount(amount, exchange_rate)?;
 		let redeem_amount = Self::do_redeem_voucher(supplier, asset_id, voucher_amount)?;
-		Self::deposit_event(Event::<T>::Redeemed(supplier.clone(), asset_id, redeem_amount));
+		Self::deposit_event(Event::<T>::Redeemed(
+			supplier.clone(),
+			asset_id,
+			redeem_amount,
+		));
 		Ok(())
 	}
 }

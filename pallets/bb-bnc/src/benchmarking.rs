@@ -170,7 +170,11 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(test_account), 0, (7 * 86400 / 12u32 + 365 * 86400 / 12u32).into());
+		_(
+			RawOrigin::Signed(test_account),
+			0,
+			(7 * 86400 / 12u32 + 365 * 86400 / 12u32).into(),
+		);
 
 		Ok(())
 	}
@@ -281,7 +285,12 @@ mod benchmarks {
 		)?;
 
 		#[extrinsic_call]
-		_(RawOrigin::Root, account("seed", 1, 1), Some((7 * 86400 / 12u32).into()), rewards);
+		_(
+			RawOrigin::Root,
+			account("seed", 1, 1),
+			Some((7 * 86400 / 12u32).into()),
+			rewards,
+		);
 
 		Ok(())
 	}
@@ -419,7 +428,10 @@ mod benchmarks {
 		<frame_system::Pallet<T>>::set_block_number((2 * 365 * 86400 / 12u32).into());
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(test_account), CurrencyId::VToken(TokenSymbol::BNC));
+		_(
+			RawOrigin::Signed(test_account),
+			CurrencyId::VToken(TokenSymbol::BNC),
+		);
 
 		Ok(())
 	}
@@ -535,10 +547,17 @@ mod benchmarks {
 		<frame_system::Pallet<T>>::set_block_number((2 * 86400 / 12u32).into());
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(test_account), CurrencyId::VToken(TokenSymbol::BNC));
+		_(
+			RawOrigin::Signed(test_account),
+			CurrencyId::VToken(TokenSymbol::BNC),
+		);
 
 		Ok(())
 	}
 
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Runtime);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
 }

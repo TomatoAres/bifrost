@@ -31,7 +31,11 @@ pub struct XcmWeightTrader<
 	Price: OraclePriceProvider,
 	CM: CurrencyIdMapping<CurrencyId, AssetMetadata<Balance>>,
 	R: TakeRevenue,
->(Weight, Option<Asset>, PhantomData<(WeightToFee, Price, CM, R)>);
+>(
+	Weight,
+	Option<Asset>,
+	PhantomData<(WeightToFee, Price, CM, R)>,
+);
 
 impl<
 		WeightToFee: frame_support::weights::WeightToFee<Balance = Balance>,
@@ -82,8 +86,11 @@ impl<
 		log::trace!(target: "xcm-weight-trader", "buy_weight weight: {:?}, payment: {:?}", weight, payment);
 
 		// only support first fungible assets now.
-		let first_asset =
-			payment.clone().fungible_assets_iter().next().ok_or(XcmError::AssetNotFound)?;
+		let first_asset = payment
+			.clone()
+			.fungible_assets_iter()
+			.next()
+			.ok_or(XcmError::AssetNotFound)?;
 
 		match (first_asset.id, first_asset.fun) {
 			(AssetId(location), Fungible(_)) => {
@@ -97,15 +104,19 @@ impl<
 					return Ok(payment);
 				}
 
-				let required = Asset { fun: Fungible(amount), id: AssetId(location) };
-				let unused =
-					payment.checked_sub(required.clone()).map_err(|_| XcmError::TooExpensive)?;
+				let required = Asset {
+					fun: Fungible(amount),
+					id: AssetId(location),
+				};
+				let unused = payment
+					.checked_sub(required.clone())
+					.map_err(|_| XcmError::TooExpensive)?;
 
 				self.0 = weight;
 				self.1 = Some(required);
 
 				Ok(unused)
-			},
+			}
 			_ => Err(XcmError::AssetNotFound),
 		}
 	}
@@ -120,10 +131,16 @@ impl<
 			self.1
 		);
 
-		if let Some(Asset { fun: Fungible(initial_amount), id: AssetId(location) }) = self.1.take()
+		if let Some(Asset {
+			fun: Fungible(initial_amount),
+			id: AssetId(location),
+		}) = self.1.take()
 		{
 			if actual_weight == self.0 {
-				self.1 = Some(Asset { fun: Fungible(initial_amount), id: AssetId(location) });
+				self.1 = Some(Asset {
+					fun: Fungible(initial_amount),
+					id: AssetId(location),
+				});
 				None
 			} else {
 				let weight = actual_weight.min(self.0);
@@ -132,13 +149,19 @@ impl<
 				let final_amount = amount.min(initial_amount);
 				let amount_to_refund = initial_amount.saturating_sub(final_amount);
 				self.0 -= weight;
-				self.1 = Some(Asset { fun: Fungible(final_amount), id: AssetId(location.clone()) });
+				self.1 = Some(Asset {
+					fun: Fungible(final_amount),
+					id: AssetId(location.clone()),
+				});
 				log::trace!(
 					target: "xcm-weight-trader",
 					"refund_weight amount to refund: {:?}",
 					amount_to_refund
 				);
-				Some(Asset { fun: Fungible(amount_to_refund), id: AssetId(location) })
+				Some(Asset {
+					fun: Fungible(amount_to_refund),
+					id: AssetId(location),
+				})
 			}
 		} else {
 			None

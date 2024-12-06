@@ -126,7 +126,7 @@ where
 			Some(metadata) => {
 				let encoded = Output::encode_bytes(metadata.name.as_slice());
 				Ok(succeed(encoded))
-			},
+			}
 			None => Err(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
 			}),
@@ -144,7 +144,7 @@ where
 			Some(metadata) => {
 				let encoded = Output::encode_bytes(metadata.symbol.as_slice());
 				Ok(succeed(encoded))
-			},
+			}
 			None => Err(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
 			}),
@@ -162,7 +162,7 @@ where
 			Some(metadata) => {
 				let encoded = Output::encode_uint::<u8>(metadata.decimals);
 				Ok(succeed(encoded))
-			},
+			}
 			None => Err(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
 			}),

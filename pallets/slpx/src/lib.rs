@@ -426,7 +426,10 @@ pub mod pallet {
 				support_chain,
 				|whitelist| -> DispatchResultWithPostInfo {
 					let account = Self::xcm_derivative_account(support_chain, contract_address)?;
-					ensure!(!whitelist.contains(&account), Error::<T>::AccountAlreadyExists);
+					ensure!(
+						!whitelist.contains(&account),
+						Error::<T>::AccountAlreadyExists
+					);
 					whitelist
 						.try_push(account.clone())
 						.map_err(|_| Error::<T>::WhitelistOverflow)?;
@@ -484,7 +487,10 @@ pub mod pallet {
 			// Check the validity of origin
 			T::ControlOrigin::ensure_origin(origin)?;
 			ExecutionFee::<T>::insert(currency_id, execution_fee);
-			Self::deposit_event(Event::SetExecutionFee { currency_id, execution_fee });
+			Self::deposit_event(Event::SetExecutionFee {
+				currency_id,
+				execution_fee,
+			});
 			Ok(().into())
 		}
 
@@ -502,7 +508,10 @@ pub mod pallet {
 			// Check the validity of origin
 			T::ControlOrigin::ensure_origin(origin)?;
 			TransferToFee::<T>::insert(support_chain, transfer_to_fee);
-			Self::deposit_event(Event::SetTransferToFee { support_chain, transfer_to_fee });
+			Self::deposit_event(Event::SetTransferToFee {
+				support_chain,
+				transfer_to_fee,
+			});
 			Ok(().into())
 		}
 
@@ -520,19 +529,30 @@ pub mod pallet {
 			// Check the validity of origin
 			T::ControlOrigin::ensure_origin(origin)?;
 			// Check in advance to avoid hook errors
-			currency_id.to_vtoken().map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+			currency_id
+				.to_vtoken()
+				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 			let mut currency_list = CurrencyIdList::<T>::get();
 			if is_support {
-				ensure!(!currency_list.contains(&currency_id), Error::<T>::CurrencyAlreadyExists);
+				ensure!(
+					!currency_list.contains(&currency_id),
+					Error::<T>::CurrencyAlreadyExists
+				);
 				currency_list
 					.try_push(currency_id)
 					.map_err(|_| Error::<T>::CurrencyListOverflow)?;
 			} else {
-				ensure!(currency_list.contains(&currency_id), Error::<T>::CurrencyNotFound);
+				ensure!(
+					currency_list.contains(&currency_id),
+					Error::<T>::CurrencyNotFound
+				);
 				currency_list.retain(|&x| x != currency_id);
 			}
 			CurrencyIdList::<T>::put(currency_list);
-			Self::deposit_event(Event::SupportXcmOracle { currency_id, is_support });
+			Self::deposit_event(Event::SupportXcmOracle {
+				currency_id,
+				is_support,
+			});
 			Ok(().into())
 		}
 
@@ -584,16 +604,25 @@ pub mod pallet {
 
 			let mut currency_list = SupportXcmFeeList::<T>::get();
 			if is_support {
-				ensure!(!currency_list.contains(&currency_id), Error::<T>::CurrencyAlreadyExists);
+				ensure!(
+					!currency_list.contains(&currency_id),
+					Error::<T>::CurrencyAlreadyExists
+				);
 				currency_list
 					.try_push(currency_id)
 					.map_err(|_| Error::<T>::CurrencyListOverflow)?;
 			} else {
-				ensure!(currency_list.contains(&currency_id), Error::<T>::CurrencyNotFound);
+				ensure!(
+					currency_list.contains(&currency_id),
+					Error::<T>::CurrencyNotFound
+				);
 				currency_list.retain(|&x| x != currency_id);
 			}
 			SupportXcmFeeList::<T>::put(currency_list);
-			Self::deposit_event(Event::SetCurrencyToSupportXcmFee { currency_id, is_support });
+			Self::deposit_event(Event::SetCurrencyToSupportXcmFee {
+				currency_id,
+				is_support,
+			});
 			Ok(().into())
 		}
 
@@ -759,8 +788,8 @@ impl<T: Config> Pallet<T> {
 	fn match_source_chain_id(source_chain_id: u64) -> Option<SupportChain> {
 		if source_chain_id == AstarEvmChainId::get() {
 			Some(SupportChain::Astar)
-		} else if source_chain_id == MoonriverEvmChainId::get() ||
-			source_chain_id == MoonbeamEvmChainId::get()
+		} else if source_chain_id == MoonriverEvmChainId::get()
+			|| source_chain_id == MoonbeamEvmChainId::get()
 		{
 			Some(SupportChain::Moonbeam)
 		} else {
@@ -771,8 +800,9 @@ impl<T: Config> Pallet<T> {
 	/// According to currency_id, return the order type
 	fn order_type(currency_id: CurrencyId) -> Result<OrderType, Error<T>> {
 		match currency_id {
-			CurrencyId::Native(_) | CurrencyId::Token(_) | CurrencyId::Token2(_) =>
-				Ok(OrderType::Mint),
+			CurrencyId::Native(_) | CurrencyId::Token(_) | CurrencyId::Token2(_) => {
+				Ok(OrderType::Mint)
+			}
 			CurrencyId::VToken(_) | CurrencyId::VToken2(_) => Ok(OrderType::Redeem),
 			_ => Err(Error::<T>::Unsupported),
 		}
@@ -794,24 +824,32 @@ impl<T: Config> Pallet<T> {
 		let location = match support_chain {
 			SupportChain::Astar => {
 				let account_id = Self::h160_to_account_id(&contract_address);
-				let id: [u8; 32] =
-					account_id.encode().try_into().map_err(|_| Error::<T>::ErrorEncode)?;
+				let id: [u8; 32] = account_id
+					.encode()
+					.try_into()
+					.map_err(|_| Error::<T>::ErrorEncode)?;
 				Location::new(
 					1,
-					[Parachain(AstarChainId::get()), AccountId32 { network: None, id }],
+					[
+						Parachain(AstarChainId::get()),
+						AccountId32 { network: None, id },
+					],
 				)
-			},
+			}
 			SupportChain::Moonbeam => Location::new(
 				1,
 				[
 					Parachain(T::VtokenMintingInterface::get_moonbeam_parachain_id()),
-					AccountKey20 { network: None, key: contract_address.to_fixed_bytes() },
+					AccountKey20 {
+						network: None,
+						key: contract_address.to_fixed_bytes(),
+					},
 				],
 			),
 			_ => {
 				ensure!(false, Error::<T>::Unsupported);
 				Location::default()
-			},
+			}
 		};
 		let raw_account =
 			HashedDescription::<[u8; 32], DescribeFamily<DescribeAllTerminal>>::convert_location(
@@ -865,8 +903,12 @@ impl<T: Config> Pallet<T> {
 		xcm_weight: Weight,
 		xcm_fee: u128,
 	) -> DispatchResult {
-		let dest =
-			Location::new(1, [Parachain(T::VtokenMintingInterface::get_moonbeam_parachain_id())]);
+		let dest = Location::new(
+			1,
+			[Parachain(
+				T::VtokenMintingInterface::get_moonbeam_parachain_id(),
+			)],
+		);
 
 		// Moonbeam Native Token
 		let asset = Asset {
@@ -876,7 +918,10 @@ impl<T: Config> Pallet<T> {
 
 		let xcm_message = Xcm(vec![
 			WithdrawAsset(asset.clone().into()),
-			BuyExecution { fees: asset, weight_limit: Unlimited },
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
 			Transact {
 				origin_kind: OriginKind::SovereignAccount,
 				require_weight_at_most: xcm_weight,
@@ -966,7 +1011,7 @@ impl<T: Config> Pallet<T> {
 					Self::h160_to_account_id(&evm_caller),
 					bifrost_chain_caller,
 				))
-			},
+			}
 		}
 	}
 
@@ -1017,7 +1062,10 @@ impl<T: Config> Pallet<T> {
 				1,
 				[
 					Parachain(T::VtokenMintingInterface::get_moonbeam_parachain_id()),
-					AccountKey20 { network: None, key: receiver.to_fixed_bytes() },
+					AccountKey20 {
+						network: None,
+						key: receiver.to_fixed_bytes(),
+					},
 				],
 			),
 			TargetChain::Hydradx(receiver) => Location::new(
@@ -1026,7 +1074,10 @@ impl<T: Config> Pallet<T> {
 					Parachain(HydrationChainId::get()),
 					AccountId32 {
 						network: None,
-						id: receiver.encode().try_into().map_err(|_| Error::<T>::ErrorEncode)?,
+						id: receiver
+							.encode()
+							.try_into()
+							.map_err(|_| Error::<T>::ErrorEncode)?,
 					},
 				],
 			),
@@ -1036,7 +1087,10 @@ impl<T: Config> Pallet<T> {
 					Parachain(InterlayChainId::get()),
 					AccountId32 {
 						network: None,
-						id: receiver.encode().try_into().map_err(|_| Error::<T>::ErrorEncode)?,
+						id: receiver
+							.encode()
+							.try_into()
+							.map_err(|_| Error::<T>::ErrorEncode)?,
 					},
 				],
 			),
@@ -1046,7 +1100,10 @@ impl<T: Config> Pallet<T> {
 					Parachain(MantaChainId::get()),
 					AccountId32 {
 						network: None,
-						id: receiver.encode().try_into().map_err(|_| Error::<T>::ErrorEncode)?,
+						id: receiver
+							.encode()
+							.try_into()
+							.map_err(|_| Error::<T>::ErrorEncode)?,
 					},
 				],
 			),
@@ -1101,8 +1158,10 @@ impl<T: Config> Pallet<T> {
 		.map_err(|_| Error::<T>::ErrorChargeFee)?;
 		match order.order_type {
 			OrderType::Mint => {
-				let vtoken_id =
-					order.currency_id.to_vtoken().map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+				let vtoken_id = order
+					.currency_id
+					.to_vtoken()
+					.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 				let vtoken_amount =
 					T::VtokenMintingInterface::get_v_currency_amount_by_currency_amount(
@@ -1129,13 +1188,13 @@ impl<T: Config> Pallet<T> {
 					&order.target_chain,
 				)
 				.map_err(|_| Error::<T>::ErrorTransferTo)?;
-			},
+			}
 			OrderType::Redeem => {
 				let redeem_type = match order.target_chain.clone() {
 					TargetChain::Astar(receiver) => {
 						let receiver = Self::h160_to_account_id(&receiver);
 						RedeemType::Astar(receiver)
-					},
+					}
 					TargetChain::Moonbeam(receiver) => RedeemType::Moonbeam(receiver),
 					TargetChain::Hydradx(receiver) => RedeemType::Hydradx(receiver),
 					TargetChain::Interlay(receiver) => RedeemType::Interlay(receiver),
@@ -1148,7 +1207,7 @@ impl<T: Config> Pallet<T> {
 					redeem_type,
 				)
 				.map_err(|_| Error::<T>::ErrorVtokenMiting)?;
-			},
+			}
 		};
 		Ok(())
 	}
@@ -1182,11 +1241,13 @@ impl<T: Config> Pallet<T> {
 				}
 				match Self::handle_order(&order) {
 					Ok(_) => {
-						Self::deposit_event(Event::<T>::OrderHandled { order: order.clone() });
-					},
+						Self::deposit_event(Event::<T>::OrderHandled {
+							order: order.clone(),
+						});
+					}
 					Err(_) => {
 						Self::deposit_event(Event::<T>::OrderFailed { order });
-					},
+					}
 				};
 				*weight = weight.saturating_add(T::DbWeight::get().reads_writes(12, 8));
 			};
@@ -1211,8 +1272,9 @@ impl<T: Config> Pallet<T> {
 		if let Some(mut config) = configuration {
 			let currency_id = currency_list[0];
 			let staking_currency_amount = T::VtokenMintingInterface::get_token_pool(currency_id);
-			let v_currency_id =
-				currency_id.to_vtoken().map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+			let v_currency_id = currency_id
+				.to_vtoken()
+				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 			let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
 
 			if config.last_block + config.period < current_block_number {

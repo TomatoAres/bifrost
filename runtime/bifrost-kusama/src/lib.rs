@@ -174,7 +174,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
@@ -250,9 +253,9 @@ impl Contains<RuntimeCall> for CallFilter {
 			let is_disabled = match call {
 				// Disable specific `transfer`, `transfer_all`, and `transfer_keep_alive` calls for
 				// certain currencies
-				RuntimeCall::Tokens(orml_tokens::Call::transfer { currency_id, .. }) |
-				RuntimeCall::Tokens(orml_tokens::Call::transfer_all { currency_id, .. }) |
-				RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive {
+				RuntimeCall::Tokens(orml_tokens::Call::transfer { currency_id, .. })
+				| RuntimeCall::Tokens(orml_tokens::Call::transfer_all { currency_id, .. })
+				| RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive {
 					currency_id, ..
 				}) => [VBNC, BLP_BNC_VBNC, LP_BNC_VBNC].contains(currency_id),
 
@@ -260,17 +263,17 @@ impl Contains<RuntimeCall> for CallFilter {
 				RuntimeCall::StablePool(bifrost_stable_pool::Call::add_liquidity {
 					pool_id,
 					..
-				}) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::swap { pool_id, .. }) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_proportion {
+				})
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::swap { pool_id, .. })
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_proportion {
 					pool_id,
 					..
-				}) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_single {
+				})
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_single {
 					pool_id,
 					..
-				}) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_multi {
+				})
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_multi {
 					pool_id,
 					..
 				}) => *pool_id == 2,
@@ -284,13 +287,13 @@ impl Contains<RuntimeCall> for CallFilter {
 					asset_0,
 					asset_1,
 					..
-				}) |
-				RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::remove_liquidity {
+				})
+				| RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::remove_liquidity {
 					asset_0,
 					asset_1,
 					..
-				}) |
-				RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::bootstrap_claim {
+				})
+				| RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::bootstrap_claim {
 					asset_0,
 					asset_1,
 					..
@@ -299,8 +302,8 @@ impl Contains<RuntimeCall> for CallFilter {
 				// Disable ZenlinkProtocol swap calls if the path contains VBNC assets
 				RuntimeCall::ZenlinkProtocol(
 					zenlink_protocol::Call::swap_exact_assets_for_assets { path, .. },
-				) |
-				RuntimeCall::ZenlinkProtocol(
+				)
+				| RuntimeCall::ZenlinkProtocol(
 					zenlink_protocol::Call::swap_assets_for_exact_assets { path, .. },
 				) => path.contains(&KUSAMA_VBNC_ASSET_INDEX),
 
@@ -458,8 +461,11 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::ParachainStaking(..)
 			),
 			ProxyType::Staking => {
-				matches!(c, RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..))
-			},
+				matches!(
+					c,
+					RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..)
+				)
+			}
 			ProxyType::Governance => matches!(
 				c,
 				RuntimeCall::Democracy(..) |
@@ -475,12 +481,15 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 						RuntimeCall::Whitelist(..)
 			),
 			ProxyType::CancelProxy => {
-				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
-			},
+				matches!(
+					c,
+					RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })
+				)
+			}
 			ProxyType::IdentityJudgement => matches!(
 				c,
-				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. }) |
-					RuntimeCall::Utility(..)
+				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })
+					| RuntimeCall::Utility(..)
 			),
 		}
 	}
@@ -866,7 +875,10 @@ impl pallet_transaction_payment::Config for Runtime {
 pub struct TxPauseWhitelistedCalls;
 impl Contains<pallet_tx_pause::RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
 	fn contains(full_name: &pallet_tx_pause::RuntimeCallNameOf<Runtime>) -> bool {
-		matches!(full_name.0.as_slice(), b"System" | b"Timestamp" | b"TxPause")
+		matches!(
+			full_name.0.as_slice(),
+			b"System" | b"Timestamp" | b"TxPause"
+		)
 	}
 }
 
@@ -894,8 +906,10 @@ where
 		<UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
 	)> {
 		// take the biggest period possible.
-		let period =
-			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+		let period = BlockHashCount::get()
+			.checked_next_power_of_two()
+			.map(|c| c / 2)
+			.unwrap_or(2) as u64;
 		let current_block = System::block_number()
 			.saturated_into::<u64>()
 			// The `System::block_number` is initialized with `n+1`,
@@ -1198,7 +1212,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 			} else {
 				xcm::v3::Location::default()
 			}
-		},
+		}
 	}
 }
 

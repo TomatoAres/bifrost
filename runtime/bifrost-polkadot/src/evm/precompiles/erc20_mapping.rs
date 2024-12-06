@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#![allow(dead_code)]
 use crate::evm::precompiles::EvmAddress;
 use bifrost_primitives::CurrencyId;
 use parity_scale_codec::{Decode, Encode};
@@ -42,10 +43,12 @@ impl Erc20Mapping for BifrostErc20Mapping {
 
 		evm_address_bytes[0..4].copy_from_slice(CURRENCY_PRECOMPILE_ADDRESS_PREFIX);
 		match currency_id {
-			CurrencyId::VSBond(..) | CurrencyId::VSBond2(..) =>
-				evm_address_bytes[6..].copy_from_slice(asset_id_bytes.as_slice()),
-			CurrencyId::LPToken(..) =>
-				evm_address_bytes[15..].copy_from_slice(asset_id_bytes.as_slice()),
+			CurrencyId::VSBond(..) | CurrencyId::VSBond2(..) => {
+				evm_address_bytes[6..].copy_from_slice(asset_id_bytes.as_slice())
+			}
+			CurrencyId::LPToken(..) => {
+				evm_address_bytes[15..].copy_from_slice(asset_id_bytes.as_slice())
+			}
 			_ => evm_address_bytes[18..].copy_from_slice(asset_id_bytes.as_slice()),
 		};
 

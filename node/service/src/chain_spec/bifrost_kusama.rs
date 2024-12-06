@@ -72,7 +72,11 @@ pub fn inflation_config() -> InflationInfo<Balance> {
 	};
 	InflationInfo {
 		// staking expectations
-		expect: Range { min: 100_000 * DOLLARS, ideal: 200_000 * DOLLARS, max: 500_000 * DOLLARS },
+		expect: Range {
+			min: 100_000 * DOLLARS,
+			ideal: 200_000 * DOLLARS,
+			max: 500_000 * DOLLARS,
+		},
 		// annual inflation
 		annual,
 		round: to_round_inflation(annual),
@@ -197,7 +201,11 @@ pub fn local_testnet_config() -> ChainSpec {
 		// eCSrvbA5gGNQr7VZ48fkCX5vkt1H16F8Np9g2hYssRXHZJF
 		hex!["6d6f646c62662f7374616b650000000000000000000000000000000000000000"].into(),
 	];
-	let balances = endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT())).collect();
+	let balances = endowed_accounts
+		.iter()
+		.cloned()
+		.map(|x| (x, ENDOWMENT()))
+		.collect();
 	let vestings = endowed_accounts
 		.iter()
 		.cloned()
@@ -308,24 +316,31 @@ pub fn chainspec_config() -> ChainSpec {
 	let balances = balances_configs
 		.into_iter()
 		.flat_map(|bc| bc.balances)
-		.fold(BTreeMap::<AccountId, Balance>::new(), |mut acc, (account_id, amount)| {
-			if let Some(balance) = acc.get_mut(&account_id) {
-				*balance = balance
-					.checked_add(amount)
-					.expect("balance cannot overflow when building genesis");
-			} else {
-				acc.insert(account_id.clone(), amount);
-			}
+		.fold(
+			BTreeMap::<AccountId, Balance>::new(),
+			|mut acc, (account_id, amount)| {
+				if let Some(balance) = acc.get_mut(&account_id) {
+					*balance = balance
+						.checked_add(amount)
+						.expect("balance cannot overflow when building genesis");
+				} else {
+					acc.insert(account_id.clone(), amount);
+				}
 
-			total_issuance = total_issuance
-				.checked_add(amount)
-				.expect("total insurance cannot overflow when building genesis");
-			acc
-		})
+				total_issuance = total_issuance
+					.checked_add(amount)
+					.expect("total insurance cannot overflow when building genesis");
+				acc
+			},
+		)
 		.into_iter()
 		.collect();
 
-	assert_eq!(total_issuance, 32_000_000 * DOLLARS, "total issuance must be equal to 320 million");
+	assert_eq!(
+		total_issuance,
+		32_000_000 * DOLLARS,
+		"total issuance must be equal to 320 million"
+	);
 
 	let vesting_configs: Vec<VestingConfig> =
 		config_from_json_files(exe_dir.join("res/genesis_config/vesting")).unwrap();
@@ -348,7 +363,10 @@ pub fn chainspec_config() -> ChainSpec {
 		invulnerables,
 		vec![],
 		balances,
-		vesting_configs.into_iter().flat_map(|vc| vc.vesting).collect(),
+		vesting_configs
+			.into_iter()
+			.flat_map(|vc| vc.vesting)
+			.collect(),
 		BifrostKusamaChainId::get().into(),
 		vec![], // council membership
 		vec![], // technical committee membership

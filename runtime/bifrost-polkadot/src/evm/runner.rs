@@ -66,8 +66,12 @@ where
 	) -> Result<Self::Output, DispatchError> {
 		let from_currency = AC::get_fee_currency(account, fee)
 			.map_err(|_| DispatchError::Other("Get Currency Error."))?;
-		let account_balance =
-			I::reducible_balance(from_currency, account, Preservation::Preserve, Fortitude::Polite);
+		let account_balance = I::reducible_balance(
+			from_currency,
+			account,
+			Preservation::Preserve,
+			Fortitude::Polite,
+		);
 		let price_weight = T::DbWeight::get().reads(2); // 1 read to get currency and 1 read to get balance
 
 		if from_currency == to_currency {

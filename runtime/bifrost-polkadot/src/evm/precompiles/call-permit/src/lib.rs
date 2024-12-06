@@ -201,17 +201,28 @@ where
 			.map_err(|_| revert("Invalid permit"))?;
 		let signer = H160::from(H256::from_slice(keccak_256(&signer).as_slice()));
 
-		ensure!(signer != H160::zero() && signer == from, revert("Invalid permit"));
+		ensure!(
+			signer != H160::zero() && signer == from,
+			revert("Invalid permit")
+		);
 
 		NoncesStorage::insert(from, nonce + U256::one());
 
 		// DISPATCH CALL
-		let sub_context = Context { caller: from, address: to.clone(), apparent_value: value };
+		let sub_context = Context {
+			caller: from,
+			address: to.clone(),
+			apparent_value: value,
+		};
 
 		let transfer = if value.is_zero() {
 			None
 		} else {
-			Some(Transfer { source: from, target: to.clone(), value })
+			Some(Transfer {
+				source: from,
+				target: to.clone(),
+				value,
+			})
 		};
 
 		let (reason, output) =
@@ -219,8 +230,10 @@ where
 		match reason {
 			ExitReason::Error(exit_status) => Err(PrecompileFailure::Error { exit_status }),
 			ExitReason::Fatal(exit_status) => Err(PrecompileFailure::Fatal { exit_status }),
-			ExitReason::Revert(_) =>
-				Err(PrecompileFailure::Revert { exit_status: ExitRevert::Reverted, output }),
+			ExitReason::Revert(_) => Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output,
+			}),
 			ExitReason::Succeed(_) => Ok(output.into()),
 		}
 	}

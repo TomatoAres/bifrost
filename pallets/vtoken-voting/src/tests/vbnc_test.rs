@@ -27,16 +27,32 @@ use frame_support::{
 	},
 };
 
-const TOKENS: &[CurrencyId] = if cfg!(feature = "polkadot") { &[VBNC] } else { &[] };
+const TOKENS: &[CurrencyId] = if cfg!(feature = "polkadot") {
+	&[VBNC]
+} else {
+	&[]
+};
 
 fn aye(amount: Balance, conviction: u8) -> AccountVote<Balance> {
-	let vote = Vote { aye: true, conviction: conviction.try_into().unwrap() };
-	AccountVote::Standard { vote, balance: amount }
+	let vote = Vote {
+		aye: true,
+		conviction: conviction.try_into().unwrap(),
+	};
+	AccountVote::Standard {
+		vote,
+		balance: amount,
+	}
 }
 
 fn nay(amount: Balance, conviction: u8) -> AccountVote<Balance> {
-	let vote = Vote { aye: false, conviction: conviction.try_into().unwrap() };
-	AccountVote::Standard { vote, balance: amount }
+	let vote = Vote {
+		aye: false,
+		conviction: conviction.try_into().unwrap(),
+	};
+	AccountVote::Standard {
+		vote,
+		balance: amount,
+	}
 }
 
 fn tally(vtoken: CurrencyId, poll_index: u32) -> TallyOf<Runtime> {
@@ -70,7 +86,12 @@ fn basic_voting_works() {
 				delegator_vote: aye(200, 0),
 			}));
 
-			assert_ok!(VtokenVoting::try_remove_vote(&ALICE, vtoken, poll_index, UnvoteScope::Any));
+			assert_ok!(VtokenVoting::try_remove_vote(
+				&ALICE,
+				vtoken,
+				poll_index,
+				UnvoteScope::Any
+			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
 			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
@@ -94,7 +115,12 @@ fn voting_balance_gets_locked() {
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 2, 0));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 
-			assert_ok!(VtokenVoting::try_remove_vote(&ALICE, vtoken, poll_index, UnvoteScope::Any));
+			assert_ok!(VtokenVoting::try_remove_vote(
+				&ALICE,
+				vtoken,
+				poll_index,
+				UnvoteScope::Any
+			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
 			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
@@ -132,7 +158,11 @@ fn successful_but_zero_conviction_vote_balance_can_be_unlocked() {
 			));
 			assert_eq!(usable_balance(vtoken, &BOB), 0);
 
-			assert_ok!(VtokenVoting::set_vote_locking_period(RuntimeOrigin::root(), vtoken, 10));
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				10
+			));
 			assert_ok!(VtokenVoting::set_referendum_status(
 				RuntimeOrigin::root(),
 				vtoken,
@@ -140,11 +170,19 @@ fn successful_but_zero_conviction_vote_balance_can_be_unlocked() {
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
 
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(BOB), vtoken, poll_index));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(BOB),
+				vtoken,
+				poll_index
+			));
 			assert_eq!(usable_balance(vtoken, &BOB), 20);
 
 			System::set_block_number(13);
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, poll_index));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -182,7 +220,12 @@ fn unsuccessful_conviction_vote_balance_can_be_unlocked() {
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
 			System::set_block_number(13);
-			assert_ok!(VtokenVoting::try_remove_vote(&ALICE, vtoken, poll_index, UnvoteScope::Any));
+			assert_ok!(VtokenVoting::try_remove_vote(
+				&ALICE,
+				vtoken,
+				poll_index,
+				UnvoteScope::Any
+			));
 			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
@@ -222,7 +265,11 @@ fn ensure_balance_after_unlock() {
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
 			System::set_block_number(13);
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, poll_index));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 10);
 			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
@@ -270,7 +317,11 @@ fn ensure_comprehensive_balance_after_unlock() {
 				ReferendumInfoOf::<Runtime>::Completed(3),
 			));
 			System::set_block_number(13);
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, poll_index));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 2);
 			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 2);
@@ -316,7 +367,12 @@ fn successful_conviction_vote_balance_stays_locked_for_correct_time() {
 			));
 			System::set_block_number(163);
 			for i in 1..=5 {
-				assert_ok!(VtokenVoting::try_remove_vote(&i, vtoken, poll_index, UnvoteScope::Any));
+				assert_ok!(VtokenVoting::try_remove_vote(
+					&i,
+					vtoken,
+					poll_index,
+					UnvoteScope::Any
+				));
 			}
 			for i in 1..=5 {
 				assert_ok!(VtokenVoting::update_lock(&i, vtoken));
@@ -330,21 +386,36 @@ fn successful_conviction_vote_balance_stays_locked_for_correct_time() {
 fn lock_amalgamation_valid_with_multiple_removed_votes() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 0, aye(5, 1)));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				aye(5, 1)
+			));
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
 				BoundedVec::<(CurrencyId, u128), ConstU32<256>>::try_from(vec![(vtoken, 5),])
 					.unwrap()
 			);
 
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 1, aye(10, 1)));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				1,
+				aye(10, 1)
+			));
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
 				BoundedVec::<(CurrencyId, u128), ConstU32<256>>::try_from(vec![(vtoken, 10),])
 					.unwrap()
 			);
 
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 1, aye(5, 1)));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				1,
+				aye(5, 1)
+			));
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
 				BoundedVec::<(CurrencyId, u128), ConstU32<256>>::try_from(vec![(vtoken, 5),])
@@ -352,7 +423,12 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			);
 			assert_eq!(usable_balance(vtoken, &ALICE), 5);
 
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 2, aye(10, 2)));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				2,
+				aye(10, 2)
+			));
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
 				BoundedVec::<(CurrencyId, u128), ConstU32<256>>::try_from(vec![(vtoken, 10),])
@@ -401,7 +477,11 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 
 			System::set_block_number(11);
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 0));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0
+			));
 			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
@@ -411,7 +491,11 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			);
 
 			System::set_block_number(11);
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 1));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				1
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -420,7 +504,11 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			);
 
 			System::set_block_number(21);
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 2));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				2
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -434,9 +522,24 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 fn removed_votes_when_referendum_killed() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 0, aye(5, 1)));
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 1, aye(10, 1)));
-			assert_ok!(VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, 2, aye(5, 2)));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				aye(5, 1)
+			));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				1,
+				aye(10, 1)
+			));
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				2,
+				aye(5, 2)
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 
 			assert_ok!(VtokenVoting::set_referendum_status(
@@ -458,9 +561,21 @@ fn removed_votes_when_referendum_killed() {
 				ReferendumInfoOf::<Runtime>::Completed(1),
 			));
 
-			assert_ok!(VtokenVoting::kill_referendum(RuntimeOrigin::root(), vtoken, 0));
-			assert_ok!(VtokenVoting::kill_referendum(RuntimeOrigin::root(), vtoken, 1));
-			assert_ok!(VtokenVoting::kill_referendum(RuntimeOrigin::root(), vtoken, 2));
+			assert_ok!(VtokenVoting::kill_referendum(
+				RuntimeOrigin::root(),
+				vtoken,
+				0
+			));
+			assert_ok!(VtokenVoting::kill_referendum(
+				RuntimeOrigin::root(),
+				vtoken,
+				1
+			));
+			assert_ok!(VtokenVoting::kill_referendum(
+				RuntimeOrigin::root(),
+				vtoken,
+				2
+			));
 
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -468,7 +583,11 @@ fn removed_votes_when_referendum_killed() {
 					.unwrap()
 			);
 
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 0));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -476,7 +595,11 @@ fn removed_votes_when_referendum_killed() {
 					.unwrap()
 			);
 
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 1));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				1
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 5);
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -484,7 +607,11 @@ fn removed_votes_when_referendum_killed() {
 					.unwrap()
 			);
 
-			assert_ok!(VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 2));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				2
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -541,7 +668,11 @@ fn kill_referendum_works() {
 				poll_index,
 				ReferendumInfoOf::<Runtime>::Completed(1),
 			));
-			assert_ok!(VtokenVoting::kill_referendum(RuntimeOrigin::root(), vtoken, poll_index));
+			assert_ok!(VtokenVoting::kill_referendum(
+				RuntimeOrigin::root(),
+				vtoken,
+				poll_index
+			));
 			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::ReferendumKilled {
 				vtoken,
 				poll_index,
@@ -793,7 +924,10 @@ fn allocate_delegator_votes_works() {
 					VtokenVoting::allocate_delegator_votes(vtoken, poll_index, vote);
 				assert_eq!(
 					delegator_votes,
-					Ok(vec![(0, aye(4294967295, conviction)), (1, aye(705032705, conviction))])
+					Ok(vec![
+						(0, aye(4294967295, conviction)),
+						(1, aye(705032705, conviction))
+					])
 				);
 				assert_eq!(
 					delegator_votes

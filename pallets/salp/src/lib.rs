@@ -188,11 +188,23 @@ pub mod pallet {
 		/// Withdrew full balance of a contributor. [who, fund_index, amount]
 		Withdrew(ParaId, BalanceOf<T>),
 		/// refund to account. [who, fund_index,value]
-		Refunded(AccountIdOf<T>, ParaId, LeasePeriod, LeasePeriod, BalanceOf<T>),
+		Refunded(
+			AccountIdOf<T>,
+			ParaId,
+			LeasePeriod,
+			LeasePeriod,
+			BalanceOf<T>,
+		),
 		/// all refund
 		AllRefunded(ParaId),
 		/// redeem to account. [who, fund_index, first_slot, last_slot, value]
-		Redeemed(AccountIdOf<T>, ParaId, LeasePeriod, LeasePeriod, BalanceOf<T>),
+		Redeemed(
+			AccountIdOf<T>,
+			ParaId,
+			LeasePeriod,
+			LeasePeriod,
+			BalanceOf<T>,
+		),
 		/// Fund is edited. [fund_index]
 		Edited(ParaId),
 		/// Fund is dissolved. [fund_index]
@@ -366,9 +378,15 @@ pub mod pallet {
 			T::EnsureConfirmAsGovernance::ensure_origin(origin)?;
 
 			let fund = Funds::<T>::get(index).ok_or(Error::<T>::InvalidParaId)?;
-			ensure!(fund.status == FundStatus::Success, Error::<T>::InvalidFundStatus);
+			ensure!(
+				fund.status == FundStatus::Success,
+				Error::<T>::InvalidFundStatus
+			);
 
-			let fund_new = FundInfo { status: FundStatus::Retired, ..fund };
+			let fund_new = FundInfo {
+				status: FundStatus::Retired,
+				..fund
+			};
 			Funds::<T>::insert(index, Some(fund_new));
 			Self::deposit_event(Event::<T>::Retired(index));
 
@@ -382,12 +400,15 @@ pub mod pallet {
 
 			let fund = Funds::<T>::get(index).ok_or(Error::<T>::InvalidParaId)?;
 			ensure!(
-				fund.status == FundStatus::RefundWithdrew ||
-					fund.status == FundStatus::RedeemWithdrew,
+				fund.status == FundStatus::RefundWithdrew
+					|| fund.status == FundStatus::RedeemWithdrew,
 				Error::<T>::InvalidFundStatus
 			);
 
-			let fund_new = FundInfo { status: FundStatus::End, ..fund };
+			let fund_new = FundInfo {
+				status: FundStatus::End,
+				..fund
+			};
 			Funds::<T>::insert(index, Some(fund_new));
 			Self::deposit_event(Event::<T>::End(index));
 
@@ -449,10 +470,16 @@ pub mod pallet {
 			RedeemPool::<T>::set(total);
 
 			if fund.status == FundStatus::Retired {
-				let fund_new = FundInfo { status: FundStatus::RedeemWithdrew, ..fund };
+				let fund_new = FundInfo {
+					status: FundStatus::RedeemWithdrew,
+					..fund
+				};
 				Funds::<T>::insert(index, Some(fund_new));
 			} else if fund.status == FundStatus::Failed {
-				let fund_new = FundInfo { status: FundStatus::RefundWithdrew, ..fund };
+				let fund_new = FundInfo {
+					status: FundStatus::RefundWithdrew,
+					..fund
+				};
 				Funds::<T>::insert(index, Some(fund_new));
 			}
 
@@ -475,8 +502,8 @@ pub mod pallet {
 			let mut fund = Self::find_fund(index, first_slot, last_slot)
 				.map_err(|_| Error::<T>::InvalidFundNotExist)?;
 			ensure!(
-				fund.status == FundStatus::FailedToContinue ||
-					fund.status == FundStatus::RefundWithdrew,
+				fund.status == FundStatus::FailedToContinue
+					|| fund.status == FundStatus::RefundWithdrew,
 				Error::<T>::InvalidRefund
 			);
 			ensure!(
@@ -484,7 +511,10 @@ pub mod pallet {
 				Error::<T>::InvalidRefund
 			);
 			ensure!(fund.raised >= value, Error::<T>::NotEnoughBalanceInFund);
-			ensure!(RedeemPool::<T>::get() >= value, Error::<T>::NotEnoughBalanceInRefundPool);
+			ensure!(
+				RedeemPool::<T>::get() >= value,
+				Error::<T>::NotEnoughBalanceInRefundPool
+			);
 
 			let vs_token = T::CurrencyIdConversion::convert_to_vstoken(T::RelayChainToken::get())
 				.map_err(|_| Error::<T>::NotSupportTokenType)?;
@@ -543,8 +573,14 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 
 			let mut fund = Funds::<T>::get(index).ok_or(Error::<T>::InvalidParaId)?;
-			ensure!(fund.status == FundStatus::RedeemWithdrew, Error::<T>::InvalidFundStatus);
-			ensure!(fund.raised >= value, Error::<T>::NotEnoughBalanceInRedeemPool);
+			ensure!(
+				fund.status == FundStatus::RedeemWithdrew,
+				Error::<T>::InvalidFundStatus
+			);
+			ensure!(
+				fund.raised >= value,
+				Error::<T>::NotEnoughBalanceInRedeemPool
+			);
 
 			let vs_token = T::CurrencyIdConversion::convert_to_vstoken(T::RelayChainToken::get())
 				.map_err(|_| Error::<T>::NotSupportTokenType)?;
@@ -556,7 +592,10 @@ pub mod pallet {
 			)
 			.map_err(|_| Error::<T>::NotSupportTokenType)?;
 
-			ensure!(RedeemPool::<T>::get() >= value, Error::<T>::NotEnoughBalanceInRedeemPool);
+			ensure!(
+				RedeemPool::<T>::get() >= value,
+				Error::<T>::NotEnoughBalanceInRedeemPool
+			);
 			let cur_block = <frame_system::Pallet<T>>::block_number();
 			let expired = Self::is_expired(cur_block, fund.last_slot)?;
 			ensure!(!expired, Error::<T>::VSBondExpired);
@@ -603,7 +642,10 @@ pub mod pallet {
 			let fund = FailedFundsToRefund::<T>::get((index, first_slot, last_slot))
 				.ok_or(Error::<T>::InvalidRefund)?;
 
-			ensure!(fund.status == FundStatus::FailedToContinue, Error::<T>::InvalidFundStatus);
+			ensure!(
+				fund.status == FundStatus::FailedToContinue,
+				Error::<T>::InvalidFundStatus
+			);
 
 			FailedFundsToRefund::<T>::remove((index, first_slot, last_slot));
 
@@ -619,7 +661,10 @@ pub mod pallet {
 			T::EnsureConfirmAsGovernance::ensure_origin(origin)?;
 
 			let mut fund = Funds::<T>::get(index).ok_or(Error::<T>::InvalidParaId)?;
-			ensure!(fund.status == FundStatus::End, Error::<T>::InvalidFundStatus);
+			ensure!(
+				fund.status == FundStatus::End,
+				Error::<T>::InvalidFundStatus
+			);
 
 			let mut refund_count = 0u32;
 			// Try killing the crowdloan child trie and Assume everyone will be refunded.
@@ -686,9 +731,11 @@ pub mod pallet {
 						T::StablePool::get_pool_token_index(pool_id, relay_vstoken_id)
 							.ok_or(Error::<T>::ArgumentsError)?,
 						value.saturated_into(),
-						Percent::from_percent(50).saturating_reciprocal_mul(value).saturated_into(),
+						Percent::from_percent(50)
+							.saturating_reciprocal_mul(value)
+							.saturated_into(),
 					)?;
-				},
+				}
 				cid if cid == relay_vtoken_id => {
 					let token_value = T::VtokenMinting::get_currency_amount_by_v_currency_amount(
 						relay_currency_id,
@@ -707,11 +754,15 @@ pub mod pallet {
 							.saturating_reciprocal_mul(token_value)
 							.saturated_into(),
 					)?;
-				},
+				}
 				_ => return Err(Error::<T>::ArgumentsError.into()),
 			}
 
-			Self::deposit_event(Event::<T>::BuybackByStablePool { pool_id, currency_id_in, value });
+			Self::deposit_event(Event::<T>::BuybackByStablePool {
+				pool_id,
+				currency_id_in,
+				value,
+			});
 			Ok(())
 		}
 	}

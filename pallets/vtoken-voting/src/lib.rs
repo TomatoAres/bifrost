@@ -184,7 +184,11 @@ pub mod pallet {
 		/// - `who`: The account whose tokens are unlocked.
 		/// - `vtoken`: The token that was locked during voting.
 		/// - `poll_index`: The index of the poll associated with the unlocking.
-		Unlocked { who: AccountIdOf<T>, vtoken: CurrencyIdOf<T>, poll_index: PollIndex },
+		Unlocked {
+			who: AccountIdOf<T>,
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+		},
 
 		/// A delegator's vote has been removed.
 		///
@@ -201,7 +205,10 @@ pub mod pallet {
 		///
 		/// - `vtoken`: The token associated with the delegator.
 		/// - `derivative_index`: The index of the derivative being added for the delegator.
-		DelegatorAdded { vtoken: CurrencyIdOf<T>, derivative_index: DerivativeIndex },
+		DelegatorAdded {
+			vtoken: CurrencyIdOf<T>,
+			derivative_index: DerivativeIndex,
+		},
 
 		/// A new referendum information has been created.
 		///
@@ -229,26 +236,39 @@ pub mod pallet {
 		///
 		/// - `vtoken`: The token for which the locking period is being set.
 		/// - `locking_period`: The period for which votes will be locked (in block numbers).
-		VoteLockingPeriodSet { vtoken: CurrencyIdOf<T>, locking_period: BlockNumberFor<T> },
+		VoteLockingPeriodSet {
+			vtoken: CurrencyIdOf<T>,
+			locking_period: BlockNumberFor<T>,
+		},
 
 		/// The undeciding timeout period has been set.
 		///
 		/// - `vtoken`: The token associated with the timeout.
 		/// - `undeciding_timeout`: The period of time before a poll is considered undecided.
-		UndecidingTimeoutSet { vtoken: CurrencyIdOf<T>, undeciding_timeout: BlockNumberFor<T> },
+		UndecidingTimeoutSet {
+			vtoken: CurrencyIdOf<T>,
+			undeciding_timeout: BlockNumberFor<T>,
+		},
 
 		/// A referendum has been killed (cancelled or ended).
 		///
 		/// - `vtoken`: The token associated with the referendum.
 		/// - `poll_index`: The index of the poll being killed.
-		ReferendumKilled { vtoken: CurrencyIdOf<T>, poll_index: PollIndex },
+		ReferendumKilled {
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+		},
 
 		/// A notification about the result of a vote has been sent.
 		///
 		/// - `vtoken`: The token associated with the poll.
 		/// - `poll_index`: The index of the poll.
 		/// - `success`: Whether the notification was successful or not.
-		VoteNotified { vtoken: CurrencyIdOf<T>, poll_index: PollIndex, success: bool },
+		VoteNotified {
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+			success: bool,
+		},
 
 		/// A notification about the removal of a delegator's vote has been sent.
 		///
@@ -266,13 +286,20 @@ pub mod pallet {
 		/// - `responder`: The location that sent the response.
 		/// - `query_id`: The ID of the query that was responded to.
 		/// - `response`: The content of the response.
-		ResponseReceived { responder: Location, query_id: QueryId, response: Response },
+		ResponseReceived {
+			responder: Location,
+			query_id: QueryId,
+			response: Response,
+		},
 
 		/// The vote cap ratio has been set.
 		///
 		/// - `vtoken`: The token associated with the cap.
 		/// - `vote_cap_ratio`: The maximum allowed ratio for the vote.
-		VoteCapRatioSet { vtoken: CurrencyIdOf<T>, vote_cap_ratio: Perbill },
+		VoteCapRatioSet {
+			vtoken: CurrencyIdOf<T>,
+			vote_cap_ratio: Perbill,
+		},
 	}
 
 	#[pallet::error]
@@ -450,9 +477,11 @@ pub mod pallet {
 				Delegators::<T>::insert(vtoken, BoundedVec::truncate_from(delegators.clone()));
 			});
 
-			self.undeciding_timeouts.iter().for_each(|(vtoken, undeciding_timeout)| {
-				UndecidingTimeout::<T>::insert(vtoken, undeciding_timeout);
-			});
+			self.undeciding_timeouts
+				.iter()
+				.for_each(|(vtoken, undeciding_timeout)| {
+					UndecidingTimeout::<T>::insert(vtoken, undeciding_timeout);
+				});
 
 			self.vote_cap_ratio.iter().for_each(|(vtoken, cap_ratio)| {
 				VoteCapRatio::<T>::insert(vtoken, cap_ratio);
@@ -468,8 +497,8 @@ pub mod pallet {
 		) -> Weight {
 			let db_weight = T::DbWeight::get();
 			let mut used_weight = db_weight.reads(3);
-			if remaining_weight.any_lt(used_weight) ||
-				bifrost_current_block_number % T::ReferendumCheckInterval::get() != Zero::zero()
+			if remaining_weight.any_lt(used_weight)
+				|| bifrost_current_block_number % T::ReferendumCheckInterval::get() != Zero::zero()
 			{
 				return Weight::zero();
 			}
@@ -477,8 +506,8 @@ pub mod pallet {
 				T::RelaychainBlockNumberProvider::current_block_number();
 
 			for block_number in ReferendumTimeout::<T>::iter_keys() {
-				if relay_current_block_number >= block_number ||
-					bifrost_current_block_number >= block_number
+				if relay_current_block_number >= block_number
+					|| bifrost_current_block_number >= block_number
 				{
 					let info_list = ReferendumTimeout::<T>::get(block_number);
 					let len = info_list.len() as u64;
@@ -498,16 +527,17 @@ pub mod pallet {
 								);
 								// exit the current loop
 								continue;
-							},
+							}
 						};
 
 						ReferendumInfoFor::<T>::mutate(vtoken, poll_index, |maybe_info| {
 							match maybe_info {
-								Some(info) =>
+								Some(info) => {
 									if let ReferendumInfo::Ongoing(_) = info {
 										*info = ReferendumInfo::Completed(current_block_number);
-									},
-								None => {},
+									}
+								}
+								None => {}
 							}
 						});
 					}
@@ -534,7 +564,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
-			ensure!(UndecidingTimeout::<T>::contains_key(vtoken), Error::<T>::NoData);
+			ensure!(
+				UndecidingTimeout::<T>::contains_key(vtoken),
+				Error::<T>::NoData
+			);
 			Self::ensure_no_pending_vote(vtoken, poll_index)?;
 
 			let token_vote = Self::compute_token_vote(vtoken, vtoken_vote)?;
@@ -568,7 +601,8 @@ pub mod pallet {
 
 			PendingDelegatorVotes::<T>::try_mutate(vtoken, poll_index, |item| -> DispatchResult {
 				for (derivative_index, vote) in new_delegator_votes.iter() {
-					item.try_push((*derivative_index, *vote)).map_err(|_| Error::<T>::TooMany)?;
+					item.try_push((*derivative_index, *vote))
+						.map_err(|_| Error::<T>::TooMany)?;
 				}
 				Ok(())
 			})?;
@@ -611,7 +645,11 @@ pub mod pallet {
 			Self::try_remove_vote(&who, vtoken, poll_index, UnvoteScope::OnlyExpired)?;
 			Self::update_lock(&who, vtoken)?;
 
-			Self::deposit_event(Event::<T>::Unlocked { who, vtoken, poll_index });
+			Self::deposit_event(Event::<T>::Unlocked {
+				who,
+				vtoken,
+				poll_index,
+			});
 
 			Ok(())
 		}
@@ -630,7 +668,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
-			ensure!(DelegatorVotes::<T>::get(vtoken, poll_index).len() > 0, Error::<T>::NoData);
+			ensure!(
+				DelegatorVotes::<T>::get(vtoken, poll_index).len() > 0,
+				Error::<T>::NoData
+			);
 			Self::ensure_referendum_expired(vtoken, poll_index)?;
 
 			let voting_agent = Self::get_voting_agent(&vtoken)?;
@@ -641,7 +682,11 @@ pub mod pallet {
 				derivative_index,
 			)?;
 
-			Self::deposit_event(Event::<T>::DelegatorVoteRemoved { who, vtoken, derivative_index });
+			Self::deposit_event(Event::<T>::DelegatorVoteRemoved {
+				who,
+				vtoken,
+				derivative_index,
+			});
 
 			Ok(())
 		}
@@ -690,11 +735,15 @@ pub mod pallet {
 			);
 
 			Delegators::<T>::try_mutate(vtoken, |vec| -> DispatchResult {
-				vec.try_push(derivative_index).map_err(|_| Error::<T>::TooMany)?;
+				vec.try_push(derivative_index)
+					.map_err(|_| Error::<T>::TooMany)?;
 				Ok(())
 			})?;
 
-			Self::deposit_event(Event::<T>::DelegatorAdded { vtoken, derivative_index });
+			Self::deposit_event(Event::<T>::DelegatorAdded {
+				vtoken,
+				derivative_index,
+			});
 
 			Ok(())
 		}
@@ -710,10 +759,17 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
 
-			ensure!(ReferendumInfoFor::<T>::contains_key(vtoken, poll_index), Error::<T>::NoData);
+			ensure!(
+				ReferendumInfoFor::<T>::contains_key(vtoken, poll_index),
+				Error::<T>::NoData
+			);
 			ReferendumInfoFor::<T>::insert(vtoken, poll_index, info.clone());
 
-			Self::deposit_event(Event::<T>::ReferendumInfoSet { vtoken, poll_index, info });
+			Self::deposit_event(Event::<T>::ReferendumInfoSet {
+				vtoken,
+				poll_index,
+				info,
+			});
 
 			Ok(())
 		}
@@ -728,7 +784,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
 			VoteLockingPeriod::<T>::insert(vtoken, locking_period);
-			Self::deposit_event(Event::<T>::VoteLockingPeriodSet { vtoken, locking_period });
+			Self::deposit_event(Event::<T>::VoteLockingPeriodSet {
+				vtoken,
+				locking_period,
+			});
 
 			Ok(())
 		}
@@ -743,7 +802,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
 			UndecidingTimeout::<T>::insert(vtoken, undeciding_timeout);
-			Self::deposit_event(Event::<T>::UndecidingTimeoutSet { vtoken, undeciding_timeout });
+			Self::deposit_event(Event::<T>::UndecidingTimeoutSet {
+				vtoken,
+				undeciding_timeout,
+			});
 
 			Ok(())
 		}
@@ -771,14 +833,22 @@ pub mod pallet {
 				)?;
 
 				PendingVotingInfo::<T>::remove(query_id);
-				Self::deposit_event(Event::<T>::VoteNotified { vtoken, poll_index, success });
+				Self::deposit_event(Event::<T>::VoteNotified {
+					vtoken,
+					poll_index,
+					success,
+				});
 			}
 
 			if let Some((_, _)) = PendingReferendumInfo::<T>::get(query_id) {
 				PendingReferendumInfo::<T>::remove(query_id);
 			}
 
-			Self::deposit_event(Event::<T>::ResponseReceived { responder, query_id, response });
+			Self::deposit_event(Event::<T>::ResponseReceived {
+				responder,
+				query_id,
+				response,
+			});
 
 			Ok(())
 		}
@@ -805,7 +875,11 @@ pub mod pallet {
 					success,
 				});
 			}
-			Self::deposit_event(Event::<T>::ResponseReceived { responder, query_id, response });
+			Self::deposit_event(Event::<T>::ResponseReceived {
+				responder,
+				query_id,
+				response,
+			});
 
 			Ok(())
 		}
@@ -820,7 +894,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
 			VoteCapRatio::<T>::insert(vtoken, vote_cap_ratio);
-			Self::deposit_event(Event::<T>::VoteCapRatioSet { vtoken, vote_cap_ratio });
+			Self::deposit_event(Event::<T>::VoteCapRatioSet {
+				vtoken,
+				vote_cap_ratio,
+			});
 
 			Ok(())
 		}
@@ -908,7 +985,10 @@ pub mod pallet {
 			new_delegator_votes: Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>,
 			maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
 		) -> DispatchResult {
-			let notify_call = Call::<T>::notify_vote { query_id: 0, response: Default::default() };
+			let notify_call = Call::<T>::notify_vote {
+				query_id: 0,
+				response: Default::default(),
+			};
 			let (weight, extra_fee) = T::XcmDestWeightAndFee::get_operation_weight_and_fee(
 				CurrencyId::to_token(&vtoken).map_err(|_| Error::<T>::NoData)?,
 				XcmOperationType::Vote,
@@ -936,7 +1016,13 @@ pub mod pallet {
 					}
 					PendingVotingInfo::<T>::insert(
 						query_id,
-						(vtoken, poll_index, derivative_index, who.clone(), maybe_old_vote),
+						(
+							vtoken,
+							poll_index,
+							derivative_index,
+							who.clone(),
+							maybe_old_vote,
+						),
 					)
 				},
 			)?;
@@ -1028,11 +1114,16 @@ pub mod pallet {
 			let para_id = T::ParachainId::get().into();
 			let asset = Asset {
 				id: AssetId(Location::here()),
-				fun: Fungible(UniqueSaturatedInto::<u128>::unique_saturated_into(extra_fee)),
+				fun: Fungible(UniqueSaturatedInto::<u128>::unique_saturated_into(
+					extra_fee,
+				)),
 			};
 			let xcm_message = sp_std::vec![
 				WithdrawAsset(asset.clone().into()),
-				BuyExecution { fees: asset, weight_limit: Unlimited },
+				BuyExecution {
+					fees: asset,
+					weight_limit: Unlimited
+				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most: transact_weight,
@@ -1060,7 +1151,10 @@ pub mod pallet {
 			vote: AccountVote<BalanceOf<T>>,
 			vtoken_balance: BalanceOf<T>,
 		) -> Result<
-			(Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>, Option<AccountVote<BalanceOf<T>>>),
+			(
+				Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+				Option<AccountVote<BalanceOf<T>>>,
+			),
 			DispatchError,
 		> {
 			ensure!(
@@ -1072,7 +1166,12 @@ pub mod pallet {
 			Self::try_access_poll(vtoken, poll_index, |poll_status| {
 				let tally = poll_status.ensure_ongoing().ok_or(Error::<T>::NotOngoing)?;
 				VotingFor::<T>::try_mutate(who, |voting| {
-					if let Voting::Casting(Casting { ref mut votes, delegations, .. }) = voting {
+					if let Voting::Casting(Casting {
+						ref mut votes,
+						delegations,
+						..
+					}) = voting
+					{
 						match votes.binary_search_by_key(&poll_index, |i| i.0) {
 							Ok(i) => {
 								// Shouldn't be possible to fail, but we handle it gracefully.
@@ -1084,7 +1183,7 @@ pub mod pallet {
 								votes[i].1 = vote;
 								votes[i].2 = 0; // Deprecated: derivative_index
 								votes[i].3 = vtoken_balance;
-							},
+							}
 							Err(i) => {
 								votes
 									.try_insert(
@@ -1093,7 +1192,7 @@ pub mod pallet {
 										(poll_index, vote, 0, vtoken_balance),
 									)
 									.map_err(|_| Error::<T>::MaxVotesReached)?;
-							},
+							}
 						}
 						// Shouldn't be possible to fail, but we handle it gracefully.
 						tally.add(vote).ok_or(ArithmeticError::Overflow)?;
@@ -1125,8 +1224,11 @@ pub mod pallet {
 			scope: UnvoteScope,
 		) -> DispatchResult {
 			VotingFor::<T>::try_mutate(who, |voting| {
-				if let Voting::Casting(Casting { ref mut votes, delegations, ref mut prior }) =
-					voting
+				if let Voting::Casting(Casting {
+					ref mut votes,
+					delegations,
+					ref mut prior,
+				}) = voting
 				{
 					let i = votes
 						.binary_search_by_key(&poll_index, |i| i.0)
@@ -1142,7 +1244,7 @@ pub mod pallet {
 								tally.reduce(approve, *delegations);
 							}
 							Ok(())
-						},
+						}
 						PollStatus::Completed(end, approved) => {
 							if let Some((lock_periods, _)) = v.1.locked_if(approved) {
 								let unlock_at = end.saturating_add(
@@ -1162,7 +1264,7 @@ pub mod pallet {
 								}
 							}
 							Ok(())
-						},
+						}
 						PollStatus::Killed(_) => Ok(()), // Poll was killed.
 						PollStatus::None => Ok(()),      // Poll was cancelled.
 					})
@@ -1198,7 +1300,7 @@ pub mod pallet {
 						all items in Vec associated with a unique class; \
 						qed"
 							);
-						},
+						}
 					}
 				});
 				T::MultiCurrency::set_lock(CONVICTION_VOTING_ID, vtoken, who, lock_needed)
@@ -1221,7 +1323,7 @@ pub mod pallet {
 						all items in Vec associated with a unique class; \
 						qed"
 						);
-					},
+					}
 				}
 			});
 			if amount.is_zero() {
@@ -1232,7 +1334,10 @@ pub mod pallet {
 		}
 
 		fn ensure_vtoken(vtoken: &CurrencyIdOf<T>) -> Result<(), DispatchError> {
-			ensure!(SUPPORTED_VTOKENS.contains(vtoken), Error::<T>::VTokenNotSupport);
+			ensure!(
+				SUPPORTED_VTOKENS.contains(vtoken),
+				Error::<T>::VTokenNotSupport
+			);
 			Ok(())
 		}
 
@@ -1275,27 +1380,28 @@ pub mod pallet {
 			let delegator_votes = DelegatorVotes::<T>::get(vtoken, poll_index).into_inner();
 			let (_derivative_index, delegator_vote) =
 				delegator_votes.first().ok_or(Error::<T>::NoData)?;
-			match (ReferendumInfoFor::<T>::get(vtoken, poll_index), delegator_vote.locked_if(true))
-			{
+			match (
+				ReferendumInfoFor::<T>::get(vtoken, poll_index),
+				delegator_vote.locked_if(true),
+			) {
 				(Some(ReferendumInfo::Completed(moment)), Some((lock_periods, _balance))) => {
 					let locking_period =
 						VoteLockingPeriod::<T>::get(vtoken).ok_or(Error::<T>::NoData)?;
 
 					let current_block = Self::get_agent_block_number(&vtoken)?;
 					ensure!(
-						current_block >=
-							moment.saturating_add(
-								locking_period.saturating_mul(lock_periods.into())
-							),
+						current_block
+							>= moment
+								.saturating_add(locking_period.saturating_mul(lock_periods.into())),
 						Error::<T>::NotExpired
 					);
 					Ok(())
-				},
+				}
 				(Some(ReferendumInfo::Completed(moment)), None) => {
 					let current_block = Self::get_agent_block_number(&vtoken)?;
 					ensure!(current_block >= moment, Error::<T>::NotExpired);
 					Ok(())
-				},
+				}
 				_ => Err(Error::<T>::NotExpired.into()),
 			}
 		}
@@ -1333,7 +1439,7 @@ pub mod pallet {
 						ReferendumInfo::Ongoing(status),
 					);
 					Ok(result)
-				},
+				}
 				Some(ReferendumInfo::Completed(end)) => f(PollStatus::Completed(end, false)),
 				Some(ReferendumInfo::Killed(end)) => f(PollStatus::Killed(end)),
 				_ => f(PollStatus::None),
@@ -1368,9 +1474,12 @@ pub mod pallet {
 
 		pub(crate) fn vote_to_capital(conviction: Conviction, vote: BalanceOf<T>) -> BalanceOf<T> {
 			let capital = match conviction {
-				Conviction::None =>
-					vote.checked_mul(&10u8.into()).unwrap_or_else(BalanceOf::<T>::max_value),
-				x => vote.checked_div(&u8::from(x).into()).unwrap_or_else(Zero::zero),
+				Conviction::None => vote
+					.checked_mul(&10u8.into())
+					.unwrap_or_else(BalanceOf::<T>::max_value),
+				x => vote
+					.checked_div(&u8::from(x).into())
+					.unwrap_or_else(Zero::zero),
 			};
 			capital
 		}
@@ -1409,12 +1518,16 @@ pub mod pallet {
 
 			let token = CurrencyId::to_token(&vtoken).map_err(|_| Error::<T>::NoData)?;
 			let mut delegator_votes = DelegatorVotes::<T>::get(vtoken, poll_index).into_inner();
-			let delegator_vote_keys =
-				delegator_votes.iter().map(|(index, _)| *index).collect::<Vec<_>>();
+			let delegator_vote_keys = delegator_votes
+				.iter()
+				.map(|(index, _)| *index)
+				.collect::<Vec<_>>();
 			for derivative_index in Delegators::<T>::get(vtoken) {
 				if !delegator_vote_keys.contains(&derivative_index) {
-					delegator_votes
-						.push((derivative_index, AccountVote::<BalanceOf<T>>::from(vote_role)));
+					delegator_votes.push((
+						derivative_index,
+						AccountVote::<BalanceOf<T>>::from(vote_role),
+					));
 				}
 			}
 			let data = delegator_votes
@@ -1434,7 +1547,9 @@ pub mod pallet {
 					return Ok(delegator_votes);
 				} else {
 					let account_vote = AccountVote::new_standard(
-						delegator_total_vote.as_standard_vote().ok_or(Error::<T>::NoData)?,
+						delegator_total_vote
+							.as_standard_vote()
+							.ok_or(Error::<T>::NoData)?,
 						available_vote,
 					);
 					delegator_votes.push((derivative_index, account_vote));

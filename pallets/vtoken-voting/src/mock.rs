@@ -154,8 +154,9 @@ impl Polling<TallyOf<Runtime>> for TestPolls {
 		let mut polls = Polls::get();
 		let entry = polls.get_mut(&index);
 		let r = match entry {
-			Some(Ongoing(ref mut tally_mut_ref, class)) =>
-				f(PollStatus::Ongoing(tally_mut_ref, *class)),
+			Some(Ongoing(ref mut tally_mut_ref, class)) => {
+				f(PollStatus::Ongoing(tally_mut_ref, *class))
+			}
 			Some(Completed(when, succeeded)) => f(PollStatus::Completed(*when, *succeeded)),
 			None => f(PollStatus::None),
 		};
@@ -169,8 +170,9 @@ impl Polling<TallyOf<Runtime>> for TestPolls {
 		let mut polls = Polls::get();
 		let entry = polls.get_mut(&index);
 		let r = match entry {
-			Some(Ongoing(ref mut tally_mut_ref, class)) =>
-				f(PollStatus::Ongoing(tally_mut_ref, *class)),
+			Some(Ongoing(ref mut tally_mut_ref, class)) => {
+				f(PollStatus::Ongoing(tally_mut_ref, *class))
+			}
 			Some(Completed(when, succeeded)) => f(PollStatus::Completed(*when, *succeeded)),
 			None => f(PollStatus::None),
 		}?;
@@ -191,7 +193,7 @@ impl Polling<TallyOf<Runtime>> for TestPolls {
 	fn end_ongoing(index: Self::Index, approved: bool) -> Result<(), ()> {
 		let mut polls = Polls::get();
 		match polls.get(&index) {
-			Some(Ongoing(..)) => {},
+			Some(Ongoing(..)) => {}
 			_ => return Err(()),
 		}
 		let now = frame_system::Pallet::<Runtime>::block_number();
@@ -446,7 +448,9 @@ impl vtoken_voting::Config for Runtime {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+	let mut t = frame_system::GenesisConfig::<Runtime>::default()
+		.build_storage()
+		.unwrap();
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![(ALICE, 10), (BOB, 20), (CHARLIE, 3000)],
 	}

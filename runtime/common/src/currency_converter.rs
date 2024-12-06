@@ -50,7 +50,11 @@ impl<T: Get<ParaId>, R: bifrost_asset_registry::Config> Convert<Asset, Option<Cu
 	for CurrencyIdConvert<T, R>
 {
 	fn convert(asset: Asset) -> Option<CurrencyId> {
-		if let Asset { id: AssetId(id), fun: Fungible(_) } = asset {
+		if let Asset {
+			id: AssetId(id),
+			fun: Fungible(_),
+		} = asset
+		{
 			Self::convert(id)
 		} else {
 			None

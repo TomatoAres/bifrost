@@ -63,7 +63,11 @@ fn cross_dot_to_bifrost(to: AccountId32, amount: u128) {
 			Some(to.clone()).into(),
 			Box::new(VersionedLocation::V4(Parachain(2030).into())),
 			Box::new(VersionedLocation::V4(
-				Junction::AccountId32 { id: to.into(), network: None }.into()
+				Junction::AccountId32 {
+					id: to.into(),
+					network: None
+				}
+				.into()
 			)),
 			Box::new(VersionedAssets::V4((Here, amount / 10).into())),
 			0,

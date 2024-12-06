@@ -50,7 +50,10 @@ fn register_token_metadata_should_work() {
 			Box::new(metadata.clone())
 		));
 
-		assert_eq!(CurrencyMetadatas::<Runtime>::get(Token2(0)), Some(metadata.clone()))
+		assert_eq!(
+			CurrencyMetadatas::<Runtime>::get(Token2(0)),
+			Some(metadata.clone())
+		)
 	})
 }
 
@@ -139,8 +142,14 @@ fn register_multilocation_should_work() {
 			Error::<Runtime>::CurrencyIdExisted
 		);
 
-		assert_eq!(LocationToCurrencyIds::<Runtime>::get(location.clone()), Some(Token2(0)));
-		assert_eq!(CurrencyIdToLocations::<Runtime>::get(Token2(0)), Some(location));
+		assert_eq!(
+			LocationToCurrencyIds::<Runtime>::get(location.clone()),
+			Some(Token2(0))
+		);
+		assert_eq!(
+			CurrencyIdToLocations::<Runtime>::get(Token2(0)),
+			Some(location)
+		);
 		assert_eq!(
 			CurrencyIdToWeights::<Runtime>::get(Token2(0)),
 			Some(Weight::from_parts(2000_000_000, 0))
@@ -189,8 +198,14 @@ fn force_set_multilocation_should_work() {
 			Weight::from_parts(2000_000_000, 0)
 		));
 
-		assert_eq!(LocationToCurrencyIds::<Runtime>::get(location.clone()), Some(Token2(0)));
-		assert_eq!(CurrencyIdToLocations::<Runtime>::get(Token2(0)), Some(location));
+		assert_eq!(
+			LocationToCurrencyIds::<Runtime>::get(location.clone()),
+			Some(Token2(0))
+		);
+		assert_eq!(
+			CurrencyIdToLocations::<Runtime>::get(Token2(0)),
+			Some(location)
+		);
 		assert_eq!(
 			CurrencyIdToWeights::<Runtime>::get(Token2(0)),
 			Some(Weight::from_parts(2000_000_000, 0))
@@ -230,15 +245,17 @@ fn update_currency_metadata_should_work() {
 			Some(minimal_balance)
 		));
 
-		System::assert_last_event(RuntimeEvent::AssetRegistry(crate::Event::CurrencyIdUpdated {
-			currency_id,
-			metadata: AssetMetadata {
-				name: name.clone(),
-				symbol: symbol.clone(),
-				decimals,
-				minimal_balance,
+		System::assert_last_event(RuntimeEvent::AssetRegistry(
+			crate::Event::CurrencyIdUpdated {
+				currency_id,
+				metadata: AssetMetadata {
+					name: name.clone(),
+					symbol: symbol.clone(),
+					decimals,
+					minimal_balance,
+				},
 			},
-		}));
+		));
 
 		// Verify the updated metadata
 		let updated_metadata = CurrencyMetadatas::<Runtime>::get(currency_id).unwrap();
@@ -281,10 +298,12 @@ fn update_currency_metadata_should_work_no_change() {
 		));
 
 		// Verify the event
-		System::assert_last_event(RuntimeEvent::AssetRegistry(crate::Event::CurrencyIdUpdated {
-			currency_id,
-			metadata: old_metadata.clone(),
-		}));
+		System::assert_last_event(RuntimeEvent::AssetRegistry(
+			crate::Event::CurrencyIdUpdated {
+				currency_id,
+				metadata: old_metadata.clone(),
+			},
+		));
 
 		// Verify the updated metadata
 		let updated_metadata = CurrencyMetadatas::<Runtime>::get(currency_id).unwrap();

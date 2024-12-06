@@ -457,7 +457,10 @@ pub mod pallet {
 				staking_protocol,
 				delegator.clone(),
 				|validators| -> DispatchResultWithPostInfo {
-					ensure!(!validators.contains(&validator), Error::<T>::ValidatorAlreadyExists);
+					ensure!(
+						!validators.contains(&validator),
+						Error::<T>::ValidatorAlreadyExists
+					);
 					validators
 						.try_push(validator.clone())
 						.map_err(|_| Error::<T>::ValidatorsOverflow)?;
@@ -493,7 +496,10 @@ pub mod pallet {
 				staking_protocol,
 				delegator.clone(),
 				|validators| -> DispatchResultWithPostInfo {
-					ensure!(validators.contains(&validator), Error::<T>::ValidatorNotFound);
+					ensure!(
+						validators.contains(&validator),
+						Error::<T>::ValidatorNotFound
+					);
 					validators.retain(|v| *v != validator);
 					Self::deposit_event(Event::<T>::RemoveValidator {
 						staking_protocol,
@@ -527,9 +533,16 @@ pub mod pallet {
 				staking_protocol,
 				delegator.clone(),
 				|storage_ledger| -> DispatchResultWithPostInfo {
-					ensure!(Some(ledger.clone()).ne(storage_ledger), Error::<T>::InvalidParameter);
+					ensure!(
+						Some(ledger.clone()).ne(storage_ledger),
+						Error::<T>::InvalidParameter
+					);
 					*storage_ledger = Some(ledger.clone());
-					Self::deposit_event(Event::SetLedger { staking_protocol, delegator, ledger });
+					Self::deposit_event(Event::SetLedger {
+						staking_protocol,
+						delegator,
+						ledger,
+					});
 					Ok(().into())
 				},
 			)
@@ -613,14 +626,17 @@ pub mod pallet {
 					let current_time_unit = T::VtokenMinting::get_ongoing_time_unit(currency_id)
 						.ok_or(Error::<T>::TimeUnitNotFound)?;
 					current_time_unit.add_one()
-				},
+				}
 			};
 			T::VtokenMinting::update_ongoing_time_unit(currency_id, time_unit.clone())?;
 			LastUpdateOngoingTimeUnitBlockNumber::<T>::insert(
 				staking_protocol,
 				current_block_number,
 			);
-			Self::deposit_event(Event::<T>::TimeUnitUpdated { staking_protocol, time_unit });
+			Self::deposit_event(Event::<T>::TimeUnitUpdated {
+				staking_protocol,
+				time_unit,
+			});
 			Ok(().into())
 		}
 
@@ -700,7 +716,7 @@ pub mod pallet {
 					Some(Ledger::AstarDappStaking(astar_dapp_staking_ledger)) => {
 						astar_dapp_staking_ledger.add_lock_amount(amount);
 						Ok(())
-					},
+					}
 					_ => Err(Error::<T>::LedgerNotFound),
 				},
 			)?;

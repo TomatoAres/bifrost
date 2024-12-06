@@ -82,27 +82,31 @@ impl<T: Config> Pallet<T> {
 			return Ok(conf.reward_per_token_stored);
 		}
 		// Iterate over each currency and its associated reward rate
-		conf.reward_rate.iter().try_for_each(|(currency, &reward)| -> DispatchResult {
-			let increment: BalanceOf<T> = U512::from(
-				Self::last_time_reward_applicable(pool_id)
-					.saturating_sub(conf.last_update_time)
-					.saturated_into::<u128>(),
-			)
-			.checked_mul(U512::from(reward.saturated_into::<u128>()))
-			.ok_or(ArithmeticError::Overflow)?
-			.checked_mul(U512::from(T::Multiplier::get().saturated_into::<u128>()))
-			.ok_or(ArithmeticError::Overflow)?
-			.checked_div(U512::from(total_supply.saturated_into::<u128>()))
-			.map(|x| u128::try_from(x))
-			.ok_or(ArithmeticError::Overflow)?
-			.map_err(|_| ArithmeticError::Overflow)?
-			.unique_saturated_into();
-			conf.reward_per_token_stored
-				.entry(*currency)
-				.and_modify(|total_reward| *total_reward = total_reward.saturating_add(increment))
-				.or_insert(increment);
-			Ok(())
-		})?;
+		conf.reward_rate
+			.iter()
+			.try_for_each(|(currency, &reward)| -> DispatchResult {
+				let increment: BalanceOf<T> = U512::from(
+					Self::last_time_reward_applicable(pool_id)
+						.saturating_sub(conf.last_update_time)
+						.saturated_into::<u128>(),
+				)
+				.checked_mul(U512::from(reward.saturated_into::<u128>()))
+				.ok_or(ArithmeticError::Overflow)?
+				.checked_mul(U512::from(T::Multiplier::get().saturated_into::<u128>()))
+				.ok_or(ArithmeticError::Overflow)?
+				.checked_div(U512::from(total_supply.saturated_into::<u128>()))
+				.map(|x| u128::try_from(x))
+				.ok_or(ArithmeticError::Overflow)?
+				.map_err(|_| ArithmeticError::Overflow)?
+				.unique_saturated_into();
+				conf.reward_per_token_stored
+					.entry(*currency)
+					.and_modify(|total_reward| {
+						*total_reward = total_reward.saturating_add(increment)
+					})
+					.or_insert(increment);
+				Ok(())
+			})?;
 
 		IncentiveConfigs::<T>::set(pool_id, conf.clone());
 		Ok(conf.reward_per_token_stored)
@@ -121,68 +125,72 @@ impl<T: Config> Pallet<T> {
 		} else {
 			BTreeMap::<CurrencyIdOf<T>, BalanceOf<T>>::default()
 		};
-		reward_per_token.iter().try_for_each(|(currency, reward)| -> DispatchResult {
-			let increment = U256::from(bbbnc_balance.saturated_into::<u128>())
-				.checked_mul(U256::from(
-					reward
-						.saturating_sub(
-							*UserRewardPerTokenPaid::<T>::get(who)
-								.get(currency)
-								.unwrap_or(&BalanceOf::<T>::zero()),
-						)
-						.saturated_into::<u128>(),
-				))
-				.ok_or(ArithmeticError::Overflow)?
-				.checked_div(U256::from(T::Multiplier::get().saturated_into::<u128>()))
-				.ok_or(ArithmeticError::Overflow)?;
-			// .map(|x| u128::try_from(x))
-			// .ok_or(ArithmeticError::Overflow)?
-			// .map_err(|_| ArithmeticError::Overflow)?
-			// .unique_saturated_into();
+		reward_per_token
+			.iter()
+			.try_for_each(|(currency, reward)| -> DispatchResult {
+				let increment = U256::from(bbbnc_balance.saturated_into::<u128>())
+					.checked_mul(U256::from(
+						reward
+							.saturating_sub(
+								*UserRewardPerTokenPaid::<T>::get(who)
+									.get(currency)
+									.unwrap_or(&BalanceOf::<T>::zero()),
+							)
+							.saturated_into::<u128>(),
+					))
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div(U256::from(T::Multiplier::get().saturated_into::<u128>()))
+					.ok_or(ArithmeticError::Overflow)?;
+				// .map(|x| u128::try_from(x))
+				// .ok_or(ArithmeticError::Overflow)?
+				// .map_err(|_| ArithmeticError::Overflow)?
+				// .unique_saturated_into();
 
-			// If share information is provided, calculate the reward based on the individual share
-			// and total share.
-			match share_info {
-				Some((share, total_share)) => {
-					let mut pools = UserFarmingPool::<T>::get(who);
-					if share.is_zero() {
-						if let Some(pos) = pools.iter().position(|&x| x == pool_id) {
-							pools.remove(pos);
+				// If share information is provided, calculate the reward based on the individual share
+				// and total share.
+				match share_info {
+					Some((share, total_share)) => {
+						let mut pools = UserFarmingPool::<T>::get(who);
+						if share.is_zero() {
+							if let Some(pos) = pools.iter().position(|&x| x == pool_id) {
+								pools.remove(pos);
+							}
+						} else {
+							pools
+								.try_push(pool_id)
+								.map_err(|_| Error::<T>::UserFarmingPoolOverflow)?;
 						}
-					} else {
-						pools.try_push(pool_id).map_err(|_| Error::<T>::UserFarmingPoolOverflow)?;
+						UserFarmingPool::<T>::insert(who, pools);
+						let reward = increment
+							.checked_mul(U256::from(share.saturated_into::<u128>()))
+							.ok_or(ArithmeticError::Overflow)?
+							.checked_div(U256::from(total_share.saturated_into::<u128>()))
+							.map(|x| u128::try_from(x))
+							.ok_or(ArithmeticError::Overflow)?
+							.map_err(|_| ArithmeticError::Overflow)?
+							.unique_saturated_into();
+						rewards
+							.entry(*currency)
+							.and_modify(|total_reward| {
+								*total_reward = total_reward.saturating_add(reward);
+							})
+							.or_insert(reward);
 					}
-					UserFarmingPool::<T>::insert(who, pools);
-					let reward = increment
-						.checked_mul(U256::from(share.saturated_into::<u128>()))
-						.ok_or(ArithmeticError::Overflow)?
-						.checked_div(U256::from(total_share.saturated_into::<u128>()))
-						.map(|x| u128::try_from(x))
-						.ok_or(ArithmeticError::Overflow)?
-						.map_err(|_| ArithmeticError::Overflow)?
-						.unique_saturated_into();
-					rewards
-						.entry(*currency)
-						.and_modify(|total_reward| {
-							*total_reward = total_reward.saturating_add(reward);
-						})
-						.or_insert(reward);
-				},
-				// If no share information is provided, calculate the reward directly
-				None => {
-					let reward = u128::try_from(increment)
-						.map_err(|_| ArithmeticError::Overflow)?
-						.unique_saturated_into();
-					rewards
-						.entry(*currency)
-						.and_modify(|total_reward| {
-							*total_reward = total_reward.saturating_add(reward);
-						})
-						.or_insert(reward);
-				},
-			}
-			Ok(())
-		})?;
+					// If no share information is provided, calculate the reward directly
+					None => {
+						let reward = u128::try_from(increment)
+							.map_err(|_| ArithmeticError::Overflow)?
+							.unique_saturated_into();
+						rewards
+							.entry(*currency)
+							.and_modify(|total_reward| {
+								*total_reward = total_reward.saturating_add(reward);
+							})
+							.or_insert(reward);
+					}
+				}
+				Ok(())
+			})?;
 		Ok(rewards)
 	}
 
@@ -233,14 +241,16 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		} // Excit earlier if balance of token is zero
 		if let Some(rewards) = Rewards::<T>::get(who) {
-			rewards.iter().try_for_each(|(currency, &reward)| -> DispatchResult {
-				T::MultiCurrency::transfer(
-					*currency,
-					&T::IncentivePalletId::get().into_account_truncating(),
-					who,
-					reward,
-				)
-			})?;
+			rewards
+				.iter()
+				.try_for_each(|(currency, &reward)| -> DispatchResult {
+					T::MultiCurrency::transfer(
+						*currency,
+						&T::IncentivePalletId::get().into_account_truncating(),
+						who,
+						reward,
+					)
+				})?;
 			Rewards::<T>::remove(who);
 			Self::deposit_event(Event::Rewarded {
 				who: who.to_owned(),

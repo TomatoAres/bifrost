@@ -57,7 +57,9 @@ impl<T: Config> Pallet<T> {
 			staking_protocol,
 			|index| -> DispatchResultWithPostInfo {
 				delegator_index = *index;
-				*index = index.checked_add(1).ok_or(Error::<T>::DelegatorIndexOverflow)?;
+				*index = index
+					.checked_add(1)
+					.ok_or(Error::<T>::DelegatorIndexOverflow)?;
 				let delegator =
 					delegator.unwrap_or(staking_protocol.get_delegator::<T>(delegator_index)?);
 				ensure!(
@@ -214,9 +216,17 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Vec<u8>, Error<T>> {
 		let xcm_pallet_index = staking_protocol.info().xcm_pallet_index;
 		let bifrost_dest_location = staking_protocol.info().bifrost_dest_location;
-		let account_id =
-			to.encode().try_into().map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
-		let beneficiary = Location::new(0, AccountId32 { network: None, id: account_id });
+		let account_id = to
+			.encode()
+			.try_into()
+			.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
+		let beneficiary = Location::new(
+			0,
+			AccountId32 {
+				network: None,
+				id: account_id,
+			},
+		);
 		let fee_asset_item = 0u32;
 		let weight_limit = WeightLimit::Unlimited;
 
@@ -251,8 +261,10 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ConfigurationNotFound)?;
 		let fee_location = staking_protocol.info().remote_fee_location;
 		let refund_beneficiary = staking_protocol.info().remote_refund_beneficiary;
-		let asset =
-			Asset { id: AssetId(fee_location), fun: Fungible(configuration.xcm_task_fee.fee) };
+		let asset = Asset {
+			id: AssetId(fee_location),
+			fun: Fungible(configuration.xcm_task_fee.fee),
+		};
 		let assets: Assets = Assets::from(asset.clone());
 		let require_weight_at_most = configuration.xcm_task_fee.weight;
 		let call: DoubleEncoded<()> = call.into();
@@ -342,14 +354,14 @@ impl<T: Config> Pallet<T> {
 					Some(c) => {
 						ensure!(c.operator == signer, Error::<T>::NotAuthorized);
 						Ok(())
-					},
+					}
 					None => Err(Error::<T>::NotAuthorized),
 				}
-			},
+			}
 			_ => {
 				T::ControlOrigin::ensure_origin(origin).map_err(|_| Error::<T>::NotAuthorized)?;
 				Ok(())
-			},
+			}
 		}
 	}
 

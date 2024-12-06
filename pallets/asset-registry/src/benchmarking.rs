@@ -40,14 +40,19 @@ mod benchmarks {
 			minimal_balance: BalanceOf::<T>::unique_saturated_from(0u128),
 		};
 
-		let call = Call::<T>::register_token_metadata { metadata: Box::new(metadata.clone()) };
+		let call = Call::<T>::register_token_metadata {
+			metadata: Box::new(metadata.clone()),
+		};
 
 		#[block]
 		{
 			call.dispatch_bypass_filter(origin)?;
 		}
 
-		assert_eq!(CurrencyMetadatas::<T>::get(Token2(0)), Some(metadata.clone()));
+		assert_eq!(
+			CurrencyMetadatas::<T>::get(Token2(0)),
+			Some(metadata.clone())
+		);
 		Ok(())
 	}
 
@@ -79,7 +84,10 @@ mod benchmarks {
 			call.dispatch_bypass_filter(origin)?;
 		}
 
-		assert_eq!(CurrencyMetadatas::<T>::get(CurrencyId::VToken2(0)), Some(v_metadata.clone()));
+		assert_eq!(
+			CurrencyMetadatas::<T>::get(CurrencyId::VToken2(0)),
+			Some(v_metadata.clone())
+		);
 		Ok(())
 	}
 
@@ -112,7 +120,10 @@ mod benchmarks {
 			call.dispatch_bypass_filter(origin)?;
 		}
 
-		assert_eq!(LocationToCurrencyIds::<T>::get(location.clone()), Some(Token2(0)));
+		assert_eq!(
+			LocationToCurrencyIds::<T>::get(location.clone()),
+			Some(Token2(0))
+		);
 		assert_eq!(CurrencyIdToLocations::<T>::get(Token2(0)), Some(location));
 		assert_eq!(
 			CurrencyIdToWeights::<T>::get(Token2(0)),
@@ -200,5 +211,9 @@ mod benchmarks {
 	//
 	// The line generates three steps per benchmark, with repeat=1 and the three steps are
 	//   [low, mid, high] of the range.
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Runtime);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
 }
