@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::chain_spec::{get_account_id_from_seed, get_from_seed, RelayExtensions};
-use bifrost_kusama_runtime::constants::currency::Perbill;
 use bifrost_parachain_staking::{InflationInfo, Range};
 use bifrost_polkadot_runtime::{
 	constants::currency::DOLLARS, AccountId, Balance, BlockNumber, SS58Prefix,
@@ -36,7 +35,7 @@ use hex_literal::hex;
 use sc_chain_spec::Properties;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519, H160, U256};
-use sp_runtime::{FixedU128, Percent};
+use sp_runtime::{FixedU128, Perbill, Percent};
 use std::{collections::BTreeMap, str::FromStr};
 
 const DEFAULT_PROTOCOL_ID: &str = "bifrost_polkadot";
