@@ -1429,6 +1429,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 parameter_types! {
 	pub const BbBNCTokenType: CurrencyId = CurrencyId::VToken(TokenSymbol::BNC);
 	pub const Week: BlockNumber = prod_or_fast!(WEEKS, 10);
+	pub const OneYear: BlockNumber = 365 * DAYS;
 	pub const MaxBlock: BlockNumber = 4 * 365 * DAYS;
 	pub const Multiplier: Balance = 10_u128.pow(12);
 	pub const VoteWeightMultiplier: Balance = 1;
@@ -1451,6 +1452,8 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type FourYears = MaxBlock;
+	type OneYear = OneYear;
 }
 
 parameter_types! {

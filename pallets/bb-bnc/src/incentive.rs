@@ -141,26 +141,11 @@ impl<T: Config> Pallet<T> {
 					.ok_or(ArithmeticError::Overflow)?
 					.checked_div(U256::from(T::Multiplier::get().saturated_into::<u128>()))
 					.ok_or(ArithmeticError::Overflow)?;
-				// .map(|x| u128::try_from(x))
-				// .ok_or(ArithmeticError::Overflow)?
-				// .map_err(|_| ArithmeticError::Overflow)?
-				// .unique_saturated_into();
 
 				// If share information is provided, calculate the reward based on the individual share
 				// and total share.
 				match share_info {
 					Some((share, total_share)) => {
-						let mut pools = UserFarmingPool::<T>::get(who);
-						if share.is_zero() {
-							if let Some(pos) = pools.iter().position(|&x| x == pool_id) {
-								pools.remove(pos);
-							}
-						} else {
-							pools
-								.try_push(pool_id)
-								.map_err(|_| Error::<T>::UserFarmingPoolOverflow)?;
-						}
-						UserFarmingPool::<T>::insert(who, pools);
 						let reward = increment
 							.checked_mul(U256::from(share.saturated_into::<u128>()))
 							.ok_or(ArithmeticError::Overflow)?
@@ -221,11 +206,6 @@ impl<T: Config> Pallet<T> {
 
 	/// Update reward for all pools
 	pub fn update_reward_all(who: &AccountIdOf<T>) -> DispatchResult {
-		UserFarmingPool::<T>::get(who)
-			.iter()
-			.try_for_each(|&pool_id| -> DispatchResult {
-				Self::update_reward(pool_id, Some(who), None)
-			})?;
 		Self::update_reward(BB_BNC_SYSTEM_POOL_ID, Some(who), None)?;
 		Ok(())
 	}

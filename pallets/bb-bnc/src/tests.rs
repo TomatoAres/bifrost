@@ -69,6 +69,46 @@ fn create_lock_should_work() {
 }
 
 #[test]
+fn create_lock_should_not_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(10_000_000_000_000),
+				Some(7 * 86400 / 12)
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+			));
+			assert_noop!(
+				BbBNC::create_lock_inner(
+					&BOB,
+					10_000,
+					System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+				),
+				Error::<Runtime>::BelowMinimumMint
+			);
+			let positions: Vec<u128> = (0..10).collect();
+			UserPositions::<Runtime>::set(BOB, BoundedVec::try_from(positions).unwrap()); // Simulate max positions already reached
+			assert_noop!(
+				BbBNC::create_lock_inner(
+					&BOB,
+					5_000_000_000_000,
+					System::block_number() + (2 * 365 * 86400) / 12
+				),
+				Error::<Runtime>::ExceedsMaxPositions
+			);
+		});
+}
+
+#[test]
 fn create_multi_locks_should_work() {
 	ExtBuilder::default()
 		.one_hundred_for_alice_n_bob()
@@ -179,6 +219,57 @@ fn increase_unlock_time_should_work() {
 			assert_eq!(
 				BbBNC::total_supply(System::block_number()),
 				Ok(10020539944800)
+			);
+		});
+}
+
+#[test]
+fn increase_unlock_time_should_not_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 7 * 86400 / 12);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+
+			assert_noop!(
+				BbBNC::increase_unlock_time(
+					RuntimeOrigin::signed(BOB),
+					POSITIONID0,
+					System::block_number() + 365 * 86400 / 12
+				),
+				Error::<Runtime>::LockNotExist
+			);
+
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (3 * 365 * 86400 - 5 * 86400) / 12,
+			));
+
+			assert_noop!(
+				BbBNC::increase_unlock_time(
+					RuntimeOrigin::signed(BOB),
+					POSITIONID0,
+					System::block_number() + (10 * 365 * 86400) / 12 // Far beyond the maximum
+				),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			System::set_block_number(System::block_number() + (5 * 365 * 86400) / 12);
+			assert_noop!(
+				BbBNC::increase_unlock_time(
+					RuntimeOrigin::signed(BOB),
+					POSITIONID0,
+					365 * 86400 / 12
+				),
+				Error::<Runtime>::Expired
 			);
 		});
 }
@@ -301,7 +392,7 @@ fn update_reward() {
 				BB_BNC_SYSTEM_POOL_ID,
 				Some(&BOB),
 				None
-			)); // TODO
+			));
 
 			assert_eq!(BbBNC::balance_of(&BOB, None), Ok(50818438500));
 			assert_eq!(
@@ -601,6 +692,61 @@ fn deposit_markup_before_lock_should_work() {
 }
 
 #[test]
+fn deposit_markup_before_lock_should_not_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+
+			assert_noop!(
+				BbBNC::deposit_markup(RuntimeOrigin::signed(BOB), VBNC, 10_000_000_000_000),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
+				FixedU128::saturating_from_integer(1),
+			));
+
+			assert_noop!(
+				BbBNC::deposit_markup(RuntimeOrigin::signed(BOB), VBNC, 0),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			TotalLock::<Runtime>::insert(VBNC, BalanceOf::<Runtime>::max_value());
+			assert_noop!(
+				BbBNC::deposit_markup(RuntimeOrigin::signed(BOB), VBNC, 10_000_000_000_000),
+				ArithmeticError::Overflow
+			);
+			TotalLock::<Runtime>::remove(VBNC);
+
+			LockedTokens::<Runtime>::insert(
+				VBNC,
+				&BOB,
+				LockedToken {
+					amount: BalanceOf::<Runtime>::max_value(),
+					markup_coefficient: FixedU128::saturating_from_integer(1),
+					refresh_block: System::block_number(),
+				},
+			);
+			assert_noop!(
+				BbBNC::deposit_markup(RuntimeOrigin::signed(BOB), VBNC, 10_000_000_000_000),
+				ArithmeticError::Overflow
+			);
+		});
+}
+
+#[test]
 fn deposit_markup_before_lock_should_work2() {
 	ExtBuilder::default()
 		.one_hundred_for_alice_n_bob()
@@ -762,6 +908,81 @@ fn deposit_markup_after_lock_should_work2() {
 				Locked::<Runtime>::get(POSITIONID0).amount,
 				10_000_000_000_000
 			);
+			assert_eq!(
+				BbBNC::balance_of(&BOB, Some(System::block_number())),
+				Ok(5082152342660)
+			);
+		});
+}
+
+#[test]
+fn deposit_markup_after_lock_should_not_work2() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + 365 * 86400 / 12,
+			));
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				MOVR,
+				FixedU128::from_inner(500_000_000_000_000_000), // 0.5
+				FixedU128::saturating_from_integer(1),
+			));
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				MOVR,
+				9_000_000_000_000
+			));
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				MOVR,
+				2_000_000_000_000
+			));
+			// Currently the hard cap has been reached, markup_coefficient should be 1.0
+			assert_eq!(
+				UserMarkupInfos::<Runtime>::get(BOB),
+				Some(UserMarkupInfo {
+					old_markup_coefficient: FixedU128::from_inner(950_000_000_000_000_000),
+					markup_coefficient: FixedU128::from_inner(1_000_000_000_000_000_000),
+				})
+			);
+
+			assert_eq!(
+				UserMarkupInfos::<Runtime>::get(BOB),
+				Some(UserMarkupInfo {
+					old_markup_coefficient: FixedU128::from_inner(950_000_000_000_000_000),
+					markup_coefficient: FixedU128::from_inner(1_000_000_000_000_000_000),
+				})
+			);
+
+			// Verify that user Point has not been updated
+			assert_eq!(
+				UserPointHistory::<Runtime>::get(POSITIONID0, U256::from(3)),
+				Point {
+					bias: 5082152342660,
+					slope: 1902587,
+					block: 20,
+					amount: 20000000000000
+				}
+			);
+
+			assert_eq!(
+				Locked::<Runtime>::get(POSITIONID0).amount,
+				10_000_000_000_000
+			);
+
 			assert_eq!(
 				BbBNC::balance_of(&BOB, Some(System::block_number())),
 				Ok(5082152342660)
@@ -1045,6 +1266,94 @@ fn withdraw_markup_after_lock_should_work3() {
 }
 
 #[test]
+fn withdraw_markup_after_lock_should_not_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + 365 * 86400 / 12,
+			));
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
+				FixedU128::saturating_from_integer(1),
+			));
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				VBNC,
+				10_000_000_000_000
+			));
+
+			assert_noop!(
+				BbBNC::withdraw_markup(RuntimeOrigin::signed(BOB), MOVR),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			assert_ok!(BbBNC::withdraw_markup(RuntimeOrigin::signed(BOB), VBNC));
+			//
+			assert_noop!(
+				BbBNC::withdraw_markup(RuntimeOrigin::signed(BOB), VBNC),
+				Error::<Runtime>::LockNotExist
+			);
+
+			assert_noop!(
+				BbBNC::withdraw_markup(RuntimeOrigin::signed(ALICE), VBNC),
+				Error::<Runtime>::LockNotExist
+			);
+
+			// Verify the status of UserMarkupiInfos and LockdToken
+			assert_eq!(
+				UserMarkupInfos::<Runtime>::get(BOB),
+				Some(UserMarkupInfo {
+					old_markup_coefficient: FixedU128::from_inner(100333333333333333), // 0.10033333333333333
+					markup_coefficient: FixedU128::from_inner(0),
+				})
+			);
+			assert_eq!(LockedTokens::<Runtime>::get(VBNC, &BOB), None);
+
+			assert_eq!(
+				Locked::<Runtime>::get(POSITIONID0).amount,
+				10_000_000_000_000
+			);
+			assert_eq!(
+				UserPointHistory::<Runtime>::get(POSITIONID0, U256::from(2)),
+				Point {
+					bias: 2796030953200,
+					slope: 1046740,
+					block: 20,
+					amount: 11003333333333
+				}
+			);
+			assert_eq!(
+				UserPointHistory::<Runtime>::get(POSITIONID0, U256::from(3)),
+				Point {
+					bias: 2541074835740,
+					slope: 951293,
+					block: 20,
+					amount: 10_000_000_000_000
+				}
+			);
+
+			assert_eq!(
+				BbBNC::balance_of(&BOB, Some(System::block_number())),
+				Ok(2541074835740)
+			);
+		});
+}
+
+#[test]
 fn redeem_unlock_after_360_days_should_work() {
 	ExtBuilder::default()
 		.one_hundred_for_alice_n_bob()
@@ -1109,6 +1418,50 @@ fn redeem_unlock_after_360_days_should_work() {
 			assert_eq!(
 				Tokens::ensure_can_withdraw(VBNC, &BOB, 999336664330082).is_ok(),
 				true
+			);
+		});
+}
+
+#[test]
+fn redeem_unlock_after_360_days_should_not_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VKSM,
+				FixedU128::from_inner(FixedU128::DIV / 10), // 0.1
+				FixedU128::saturating_from_integer(1),
+			));
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				VKSM,
+				10_000_000_000_000
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + 365 * 86400 / 12,
+			));
+
+			System::set_block_number(System::block_number() + 360 * 86400 / 12);
+			assert_noop!(
+				BbBNC::redeem_unlock(RuntimeOrigin::signed(BOB), 999),
+				Error::<Runtime>::LockNotExist
+			);
+
+			assert_noop!(
+				BbBNC::redeem_unlock(RuntimeOrigin::signed(ALICE), 0),
+				Error::<Runtime>::LockNotExist
 			);
 		});
 }
