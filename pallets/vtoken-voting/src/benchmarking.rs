@@ -87,7 +87,7 @@ mod benchmarks {
 				response.clone(),
 			)?;
 		}
-		let votes = match VotingFor::<T>::get(&caller) {
+		let votes = match VotingForV2::<T>::get(vtoken, &caller) {
 			Voting::Casting(Casting { votes, .. }) => votes,
 			_ => return Err("Votes are not direct".into()),
 		};
@@ -97,7 +97,7 @@ mod benchmarks {
 		Pallet::<T>::vote(RawOrigin::Signed(caller.clone()), vtoken, poll_index, vote);
 
 		assert_matches!(
-			VotingFor::<T>::get(&caller),
+			VotingForV2::<T>::get(vtoken, &caller),
 			Voting::Casting(Casting { votes, .. }) if votes.len() == (r + 1) as usize
 		);
 
@@ -124,7 +124,7 @@ mod benchmarks {
 				response.clone(),
 			)?;
 		}
-		let votes = match VotingFor::<T>::get(&caller) {
+		let votes = match VotingForV2::<T>::get(vtoken, &caller) {
 			Voting::Casting(Casting { votes, .. }) => votes,
 			_ => return Err("Votes are not direct".into()),
 		};
@@ -136,7 +136,7 @@ mod benchmarks {
 		Pallet::<T>::vote(RawOrigin::Signed(caller.clone()), vtoken, poll_index, new_vote);
 
 		assert_matches!(
-			VotingFor::<T>::get(&caller),
+			VotingForV2::<T>::get(vtoken, &caller),
 			Voting::Casting(Casting { votes, .. }) if votes.len() == r as usize
 		);
 
@@ -372,5 +372,9 @@ mod benchmarks {
 	//
 	// The line generates three steps per benchmark, with repeat=1 and the three steps are
 	//   [low, mid, high] of the range.
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Runtime);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mocks::kusama_mock::new_test_ext_benchmark(),
+		crate::mocks::kusama_mock::Runtime
+	);
 }

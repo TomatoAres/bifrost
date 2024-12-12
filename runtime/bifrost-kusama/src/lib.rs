@@ -27,7 +27,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use bifrost_primitives::{
-	BLP_BNC_VBNC, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, LP_BNC_VBNC, VBNC,
+	BLP_BNC_VBNC, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, LP_BNC_VBNC, VBNC, VKSM,
 };
 use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
 use core::convert::TryInto;
@@ -164,7 +164,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost"),
 	impl_name: create_runtime_str!("bifrost"),
 	authoring_version: 1,
-	spec_version: 15002,
+	spec_version: 15003,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -218,6 +218,7 @@ parameter_types! {
 parameter_types! {
 	pub const NativeCurrencyId: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
 	pub const RelayCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
+	pub const RelayVCurrencyId: CurrencyId = VKSM;
 	pub const StableCurrencyId: CurrencyId = CurrencyId::Stable(TokenSymbol::KUSD);
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
 	pub const PolkadotCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
@@ -1435,6 +1436,7 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vtoken_voting::BifrostWeight<Runtime>;
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
+	type RelayVCurrency = RelayVCurrencyId;
 }
 
 // Bifrost modules end
@@ -2003,6 +2005,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_vtoken_voting::migration::v4::MigrateToV4<Runtime, RelayCurrencyId>,
 	);
 }
 

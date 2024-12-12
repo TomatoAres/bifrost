@@ -38,7 +38,7 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
 	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC,
+	TreasuryPalletId, BNC, VDOT,
 };
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 pub use frame_support::{
@@ -188,7 +188,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_polkadot"),
 	impl_name: create_runtime_str!("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 15002,
+	spec_version: 15003,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -242,6 +242,7 @@ parameter_types! {
 parameter_types! {
 	pub const NativeCurrencyId: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
 	pub const RelayCurrencyId: CurrencyId = CurrencyId::Token2(DOT_TOKEN_ID);
+	pub const RelayVCurrencyId: CurrencyId = VDOT;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
 }
 
@@ -1335,6 +1336,7 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vtoken_voting::BifrostWeight<Runtime>;
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
+	type RelayVCurrency = RelayVCurrencyId;
 }
 
 // Bifrost modules end
@@ -1903,6 +1905,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_vtoken_voting::migration::v4::MigrateToV4<Runtime, RelayCurrencyId>,
 	);
 }
 
