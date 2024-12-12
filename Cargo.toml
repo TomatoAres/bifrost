@@ -310,6 +310,19 @@ try-runtime-cli                               = { git = "https://github.com/pari
 xcm-emulator                                  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407" }
 xcm-simulator                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407" }
 
+# Hyperbridge
+pallet-ismp           = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp                  = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+pallet-hyperbridge    = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp-bsc              = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp-sync-committee   = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp-parachain        = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+pallet-mmr            = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+anyhow                = { version = "1.0.93", default-features = false }
+
+#pallet-ismp = { version = "1.15.1", default-features = false }
+#pallet-hyperbridge = { version = "1.15.1", default-features = false }
+
 # Other
 affix = "0.1.2"
 case = "1.0"

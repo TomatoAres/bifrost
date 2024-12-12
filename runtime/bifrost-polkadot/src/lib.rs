@@ -30,6 +30,7 @@ use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
 use core::convert::TryInto;
 use pallet_traits::evm::InspectEvmAccounts;
 // A few exports that help ease life for downstream crates.
+use anyhow::anyhow;
 pub use bifrost_parachain_staking::{InflationInfo, Range};
 use bifrost_primitives::{
 	BifrostCrowdloanId, BifrostVsbondAccount, BuyBackAccount, BuybackPalletId, CloudsPalletId,
@@ -57,6 +58,20 @@ pub use frame_support::{
 	PalletId, StorageValue,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
+use ismp::{
+	consensus::{
+		ConsensusClient, ConsensusClientId, StateCommitment, StateMachineClient,
+		StateMachineHeight, StateMachineId, VerifiedCommitments,
+	},
+	error::Error as IsmpError,
+	handlers,
+	host::{IsmpHost, StateMachine},
+	messaging::{CreateConsensusState, Proof, StateCommitmentHeight},
+	module::IsmpModule,
+	router::{IsmpRouter, PostRequest, RequestResponse, Response, Timeout},
+	Error,
+};
+use ismp_sync_committee::constants::{gnosis, mainnet::Mainnet, sepolia::Sepolia};
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -1615,6 +1630,71 @@ impl bifrost_slp_v2::Config for Runtime {
 	type MaxValidators = ConstU32<256>;
 }
 
+impl pallet_hyperbridge::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	// pallet-ismp implements the IsmpHost
+	// type IsmpHost = ();
+	type IsmpHost = Ismp;
+}
+
+parameter_types! {
+	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
+}
+
+impl pallet_ismp::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	// 修改共识客户端的权限，以 TechAdmin 为例
+	type AdminOrigin = TechAdminOrCouncil;
+	// 链的状态机标识符--平行链 id
+	type HostStateMachine = StateMachineProvider;
+	type TimestampProvider = Timestamp;
+	// Router 路由器是一种IsmpModule为模块 id 提供实现的类型。
+	type Router = Router;
+	type Balance = Balance;
+	// 用来收取收费的 token，只支持稳定币
+	type Currency = Balances;
+	// 协处理器
+	type Coprocessor = Coprocessor;
+	// 实现接口的类型元组ConsensusClient，它定义了此协议部署支持的所有共识算法
+	type ConsensusClients = (
+		ismp_bsc::BscClient<Ismp, Runtime, ismp_bsc::Mainnet>,
+		ismp_sync_committee::SyncCommitteeConsensusClient<Ismp, gnosis::Mainnet, Runtime, ()>,
+	);
+	// 可选的 merkle mountain range overlay tree
+	type Mmr = Mmr;
+	type WeightProvider = ();
+}
+
+pub struct StateMachineProvider;
+
+impl Get<StateMachine> for StateMachineProvider {
+	fn get() -> StateMachine {
+		StateMachine::Polkadot(ParachainInfo::get().into())
+	}
+}
+
+// pub struct Coprocessor;
+//
+// impl Get<Option<StateMachine>> for Coprocessor {
+// 	fn get() -> Option<StateMachine> {
+// 		Some(HostStateMachine::get())
+// 	}
+// }
+
+#[derive(Default)]
+struct Router;
+
+impl IsmpRouter for Router {
+	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
+		let module = match id.as_slice() {
+			// YOUR_MODULE_ID => Box::new(YourModule::default()),
+			// ... other modules
+			_ => Err(Error::ModuleNotFound(id))?,
+		};
+		Ok(module)
+	}
+}
+
 // Below is the implementation of tokens manipulation functions other than native token.
 pub struct LocalAssetAdaptor<Local>(PhantomData<Local>);
 
@@ -1806,6 +1886,10 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
+		Ismp: pallet_ismp = 140,
+		Hyperbridge: pallet_hyperbridge = 141,
+		// BifrostIsmp: bifrost_ismp = 142,
+		Mmr: pallet_mmr = 142,
 	}
 }
 
