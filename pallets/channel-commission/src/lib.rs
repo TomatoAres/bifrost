@@ -372,7 +372,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			// check if the channel exists
-			ensure!(Channels::<T>::contains_key(channel_id), Error::<T>::ChannelNotExist);
+			ensure!(
+				Channels::<T>::contains_key(channel_id),
+				Error::<T>::ChannelNotExist
+			);
 
 			Self::settle_channel_commission(channel_id)?;
 
@@ -451,7 +454,10 @@ pub mod pallet {
 			ensure!(vtoken.is_vtoken(), Error::<T>::InvalidVtoken);
 
 			// check if the channel exists
-			ensure!(Channels::<T>::contains_key(channel_id), Error::<T>::ChannelNotExist);
+			ensure!(
+				Channels::<T>::contains_key(channel_id),
+				Error::<T>::ChannelNotExist
+			);
 			// check if the vtoken exists
 			ensure!(
 				CommissionTokens::<T>::contains_key(vtoken),
@@ -466,7 +472,11 @@ pub mod pallet {
 				ChannelCommissionTokenRates::<T>::insert(channel_id, vtoken, rate);
 			}
 
-			Self::deposit_event(Event::ChannelCommissionSet { channel_id, vtoken, rate });
+			Self::deposit_event(Event::ChannelCommissionSet {
+				channel_id,
+				vtoken,
+				rate,
+			});
 
 			Ok(())
 		}
@@ -532,7 +542,10 @@ pub mod pallet {
 				// only ChannelClaimableCommissions not removed. Channel can still claim the
 				// previous commission
 
-				Self::deposit_event(Event::CommissionTokenSet { vtoken, commission_token: None });
+				Self::deposit_event(Event::CommissionTokenSet {
+					vtoken,
+					commission_token: None,
+				});
 			}
 
 			Ok(())
@@ -558,7 +571,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			// check if the channel exists
-			ensure!(Channels::<T>::contains_key(channel_id), Error::<T>::ChannelNotExist);
+			ensure!(
+				Channels::<T>::contains_key(channel_id),
+				Error::<T>::ChannelNotExist
+			);
 
 			// check if the vtoken exists
 			ensure!(
@@ -912,7 +928,11 @@ impl<T: Config> Pallet<T> {
 		// Remove the collected tokens from ChannelClaimableCommissions storage
 		for (commission_token, amount) in tokens_to_remove {
 			ChannelClaimableCommissions::<T>::remove(channel_id, commission_token);
-			Self::deposit_event(Event::CommissionClaimed { channel_id, commission_token, amount });
+			Self::deposit_event(Event::CommissionClaimed {
+				channel_id,
+				commission_token,
+				amount,
+			});
 		}
 
 		Ok(())
@@ -937,7 +957,10 @@ impl<T: Config> VTokenMintRedeemProvider<CurrencyId, BalanceOf<T>> for Pallet<T>
 		// Retrieve and update total mint for the given vtoken in a single step.
 		PeriodVtokenTotalMint::<T>::mutate(vtoken, |total_mint| -> Result<(), Error<T>> {
 			// Safely add the new amount to the existing total.
-			total_mint.1 = total_mint.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			total_mint.1 = total_mint
+				.1
+				.checked_add(&amount)
+				.ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})?;
 
@@ -947,8 +970,10 @@ impl<T: Config> VTokenMintRedeemProvider<CurrencyId, BalanceOf<T>> for Pallet<T>
 				channel_id,
 				vtoken,
 				|channel_vtoken_mint| -> Result<(), Error<T>> {
-					let sum_up_amount =
-						channel_vtoken_mint.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					let sum_up_amount = channel_vtoken_mint
+						.1
+						.checked_add(&amount)
+						.ok_or(Error::<T>::Overflow)?;
 
 					channel_vtoken_mint.1 = sum_up_amount;
 					Ok(())
@@ -966,7 +991,10 @@ impl<T: Config> VTokenMintRedeemProvider<CurrencyId, BalanceOf<T>> for Pallet<T>
 
 		// First, add to PeriodVtokenTotalRedeem.
 		PeriodVtokenTotalRedeem::<T>::mutate(vtoken, |total_redeem| -> Result<(), Error<T>> {
-			total_redeem.1 = total_redeem.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			total_redeem.1 = total_redeem
+				.1
+				.checked_add(&amount)
+				.ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})?;
 
@@ -985,15 +1013,19 @@ impl<T: Config> SlpHostingFeeProvider<CurrencyId, BalanceOf<T>, AccountIdOf<T>> 
 		}
 
 		// get the commission token of the staking token
-		let vtoken = staking_token.to_vtoken().map_err(|_| Error::<T>::ConversionError)?;
+		let vtoken = staking_token
+			.to_vtoken()
+			.map_err(|_| Error::<T>::ConversionError)?;
 
 		// If the vtoken is configured for commission, record the hosting fee
 		if let Some(commission_token) = CommissionTokens::<T>::get(vtoken) {
 			PeriodTotalCommissions::<T>::mutate(
 				commission_token,
 				|total_commission| -> Result<(), Error<T>> {
-					let sum_up_amount =
-						total_commission.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					let sum_up_amount = total_commission
+						.1
+						.checked_add(&amount)
+						.ok_or(Error::<T>::Overflow)?;
 
 					total_commission.1 = sum_up_amount;
 					Ok(())

@@ -60,13 +60,17 @@ pub struct FarmingRpc<C, Block> {
 
 impl<C, Block> FarmingRpc<C, Block> {
 	pub fn new(client: Arc<C>) -> Self {
-		Self { client, _marker: PhantomData }
+		Self {
+			client,
+			_marker: PhantomData,
+		}
 	}
 }
 
 #[async_trait]
 impl<C, Block, AccountId, PoolId, CurrencyId>
-	FarmingRpcApiServer<<Block as BlockT>::Hash, AccountId, PoolId, CurrencyId> for FarmingRpc<C, Block>
+	FarmingRpcApiServer<<Block as BlockT>::Hash, AccountId, PoolId, CurrencyId>
+	for FarmingRpc<C, Block>
 where
 	Block: BlockT,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,

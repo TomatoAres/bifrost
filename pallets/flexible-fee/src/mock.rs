@@ -69,7 +69,10 @@ frame_support::construct_runtime!(
 );
 
 pub(crate) const BALANCE_TRANSFER_CALL: <Test as frame_system::Config>::RuntimeCall =
-	RuntimeCall::Balances(BalancesCall::transfer_allow_death { dest: ALICE, value: 69 });
+	RuntimeCall::Balances(BalancesCall::transfer_allow_death {
+		dest: ALICE,
+		value: 69,
+	});
 
 impl bifrost_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -275,7 +278,12 @@ where
 		amount: AssetBalance,
 	) -> DispatchResult {
 		let currency_id: CurrencyId = asset_id.try_into().unwrap();
-		Local::transfer(currency_id, &origin, &target, amount.unique_saturated_into())?;
+		Local::transfer(
+			currency_id,
+			&origin,
+			&target,
+			amount.unique_saturated_into(),
+		)?;
 
 		Ok(())
 	}
@@ -304,7 +312,9 @@ where
 
 // Build genesis storage according to the mock runtime.
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut t = frame_system::GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap();
 	// We use default for brevity, but you can configure as desired if needed.
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
@@ -386,7 +396,17 @@ impl EvmPermit for PermitDispatchHandler {
 		r: H256,
 		s: H256,
 	) -> DispatchResult {
-		let data = ValidationData { source, target, input, value, gas_limit, deadline, v, r, s };
+		let data = ValidationData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		};
 		PERMIT_VALIDATION.with(|v| v.borrow_mut().push(data));
 		Ok(())
 	}

@@ -53,11 +53,17 @@ pub const DICK: AccountId32 = AccountId32::new([3u8; 32]);
 /// create a transaction info struct from weight. Handy to avoid building the whole struct.
 pub fn info() -> DispatchInfo {
 	// pays_fee: Pays::Yes -- class: DispatchClass::Normal
-	DispatchInfo { weight: Weight::default(), ..Default::default() }
+	DispatchInfo {
+		weight: Weight::default(),
+		..Default::default()
+	}
 }
 
 fn post_info() -> PostDispatchInfo {
-	PostDispatchInfo { actual_weight: Some(Weight::default()), pays_fee: Default::default() }
+	PostDispatchInfo {
+		actual_weight: Some(Weight::default()),
+		pays_fee: Default::default(),
+	}
 }
 
 fn basic_setup() {
@@ -151,7 +157,10 @@ fn set_user_default_fee_currency_should_work() {
 		let alice_default_currency = UserDefaultFeeCurrency::<Test>::get(ALICE).unwrap();
 		assert_eq!(alice_default_currency, BNC);
 
-		assert_ok!(FlexibleFee::set_user_default_fee_currency(origin_signed_alice.clone(), None));
+		assert_ok!(FlexibleFee::set_user_default_fee_currency(
+			origin_signed_alice.clone(),
+			None
+		));
 		assert_eq!(UserDefaultFeeCurrency::<Test>::get(ALICE).is_none(), true);
 	});
 }
@@ -189,7 +198,10 @@ fn set_default_fee_currency_list_should_work() {
 			asset_order_list_vec.clone()
 		));
 
-		assert_eq!(crate::UniversalFeeCurrencyOrderList::<Test>::get(), asset_order_list_vec);
+		assert_eq!(
+			crate::UniversalFeeCurrencyOrderList::<Test>::get(),
+			asset_order_list_vec
+		);
 	});
 }
 
@@ -393,12 +405,20 @@ fn get_currency_asset_id_should_work() {
 	new_test_ext().execute_with(|| {
 		// BNC
 		let asset_id = FlexibleFee::get_currency_asset_id(BNC).unwrap();
-		let bnc_asset_id = AssetId { chain_id: 2001, asset_type: 0, asset_index: 0 };
+		let bnc_asset_id = AssetId {
+			chain_id: 2001,
+			asset_type: 0,
+			asset_index: 0,
+		};
 		assert_eq!(asset_id, bnc_asset_id);
 
 		// KSM
 		let asset_id = FlexibleFee::get_currency_asset_id(KSM).unwrap();
-		let ksm_asset_id = AssetId { chain_id: 2001, asset_type: 2, asset_index: 516 };
+		let ksm_asset_id = AssetId {
+			chain_id: 2001,
+			asset_type: 2,
+			asset_index: 516,
+		};
 		assert_eq!(asset_id, ksm_asset_id);
 	});
 }

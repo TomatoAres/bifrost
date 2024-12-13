@@ -200,7 +200,10 @@ pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
 pub struct MockDataProvider;
 impl DataProvider<CurrencyId, TimeStampedPrice> for MockDataProvider {
 	fn get(_asset_id: &CurrencyId) -> Option<TimeStampedPrice> {
-		Some(TimeStampedPrice { value: Price::saturating_from_integer(100), timestamp: 0 })
+		Some(TimeStampedPrice {
+			value: Price::saturating_from_integer(100),
+			timestamp: 0,
+		})
 	}
 }
 
@@ -255,7 +258,9 @@ impl MockOraclePriceProvider {
 
 	pub fn set_price(asset_id: CurrencyId, price: Price) {
 		Self::PRICES.with(|prices| {
-			prices.borrow_mut().insert(CurrencyIdWrap(asset_id), Some((price, 1u64)));
+			prices
+				.borrow_mut()
+				.insert(CurrencyIdWrap(asset_id), Some((price, 1u64)));
 		});
 	}
 
@@ -468,7 +473,12 @@ where
 		amount: AssetBalance,
 	) -> DispatchResult {
 		let currency_id: CurrencyId = asset_id.try_into().unwrap();
-		Local::transfer(currency_id, &origin, &target, amount.unique_saturated_into())?;
+		Local::transfer(
+			currency_id,
+			&origin,
+			&target,
+			amount.unique_saturated_into(),
+		)?;
 
 		Ok(())
 	}
@@ -572,7 +582,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -590,14 +602,24 @@ impl ExtBuilder {
 			(ALICE, RelayCurrencyId::get(), 10000),
 			(ALICE, VKSM, 10000),
 			(BOB, KSM, 100),
-			(FeeSharePalletId::get().into_account_truncating(), VKSM, 10000),
-			(FeeSharePalletId::get().into_account_truncating(), KSM, 10000),
+			(
+				FeeSharePalletId::get().into_account_truncating(),
+				VKSM,
+				10000,
+			),
+			(
+				FeeSharePalletId::get().into_account_truncating(),
+				KSM,
+				10000,
+			),
 		])
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		env_logger::try_init().unwrap_or(());
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self

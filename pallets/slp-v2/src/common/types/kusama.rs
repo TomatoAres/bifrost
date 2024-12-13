@@ -83,18 +83,29 @@ impl StakingProtocol {
 		delegator: Delegator<T::AccountId>,
 	) -> Option<Location> {
 		match (self, delegator) {
-			(StakingProtocol::KusamaStaking, Delegator::Substrate(account_id)) =>
+			(StakingProtocol::KusamaStaking, Delegator::Substrate(account_id)) => {
 				account_id.encode().try_into().ok().and_then(|account_id| {
-					Some(Location::new(1, [AccountId32 { network: None, id: account_id }]))
-				}),
-			(StakingProtocol::MoonriverParachainStaking, Delegator::Ethereum(account_id)) =>
+					Some(Location::new(
+						1,
+						[AccountId32 {
+							network: None,
+							id: account_id,
+						}],
+					))
+				})
+			}
+			(StakingProtocol::MoonriverParachainStaking, Delegator::Ethereum(account_id)) => {
 				Some(Location::new(
 					1,
 					[
 						Parachain(MoonriverChainId::get()),
-						AccountKey20 { network: None, key: account_id.to_fixed_bytes() },
+						AccountKey20 {
+							network: None,
+							key: account_id.to_fixed_bytes(),
+						},
 					],
-				)),
+				))
+			}
 			_ => None,
 		}
 	}

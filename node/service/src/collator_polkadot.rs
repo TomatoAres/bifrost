@@ -28,7 +28,10 @@ use crate::{
 	eth::{EthConfiguration, FrontierBackend},
 	IdentifyVariant,
 };
-#[cfg(any(feature = "with-bifrost-polkadot-runtime", feature = "with-bifrost-runtime"))]
+#[cfg(any(
+	feature = "with-bifrost-polkadot-runtime",
+	feature = "with-bifrost-runtime"
+))]
 pub use bifrost_polkadot_runtime;
 use bifrost_polkadot_runtime::{RuntimeApi, TransactionConverter};
 use bifrost_primitives::Block;
@@ -108,7 +111,9 @@ pub fn new_partial(
 
 	let heap_pages = config
 		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+			extra_pages: h as _,
+		});
 
 	let executor = sc_executor::WasmExecutor::<HostFunctions>::builder()
 		.with_execution_method(config.wasm_method)
@@ -130,7 +135,9 @@ pub fn new_partial(
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+		task_manager
+			.spawn_handle()
+			.spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -144,7 +151,11 @@ pub fn new_partial(
 		client.clone(),
 	);
 
-	let select_chain = if dev { Some(LongestChain::new(backend.clone())) } else { None };
+	let select_chain = if dev {
+		Some(LongestChain::new(backend.clone()))
+	} else {
+		None
+	};
 
 	let frontier_backend = Arc::new(FrontierBackend::open(
 		Arc::clone(&client),
@@ -279,7 +290,10 @@ fn start_consensus(
 		para_backend: backend.clone(),
 		relay_client: relay_chain_interface,
 		code_hash_provider: move |block_hash| {
-			client.code_at(block_hash).ok().map(|c| ValidationCode::from(c).hash())
+			client
+				.code_at(block_hash)
+				.ok()
+				.map(|c| ValidationCode::from(c).hash())
 		},
 		keystore,
 		collator_key,
@@ -296,7 +310,9 @@ fn start_consensus(
 	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(
 		params,
 	);
-	task_manager.spawn_essential_handle().spawn("aura", None, fut);
+	task_manager
+		.spawn_essential_handle()
+		.spawn("aura", None, fut);
 
 	Ok(())
 }

@@ -26,10 +26,20 @@ use frame_support::{assert_ok, PalletId};
 use frame_system::RawOrigin as SystemOrigin;
 use sp_runtime::traits::{AccountIdConversion, StaticLookup, UniqueSaturatedFrom};
 
-const DELEGATOR1: MultiLocation =
-	MultiLocation { parents: 1, interior: X1(AccountId32 { network: None, id: [1u8; 32] }) };
-const DELEGATOR2: MultiLocation =
-	MultiLocation { parents: 1, interior: X1(AccountId32 { network: None, id: [2u8; 32] }) };
+const DELEGATOR1: MultiLocation = MultiLocation {
+	parents: 1,
+	interior: X1(AccountId32 {
+		network: None,
+		id: [1u8; 32],
+	}),
+};
+const DELEGATOR2: MultiLocation = MultiLocation {
+	parents: 1,
+	interior: X1(AccountId32 {
+		network: None,
+		id: [2u8; 32],
+	}),
+};
 
 type TokenBalanceOf<T> = <<T as pallet::Config>::MultiCurrency as orml_traits::MultiCurrency<
 	<T as frame_system::Config>::AccountId,
@@ -143,7 +153,11 @@ pub fn set_mins_and_maxs<T: Config>(origin: <T as frame_system::Config>::Runtime
 	};
 
 	// Set minimums and maximums
-	assert_ok!(Pallet::<T>::set_minimums_and_maximums(origin, KSM, Some(mins_and_maxs)));
+	assert_ok!(Pallet::<T>::set_minimums_and_maximums(
+		origin,
+		KSM,
+		Some(mins_and_maxs)
+	));
 }
 
 pub fn init_bond<T: Config>(origin: <T as frame_system::Config>::RuntimeOrigin) {
@@ -154,7 +168,10 @@ pub fn init_bond<T: Config>(origin: <T as frame_system::Config>::RuntimeOrigin) 
 		Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 	)
 	.unwrap();
-	FeeSources::<T>::insert(KSM, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+	FeeSources::<T>::insert(
+		KSM,
+		(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+	);
 
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		KSM,
@@ -187,11 +204,21 @@ pub fn init_ongoing_time<T: Config>(origin: <T as frame_system::Config>::Runtime
 	));
 
 	// Initialize ongoing timeunit as 1.
-	assert_ok!(Pallet::<T>::update_ongoing_time_unit(origin.clone(), KSM, TimeUnit::Era(0)));
+	assert_ok!(Pallet::<T>::update_ongoing_time_unit(
+		origin.clone(),
+		KSM,
+		TimeUnit::Era(0)
+	));
 
-	let delay =
-		Delays { unlock_delay: TimeUnit::Era(0), leave_delegators_delay: Default::default() };
-	assert_ok!(Pallet::<T>::set_currency_delays(origin.clone(), KSM, Some(delay)));
+	let delay = Delays {
+		unlock_delay: TimeUnit::Era(0),
+		leave_delegators_delay: Default::default(),
+	};
+	assert_ok!(Pallet::<T>::set_currency_delays(
+		origin.clone(),
+		KSM,
+		Some(delay)
+	));
 }
 
 #[benchmarks(where T: Config + orml_tokens::Config<CurrencyId = CurrencyId> + bifrost_vtoken_minting::Config+ bifrost_stable_pool::Config+ pallet_balances::Config<Balance=u128> + bifrost_asset_registry::Config)]
@@ -210,7 +237,11 @@ mod benchmarks {
 		set_mins_and_maxs::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, None);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			None,
+		);
 
 		Ok(())
 	}
@@ -226,7 +257,10 @@ mod benchmarks {
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
-		FeeSources::<T>::insert(KSM, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+		FeeSources::<T>::insert(
+			KSM,
+			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
@@ -443,7 +477,10 @@ mod benchmarks {
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
-		FeeSources::<T>::insert(KSM, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+		FeeSources::<T>::insert(
+			KSM,
+			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
@@ -481,7 +518,10 @@ mod benchmarks {
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
-		FeeSources::<T>::insert(KSM, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+		FeeSources::<T>::insert(
+			KSM,
+			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
@@ -544,7 +584,10 @@ mod benchmarks {
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
-		FeeSources::<T>::insert(KSM, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+		FeeSources::<T>::insert(
+			KSM,
+			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
@@ -586,7 +629,10 @@ mod benchmarks {
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
-		FeeSources::<T>::insert(KSM, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+		FeeSources::<T>::insert(
+			KSM,
+			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
@@ -626,7 +672,10 @@ mod benchmarks {
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
-		FeeSources::<T>::insert(PHA, (fee_source_location, BalanceOf::<T>::from(4100000000u32)));
+		FeeSources::<T>::insert(
+			PHA,
+			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
+		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			PHA,
@@ -673,7 +722,11 @@ mod benchmarks {
 			.map_err(|_| BenchmarkError::Weightless)?;
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 10u32.into());
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			10u32.into(),
+		);
 
 		Ok(())
 	}
@@ -690,7 +743,11 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 10u32.into());
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			10u32.into(),
+		);
 
 		Ok(())
 	}
@@ -704,7 +761,11 @@ mod benchmarks {
 		LastTimeUpdatedOngoingTimeUnit::<T>::insert(KSM, BlockNumberFor::<T>::from(0u32));
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, TimeUnit::Era(0));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			TimeUnit::Era(0),
+		);
 
 		Ok(())
 	}
@@ -752,7 +813,11 @@ mod benchmarks {
 			.map_err(|_| BenchmarkError::Weightless)?;
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Some(whitelisted_caller()));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Some(whitelisted_caller()),
+		);
 
 		Ok(())
 	}
@@ -779,7 +844,12 @@ mod benchmarks {
 		set_mins_and_maxs::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 0u16, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			0u16,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -798,7 +868,11 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -810,7 +884,11 @@ mod benchmarks {
 		set_mins_and_maxs::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -828,7 +906,11 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -865,7 +947,12 @@ mod benchmarks {
 		})));
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1), ledger);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+			ledger,
+		);
 
 		Ok(())
 	}
@@ -890,7 +977,11 @@ mod benchmarks {
 		};
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Some(mins_and_maxs));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Some(mins_and_maxs),
+		);
 
 		Ok(())
 	}
@@ -899,11 +990,17 @@ mod benchmarks {
 	fn set_currency_delays() -> Result<(), BenchmarkError> {
 		let origin = <T as Config>::ControlOrigin::try_successful_origin()
 			.map_err(|_| BenchmarkError::Weightless)?;
-		let delay =
-			Delays { unlock_delay: TimeUnit::Era(0), leave_delegators_delay: Default::default() };
+		let delay = Delays {
+			unlock_delay: TimeUnit::Era(0),
+			leave_delegators_delay: Default::default(),
+		};
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Some(delay));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Some(delay),
+		);
 
 		Ok(())
 	}
@@ -959,7 +1056,11 @@ mod benchmarks {
 			.map_err(|_| BenchmarkError::Weightless)?;
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -975,7 +1076,11 @@ mod benchmarks {
 			Box::new(DELEGATOR1)
 		));
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -987,7 +1092,11 @@ mod benchmarks {
 		init_bond::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 0u64);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			0u64,
+		);
 
 		Ok(())
 	}
@@ -999,7 +1108,11 @@ mod benchmarks {
 		init_bond::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 0u64);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			0u64,
+		);
 
 		Ok(())
 	}
@@ -1038,7 +1151,11 @@ mod benchmarks {
 			),
 		);
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 1u64);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			1u64,
+		);
 
 		Ok(())
 	}
@@ -1077,7 +1194,11 @@ mod benchmarks {
 			),
 		);
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 1u64);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			1u64,
+		);
 
 		Ok(())
 	}
@@ -1089,7 +1210,11 @@ mod benchmarks {
 		set_mins_and_maxs::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, vec![DELEGATOR1]);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			vec![DELEGATOR1],
+		);
 
 		Ok(())
 	}
@@ -1101,7 +1226,11 @@ mod benchmarks {
 		set_mins_and_maxs::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, vec![DELEGATOR1]);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			vec![DELEGATOR1],
+		);
 
 		Ok(())
 	}
@@ -1113,7 +1242,11 @@ mod benchmarks {
 		set_mins_and_maxs::<T>(origin.clone());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -1131,7 +1264,11 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, Box::new(DELEGATOR1));
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			Box::new(DELEGATOR1),
+		);
 
 		Ok(())
 	}
@@ -1160,10 +1297,12 @@ mod benchmarks {
 			minimal_balance: Zero::zero(),
 		};
 		// register DOT in registry pallet
-		assert_ok!(bifrost_asset_registry::Pallet::<T>::register_token_metadata(
-			origin.clone(),
-			Box::new(metadata.clone())
-		));
+		assert_ok!(
+			bifrost_asset_registry::Pallet::<T>::register_token_metadata(
+				origin.clone(),
+				Box::new(metadata.clone())
+			)
+		);
 
 		#[extrinsic_call]
 		_(
@@ -1202,7 +1341,11 @@ mod benchmarks {
 		frame_system::Pallet::<T>::set_block_number((1 + SIX_MONTHS).into());
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, KSM, 1u8);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			KSM,
+			1u8,
+		);
 
 		Ok(())
 	}

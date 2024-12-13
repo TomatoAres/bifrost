@@ -65,7 +65,11 @@ mod benchmarks {
 		};
 
 		#[extrinsic_call]
-		_(origin as <T as frame_system::Config>::RuntimeOrigin, 1, rate);
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			1,
+			rate,
+		);
 
 		Ok(())
 	}
@@ -197,5 +201,9 @@ mod benchmarks {
 	//
 	// The line generates three steps per benchmark, with repeat=1 and the three steps are
 	//   [low, mid, high] of the range.
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Runtime);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
 }

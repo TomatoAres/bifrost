@@ -173,10 +173,14 @@ impl bifrost_vbnc_convert::Config for Runtime {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
-	pallet_balances::GenesisConfig::<Runtime> { balances: vec![(BOB, 10)] }
-		.assimilate_storage(&mut t)
+	let mut t = frame_system::GenesisConfig::<Runtime>::default()
+		.build_storage()
 		.unwrap();
+	pallet_balances::GenesisConfig::<Runtime> {
+		balances: vec![(BOB, 10)],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

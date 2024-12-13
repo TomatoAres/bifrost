@@ -43,19 +43,25 @@ fn mins_maxs_setup() {
 }
 
 fn initialize_delegator_setup() {
-	let location =
-		MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+	let location = MultiLocation {
+		parents: 100,
+		interior: X1(Junction::from(BoundedVec::default())),
+	};
 
 	mins_maxs_setup();
 	let _ = Slp::initialize_delegator(RuntimeOrigin::signed(ALICE), FIL, Some(Box::new(location)));
 }
 
 fn delegate_setup() {
-	let location =
-		MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+	let location = MultiLocation {
+		parents: 100,
+		interior: X1(Junction::from(BoundedVec::default())),
+	};
 
-	let owner_location =
-		MultiLocation { parents: 111, interior: X1(Junction::from(BoundedVec::default())) };
+	let owner_location = MultiLocation {
+		parents: 111,
+		interior: X1(Junction::from(BoundedVec::default())),
+	};
 
 	initialize_delegator_setup();
 
@@ -70,8 +76,10 @@ fn delegate_setup() {
 }
 
 fn bond_setup() {
-	let location =
-		MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+	let location = MultiLocation {
+		parents: 100,
+		interior: X1(Junction::from(BoundedVec::default())),
+	};
 
 	delegate_setup();
 
@@ -88,8 +96,10 @@ fn bond_setup() {
 #[test]
 fn initialize_delegator_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		System::set_block_number(1);
 
@@ -101,16 +111,24 @@ fn initialize_delegator_should_work() {
 		));
 
 		assert_eq!(DelegatorNextIndex::<Runtime>::get(FIL), 1);
-		assert_eq!(DelegatorsIndex2Multilocation::<Runtime>::get(FIL, 0), Some(location));
-		assert_eq!(DelegatorsMultilocation2Index::<Runtime>::get(FIL, location), Some(0));
+		assert_eq!(
+			DelegatorsIndex2Multilocation::<Runtime>::get(FIL, 0),
+			Some(location)
+		);
+		assert_eq!(
+			DelegatorsMultilocation2Index::<Runtime>::get(FIL, location),
+			Some(0)
+		);
 	});
 }
 
 #[test]
 fn bond_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		System::set_block_number(1);
 
@@ -129,7 +147,14 @@ fn bond_should_work() {
 		delegate_setup();
 
 		assert_noop!(
-			Slp::bond(RuntimeOrigin::signed(ALICE), FIL, Box::new(location), 1_000, None, None),
+			Slp::bond(
+				RuntimeOrigin::signed(ALICE),
+				FIL,
+				Box::new(location),
+				1_000,
+				None,
+				None
+			),
 			Error::<Runtime>::LowerThanMinimum
 		);
 
@@ -154,10 +179,16 @@ fn bond_should_work() {
 			None
 		));
 
-		let fil_ledger = FilecoinLedger { account: location, initial_pledge: 1000000000000 };
+		let fil_ledger = FilecoinLedger {
+			account: location,
+			initial_pledge: 1000000000000,
+		};
 		let ledger = Ledger::Filecoin(fil_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(FIL, location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(FIL, location),
+			Some(ledger)
+		);
 
 		assert_noop!(
 			Slp::bond(
@@ -176,20 +207,31 @@ fn bond_should_work() {
 #[test]
 fn delegate_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
-		let owner_location =
-			MultiLocation { parents: 111, interior: X1(Junction::from(BoundedVec::default())) };
+		let owner_location = MultiLocation {
+			parents: 111,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		System::set_block_number(1);
 
 		initialize_delegator_setup();
 
-		assert_ok!(Slp::add_validator(RuntimeOrigin::signed(ALICE), FIL, Box::new(owner_location)));
+		assert_ok!(Slp::add_validator(
+			RuntimeOrigin::signed(ALICE),
+			FIL,
+			Box::new(owner_location)
+		));
 
 		let validator_list = BoundedVec::try_from(vec![owner_location]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(FIL), Some(validator_list.clone()));
+		assert_eq!(
+			Validators::<Runtime>::get(FIL),
+			Some(validator_list.clone())
+		);
 
 		assert_ok!(Slp::delegate(
 			RuntimeOrigin::signed(ALICE),
@@ -209,8 +251,10 @@ fn delegate_should_work() {
 #[test]
 fn bond_extra_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		assert_noop!(
 			Slp::bond_extra(
@@ -235,18 +279,26 @@ fn bond_extra_should_work() {
 			None
 		));
 
-		let fil_ledger = FilecoinLedger { account: location, initial_pledge: 2000000000000 };
+		let fil_ledger = FilecoinLedger {
+			account: location,
+			initial_pledge: 2000000000000,
+		};
 		let ledger = Ledger::Filecoin(fil_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(FIL, location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(FIL, location),
+			Some(ledger)
+		);
 	});
 }
 
 #[test]
 fn unbond_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		assert_noop!(
 			Slp::unbond(
@@ -271,24 +323,36 @@ fn unbond_should_work() {
 			None
 		));
 
-		let fil_ledger = FilecoinLedger { account: location, initial_pledge: 500000000000 };
+		let fil_ledger = FilecoinLedger {
+			account: location,
+			initial_pledge: 500000000000,
+		};
 		let ledger = Ledger::Filecoin(fil_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(FIL, location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(FIL, location),
+			Some(ledger)
+		);
 	});
 }
 
 #[test]
 fn undelegate_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
-		let owner_location =
-			MultiLocation { parents: 111, interior: X1(Junction::from(BoundedVec::default())) };
+		let owner_location = MultiLocation {
+			parents: 111,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
-		let other_location =
-			MultiLocation { parents: 120, interior: X1(Junction::from(BoundedVec::default())) };
+		let other_location = MultiLocation {
+			parents: 120,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		assert_noop!(
 			Slp::undelegate(
@@ -304,7 +368,10 @@ fn undelegate_should_work() {
 		bond_setup();
 
 		let validator_list = BoundedVec::try_from(vec![owner_location]).unwrap();
-		assert_eq!(ValidatorsByDelegator::<Runtime>::get(FIL, location), Some(validator_list));
+		assert_eq!(
+			ValidatorsByDelegator::<Runtime>::get(FIL, location),
+			Some(validator_list)
+		);
 
 		assert_noop!(
 			Slp::undelegate(
@@ -318,7 +385,10 @@ fn undelegate_should_work() {
 		);
 
 		// set ledger to zero
-		let fil_ledger = FilecoinLedger { account: location, initial_pledge: 0 };
+		let fil_ledger = FilecoinLedger {
+			account: location,
+			initial_pledge: 0,
+		};
 		let ledger = Ledger::Filecoin(fil_ledger);
 		DelegatorLedgers::<Runtime>::insert(FIL, location, ledger);
 
@@ -348,8 +418,10 @@ fn undelegate_should_work() {
 #[test]
 fn charge_host_fee_and_tune_vtoken_exchange_rate_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		let treasury_id: AccountId = PalletId(*b"bf/trsry").into_account_truncating();
 		let treasury_32: [u8; 32] = treasury_id.clone().into();
@@ -370,7 +442,10 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_should_work() {
 		let pct = Permill::from_percent(20);
 		let treasury_location = MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 { network: None, id: treasury_32 }),
+			interior: X1(AccountId32 {
+				network: None,
+				id: treasury_32,
+			}),
 		};
 
 		assert_ok!(Slp::set_hosting_fees(
@@ -392,7 +467,11 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_should_work() {
 
 		// First set base vtoken exchange rate. Should be 1:1.
 		assert_ok!(Currencies::deposit(VFIL, &ALICE, 100));
-		assert_ok!(Slp::increase_token_pool(RuntimeOrigin::signed(ALICE), FIL, 100));
+		assert_ok!(Slp::increase_token_pool(
+			RuntimeOrigin::signed(ALICE),
+			FIL,
+			100
+		));
 
 		bond_setup();
 
@@ -421,8 +500,10 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_should_work() {
 #[test]
 fn remove_delegator_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		assert_noop!(
 			Slp::remove_delegator(RuntimeOrigin::signed(ALICE), FIL, Box::new(location)),
@@ -431,11 +512,23 @@ fn remove_delegator_should_work() {
 
 		bond_setup();
 
-		let fil_ledger = FilecoinLedger { account: location, initial_pledge: 1_000_000_000_000 };
+		let fil_ledger = FilecoinLedger {
+			account: location,
+			initial_pledge: 1_000_000_000_000,
+		};
 		let ledger = Ledger::Filecoin(fil_ledger);
-		assert_eq!(DelegatorsIndex2Multilocation::<Runtime>::get(FIL, 0), Some(location));
-		assert_eq!(DelegatorsMultilocation2Index::<Runtime>::get(FIL, location), Some(0));
-		assert_eq!(DelegatorLedgers::<Runtime>::get(FIL, location), Some(ledger));
+		assert_eq!(
+			DelegatorsIndex2Multilocation::<Runtime>::get(FIL, 0),
+			Some(location)
+		);
+		assert_eq!(
+			DelegatorsMultilocation2Index::<Runtime>::get(FIL, location),
+			Some(0)
+		);
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(FIL, location),
+			Some(ledger)
+		);
 
 		assert_noop!(
 			Slp::remove_delegator(RuntimeOrigin::signed(ALICE), FIL, Box::new(location)),
@@ -443,14 +536,24 @@ fn remove_delegator_should_work() {
 		);
 
 		// set ledger to zero
-		let fil_ledger1 = FilecoinLedger { account: location, initial_pledge: 0 };
+		let fil_ledger1 = FilecoinLedger {
+			account: location,
+			initial_pledge: 0,
+		};
 		let ledger1 = Ledger::Filecoin(fil_ledger1);
 		DelegatorLedgers::<Runtime>::insert(FIL, location, ledger1);
 
-		assert_ok!(Slp::remove_delegator(RuntimeOrigin::signed(ALICE), FIL, Box::new(location)));
+		assert_ok!(Slp::remove_delegator(
+			RuntimeOrigin::signed(ALICE),
+			FIL,
+			Box::new(location)
+		));
 
 		assert_eq!(DelegatorsIndex2Multilocation::<Runtime>::get(FIL, 0), None);
-		assert_eq!(DelegatorsMultilocation2Index::<Runtime>::get(FIL, location), None);
+		assert_eq!(
+			DelegatorsMultilocation2Index::<Runtime>::get(FIL, location),
+			None
+		);
 		assert_eq!(DelegatorLedgers::<Runtime>::get(FIL, location), None);
 	});
 }
@@ -458,11 +561,15 @@ fn remove_delegator_should_work() {
 #[test]
 fn remove_validator_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let location =
-			MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+		let location = MultiLocation {
+			parents: 100,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
-		let owner_location =
-			MultiLocation { parents: 111, interior: X1(Junction::from(BoundedVec::default())) };
+		let owner_location = MultiLocation {
+			parents: 111,
+			interior: X1(Junction::from(BoundedVec::default())),
+		};
 
 		assert_noop!(
 			Slp::remove_validator(RuntimeOrigin::signed(ALICE), FIL, Box::new(owner_location)),
@@ -472,10 +579,16 @@ fn remove_validator_should_work() {
 		bond_setup();
 
 		let validator_list = BoundedVec::try_from(vec![owner_location]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(FIL), Some(validator_list.clone()));
+		assert_eq!(
+			Validators::<Runtime>::get(FIL),
+			Some(validator_list.clone())
+		);
 
 		// set ledger to zero
-		let fil_ledger = FilecoinLedger { account: location, initial_pledge: 0 };
+		let fil_ledger = FilecoinLedger {
+			account: location,
+			initial_pledge: 0,
+		};
 		let ledger = Ledger::Filecoin(fil_ledger);
 		DelegatorLedgers::<Runtime>::insert(FIL, location, ledger);
 
@@ -501,12 +614,16 @@ fn remove_validator_should_work() {
 #[test]
 fn filecoin_transfer_to_works() {
 	// miner
-	let location =
-		MultiLocation { parents: 100, interior: X1(Junction::from(BoundedVec::default())) };
+	let location = MultiLocation {
+		parents: 100,
+		interior: X1(Junction::from(BoundedVec::default())),
+	};
 
 	// worker
-	let owner_location =
-		MultiLocation { parents: 111, interior: X1(Junction::from(BoundedVec::default())) };
+	let owner_location = MultiLocation {
+		parents: 111,
+		interior: X1(Junction::from(BoundedVec::default())),
+	};
 
 	ExtBuilder::default().build().execute_with(|| {
 		// environment setup
@@ -517,7 +634,10 @@ fn filecoin_transfer_to_works() {
 
 		let entrance_account_location = MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 { network: None, id: entrance_account_id_32 }),
+			interior: X1(AccountId32 {
+				network: None,
+				id: entrance_account_id_32,
+			}),
 		};
 
 		let exit_account_id_32: [u8; 32] =
@@ -526,7 +646,10 @@ fn filecoin_transfer_to_works() {
 
 		let exit_account_location = MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 { network: None, id: exit_account_id_32 }),
+			interior: X1(AccountId32 {
+				network: None,
+				id: exit_account_id_32,
+			}),
 		};
 
 		assert_noop!(

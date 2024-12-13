@@ -108,6 +108,9 @@ pub trait VotingAgent<T: Config> {
 		poll_index: PollIndex,
 		derivative_index: DerivativeIndex,
 	) -> Result<Vec<u8>, Error<T>>;
+
+	/// Get current agent block number.
+	fn block_number(&self) -> BlockNumberFor<T>;
 }
 
 /// Trait defining calls related to conviction voting mechanisms.

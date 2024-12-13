@@ -117,7 +117,13 @@ where
 		backend: Arc<fc_db::kv::Backend<B, C>>,
 		evm_since: BlockNumberOf<B>,
 	) -> Self {
-		Self { inner, client, backend, evm_since, _marker: PhantomData }
+		Self {
+			inner,
+			client,
+			backend,
+			evm_since,
+			_marker: PhantomData,
+		}
 	}
 }
 

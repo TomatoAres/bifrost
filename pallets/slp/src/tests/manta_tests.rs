@@ -42,7 +42,10 @@ const VALIDATOR_0_LOCATION: MultiLocation = MultiLocation {
 	parents: 1,
 	interior: X2(
 		Parachain(2104),
-		Junction::AccountId32 { network: None, id: VALIDATOR_0_ACCOUNT_ID_32 },
+		Junction::AccountId32 {
+			network: None,
+			id: VALIDATOR_0_ACCOUNT_ID_32,
+		},
 	),
 };
 
@@ -52,7 +55,10 @@ const VALIDATOR_1_LOCATION: MultiLocation = MultiLocation {
 	parents: 1,
 	interior: X2(
 		Parachain(2104),
-		Junction::AccountId32 { network: None, id: VALIDATOR_1_ACCOUNT_ID_32 },
+		Junction::AccountId32 {
+			network: None,
+			id: VALIDATOR_1_ACCOUNT_ID_32,
+		},
 	),
 };
 
@@ -64,7 +70,10 @@ fn initialize_manta_delegator() {
 				.into();
 		let bifrost_parachain_account_id_32 = Sibling::from(2030).into_account_truncating();
 
-		assert_eq!(bifrost_parachain_account_id_32_right, bifrost_parachain_account_id_32);
+		assert_eq!(
+			bifrost_parachain_account_id_32_right,
+			bifrost_parachain_account_id_32
+		);
 
 		// subaccount_id_0: 0x863c1faef3c3b8f8735ecb7f8ed18996356dd3de
 		let subaccount_id_0_right: AccountId =
@@ -85,7 +94,10 @@ fn initialize_manta_delegator() {
 			parents: 1,
 			interior: X2(
 				Parachain(2104),
-				Junction::AccountId32 { network: None, id: subaccount_id_0.into() },
+				Junction::AccountId32 {
+					network: None,
+					id: subaccount_id_0.into(),
+				},
 			),
 		};
 
@@ -110,7 +122,11 @@ fn initialize_manta_delegator() {
 			Some(mins_and_maxs)
 		));
 
-		assert_ok!(Slp::initialize_delegator(RuntimeOrigin::signed(ALICE), MANTA, None));
+		assert_ok!(Slp::initialize_delegator(
+			RuntimeOrigin::signed(ALICE),
+			MANTA,
+			None
+		));
 		assert_eq!(DelegatorNextIndex::<Runtime>::get(MANTA), 1);
 		assert_eq!(
 			DelegatorsIndex2Multilocation::<Runtime>::get(MANTA, 0),
@@ -127,11 +143,18 @@ fn manta_setup() {
 	let treasury_account_id_32: [u8; 32] = PalletId(*b"bf/trsry").into_account_truncating();
 	let treasury_location = MultiLocation {
 		parents: 0,
-		interior: X1(AccountId32 { network: None, id: treasury_account_id_32 }),
+		interior: X1(AccountId32 {
+			network: None,
+			id: treasury_account_id_32,
+		}),
 	};
 
 	// set operate_origins
-	assert_ok!(Slp::set_operate_origin(RuntimeOrigin::signed(ALICE), MANTA, Some(ALICE)));
+	assert_ok!(Slp::set_operate_origin(
+		RuntimeOrigin::signed(ALICE),
+		MANTA,
+		Some(ALICE)
+	));
 
 	// Set OngoingTimeUnitUpdateInterval as 1/3 round(600 blocks per round, 12 seconds per block)
 	assert_ok!(Slp::set_ongoing_time_unit_update_interval(
@@ -150,9 +173,15 @@ fn manta_setup() {
 	));
 
 	// Initialize currency delays.
-	let delay =
-		Delays { unlock_delay: TimeUnit::Round(24), leave_delegators_delay: TimeUnit::Round(24) };
-	assert_ok!(Slp::set_currency_delays(RuntimeOrigin::signed(ALICE), MANTA, Some(delay)));
+	let delay = Delays {
+		unlock_delay: TimeUnit::Round(24),
+		leave_delegators_delay: TimeUnit::Round(24),
+	};
+	assert_ok!(Slp::set_currency_delays(
+		RuntimeOrigin::signed(ALICE),
+		MANTA,
+		Some(delay)
+	));
 
 	let mins_and_maxs = MinimumsMaximums {
 		delegator_bonded_minimum: 100_000_000_000,
@@ -176,7 +205,11 @@ fn manta_setup() {
 	));
 
 	// First to setup index-multilocation relationship of subaccount_0
-	assert_ok!(Slp::initialize_delegator(RuntimeOrigin::signed(ALICE), MANTA, None));
+	assert_ok!(Slp::initialize_delegator(
+		RuntimeOrigin::signed(ALICE),
+		MANTA,
+		None
+	));
 
 	// update some MANTA balance to treasury account
 	assert_ok!(Tokens::set_balance(
@@ -194,77 +227,101 @@ fn manta_setup() {
 		Some((treasury_location, 1_000_000_000_000)),
 	));
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::Bond,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::Bond,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::BondExtra,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::BondExtra,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::Unbond,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::Unbond,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::Chill,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::Chill,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::Rebond,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::Rebond,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::Undelegate,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::Undelegate,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::CancelLeave,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::CancelLeave,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::Liquidize,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::Liquidize,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::ExecuteLeave,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::ExecuteLeave,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::TransferBack,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::TransferBack,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::XtokensTransferBack,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::XtokensTransferBack,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
-	assert_ok!(<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-		MANTA,
-		XcmOperationType::TransferTo,
-		Some((20_000_000_000.into(), 10_000_000_000)),
-	));
+	assert_ok!(
+		<Runtime as crate::Config>::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
+			MANTA,
+			XcmOperationType::TransferTo,
+			Some((20_000_000_000.into(), 10_000_000_000)),
+		)
+	);
 
 	// Set delegator ledger
 	assert_ok!(Slp::add_validator(
@@ -287,7 +344,10 @@ fn manta_bond_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -316,7 +376,10 @@ fn manta_bond_extra_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -367,7 +430,10 @@ fn manta_unbond_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -418,7 +484,10 @@ fn manta_rebond_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -438,8 +507,10 @@ fn manta_rebond_works() {
 		request_list.push(request);
 		let mut request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
 			BTreeMap::new();
-		request_briefs_set
-			.insert(VALIDATOR_0_LOCATION, (TimeUnit::Round(24), 2_000_000_000_000_000_000));
+		request_briefs_set.insert(
+			VALIDATOR_0_LOCATION,
+			(TimeUnit::Round(24), 2_000_000_000_000_000_000),
+		);
 
 		// set delegator_0 ledger
 		let manta_ledger = OneToManyLedger {
@@ -479,7 +550,10 @@ fn manta_undelegate_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -530,7 +604,10 @@ fn manta_liquidize_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -552,8 +629,10 @@ fn manta_liquidize_works() {
 
 		let mut request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
 			BTreeMap::new();
-		request_briefs_set
-			.insert(VALIDATOR_0_LOCATION, (TimeUnit::Round(24), 2_000_000_000_000_000_000));
+		request_briefs_set.insert(
+			VALIDATOR_0_LOCATION,
+			(TimeUnit::Round(24), 2_000_000_000_000_000_000),
+		);
 
 		// set delegator_0 ledger
 		let manta_ledger = OneToManyLedger {
@@ -616,8 +695,10 @@ fn manta_liquidize_works() {
 
 		let mut request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
 			BTreeMap::new();
-		request_briefs_set
-			.insert(VALIDATOR_0_LOCATION, (TimeUnit::Round(50), 10_000_000_000_000_000_000));
+		request_briefs_set.insert(
+			VALIDATOR_0_LOCATION,
+			(TimeUnit::Round(50), 10_000_000_000_000_000_000),
+		);
 
 		// set delegator_0 ledger
 		let manta_ledger = OneToManyLedger {
@@ -678,7 +759,10 @@ fn manta_bond_and_bond_extra_confirm_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -729,7 +813,10 @@ fn manta_bond_and_bond_extra_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_0_LOCATION, 5_000_000_000_000_000_000);
@@ -749,7 +836,10 @@ fn manta_bond_and_bond_extra_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 
 		// BondExtra confirm
 		let query_id = 1;
@@ -776,7 +866,10 @@ fn manta_bond_and_bond_extra_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_0_LOCATION, 10_000_000_000_000_000_000);
@@ -796,7 +889,10 @@ fn manta_bond_and_bond_extra_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 	});
 }
 
@@ -811,7 +907,10 @@ fn manta_unbond_confirm_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -840,7 +939,10 @@ fn manta_unbond_confirm_works() {
 		// Set delegator ledger
 		DelegatorLedgers::<Runtime>::insert(MANTA, subaccount_0_location, ledger.clone());
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 
 		// Unbond confirm
 		let query_id = 2;
@@ -867,7 +969,10 @@ fn manta_unbond_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_0_LOCATION, 10_000_000_000_000_000_000);
@@ -880,8 +985,10 @@ fn manta_unbond_confirm_works() {
 		request_list.push(request);
 		let mut request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
 			BTreeMap::new();
-		request_briefs_set
-			.insert(VALIDATOR_0_LOCATION, (TimeUnit::Round(24), 2_000_000_000_000_000_000));
+		request_briefs_set.insert(
+			VALIDATOR_0_LOCATION,
+			(TimeUnit::Round(24), 2_000_000_000_000_000_000),
+		);
 
 		// set delegator_0 ledger
 		let manta_ledger = OneToManyLedger {
@@ -896,7 +1003,10 @@ fn manta_unbond_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 
 		// Unbond confirm
 		let query_id = 3;
@@ -932,7 +1042,10 @@ fn manta_unbond_confirm_works() {
 			query_id
 		),);
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		System::set_block_number(500);
 
@@ -967,7 +1080,10 @@ fn manta_unbond_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_0_LOCATION, 8_000_000_000_000_000_000);
@@ -987,7 +1103,10 @@ fn manta_unbond_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 	});
 }
 
@@ -1002,7 +1121,10 @@ fn manta_unbond_all_confirm_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -1031,7 +1153,10 @@ fn manta_unbond_all_confirm_works() {
 
 		DelegatorLedgers::<Runtime>::insert(MANTA, subaccount_0_location, ledger.clone());
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 
 		let query_id = 5;
 		let update_entry_5 =
@@ -1066,7 +1191,10 @@ fn manta_unbond_all_confirm_works() {
 			query_id
 		),);
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		System::set_block_number(500);
 
@@ -1101,7 +1229,10 @@ fn manta_unbond_all_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let empty_delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		let request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
@@ -1135,7 +1266,10 @@ fn manta_rebond_confirm_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -1155,8 +1289,10 @@ fn manta_rebond_confirm_works() {
 		request_list.push(request);
 		let mut request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
 			BTreeMap::new();
-		request_briefs_set
-			.insert(VALIDATOR_0_LOCATION, (TimeUnit::Round(24), 2_000_000_000_000_000_000));
+		request_briefs_set.insert(
+			VALIDATOR_0_LOCATION,
+			(TimeUnit::Round(24), 2_000_000_000_000_000_000),
+		);
 
 		// set delegator_0 ledger
 		let manta_ledger = OneToManyLedger {
@@ -1172,7 +1308,10 @@ fn manta_rebond_confirm_works() {
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 		DelegatorLedgers::<Runtime>::insert(MANTA, subaccount_0_location, ledger.clone());
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 
 		let query_id = 7;
 		let update_entry_7 =
@@ -1198,7 +1337,10 @@ fn manta_rebond_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_0_LOCATION, 10_000_000_000_000_000_000);
@@ -1218,7 +1360,10 @@ fn manta_rebond_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 	});
 }
 
@@ -1233,7 +1378,10 @@ fn manta_undelegate_confirm_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -1287,7 +1435,10 @@ fn manta_undelegate_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_0_LOCATION, 5_000_000_000_000_000_000);
@@ -1303,8 +1454,10 @@ fn manta_undelegate_confirm_works() {
 
 		let mut request_briefs_set: BTreeMap<MultiLocation, (TimeUnit, BalanceOf<Runtime>)> =
 			BTreeMap::new();
-		request_briefs_set
-			.insert(VALIDATOR_0_LOCATION, (TimeUnit::Round(24), 5_000_000_000_000_000_000));
+		request_briefs_set.insert(
+			VALIDATOR_0_LOCATION,
+			(TimeUnit::Round(24), 5_000_000_000_000_000_000),
+		);
 
 		// set delegator_0 ledger
 		let manta_ledger = OneToManyLedger {
@@ -1319,7 +1472,10 @@ fn manta_undelegate_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 
 		// execute revoke confirm
 		let query_id = 9;
@@ -1373,7 +1529,10 @@ fn manta_undelegate_confirm_works() {
 			query_id
 		));
 
-		assert_eq!(DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id), None);
+		assert_eq!(
+			DelegatorLedgerXcmUpdateQueue::<Runtime>::get(query_id),
+			None
+		);
 
 		let mut delegation_set: BTreeMap<MultiLocation, BalanceOf<Runtime>> = BTreeMap::new();
 		delegation_set.insert(VALIDATOR_1_LOCATION, 5_000_000_000_000_000_000);
@@ -1393,7 +1552,10 @@ fn manta_undelegate_confirm_works() {
 
 		let ledger = Ledger::ParachainStaking(manta_ledger);
 
-		assert_eq!(DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location), Some(ledger));
+		assert_eq!(
+			DelegatorLedgers::<Runtime>::get(MANTA, subaccount_0_location),
+			Some(ledger)
+		);
 	});
 }
 
@@ -1408,7 +1570,10 @@ fn manta_transfer_back_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -1419,7 +1584,10 @@ fn manta_transfer_back_works() {
 
 		let exit_account_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: None, id: exit_account_id_32 }),
+			interior: X1(Junction::AccountId32 {
+				network: None,
+				id: exit_account_id_32,
+			}),
 		};
 
 		assert_ok!(Slp::transfer_back(
@@ -1444,7 +1612,10 @@ fn manta_transfer_to_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -1455,7 +1626,10 @@ fn manta_transfer_to_works() {
 
 		let entrance_account_location = MultiLocation {
 			parents: 0,
-			interior: X1(Junction::AccountId32 { network: None, id: entrance_account_id_32 }),
+			interior: X1(Junction::AccountId32 {
+				network: None,
+				id: entrance_account_id_32,
+			}),
 		};
 
 		assert_ok!(Slp::transfer_to(
@@ -1479,7 +1653,10 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		parents: 1,
 		interior: X2(
 			Parachain(2104),
-			Junction::AccountId32 { network: None, id: subaccount_0_account_id_32 },
+			Junction::AccountId32 {
+				network: None,
+				id: subaccount_0_account_id_32,
+			},
 		),
 	};
 
@@ -1536,7 +1713,10 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		let pct = Permill::from_percent(20);
 		let treasury_location = MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 { network: None, id: treasury_32 }),
+			interior: X1(AccountId32 {
+				network: None,
+				id: treasury_32,
+			}),
 		};
 
 		assert_ok!(Slp::set_hosting_fees(
@@ -1554,7 +1734,11 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 
 		// First set base vtoken exchange rate. Should be 1:1.
 		assert_ok!(Currencies::deposit(VMANTA, &ALICE, 100));
-		assert_ok!(Slp::increase_token_pool(RuntimeOrigin::signed(ALICE), MANTA, 100));
+		assert_ok!(Slp::increase_token_pool(
+			RuntimeOrigin::signed(ALICE),
+			MANTA,
+			100
+		));
 
 		// call the charge_host_fee_and_tune_vtoken_exchange_rate
 		assert_ok!(Slp::charge_host_fee_and_tune_vtoken_exchange_rate(
@@ -1638,8 +1822,11 @@ fn reset_validators_should_work() {
 		manta_setup();
 
 		let validator_list_empty = vec![];
-		let validator_list_input =
-			vec![VALIDATOR_0_LOCATION, VALIDATOR_0_LOCATION, VALIDATOR_1_LOCATION];
+		let validator_list_input = vec![
+			VALIDATOR_0_LOCATION,
+			VALIDATOR_0_LOCATION,
+			VALIDATOR_1_LOCATION,
+		];
 		let validator_list_output =
 			BoundedVec::try_from(vec![VALIDATOR_1_LOCATION, VALIDATOR_0_LOCATION]).unwrap();
 
@@ -1655,7 +1842,10 @@ fn reset_validators_should_work() {
 			validator_list_input
 		));
 
-		assert_eq!(Validators::<Runtime>::get(MANTA), Some(validator_list_output));
+		assert_eq!(
+			Validators::<Runtime>::get(MANTA),
+			Some(validator_list_output)
+		);
 	});
 }
 
@@ -1666,8 +1856,11 @@ fn set_validator_boost_list_should_work() {
 
 		let validator_list_empty = vec![];
 		let validator_list_input_1 = vec![VALIDATOR_0_LOCATION];
-		let validator_list_input_2 =
-			vec![VALIDATOR_0_LOCATION, VALIDATOR_0_LOCATION, VALIDATOR_1_LOCATION];
+		let validator_list_input_2 = vec![
+			VALIDATOR_0_LOCATION,
+			VALIDATOR_0_LOCATION,
+			VALIDATOR_1_LOCATION,
+		];
 
 		let validator_list_output_1 =
 			BoundedVec::try_from(vec![(VALIDATOR_0_LOCATION, SIX_MONTHS as u64 + 300)]).unwrap();
@@ -1718,7 +1911,10 @@ fn set_validator_boost_list_should_work() {
 		);
 		let bounded_validator_0_1 =
 			BoundedVec::try_from(vec![VALIDATOR_0_LOCATION, VALIDATOR_1_LOCATION]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(MANTA), Some(bounded_validator_0_1),);
+		assert_eq!(
+			Validators::<Runtime>::get(MANTA),
+			Some(bounded_validator_0_1),
+		);
 	});
 }
 
@@ -1735,7 +1931,10 @@ fn add_to_validator_boost_list_should_work() {
 		)])
 		.unwrap();
 		let validator_list_output_3 = BoundedVec::try_from(vec![
-			(VALIDATOR_0_LOCATION, SIX_MONTHS as u64 + 300 + SIX_MONTHS as u64),
+			(
+				VALIDATOR_0_LOCATION,
+				SIX_MONTHS as u64 + 300 + SIX_MONTHS as u64,
+			),
 			(VALIDATOR_1_LOCATION, SIX_MONTHS as u64 + 400),
 		])
 		.unwrap();
@@ -1746,10 +1945,16 @@ fn add_to_validator_boost_list_should_work() {
 			Box::new(VALIDATOR_0_LOCATION)
 		));
 
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output_1));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output_1)
+		);
 
 		let bounded_validator_0 = BoundedVec::try_from(vec![VALIDATOR_0_LOCATION]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(MANTA), Some(bounded_validator_0.clone()));
+		assert_eq!(
+			Validators::<Runtime>::get(MANTA),
+			Some(bounded_validator_0.clone())
+		);
 
 		System::set_block_number(400);
 
@@ -1761,7 +1966,10 @@ fn add_to_validator_boost_list_should_work() {
 
 		assert_eq!(Validators::<Runtime>::get(MANTA), Some(bounded_validator_0));
 
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output_2));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output_2)
+		);
 
 		assert_ok!(Slp::add_to_validator_boost_list(
 			RuntimeOrigin::signed(ALICE),
@@ -1769,10 +1977,16 @@ fn add_to_validator_boost_list_should_work() {
 			Box::new(VALIDATOR_1_LOCATION)
 		));
 
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output_3));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output_3)
+		);
 		let bounded_validator_0_1 =
 			BoundedVec::try_from(vec![VALIDATOR_0_LOCATION, VALIDATOR_1_LOCATION]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(MANTA), Some(bounded_validator_0_1),);
+		assert_eq!(
+			Validators::<Runtime>::get(MANTA),
+			Some(bounded_validator_0_1),
+		);
 	});
 }
 
@@ -1790,7 +2004,10 @@ fn remove_from_validator_boost_list_should_work() {
 			Box::new(VALIDATOR_0_LOCATION)
 		));
 
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output.clone()));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output.clone())
+		);
 
 		assert_ok!(Slp::remove_from_validator_boot_list(
 			RuntimeOrigin::signed(ALICE),
@@ -1798,7 +2015,10 @@ fn remove_from_validator_boost_list_should_work() {
 			Box::new(VALIDATOR_1_LOCATION)
 		));
 
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output)
+		);
 
 		assert_ok!(Slp::remove_from_validator_boot_list(
 			RuntimeOrigin::signed(ALICE),
@@ -1829,7 +2049,10 @@ fn clean_outdated_validator_boost_list_work() {
 		)])
 		.unwrap();
 		let validator_list_output_3 = BoundedVec::try_from(vec![
-			(VALIDATOR_0_LOCATION, SIX_MONTHS as u64 + 300 + SIX_MONTHS as u64),
+			(
+				VALIDATOR_0_LOCATION,
+				SIX_MONTHS as u64 + 300 + SIX_MONTHS as u64,
+			),
 			(VALIDATOR_1_LOCATION, SIX_MONTHS as u64 + 400),
 		])
 		.unwrap();
@@ -1840,10 +2063,16 @@ fn clean_outdated_validator_boost_list_work() {
 			Box::new(VALIDATOR_0_LOCATION)
 		));
 
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output_1));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output_1)
+		);
 
 		let bounded_validator_0 = BoundedVec::try_from(vec![VALIDATOR_0_LOCATION]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(MANTA), Some(bounded_validator_0.clone()));
+		assert_eq!(
+			Validators::<Runtime>::get(MANTA),
+			Some(bounded_validator_0.clone())
+		);
 
 		System::set_block_number(400);
 
@@ -1872,7 +2101,10 @@ fn clean_outdated_validator_boost_list_work() {
 		);
 		let bounded_validator_0_1 =
 			BoundedVec::try_from(vec![VALIDATOR_0_LOCATION, VALIDATOR_1_LOCATION]).unwrap();
-		assert_eq!(Validators::<Runtime>::get(MANTA), Some(bounded_validator_0_1),);
+		assert_eq!(
+			Validators::<Runtime>::get(MANTA),
+			Some(bounded_validator_0_1),
+		);
 
 		// no validator due yet. Everything should be kept after calling
 		// clean_outdated_validator_boost_list
@@ -1883,7 +2115,10 @@ fn clean_outdated_validator_boost_list_work() {
 			MANTA,
 			1
 		));
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output_3));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output_3)
+		);
 
 		// move to block SIX_MONTHS + 400, validator 1 should be removable
 		System::set_block_number(400 + SIX_MONTHS as u64);
@@ -1911,7 +2146,10 @@ fn clean_outdated_validator_boost_list_work() {
 			MANTA,
 			1
 		));
-		assert_eq!(ValidatorBoostList::<Runtime>::get(MANTA), Some(validator_list_output_2));
+		assert_eq!(
+			ValidatorBoostList::<Runtime>::get(MANTA),
+			Some(validator_list_output_2)
+		);
 
 		assert_noop!(
 			Slp::clean_outdated_validator_boost_list(RuntimeOrigin::signed(ALICE), MANTA, 2),

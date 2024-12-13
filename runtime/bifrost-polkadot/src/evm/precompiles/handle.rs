@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#![allow(dead_code)]
 use crate::evm::precompiles::{costs, revert, Address, Bytes, EvmResult};
 use pallet_evm::{Context, Log, PrecompileHandle};
 use primitive_types::{H160, H256, U256};
@@ -40,7 +41,11 @@ pub struct EvmDataWriter {
 impl EvmDataWriter {
 	/// Creates a new empty output builder (without selector).
 	pub fn new() -> Self {
-		Self { data: vec![], offset_data: vec![], selector: None }
+		Self {
+			data: vec![],
+			offset_data: vec![],
+			selector: None,
+		}
 	}
 
 	/// Return the built data.
@@ -101,7 +106,11 @@ impl EvmDataWriter {
 		let offset_position = self.data.len();
 		H256::write(self, H256::repeat_byte(0xff));
 
-		self.offset_data.push(OffsetDatum { offset_position, data, offset_shift: 0 });
+		self.offset_data.push(OffsetDatum {
+			offset_position,
+			data,
+			offset_shift: 0,
+		});
 	}
 }
 
@@ -213,7 +222,10 @@ impl EvmData for Bytes {
 		value.resize(padded_size, 0);
 
 		writer.write_pointer(
-			EvmDataWriter::new().write(U256::from(length)).write_raw_bytes(&value).build(),
+			EvmDataWriter::new()
+				.write(U256::from(length))
+				.write_raw_bytes(&value)
+				.build(),
 		);
 	}
 
@@ -357,7 +369,10 @@ impl<'a> EvmDataReader<'a> {
 			return Err(revert("pointer points out of bounds"));
 		}
 
-		Ok(Self { input: &self.input[offset..], cursor: 0 })
+		Ok(Self {
+			input: &self.input[offset..],
+			cursor: 0,
+		})
 	}
 
 	/// Move the reading cursor with provided length, and return a range from the previous cursor

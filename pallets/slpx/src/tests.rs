@@ -162,7 +162,10 @@ fn remove_whitelist() {
 			SupportChain::Astar,
 			astar_slpx_addr
 		));
-		assert_eq!(WhitelistAccountId::<Test>::get(SupportChain::Astar).to_vec(), vec![]);
+		assert_eq!(
+			WhitelistAccountId::<Test>::get(SupportChain::Astar).to_vec(),
+			vec![]
+		);
 	});
 }
 
@@ -180,14 +183,21 @@ fn remove_whitelist_account_id_not_in_whitelist() {
 #[test]
 fn test_execution_fee_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Currencies::deposit(CurrencyId::Token2(0), &ALICE, 50 * 1_000_000_000));
+		assert_ok!(Currencies::deposit(
+			CurrencyId::Token2(0),
+			&ALICE,
+			50 * 1_000_000_000
+		));
 
 		assert_ok!(Slpx::set_execution_fee(
 			RuntimeOrigin::root(),
 			CurrencyId::Token2(0),
 			10 * 1_000_000_000
 		));
-		assert_eq!(ExecutionFee::<Test>::get(CurrencyId::Token2(0)), Some(10 * 1_000_000_000));
+		assert_eq!(
+			ExecutionFee::<Test>::get(CurrencyId::Token2(0)),
+			Some(10 * 1_000_000_000)
+		);
 
 		let balance_exclude_fee =
 			Slpx::charge_execution_fee(CurrencyId::Token2(0), 50 * 1_000_000_000, &ALICE).unwrap();
@@ -198,7 +208,10 @@ fn test_execution_fee_work() {
 			SupportChain::Moonbeam,
 			10 * 1_000_000_000
 		));
-		assert_eq!(TransferToFee::<Test>::get(SupportChain::Moonbeam), Some(10 * 1_000_000_000));
+		assert_eq!(
+			TransferToFee::<Test>::get(SupportChain::Moonbeam),
+			Some(10 * 1_000_000_000)
+		);
 	});
 }
 
@@ -206,12 +219,18 @@ fn test_execution_fee_work() {
 fn test_get_default_fee() {
 	new_test_ext().execute_with(|| {
 		assert_eq!(Slpx::get_default_fee(BNC), 10_000_000_000u128);
-		assert_eq!(Slpx::get_default_fee(CurrencyId::Token(TokenSymbol::KSM)), 10_000_000_000u128);
+		assert_eq!(
+			Slpx::get_default_fee(CurrencyId::Token(TokenSymbol::KSM)),
+			10_000_000_000u128
+		);
 		assert_eq!(
 			Slpx::get_default_fee(CurrencyId::Token(TokenSymbol::MOVR)),
 			10_000_000_000_000_000u128
 		);
-		assert_eq!(Slpx::get_default_fee(CurrencyId::VToken(TokenSymbol::KSM)), 10_000_000_000u128);
+		assert_eq!(
+			Slpx::get_default_fee(CurrencyId::VToken(TokenSymbol::KSM)),
+			10_000_000_000u128
+		);
 		assert_eq!(
 			Slpx::get_default_fee(CurrencyId::VToken(TokenSymbol::MOVR)),
 			10_000_000_000_000_000u128
@@ -351,13 +370,25 @@ fn test_set_ethereum_call_configration() {
 #[test]
 fn test_set_currency_to_support_xcm_fee() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Slpx::set_currency_support_xcm_fee(RuntimeOrigin::root(), BNC, true));
+		assert_ok!(Slpx::set_currency_support_xcm_fee(
+			RuntimeOrigin::root(),
+			BNC,
+			true
+		));
 		assert_eq!(SupportXcmFeeList::<Test>::get().to_vec(), vec![BNC]);
 
-		assert_ok!(Slpx::set_currency_support_xcm_fee(RuntimeOrigin::root(), KSM, true));
+		assert_ok!(Slpx::set_currency_support_xcm_fee(
+			RuntimeOrigin::root(),
+			KSM,
+			true
+		));
 		assert_eq!(SupportXcmFeeList::<Test>::get().to_vec(), vec![BNC, KSM]);
 
-		assert_ok!(Slpx::set_currency_support_xcm_fee(RuntimeOrigin::root(), BNC, false));
+		assert_ok!(Slpx::set_currency_support_xcm_fee(
+			RuntimeOrigin::root(),
+			BNC,
+			false
+		));
 		assert_eq!(SupportXcmFeeList::<Test>::get().to_vec(), vec![KSM]);
 	})
 }

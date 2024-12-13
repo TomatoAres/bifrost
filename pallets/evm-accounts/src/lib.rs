@@ -126,7 +126,10 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Binding was created.
-		Bound { account: T::AccountId, address: EvmAddress },
+		Bound {
+			account: T::AccountId,
+			address: EvmAddress,
+		},
 		/// Deployer was added.
 		DeployerAdded { who: EvmAddress },
 		/// Deployer was removed.
@@ -154,8 +157,16 @@ pub mod pallet {
 		fn integrity_test() {
 			// implementation of this pallet expects that EvmAddress is 20 bytes and AccountId is 32
 			// bytes long. If this is not true, `copy_from_slice` might panic.
-			assert_eq!(EvmAddress::len_bytes(), 20, "EVM Address is expected to be 20 bytes long.");
-			assert_eq!(AccountId32::LEN, 32, "AccountId is expected to be 32 bytes long.");
+			assert_eq!(
+				EvmAddress::len_bytes(),
+				20,
+				"EVM Address is expected to be 20 bytes long."
+			);
+			assert_eq!(
+				AccountId32::LEN,
+				32,
+				"AccountId is expected to be 32 bytes long."
+			);
 		}
 	}
 
@@ -199,7 +210,10 @@ pub mod pallet {
 
 			<AccountExtension<T>>::insert(evm_address, last_12_bytes);
 
-			Self::deposit_event(Event::Bound { account: who, address: evm_address });
+			Self::deposit_event(Event::Bound {
+				account: who,
+				address: evm_address,
+			});
 
 			Ok(())
 		}

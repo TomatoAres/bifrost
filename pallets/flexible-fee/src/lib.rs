@@ -154,11 +154,20 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Transfer to another chain
-		TransferTo { from: T::AccountId, target_chain: TargetChain, amount: BalanceOf<T> },
+		TransferTo {
+			from: T::AccountId,
+			target_chain: TargetChain,
+			amount: BalanceOf<T>,
+		},
 		/// Set user default fee currency
-		SetDefaultFeeCurrency { who: T::AccountId, currency_id: Option<CurrencyId> },
+		SetDefaultFeeCurrency {
+			who: T::AccountId,
+			currency_id: Option<CurrencyId>,
+		},
 		/// Set universal fee currency order list
-		SetFeeCurrencyList { currency_list: BoundedVec<CurrencyId, T::MaxFeeCurrencyOrderListLen> },
+		SetFeeCurrencyList {
+			currency_list: BoundedVec<CurrencyId, T::MaxFeeCurrencyOrderListLen>,
+		},
 		/// Set extra fee by call
 		SetExtraFee {
 			/// The raw call name to be set as the extra fee call.
@@ -280,7 +289,10 @@ pub mod pallet {
 				Some(fee_info) => ExtraFeeByCall::<T>::insert(&raw_call_name, fee_info),
 				None => ExtraFeeByCall::<T>::remove(&raw_call_name),
 			};
-			Self::deposit_event(Event::<T>::SetExtraFee { raw_call_name, fee_info });
+			Self::deposit_event(Event::<T>::SetExtraFee {
+				raw_call_name,
+				fee_info,
+			});
 			Ok(())
 		}
 
@@ -357,7 +369,17 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::dispatch_permit { from, to, value, data, gas_limit, deadline, v, r, s } => {
+				Call::dispatch_permit {
+					from,
+					to,
+					value,
+					data,
+					gas_limit,
+					deadline,
+					v,
+					r,
+					s,
+				} => {
 					// We need to wrap this as separate tx, and since we also "dry-run" the
 					// dispatch, we need to rollback the changes if any
 					let result = with_transaction::<(), DispatchError, _>(|| {
@@ -410,9 +432,9 @@ pub mod pallet {
 								         * always converted to DispatchError::Module(ModuleError) */
 							};
 							InvalidTransaction::Custom(error_number).into()
-						},
+						}
 					}
-				},
+				}
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -465,11 +487,17 @@ impl<T: Config> Pallet<T> {
 				)
 				.ok_or(Error::<T>::WeightAndFeeNotExist)?;
 
-			let fee: Asset = Asset { id: AssetId(Location::here()), fun: Fungible(xcm_fee) };
+			let fee: Asset = Asset {
+				id: AssetId(Location::here()),
+				fun: Fungible(xcm_fee),
+			};
 
 			let remote_xcm = Xcm(vec![
 				WithdrawAsset(fee.clone().into()),
-				BuyExecution { fees: fee.clone(), weight_limit: Unlimited },
+				BuyExecution {
+					fees: fee.clone(),
+					weight_limit: Unlimited,
+				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most,
@@ -519,12 +547,16 @@ impl<T: Config> Pallet<T> {
 	/// Get user fee charge assets order
 	fn get_fee_currency_list(account_id: &T::AccountId) -> Vec<CurrencyId> {
 		// Get universal fee currency order list
-		let mut fee_currency_list: Vec<CurrencyId> =
-			UniversalFeeCurrencyOrderList::<T>::get().into_iter().collect();
+		let mut fee_currency_list: Vec<CurrencyId> = UniversalFeeCurrencyOrderList::<T>::get()
+			.into_iter()
+			.collect();
 
 		// Get user default fee currency
 		if let Some(default_fee_currency) = UserDefaultFeeCurrency::<T>::get(&account_id) {
-			if let Some(index) = fee_currency_list.iter().position(|&c| c == default_fee_currency) {
+			if let Some(index) = fee_currency_list
+				.iter()
+				.position(|&c| c == default_fee_currency)
+			{
 				fee_currency_list.remove(index);
 			}
 			let first_fee_currency_index = 0;
@@ -594,14 +626,14 @@ impl<T: Config> Pallet<T> {
 					Ok(amount_in) => {
 						fee_info = Some((currency_id, amount_in));
 						break;
-					},
-					Err(_) => {},
+					}
+					Err(_) => {}
 				}
 			}
 		}
 
 		match fee_info {
-			Some((fee_currency, fee_amount)) =>
+			Some((fee_currency, fee_amount)) => {
 				if fee_currency == extra_fee_currency {
 					T::MultiCurrency::transfer(fee_currency, who, extra_fee_receiver, fee_amount)
 						.map_err(|_| Error::<T>::NotEnoughBalance)?;
@@ -620,7 +652,8 @@ impl<T: Config> Pallet<T> {
 					)
 					.map_err(|_| Error::<T>::NotEnoughBalance)?;
 					Ok(())
-				},
+				}
+			}
 			None => Err(Error::<T>::ConversionError),
 		}
 	}
@@ -663,7 +696,7 @@ impl<T: Config> Pallet<T> {
 				T::MultiCurrency::ensure_can_withdraw(from_currency, who, amount_in)
 					.map_err(|_| Error::<T>::NotEnoughBalance)?;
 				Ok(amount_in)
-			},
+			}
 			Err(_) => Err(Error::<T>::NotEnoughBalance)?,
 		}
 	}

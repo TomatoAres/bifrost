@@ -26,8 +26,13 @@ use crate::{
 
 const SUBACCOUNT_0_32: [u8; 32] =
 	hex_literal::hex!["5a53736d8e96f1c007cf0d630acf5209b20611617af23ce924c8e25328eb5d28"];
-const SUBACCOUNT_0_LOCATION: MultiLocation =
-	MultiLocation { parents: 1, interior: X1(AccountId32 { network: None, id: SUBACCOUNT_0_32 }) };
+const SUBACCOUNT_0_LOCATION: MultiLocation = MultiLocation {
+	parents: 1,
+	interior: X1(AccountId32 {
+		network: None,
+		id: SUBACCOUNT_0_32,
+	}),
+};
 
 #[test]
 fn test_construct_lock_xcm() {
@@ -136,6 +141,9 @@ fn test_construct_claim_bonus_rewards_xcm() {
 			Pallet::<Runtime>::prepare_send_as_subaccount_call(call, &SUBACCOUNT_0_LOCATION, ASTR)
 				.unwrap();
 		let hex_string = hex::encode(&transact_call_data);
-		assert_eq!(hex_string, "0b010000220e000000000000000000000000000000000000000000");
+		assert_eq!(
+			hex_string,
+			"0b010000220e000000000000000000000000000000000000000000"
+		);
 	});
 }

@@ -404,7 +404,7 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 				} else {
 					MultiLocation::default()
 				}
-			},
+			}
 			// Other sibling chains use the Bifrost para account with "sibl"
 			_ => {
 				// get parachain id
@@ -434,7 +434,7 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 				} else {
 					MultiLocation::default()
 				}
-			},
+			}
 		}
 	}
 }
@@ -470,15 +470,26 @@ impl Convert<CurrencyId, Option<xcm::v4::Location>> for CurrencyIdConvert {
 		match id {
 			Token(MOVR) => Some(xcm::v4::Location::new(
 				1,
-				[xcm::v4::Junction::Parachain(2023), xcm::v4::Junction::PalletInstance(10)],
+				[
+					xcm::v4::Junction::Parachain(2023),
+					xcm::v4::Junction::PalletInstance(10),
+				],
 			)),
 			Token(KSM) => Some(xcm::v4::Location::parent()),
 			Native(BNC) => Some(xcm::v4::Location::new(
 				0,
-				[xcm::v4::Junction::from(BoundedVec::try_from("0x0001".encode()).unwrap())],
+				[xcm::v4::Junction::from(
+					BoundedVec::try_from("0x0001".encode()).unwrap(),
+				)],
 			)),
-			Token(PHA) => Some(xcm::v4::Location::new(1, [xcm::v4::Junction::Parachain(2004)])),
-			MANTA => Some(xcm::v4::Location::new(1, [xcm::v4::Junction::Parachain(2104)])),
+			Token(PHA) => Some(xcm::v4::Location::new(
+				1,
+				[xcm::v4::Junction::Parachain(2004)],
+			)),
+			MANTA => Some(xcm::v4::Location::new(
+				1,
+				[xcm::v4::Junction::Parachain(2104)],
+			)),
 			_ => None,
 		}
 	}
@@ -639,13 +650,17 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self

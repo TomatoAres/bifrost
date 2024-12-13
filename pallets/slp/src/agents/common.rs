@@ -70,7 +70,10 @@ impl<T: Config> Pallet<T> {
 		// Ensure delegators count is not greater than maximum.
 		let delegators_count = DelegatorNextIndex::<T>::get(currency_id);
 		let mins_maxs = MinimumsAndMaximums::<T>::get(currency_id).ok_or(Error::<T>::NotExist)?;
-		ensure!(delegators_count < mins_maxs.delegators_maximum, Error::<T>::GreaterThanMaximum);
+		ensure!(
+			delegators_count < mins_maxs.delegators_maximum,
+			Error::<T>::GreaterThanMaximum
+		);
 
 		// Revise two delegator storages.
 		DelegatorsIndex2Multilocation::<T>::insert(currency_id, index, who);
@@ -118,7 +121,10 @@ impl<T: Config> Pallet<T> {
 		Validators::<T>::insert(currency_id, bounded_list);
 
 		// Deposit event.
-		Self::deposit_event(Event::ValidatorsAdded { currency_id, validator_id: *who });
+		Self::deposit_event(Event::ValidatorsAdded {
+			currency_id,
+			validator_id: *who,
+		});
 
 		Ok(())
 	}
@@ -263,7 +269,10 @@ impl<T: Config> Pallet<T> {
 		// withdraw. If withdraw fails, issue an event and continue.
 		if let Err(_) = T::MultiCurrency::withdraw(currency_id, &source_account, fee) {
 			// Deposit event
-			Self::deposit_event(Event::BurnFeeFailed { currency_id, amount: fee });
+			Self::deposit_event(Event::BurnFeeFailed {
+				currency_id,
+				amount: fee,
+			});
 		}
 
 		Ok(())
@@ -284,11 +293,17 @@ impl<T: Config> Pallet<T> {
 
 		Ok(vec![
 			xcm::v4::prelude::WithdrawAsset(asset.clone().into()),
-			xcm::v4::prelude::BuyExecution { fees: asset, weight_limit: Unlimited },
+			xcm::v4::prelude::BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
 			xcm::v4::prelude::RefundSurplus,
 			xcm::v4::prelude::DepositAsset {
 				assets: xcm::v4::prelude::AllCounted(8).into(),
-				beneficiary: xcm::v4::prelude::Location { parents: 0, interior: refund_receiver },
+				beneficiary: xcm::v4::prelude::Location {
+					parents: 0,
+					interior: refund_receiver,
+				},
 			},
 		])
 	}
@@ -385,17 +400,17 @@ impl<T: Config> Pallet<T> {
 		let responder = Self::convert_currency_to_dest_location(currency_id)?;
 
 		let (notify_call_weight, callback_option) = match (currency_id, operation) {
-			(DOT, &XcmOperationType::Delegate) |
-			(DOT, &XcmOperationType::Undelegate) |
-			(KSM, &XcmOperationType::Delegate) |
-			(KSM, &XcmOperationType::Undelegate) => {
+			(DOT, &XcmOperationType::Delegate)
+			| (DOT, &XcmOperationType::Undelegate)
+			| (KSM, &XcmOperationType::Delegate)
+			| (KSM, &XcmOperationType::Undelegate) => {
 				let notify_call = Self::confirm_validators_by_delegator_call();
 				(notify_call.get_dispatch_info().weight, Some(notify_call))
-			},
+			}
 			_ => {
 				let notify_call = Self::confirm_delegator_ledger_call();
 				(notify_call.get_dispatch_info().weight, Some(notify_call))
-			},
+			}
 		};
 
 		let query_id =
@@ -443,11 +458,15 @@ impl<T: Config> Pallet<T> {
 		let dest_location = match currency_id {
 			DOT | KSM => xcm::v4::Location::new(
 				0,
-				[xcm::v4::prelude::Parachain(u32::from(T::ParachainId::get()))],
+				[xcm::v4::prelude::Parachain(
+					u32::from(T::ParachainId::get()),
+				)],
 			),
 			_ => xcm::v4::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(u32::from(T::ParachainId::get()))],
+				[xcm::v4::prelude::Parachain(
+					u32::from(T::ParachainId::get()),
+				)],
 			),
 		};
 
@@ -563,8 +582,8 @@ impl<T: Config> Pallet<T> {
 					currency_id,
 				);
 				xcm_message.insert(3, report_transact_status_instruct);
-			},
-			_ => {},
+			}
+			_ => {}
 		};
 		Ok(xcm::v4::Xcm(xcm_message))
 	}
@@ -578,41 +597,45 @@ impl<T: Config> Pallet<T> {
 		let delays = CurrencyDelays::<T>::get(currency_id).ok_or(Error::<T>::DelaysNotExist)?;
 
 		let unlock_time_unit = match (currency_id, current_time_unit) {
-			(ASTR, TimeUnit::Era(current_era)) |
-			(KSM, TimeUnit::Era(current_era)) |
-			(DOT, TimeUnit::Era(current_era)) =>
+			(ASTR, TimeUnit::Era(current_era))
+			| (KSM, TimeUnit::Era(current_era))
+			| (DOT, TimeUnit::Era(current_era)) => {
 				if let TimeUnit::Era(delay_era) = delays.unlock_delay {
-					let unlock_era =
-						current_era.checked_add(delay_era).ok_or(Error::<T>::OverFlow)?;
+					let unlock_era = current_era
+						.checked_add(delay_era)
+						.ok_or(Error::<T>::OverFlow)?;
 					TimeUnit::Era(unlock_era)
 				} else {
 					Err(Error::<T>::InvalidTimeUnit)?
-				},
+				}
+			}
 			(PHA, TimeUnit::Hour(current_hour)) => {
 				if let TimeUnit::Hour(delay_hour) = delays.unlock_delay {
-					let unlock_hour =
-						current_hour.checked_add(delay_hour).ok_or(Error::<T>::OverFlow)?;
+					let unlock_hour = current_hour
+						.checked_add(delay_hour)
+						.ok_or(Error::<T>::OverFlow)?;
 					TimeUnit::Hour(unlock_hour)
 				} else {
 					Err(Error::<T>::InvalidTimeUnit)?
 				}
-			},
-			(BNC, TimeUnit::Round(current_round)) |
-			(MOVR, TimeUnit::Round(current_round)) |
-			(GLMR, TimeUnit::Round(current_round)) |
-			(MANTA, TimeUnit::Round(current_round)) => {
+			}
+			(BNC, TimeUnit::Round(current_round))
+			| (MOVR, TimeUnit::Round(current_round))
+			| (GLMR, TimeUnit::Round(current_round))
+			| (MANTA, TimeUnit::Round(current_round)) => {
 				let mut delay = delays.unlock_delay;
 				if if_leave {
 					delay = delays.leave_delegators_delay;
 				}
 				if let TimeUnit::Round(delay_round) = delay {
-					let unlock_round =
-						current_round.checked_add(delay_round).ok_or(Error::<T>::OverFlow)?;
+					let unlock_round = current_round
+						.checked_add(delay_round)
+						.ok_or(Error::<T>::OverFlow)?;
 					TimeUnit::Round(unlock_round)
 				} else {
 					Err(Error::<T>::InvalidTimeUnit)?
 				}
-			},
+			}
 			_ => Err(Error::<T>::InvalidTimeUnit)?,
 		};
 
@@ -640,7 +663,9 @@ impl<T: Config> Pallet<T> {
 		// transfer supplementary_fee from treasury to "from" account
 		T::MultiCurrency::transfer(currency_id, &source_account, &from, supplementary_fee)
 			.map_err(|_| Error::<T>::Unexpected)?;
-		let added_amount = amount.checked_add(&supplementary_fee).ok_or(Error::<T>::OverFlow)?;
+		let added_amount = amount
+			.checked_add(&supplementary_fee)
+			.ok_or(Error::<T>::OverFlow)?;
 
 		Ok(added_amount)
 	}

@@ -110,9 +110,15 @@ pub mod pallet {
 			foreign_location: MultiLocation,
 		},
 		/// Event emitted when an account is added to the register list.
-		AddedToRegisterList { account: AccountIdOf<T>, currency_id: CurrencyId },
+		AddedToRegisterList {
+			account: AccountIdOf<T>,
+			currency_id: CurrencyId,
+		},
 		/// Event emitted when an account is removed from the register list.
-		RemovedFromRegisterList { account: AccountIdOf<T>, currency_id: CurrencyId },
+		RemovedFromRegisterList {
+			account: AccountIdOf<T>,
+			currency_id: CurrencyId,
+		},
 		/// Event emitted when the crossing minimum amounts are set for a currency.
 		CrossingMinimumAmountSet {
 			currency_id: CurrencyId,
@@ -195,7 +201,10 @@ pub mod pallet {
 
 			let crossing_minimum_amount = CrossingMinimumAmount::<T>::get(currency_id)
 				.ok_or(Error::<T>::NoCrossingMinimumSet)?;
-			ensure!(amount >= crossing_minimum_amount.1, Error::<T>::AmountLowerThanMinimum);
+			ensure!(
+				amount >= crossing_minimum_amount.1,
+				Error::<T>::AmountLowerThanMinimum
+			);
 
 			let balance = T::MultiCurrency::free_balance(currency_id, &crosser);
 			ensure!(balance >= amount, Error::<T>::NotEnoughBalance);
@@ -205,7 +214,12 @@ pub mod pallet {
 
 			T::MultiCurrency::withdraw(currency_id, &crosser, amount)?;
 
-			Self::deposit_event(Event::CrossedOut { currency_id, crosser, location, amount });
+			Self::deposit_event(Event::CrossedOut {
+				currency_id,
+				crosser,
+				location,
+				amount,
+			});
 			Ok(())
 		}
 
@@ -222,7 +236,10 @@ pub mod pallet {
 
 			let register_whitelist =
 				RegisterWhiteList::<T>::get(currency_id).ok_or(Error::<T>::NotAllowed)?;
-			ensure!(register_whitelist.contains(&registerer), Error::<T>::NotAllowed);
+			ensure!(
+				register_whitelist.contains(&registerer),
+				Error::<T>::NotAllowed
+			);
 
 			ensure!(
 				CrossCurrencyRegistry::<T>::contains_key(currency_id),
@@ -273,7 +290,10 @@ pub mod pallet {
 			let original_location =
 				AccountToOuterMultilocation::<T>::get(currency_id, account.clone())
 					.ok_or(Error::<T>::NotExist)?;
-			ensure!(original_location != *foreign_location.clone(), Error::<T>::AlreadyExist);
+			ensure!(
+				original_location != *foreign_location.clone(),
+				Error::<T>::AlreadyExist
+			);
 
 			AccountToOuterMultilocation::<T>::insert(
 				currency_id,
@@ -336,7 +356,7 @@ pub mod pallet {
 								currency_id,
 							});
 							Ok(())
-						},
+						}
 						_ => Err(Error::<T>::NotAllowed),
 					}
 				},
@@ -365,7 +385,7 @@ pub mod pallet {
 								currency_id,
 							});
 							Ok(())
-						},
+						}
 						_ => Err(Error::<T>::NotExist),
 					}
 				},

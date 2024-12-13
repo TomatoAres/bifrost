@@ -272,14 +272,21 @@ pub mod pallet {
 
 			let fee_share_account_id =
 				T::FeeSharePalletId::get().into_sub_account_truncating(distribution_id);
-			let info = Info { fee_share_account_id, token_type, if_auto };
+			let info = Info {
+				fee_share_account_id,
+				token_type,
+				if_auto,
+			};
 			DistributionInfos::<T>::insert(distribution_id, info.clone());
 			DistributionNextId::<T>::mutate(|id| -> DispatchResult {
 				*id = id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
 
-			Self::deposit_event(Event::Created { distribution_id, info });
+			Self::deposit_event(Event::Created {
+				distribution_id,
+				info,
+			});
 			Ok(())
 		}
 
@@ -306,7 +313,10 @@ pub mod pallet {
 				// Clear the original proportion
 				let res =
 					TokensProportions::<T>::clear_prefix(distribution_id, u32::max_value(), None);
-				ensure!(res.maybe_cursor.is_none(), Error::<T>::TokensProportionsNotCleared);
+				ensure!(
+					res.maybe_cursor.is_none(),
+					Error::<T>::TokensProportionsNotCleared
+				);
 
 				let mut total_proportion = Perbill::from_percent(0);
 				tokens_proportion.into_iter().for_each(|(k, v)| {
@@ -325,7 +335,10 @@ pub mod pallet {
 			}
 			DistributionInfos::<T>::insert(distribution_id, info.clone());
 
-			Self::deposit_event(Event::Edited { distribution_id, info });
+			Self::deposit_event(Event::Edited {
+				distribution_id,
+				info,
+			});
 			Ok(())
 		}
 
@@ -341,11 +354,15 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			let current_block = frame_system::Pallet::<T>::block_number();
-			let next_era =
-				current_block.checked_add(&era_length).ok_or(ArithmeticError::Overflow)?;
+			let next_era = current_block
+				.checked_add(&era_length)
+				.ok_or(ArithmeticError::Overflow)?;
 			AutoEra::<T>::put((era_length, next_era));
 
-			Self::deposit_event(Event::EraLengthSet { era_length, next_era });
+			Self::deposit_event(Event::EraLengthSet {
+				era_length,
+				next_era,
+			});
 			Ok(())
 		}
 
@@ -423,7 +440,10 @@ pub mod pallet {
 			};
 			DollarStandardInfos::<T>::insert(distribution_id, info.clone());
 
-			Self::deposit_event(Event::USDConfigSet { distribution_id, info });
+			Self::deposit_event(Event::USDConfigSet {
+				distribution_id,
+				info,
+			});
 			Ok(())
 		}
 	}
@@ -435,13 +455,18 @@ pub mod pallet {
 		) -> DispatchResult {
 			let mut usd_value: FixedU128 = Zero::zero();
 			// Calculate the total value based on the US dollar standard
-			infos.token_type.iter().try_for_each(|&currency_id| -> DispatchResult {
-				let amount =
-					T::MultiCurrency::free_balance(currency_id, &infos.fee_share_account_id);
-				let value = Self::get_asset_value(currency_id, amount)?;
-				usd_value = usd_value.checked_add(&value).ok_or(ArithmeticError::Overflow)?;
-				Ok(())
-			})?;
+			infos
+				.token_type
+				.iter()
+				.try_for_each(|&currency_id| -> DispatchResult {
+					let amount =
+						T::MultiCurrency::free_balance(currency_id, &infos.fee_share_account_id);
+					let value = Self::get_asset_value(currency_id, amount)?;
+					usd_value = usd_value
+						.checked_add(&value)
+						.ok_or(ArithmeticError::Overflow)?;
+					Ok(())
+				})?;
 			if let Some(mut usd_infos) = DollarStandardInfos::<T>::get(distribution_id) {
 				match usd_infos.cumulative.cmp(&usd_infos.target_value) {
 					// If the cumulative value is greater than or equal to the target value, the
@@ -456,39 +481,42 @@ pub mod pallet {
 							.ok_or(ArithmeticError::Overflow)?;
 						DollarStandardInfos::<T>::insert(distribution_id, &usd_infos);
 						return Self::transfer_all(infos, usd_infos.target_account_id);
-					},
+					}
 				}
 			}
 
-			infos.token_type.iter().try_for_each(|&currency_id| -> DispatchResult {
-				let ed = T::MultiCurrency::minimum_balance(currency_id);
-				let amount =
-					T::MultiCurrency::free_balance(currency_id, &infos.fee_share_account_id);
-				TokensProportions::<T>::iter_prefix(distribution_id).try_for_each(
-					|(account_to_send, proportion)| -> DispatchResult {
-						let withdraw_amount = proportion.mul_floor(amount);
-						if withdraw_amount < ed {
-							let receiver_balance =
-								T::MultiCurrency::total_balance(currency_id, &account_to_send);
+			infos
+				.token_type
+				.iter()
+				.try_for_each(|&currency_id| -> DispatchResult {
+					let ed = T::MultiCurrency::minimum_balance(currency_id);
+					let amount =
+						T::MultiCurrency::free_balance(currency_id, &infos.fee_share_account_id);
+					TokensProportions::<T>::iter_prefix(distribution_id).try_for_each(
+						|(account_to_send, proportion)| -> DispatchResult {
+							let withdraw_amount = proportion.mul_floor(amount);
+							if withdraw_amount < ed {
+								let receiver_balance =
+									T::MultiCurrency::total_balance(currency_id, &account_to_send);
 
-							let receiver_balance_after = receiver_balance
-								.checked_add(&withdraw_amount)
-								.ok_or(ArithmeticError::Overflow)?;
-							if receiver_balance_after < ed {
-								// If the balance of the receiving account is less than the
-								// existential deposit, the balance is not transferred
-								return Ok(());
+								let receiver_balance_after = receiver_balance
+									.checked_add(&withdraw_amount)
+									.ok_or(ArithmeticError::Overflow)?;
+								if receiver_balance_after < ed {
+									// If the balance of the receiving account is less than the
+									// existential deposit, the balance is not transferred
+									return Ok(());
+								}
 							}
-						}
-						T::MultiCurrency::transfer(
-							currency_id,
-							&infos.fee_share_account_id,
-							&account_to_send,
-							withdraw_amount,
-						)
-					},
-				)
-			})
+							T::MultiCurrency::transfer(
+								currency_id,
+								&infos.fee_share_account_id,
+								&account_to_send,
+								withdraw_amount,
+							)
+						},
+					)
+				})
 		}
 
 		pub fn get_price(currency_id: CurrencyIdOf<T>) -> Result<Price, DispatchError> {
@@ -519,16 +547,19 @@ pub mod pallet {
 			infos: &Info<AccountIdOf<T>>,
 			target_account_id: AccountIdOf<T>,
 		) -> DispatchResult {
-			infos.token_type.iter().try_for_each(|&currency_id| -> DispatchResult {
-				let amount =
-					T::MultiCurrency::free_balance(currency_id, &infos.fee_share_account_id);
-				T::MultiCurrency::transfer(
-					currency_id,
-					&infos.fee_share_account_id,
-					&target_account_id,
-					amount,
-				)
-			})
+			infos
+				.token_type
+				.iter()
+				.try_for_each(|&currency_id| -> DispatchResult {
+					let amount =
+						T::MultiCurrency::free_balance(currency_id, &infos.fee_share_account_id);
+					T::MultiCurrency::transfer(
+						currency_id,
+						&infos.fee_share_account_id,
+						&target_account_id,
+						amount,
+					)
+				})
 		}
 	}
 }

@@ -77,12 +77,12 @@ where
 						extra_fee_amount,
 						&extra_fee_receiver,
 					) {
-						Ok(_) => {},
+						Ok(_) => {}
 						Err(_) => {
 							return Err(TransactionValidityError::Invalid(
 								InvalidTransaction::Payment,
 							));
-						},
+						}
 					}
 				};
 			}
@@ -131,7 +131,9 @@ where
 						&fee_currency,
 						fee_currency_price,
 					)
-					.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+					.ok_or(TransactionValidityError::Invalid(
+						InvalidTransaction::Payment,
+					))?;
 					let refund = paid_fee.saturating_sub(converted_corrected_fee);
 					let converted_tip = T::OraclePriceProvider::get_amount_by_prices(
 						&BNC,
@@ -140,14 +142,16 @@ where
 						&fee_currency,
 						fee_currency_price,
 					)
-					.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+					.ok_or(TransactionValidityError::Invalid(
+						InvalidTransaction::Payment,
+					))?;
 					(
 						fee_currency,
 						refund,
 						converted_corrected_fee.saturating_sub(converted_tip),
 						converted_tip,
 					)
-				},
+				}
 			};
 			// refund to the account that paid the fees
 			T::MultiCurrency::deposit(currency, who, refund)

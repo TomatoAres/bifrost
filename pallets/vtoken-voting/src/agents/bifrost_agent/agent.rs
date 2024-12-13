@@ -144,7 +144,13 @@ impl<T: Config> VotingAgent<T> for BifrostAgent<T> {
 		poll_index: PollIndex,
 		_derivative_index: DerivativeIndex,
 	) -> Result<Vec<u8>, Error<T>> {
-		Ok(<BifrostCall<T> as ConvictionVotingCall<T>>::remove_vote(Some(class), poll_index)
-			.encode())
+		Ok(
+			<BifrostCall<T> as ConvictionVotingCall<T>>::remove_vote(Some(class), poll_index)
+				.encode(),
+		)
+	}
+
+	fn block_number(&self) -> BlockNumberFor<T> {
+		T::LocalBlockNumberProvider::current_block_number()
 	}
 }

@@ -128,7 +128,10 @@ impl CreateAssets<AssetId> for TestAssets {
 			let mut d = d.borrow_mut();
 			let id =
 				AssetId::try_from(d.len()).map_err(|_| DispatchError::Other("Too large id"))?;
-			d.push(Asset { total: 0, balances: HashMap::new() });
+			d.push(Asset {
+				total: 0,
+				balances: HashMap::new(),
+			});
 
 			Ok(id)
 		})
@@ -187,15 +190,22 @@ impl MultiCurrency<AccountId> for TestAssets {
 			let i =
 				usize::try_from(asset).map_err(|_| DispatchError::Other("Index out of range"))?;
 			let mut d = d.borrow_mut();
-			let a = d.get_mut(i).ok_or(DispatchError::Other("Index out of range"))?;
+			let a = d
+				.get_mut(i)
+				.ok_or(DispatchError::Other("Index out of range"))?;
 
 			if let Some(x) = a.balances.get_mut(dest) {
-				*x = x.checked_add(amount).ok_or(DispatchError::Other("Overflow"))?;
+				*x = x
+					.checked_add(amount)
+					.ok_or(DispatchError::Other("Overflow"))?;
 			} else {
 				a.balances.insert(*dest, amount);
 			}
 
-			a.total = a.total.checked_add(amount).ok_or(DispatchError::Other("Overflow"))?;
+			a.total = a
+				.total
+				.checked_add(amount)
+				.ok_or(DispatchError::Other("Overflow"))?;
 
 			Ok(())
 		})
@@ -210,13 +220,23 @@ impl MultiCurrency<AccountId> for TestAssets {
 			let i =
 				usize::try_from(asset).map_err(|_| DispatchError::Other("Index out of range"))?;
 			let mut d = d.borrow_mut();
-			let a = d.get_mut(i).ok_or(DispatchError::Other("Index out of range"))?;
+			let a = d
+				.get_mut(i)
+				.ok_or(DispatchError::Other("Index out of range"))?;
 
-			let x = a.balances.get_mut(dest).ok_or(DispatchError::Other("Not found"))?;
+			let x = a
+				.balances
+				.get_mut(dest)
+				.ok_or(DispatchError::Other("Not found"))?;
 
-			*x = x.checked_sub(amount).ok_or(DispatchError::Other("Overflow"))?;
+			*x = x
+				.checked_sub(amount)
+				.ok_or(DispatchError::Other("Overflow"))?;
 
-			a.total = a.total.checked_sub(amount).ok_or(DispatchError::Other("Overflow"))?;
+			a.total = a
+				.total
+				.checked_sub(amount)
+				.ok_or(DispatchError::Other("Overflow"))?;
 
 			Ok(())
 		})
@@ -285,5 +305,8 @@ impl stable_asset::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
+	frame_system::GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap()
+		.into()
 }

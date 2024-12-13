@@ -16,9 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Ensure we're `no_std` when compiling for Wasm.
-#![cfg_attr(not(feature = "std"), no_std)]
-
 use crate::{
 	AccountIdOf, BalanceOf, Config, CurrencyIdOf, Error, Event, Fees, HookIterationLimit,
 	MinTimeUnit, MinimumMint, MinimumRedeem, MintWithLockBlocks, OnRedeemSuccess, OngoingTimeUnit,
@@ -72,14 +69,16 @@ impl<T: Config> Pallet<T> {
 		TokenPool::<T>::mutate(currency_id, |token_pool_amount| -> DispatchResult {
 			match operation {
 				Operation::Set => *token_pool_amount = *currency_amount,
-				Operation::Add =>
+				Operation::Add => {
 					*token_pool_amount = token_pool_amount
 						.checked_add(currency_amount)
-						.ok_or(Error::<T>::CalculationOverflow)?,
-				Operation::Sub =>
+						.ok_or(Error::<T>::CalculationOverflow)?
+				}
+				Operation::Sub => {
 					*token_pool_amount = token_pool_amount
 						.checked_sub(currency_amount)
-						.ok_or(Error::<T>::CalculationOverflow)?,
+						.ok_or(Error::<T>::CalculationOverflow)?
+				}
 			}
 			Ok(())
 		})
@@ -98,14 +97,16 @@ impl<T: Config> Pallet<T> {
 		UnlockingTotal::<T>::mutate(currency_id, |unlocking_total_amount| -> DispatchResult {
 			match operation {
 				Operation::Set => *unlocking_total_amount = *currency_amount,
-				Operation::Add =>
+				Operation::Add => {
 					*unlocking_total_amount = unlocking_total_amount
 						.checked_add(currency_amount)
-						.ok_or(Error::<T>::CalculationOverflow)?,
-				Operation::Sub =>
+						.ok_or(Error::<T>::CalculationOverflow)?
+				}
+				Operation::Sub => {
 					*unlocking_total_amount = unlocking_total_amount
 						.checked_sub(currency_amount)
-						.ok_or(Error::<T>::CalculationOverflow)?,
+						.ok_or(Error::<T>::CalculationOverflow)?
+				}
 			}
 			Ok(())
 		})
@@ -139,10 +140,11 @@ impl<T: Config> Pallet<T> {
 					redeem_type,
 				));
 				Ok(false)
-			},
+			}
 			Operation::Sub => {
-				let (_, total_locked_amount, _, _) =
-					value.as_mut().ok_or(Error::<T>::TimeUnitUnlockLedgerNotFound)?;
+				let (_, total_locked_amount, _, _) = value
+					.as_mut()
+					.ok_or(Error::<T>::TimeUnitUnlockLedgerNotFound)?;
 
 				if currency_amount >= total_locked_amount {
 					*value = None;
@@ -153,7 +155,7 @@ impl<T: Config> Pallet<T> {
 						.ok_or(Error::<T>::CalculationOverflow)?;
 					Ok(false)
 				}
-			},
+			}
 		})
 	}
 
@@ -177,19 +179,22 @@ impl<T: Config> Pallet<T> {
 			match operation {
 				Operation::Set | Operation::Add => match unlocking_ledger {
 					Some((total_locked, ledger_list, _token_id)) => {
-						ledger_list.try_push(*unlock_id).map_err(|_| Error::<T>::TooManyRedeems)?;
+						ledger_list
+							.try_push(*unlock_id)
+							.map_err(|_| Error::<T>::TooManyRedeems)?;
 
 						*total_locked = total_locked
 							.checked_add(&currency_amount)
 							.ok_or(Error::<T>::CalculationOverflow)?;
-					},
-					None =>
+					}
+					None => {
 						*unlocking_ledger = Some((
 							*currency_amount,
 							BoundedVec::try_from(vec![*unlock_id])
 								.map_err(|_| Error::<T>::TooManyRedeems)?,
 							*currency_id,
-						)),
+						))
+					}
 				},
 				Operation::Sub => {
 					let (total_locked_amount, ledger_list, _) = unlocking_ledger
@@ -206,7 +211,7 @@ impl<T: Config> Pallet<T> {
 							ledger_list.retain(|x| x != unlock_id);
 						}
 					}
-				},
+				}
 			}
 			Ok(())
 		})
@@ -232,19 +237,21 @@ impl<T: Config> Pallet<T> {
 			match operation {
 				Operation::Set | Operation::Add => match user_unlock_ledger {
 					Some((total_locked, ledger_list)) => {
-						ledger_list.try_push(*unlock_id).map_err(|_| Error::<T>::TooManyRedeems)?;
+						ledger_list
+							.try_push(*unlock_id)
+							.map_err(|_| Error::<T>::TooManyRedeems)?;
 
 						*total_locked = total_locked
 							.checked_add(&currency_amount)
 							.ok_or(Error::<T>::CalculationOverflow)?;
-					},
+					}
 					None => {
 						*user_unlock_ledger = Some((
 							*currency_amount,
 							BoundedVec::try_from(vec![*unlock_id])
 								.map_err(|_| Error::<T>::TooManyRedeems)?,
 						));
-					},
+					}
 				},
 				Operation::Sub => {
 					let (total_locked_amount, ledger_list) = user_unlock_ledger
@@ -261,7 +268,7 @@ impl<T: Config> Pallet<T> {
 							ledger_list.retain(|x| x != unlock_id);
 						}
 					}
-				},
+				}
 			}
 			Ok(())
 		})
@@ -334,8 +341,9 @@ impl<T: Config> Pallet<T> {
 		// Charging fees
 		T::MultiCurrency::transfer(currency_id, minter, &T::FeeAccount::get(), mint_fee)?;
 
-		let currency_amount =
-			currency_amount.checked_sub(&mint_fee).ok_or(Error::<T>::CalculationOverflow)?;
+		let currency_amount = currency_amount
+			.checked_sub(&mint_fee)
+			.ok_or(Error::<T>::CalculationOverflow)?;
 		let v_currency_amount = Self::get_v_currency_amount_by_currency_amount(
 			currency_id,
 			v_currency_id,
@@ -494,14 +502,17 @@ impl<T: Config> Pallet<T> {
 						1,
 						[
 							Parachain(T::MoonbeamChainId::get()),
-							AccountKey20 { network: None, key: receiver.to_fixed_bytes() },
+							AccountKey20 {
+								network: None,
+								key: receiver.to_fixed_bytes(),
+							},
 						],
 					),
 					RedeemTo::Moonbeam(receiver),
 				),
 				RedeemType::Native => {
 					unreachable!()
-				},
+				}
 			};
 			if redeem_currency_id == FIL {
 				let assets = vec![
@@ -550,7 +561,10 @@ impl<T: Config> Pallet<T> {
 		if let Some((_total_locked, ledger_list, currency_id)) =
 			TimeUnitUnlockLedger::<T>::get(&time_unit, currency)
 		{
-			for unlock_id in ledger_list.iter().take(HookIterationLimit::<T>::get() as usize) {
+			for unlock_id in ledger_list
+				.iter()
+				.take(HookIterationLimit::<T>::get() as usize)
+			{
 				if let Some((account, unlock_amount, time_unit, redeem_type)) =
 					TokenUnlockLedger::<T>::get(currency_id, unlock_id)
 				{
@@ -579,8 +593,9 @@ impl<T: Config> Pallet<T> {
 					UnlockDuration::<T>::get(currency).ok_or(Error::<T>::UnlockDurationNotFound)?;
 				let ongoing_time =
 					OngoingTimeUnit::<T>::get(currency).ok_or(Error::<T>::OngoingTimeUnitNotSet)?;
-				let result_time_unit =
-					ongoing_time.add(unlock_duration).ok_or(Error::<T>::CalculationOverflow)?;
+				let result_time_unit = ongoing_time
+					.add(unlock_duration)
+					.ok_or(Error::<T>::CalculationOverflow)?;
 				if result_time_unit.gt(time_unit) {
 					*time_unit = time_unit.clone().add_one();
 				}
@@ -602,7 +617,9 @@ impl<T: Config> Pallet<T> {
 			currency_amount >= MinimumMint::<T>::get(currency_id),
 			Error::<T>::BelowMinimumMint
 		);
-		let v_currency_id = currency_id.to_vtoken().map_err(|_| Error::<T>::NotSupportTokenType)?;
+		let v_currency_id = currency_id
+			.to_vtoken()
+			.map_err(|_| Error::<T>::NotSupportTokenType)?;
 
 		let (currency_amount_excluding_fee, v_currency_amount, mint_fee) =
 			Self::mint_without_transfer(&minter, v_currency_id, currency_id, currency_amount)?;
@@ -636,7 +653,9 @@ impl<T: Config> Pallet<T> {
 		v_currency_amount: BalanceOf<T>,
 		redeem_type: RedeemType<AccountIdOf<T>>,
 	) -> DispatchResultWithPostInfo {
-		let currency_id = v_currency_id.to_token().map_err(|_| Error::<T>::NotSupportTokenType)?;
+		let currency_id = v_currency_id
+			.to_token()
+			.map_err(|_| Error::<T>::NotSupportTokenType)?;
 		ensure!(
 			v_currency_amount >= MinimumRedeem::<T>::get(v_currency_id),
 			Error::<T>::BelowMinimumRedeem
@@ -698,7 +717,9 @@ impl<T: Config> Pallet<T> {
 			});
 
 			// Increase the next unlock id
-			*next_id = next_id.checked_add(1).ok_or(Error::<T>::CalculationOverflow)?;
+			*next_id = next_id
+				.checked_add(1)
+				.ok_or(Error::<T>::CalculationOverflow)?;
 
 			T::ChannelCommission::record_redeem_amount(v_currency_id, v_currency_amount)?;
 			let extra_weight = T::OnRedeemSuccess::on_redeemed(
@@ -759,13 +780,14 @@ impl<T: Config> Pallet<T> {
 						lock_records
 							.try_push((v_currency_amount, due_block))
 							.map_err(|_| Error::<T>::TooManyLocks)?;
-					},
-					None =>
+					}
+					None => {
 						*v_token_lock_ledger = Some((
 							v_currency_amount,
 							BoundedVec::try_from(vec![(v_currency_amount, due_block)])
 								.map_err(|_| Error::<T>::TooManyLocks)?,
-						)),
+						))
+					}
 				}
 
 				// extend the locked amount to be new_lock_total
@@ -788,19 +810,28 @@ impl<T: Config> Pallet<T> {
 		// get the vtoken pool balance
 		let vtoken_pool_balance =
 			T::MultiCurrency::free_balance(v_currency_id, &Self::incentive_pool_account());
-		ensure!(vtoken_pool_balance > BalanceOf::<T>::zero(), Error::<T>::NotEnoughBalance);
+		ensure!(
+			vtoken_pool_balance > BalanceOf::<T>::zero(),
+			Error::<T>::NotEnoughBalance
+		);
 
 		// get current block number
 		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
 		// get the veBNC total amount
 		let vebnc_total_issuance = T::BbBNC::total_supply(current_block_number)
 			.map_err(|_| Error::<T>::VeBNCCheckingError)?;
-		ensure!(vebnc_total_issuance > BalanceOf::<T>::zero(), Error::<T>::BalanceZero);
+		ensure!(
+			vebnc_total_issuance > BalanceOf::<T>::zero(),
+			Error::<T>::BalanceZero
+		);
 
 		// get the veBNC balance of the minter
 		let minter_vebnc_balance =
 			T::BbBNC::balance_of(minter, None).map_err(|_| Error::<T>::VeBNCCheckingError)?;
-		ensure!(minter_vebnc_balance > BalanceOf::<T>::zero(), Error::<T>::NotEnoughBalance);
+		ensure!(
+			minter_vebnc_balance > BalanceOf::<T>::zero(),
+			Error::<T>::NotEnoughBalance
+		);
 
 		// get the percentage of the veBNC balance of the minter to the total veBNC amount and
 		// get the square root of the percentage
@@ -821,18 +852,23 @@ impl<T: Config> Pallet<T> {
 		// calculate the incentive amount, but mind the overflow
 		// incentive_amount = vtoken_pool_balance * incentive_coef * v_currency_amount *
 		// sqrt_percentage / v_currency_total_issuance
-		let incentive_amount =
-			U256::from(percentage.mul_ceil(vtoken_pool_balance).saturated_into::<u128>())
-				.checked_mul(U256::from(incentive_coef))
-				.and_then(|x| x.checked_mul(U256::from(v_currency_amount.saturated_into::<u128>())))
-				// .and_then(|x| x.checked_mul(percentage))
-				.and_then(|x| {
-					x.checked_div(U256::from(v_currency_total_issuance.saturated_into::<u128>()))
-				})
-				// first turn into u128，then use unique_saturated_into BalanceOf<T>
-				.map(|x| x.saturated_into::<u128>())
-				.map(|x| x.unique_saturated_into())
-				.ok_or(Error::<T>::CalculationOverflow)?;
+		let incentive_amount = U256::from(
+			percentage
+				.mul_ceil(vtoken_pool_balance)
+				.saturated_into::<u128>(),
+		)
+		.checked_mul(U256::from(incentive_coef))
+		.and_then(|x| x.checked_mul(U256::from(v_currency_amount.saturated_into::<u128>())))
+		// .and_then(|x| x.checked_mul(percentage))
+		.and_then(|x| {
+			x.checked_div(U256::from(
+				v_currency_total_issuance.saturated_into::<u128>(),
+			))
+		})
+		// first turn into u128，then use unique_saturated_into BalanceOf<T>
+		.map(|x| x.saturated_into::<u128>())
+		.map(|x| x.unique_saturated_into())
+		.ok_or(Error::<T>::CalculationOverflow)?;
 
 		Ok(incentive_amount)
 	}
@@ -893,7 +929,12 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 	fn get_token_unlock_ledger(
 		currency_id: CurrencyId,
 		index: u32,
-	) -> Option<(AccountIdOf<T>, BalanceOf<T>, TimeUnit, RedeemType<AccountIdOf<T>>)> {
+	) -> Option<(
+		AccountIdOf<T>,
+		BalanceOf<T>,
+		TimeUnit,
+		RedeemType<AccountIdOf<T>>,
+	)> {
 		TokenUnlockLedger::<T>::get(currency_id, index)
 	}
 
@@ -920,7 +961,12 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 		v_currency_id: CurrencyIdOf<T>,
 		v_currency_amount: BalanceOf<T>,
 	) -> DispatchResultWithPostInfo {
-		Self::do_redeem(exchanger, v_currency_id, v_currency_amount, RedeemType::Native)
+		Self::do_redeem(
+			exchanger,
+			v_currency_id,
+			v_currency_amount,
+			RedeemType::Native,
+		)
 	}
 
 	fn slpx_redeem(

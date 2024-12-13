@@ -28,9 +28,13 @@ jobs:
           toolchain: 1.81.0
           components: rustfmt, clippy
           target: wasm32-unknown-unknown
+      - name: Cargo check-all
+        run: |
+          make check-all
+
       - name: Cargo clippy
         run: |
-          make clippy
+          make clippy-all
 
       - name: Test All
         run: |

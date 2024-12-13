@@ -117,8 +117,10 @@ parameter_types! {
 	pub UniversalLocation: InteriorLocation = [GlobalConsensus(PolkadotNetwork::get())].into();
 }
 
-pub type SovereignAccountOf =
-	(ChildParachainConvertsVia<ParaId, AccountId>, AccountId32Aliases<PolkadotNetwork, AccountId>);
+pub type SovereignAccountOf = (
+	ChildParachainConvertsVia<ParaId, AccountId>,
+	AccountId32Aliases<PolkadotNetwork, AccountId>,
+);
 
 pub type LocalAssetTransactor =
 	FungibleAdapter<Balances, IsConcrete<DotLocation>, SovereignAccountOf, AccountId, ()>;

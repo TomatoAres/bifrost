@@ -46,10 +46,10 @@ impl MockOraclePriceProvider {
 		match storage_price.get(&currency_id) {
 			Some((_, mantissa)) => {
 				storage_price.insert(currency_id, (price, *mantissa));
-			},
+			}
 			None => {
 				storage_price.insert(currency_id, (price, 10u128.pow(12)));
-			},
+			}
 		};
 		StoragePrice::set(storage_price);
 	}
@@ -101,7 +101,11 @@ impl OraclePriceProvider for MockOraclePriceProvider {
 				let amount_out = total_value
 					.mul(FixedU128::from_inner(*currency_out_mantissa))
 					.div(*currency_out_price);
-				return Some((amount_out.into_inner(), *currency_in_price, *currency_out_price));
+				return Some((
+					amount_out.into_inner(),
+					*currency_in_price,
+					*currency_out_price,
+				));
 			}
 		}
 		None
@@ -119,10 +123,16 @@ mod test {
 			Some((FixedU128::from_inner(200_000_000_000_000_000), 0))
 		);
 		MockOraclePriceProvider::set_price(BNC, FixedU128::from(100));
-		assert_eq!(MockOraclePriceProvider::get_price(&BNC), Some((FixedU128::from(100), 0)));
+		assert_eq!(
+			MockOraclePriceProvider::get_price(&BNC),
+			Some((FixedU128::from(100), 0))
+		);
 
 		MockOraclePriceProvider::set_price(DOT, FixedU128::from(100));
-		assert_eq!(MockOraclePriceProvider::get_price(&DOT), Some((FixedU128::from(100), 0)));
+		assert_eq!(
+			MockOraclePriceProvider::get_price(&DOT),
+			Some((FixedU128::from(100), 0))
+		);
 	}
 
 	#[test]
@@ -136,19 +146,31 @@ mod test {
 			MockOraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
 				&BNC, bnc_amount, &DOT
 			),
-			Some((dot_amount, FixedU128::from_inner(200_000_000_000_000_000), FixedU128::from(5)))
+			Some((
+				dot_amount,
+				FixedU128::from_inner(200_000_000_000_000_000),
+				FixedU128::from(5)
+			))
 		);
 		assert_eq!(
 			MockOraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
 				&BNC, bnc_amount, &DOT_U
 			),
-			Some((usdt_amount, FixedU128::from_inner(200_000_000_000_000_000), FixedU128::from(1)))
+			Some((
+				usdt_amount,
+				FixedU128::from_inner(200_000_000_000_000_000),
+				FixedU128::from(1)
+			))
 		);
 		assert_eq!(
 			MockOraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
 				&BNC, bnc_amount, &KSM
 			),
-			Some((ksm_amount, FixedU128::from_inner(200_000_000_000_000_000), FixedU128::from(20)))
+			Some((
+				ksm_amount,
+				FixedU128::from_inner(200_000_000_000_000_000),
+				FixedU128::from(20)
+			))
 		);
 		assert_eq!(
 			MockOraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(

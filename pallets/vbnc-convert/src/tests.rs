@@ -31,16 +31,30 @@ use frame_support::{assert_noop, assert_ok};
 fn convert_to_vbnc_p_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Tokens::deposit(VBNC, &BOB, 5000));
-		assert_ok!(Tokens::deposit(VBNC_P, &VBNCConvert::vbnc_p_pool_account(), 5000));
+		assert_ok!(Tokens::deposit(
+			VBNC_P,
+			&VBNCConvert::vbnc_p_pool_account(),
+			5000
+		));
 
-		assert_ok!(VBNCConvert::convert_to_vbnc_p(RuntimeOrigin::signed(BOB), VBNC, 1000));
+		assert_ok!(VBNCConvert::convert_to_vbnc_p(
+			RuntimeOrigin::signed(BOB),
+			VBNC,
+			1000
+		));
 		System::assert_last_event(RuntimeEvent::VBNCConvert(Event::VBNCPConverted {
 			to: BOB,
 			value: 1000,
 		}));
 
-		assert_eq!(<Runtime as crate::Config>::MultiCurrency::free_balance(VBNC, &BOB,), 4000);
-		assert_eq!(<Runtime as crate::Config>::MultiCurrency::free_balance(VBNC_P, &BOB,), 1000);
+		assert_eq!(
+			<Runtime as crate::Config>::MultiCurrency::free_balance(VBNC, &BOB,),
+			4000
+		);
+		assert_eq!(
+			<Runtime as crate::Config>::MultiCurrency::free_balance(VBNC_P, &BOB,),
+			1000
+		);
 		assert_eq!(
 			<Runtime as crate::Config>::MultiCurrency::free_balance(
 				VBNC_P,
@@ -94,7 +108,11 @@ fn convert_to_vbnc_p_should_fail_with_pool_balance_poor() {
 fn convert_to_vbnc_p_should_fail_with_less_than_existential_depositr() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Tokens::deposit(VBNC, &BOB, 500));
-		assert_ok!(Tokens::deposit(VBNC_P, &VBNCConvert::vbnc_p_pool_account(), 500));
+		assert_ok!(Tokens::deposit(
+			VBNC_P,
+			&VBNCConvert::vbnc_p_pool_account(),
+			500
+		));
 
 		assert_noop!(
 			VBNCConvert::convert_to_vbnc_p(RuntimeOrigin::signed(BOB), VBNC, 1),
@@ -114,7 +132,10 @@ fn charge_vbnc_should_work() {
 			value: 100,
 		}));
 
-		assert_eq!(<Runtime as crate::Config>::MultiCurrency::free_balance(VBNC_P, &BOB), 400);
+		assert_eq!(
+			<Runtime as crate::Config>::MultiCurrency::free_balance(VBNC_P, &BOB),
+			400
+		);
 		assert_eq!(
 			<Runtime as crate::Config>::MultiCurrency::free_balance(
 				VBNC_P,

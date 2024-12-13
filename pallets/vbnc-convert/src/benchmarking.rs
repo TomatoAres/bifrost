@@ -58,11 +58,21 @@ mod benchmarks {
 		#[extrinsic_call]
 		Pallet::<T>::charge_vbnc_p(RawOrigin::Signed(caller.clone()), amount);
 
-		assert_eq!(T::MultiCurrency::free_balance(VBNC_P, &caller), Zero::zero());
-		assert_eq!(T::MultiCurrency::free_balance(VBNC_P, &vbnc_pool_account), amount);
+		assert_eq!(
+			T::MultiCurrency::free_balance(VBNC_P, &caller),
+			Zero::zero()
+		);
+		assert_eq!(
+			T::MultiCurrency::free_balance(VBNC_P, &vbnc_pool_account),
+			amount
+		);
 
 		Ok(())
 	}
 
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Runtime);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
 }

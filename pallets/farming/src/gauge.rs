@@ -146,8 +146,11 @@ where
 
 		pool_info.rewards.iter().try_for_each(
 			|(reward_currency, (total_reward, total_withdrawn_reward))| -> DispatchResult {
-				let withdrawn_reward =
-					share_info.withdrawn_rewards.get(reward_currency).copied().unwrap_or_default();
+				let withdrawn_reward = share_info
+					.withdrawn_rewards
+					.get(reward_currency)
+					.copied()
+					.unwrap_or_default();
 
 				let total_reward_proportion: BalanceOf<T> = u128::try_from(
 					U256::from(share_info.share.to_owned().saturated_into::<u128>())
@@ -197,8 +200,8 @@ where
 					current_block_number
 				};
 
-				let latest_claimed_time_factor = gauge_info.latest_time_factor +
-					gauge_info
+				let latest_claimed_time_factor = gauge_info.latest_time_factor
+					+ gauge_info
 						.gauge_amount
 						.saturated_into::<u128>()
 						.checked_mul(
@@ -246,7 +249,7 @@ where
 						Ok(())
 					},
 				)?;
-			},
+			}
 		};
 		Ok(result_vec)
 	}

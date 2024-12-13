@@ -142,7 +142,11 @@ pub mod pallet {
 		/// - `current`: The index of the current round.
 		/// - `first`: The block number at which this round started.
 		/// - `length`: The length of the round in blocks.
-		NewRound { current: RoundIndex, first: BlockNumberFor<T>, length: u32 },
+		NewRound {
+			current: RoundIndex,
+			first: BlockNumberFor<T>,
+			length: u32,
+		},
 		/// Configuration of a token has been changed.
 		///
 		/// - `token`: The identifier of the token whose configuration changed.
@@ -449,7 +453,9 @@ pub mod pallet {
 			// If it is a new token, add it to the token list
 			if new_token {
 				let mut token_list = TokenList::<T>::get();
-				token_list.try_push(token).map_err(|_| Error::<T>::ExceedMaxTokenLen)?;
+				token_list
+					.try_push(token)
+					.map_err(|_| Error::<T>::ExceedMaxTokenLen)?;
 				<TokenList<T>>::put(token_list);
 			}
 
@@ -536,8 +542,8 @@ impl<T: Config> Pallet<T> {
 		// Query farming info
 		let mut farming_staking_amount = BalanceOf::<T>::zero();
 		for i in 0..token_info.current_config.farming_poolids.len() {
-			farming_staking_amount = farming_staking_amount +
-				token_info.current_config.lptoken_rates[i].mul_floor(
+			farming_staking_amount = farming_staking_amount
+				+ token_info.current_config.lptoken_rates[i].mul_floor(
 					// TODO: get_token_shares
 					T::FarmingInfo::get_token_shares(
 						token_info.current_config.farming_poolids[i],
@@ -572,12 +578,16 @@ impl<T: Config> Pallet<T> {
 
 		// Check stakable_amount > (system_shadow_amount - pending_redeem_amount) ===> mint vksm ,
 		// update system_shadow_amount+=mint_amount
-		if stakable_amount >
-			token_info.system_shadow_amount.saturating_sub(token_info.pending_redeem_amount)
+		if stakable_amount
+			> token_info
+				.system_shadow_amount
+				.saturating_sub(token_info.pending_redeem_amount)
 		{
 			// mint_amount = stakable_amount - (system_shadow_amount - pending_redeem_amount)
 			let mint_amount = stakable_amount.saturating_sub(
-				token_info.system_shadow_amount.saturating_sub(token_info.pending_redeem_amount),
+				token_info
+					.system_shadow_amount
+					.saturating_sub(token_info.pending_redeem_amount),
 			);
 
 			// Deposit mint_amount ksm to pallet_account
@@ -606,8 +616,10 @@ impl<T: Config> Pallet<T> {
 			});
 		// Check stakable_amount < (system_shadow_amount - pending_redeem_amount) ===> redeem vksm ,
 		// update pending_redeem_amount += token_amount
-		} else if stakable_amount <
-			token_info.system_shadow_amount.saturating_sub(token_info.pending_redeem_amount)
+		} else if stakable_amount
+			< token_info
+				.system_shadow_amount
+				.saturating_sub(token_info.pending_redeem_amount)
 		{
 			// redeem_amount = system_shadow_amount - pending_redeem_amount - stakable_amount
 			let redeem_amount = token_info
@@ -650,7 +662,9 @@ impl<T: Config> Pallet<T> {
 		let token_info = <TokenStatus<T>>::get(&token).ok_or(Error::<T>::TokenInfoNotFound)?;
 
 		// token_id convert to vtoken_id
-		let vtoken_id = token.to_vtoken().map_err(|_| Error::<T>::TokenInfoNotFound)?;
+		let vtoken_id = token
+			.to_vtoken()
+			.map_err(|_| Error::<T>::TokenInfoNotFound)?;
 
 		let pallet_account: AccountIdOf<T> = T::PalletId::get().into_account_truncating();
 
@@ -714,8 +728,9 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// pending_redeem_amount -= token_amount
-		token_info.pending_redeem_amount =
-			token_info.pending_redeem_amount.saturating_sub(token_amount);
+		token_info.pending_redeem_amount = token_info
+			.pending_redeem_amount
+			.saturating_sub(token_amount);
 
 		// Destroy token
 		match T::MultiCurrency::withdraw(token_id, &to, token_amount) {
@@ -730,7 +745,7 @@ impl<T: Config> Pallet<T> {
 				});
 				token_info.system_shadow_amount =
 					token_info.system_shadow_amount.saturating_sub(token_amount);
-			},
+			}
 			Err(error) => {
 				log::warn!("{:?} withdraw error: {:?}", &token_id, error);
 				Self::deposit_event(Event::WithdrawFailed {
@@ -741,7 +756,7 @@ impl<T: Config> Pallet<T> {
 					system_shadow_amount: token_info.system_shadow_amount,
 					pending_redeem_amount: token_info.pending_redeem_amount,
 				});
-			},
+			}
 		}
 		<TokenStatus<T>>::insert(&token_id, token_info);
 		T::WeightInfo::on_redeem_success()
@@ -778,8 +793,9 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// pending_redeem_amount += token_amount
-		token_info.pending_redeem_amount =
-			token_info.pending_redeem_amount.saturating_add(token_amount);
+		token_info.pending_redeem_amount = token_info
+			.pending_redeem_amount
+			.saturating_add(token_amount);
 
 		<TokenStatus<T>>::insert(&token_id, token_info.clone());
 

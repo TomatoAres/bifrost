@@ -30,7 +30,6 @@ use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
 use core::convert::TryInto;
 use pallet_traits::evm::InspectEvmAccounts;
 // A few exports that help ease life for downstream crates.
-use anyhow::anyhow;
 pub use bifrost_parachain_staking::{InflationInfo, Range};
 use bifrost_primitives::{
 	BifrostCrowdloanId, BifrostVsbondAccount, BuyBackAccount, BuybackPalletId, CloudsPalletId,
@@ -39,7 +38,7 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
 	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC,
+	TreasuryPalletId, BNC, DOT, VDOT,
 };
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 pub use frame_support::{
@@ -58,20 +57,6 @@ pub use frame_support::{
 	PalletId, StorageValue,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use ismp::{
-	consensus::{
-		ConsensusClient, ConsensusClientId, StateCommitment, StateMachineClient,
-		StateMachineHeight, StateMachineId, VerifiedCommitments,
-	},
-	error::Error as IsmpError,
-	handlers,
-	host::{IsmpHost, StateMachine},
-	messaging::{CreateConsensusState, Proof, StateCommitmentHeight},
-	module::IsmpModule,
-	router::{IsmpRouter, PostRequest, RequestResponse, Response, Timeout},
-	Error,
-};
-use ismp_sync_committee::constants::{gnosis, mainnet::Mainnet, sepolia::Sepolia};
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -213,7 +198,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
@@ -255,8 +243,9 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const NativeCurrencyId: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
-	pub const RelayCurrencyId: CurrencyId = CurrencyId::Token2(DOT_TOKEN_ID);
+	pub const NativeCurrencyId: CurrencyId = BNC;
+	pub const RelayCurrencyId: CurrencyId = DOT;
+	pub const RelayVCurrencyId: CurrencyId = VDOT;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
 }
 
@@ -400,24 +389,30 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::ParachainStaking(..)
 			),
 			ProxyType::Staking => {
-				matches!(c, RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..))
-			},
+				matches!(
+					c,
+					RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..)
+				)
+			}
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Democracy(..) |
-					RuntimeCall::Council(..) |
-					RuntimeCall::TechnicalCommittee(..) |
-					RuntimeCall::PhragmenElection(..) |
-					RuntimeCall::Treasury(..) |
-					RuntimeCall::Utility(..)
+				RuntimeCall::Democracy(..)
+					| RuntimeCall::Council(..)
+					| RuntimeCall::TechnicalCommittee(..)
+					| RuntimeCall::PhragmenElection(..)
+					| RuntimeCall::Treasury(..)
+					| RuntimeCall::Utility(..)
 			),
 			ProxyType::CancelProxy => {
-				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
-			},
+				matches!(
+					c,
+					RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })
+				)
+			}
 			ProxyType::IdentityJudgement => matches!(
 				c,
-				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. }) |
-					RuntimeCall::Utility(..)
+				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })
+					| RuntimeCall::Utility(..)
 			),
 		}
 	}
@@ -800,7 +795,10 @@ impl pallet_transaction_payment::Config for Runtime {
 pub struct TxPauseWhitelistedCalls;
 impl Contains<pallet_tx_pause::RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
 	fn contains(full_name: &pallet_tx_pause::RuntimeCallNameOf<Runtime>) -> bool {
-		matches!(full_name.0.as_slice(), b"System" | b"Timestamp" | b"TxPause")
+		matches!(
+			full_name.0.as_slice(),
+			b"System" | b"Timestamp" | b"TxPause"
+		)
 	}
 }
 
@@ -1016,7 +1014,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLoca
 			),
 		),
 		// Only relay chain use the Bifrost para account with "para"
-		CurrencyId::Token2(DOT_TOKEN_ID) => xcm::v3::Location::new(
+		DOT => xcm::v3::Location::new(
 			1,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1028,7 +1026,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLoca
 			}),
 		),
 		// Bifrost Polkadot Native token
-		CurrencyId::Native(TokenSymbol::BNC) => xcm::v3::Location::new(
+		BNC => xcm::v3::Location::new(
 			0,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1070,7 +1068,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLoca
 			} else {
 				xcm::v3::Location::default()
 			}
-		},
+		}
 	}
 }
 
@@ -1344,6 +1342,8 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type ReferendumCheckInterval = ReferendumCheckInterval;
 	type WeightInfo = weights::bifrost_vtoken_voting::BifrostWeight<Runtime>;
 	type PalletsOrigin = OriginCaller;
+	type LocalBlockNumberProvider = System;
+	type RelayVCurrency = RelayVCurrencyId;
 }
 
 // Bifrost modules end
@@ -1431,6 +1431,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 parameter_types! {
 	pub const BbBNCTokenType: CurrencyId = CurrencyId::VToken(TokenSymbol::BNC);
 	pub const Week: BlockNumber = prod_or_fast!(WEEKS, 10);
+	pub const OneYear: BlockNumber = 365 * DAYS;
 	pub const MaxBlock: BlockNumber = 4 * 365 * DAYS;
 	pub const Multiplier: Balance = 10_u128.pow(12);
 	pub const VoteWeightMultiplier: Balance = 1;
@@ -1453,6 +1454,8 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type FourYears = MaxBlock;
+	type OneYear = OneYear;
 }
 
 parameter_types! {
@@ -1628,71 +1631,6 @@ impl bifrost_slp_v2::Config for Runtime {
 	type CommissionPalletId = CommissionPalletId;
 	type ParachainId = ParachainInfo;
 	type MaxValidators = ConstU32<256>;
-}
-
-impl pallet_hyperbridge::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	// pallet-ismp implements the IsmpHost
-	// type IsmpHost = ();
-	type IsmpHost = Ismp;
-}
-
-parameter_types! {
-	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
-}
-
-impl pallet_ismp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	// 修改共识客户端的权限，以 TechAdmin 为例
-	type AdminOrigin = TechAdminOrCouncil;
-	// 链的状态机标识符--平行链 id
-	type HostStateMachine = StateMachineProvider;
-	type TimestampProvider = Timestamp;
-	// Router 路由器是一种IsmpModule为模块 id 提供实现的类型。
-	type Router = Router;
-	type Balance = Balance;
-	// 用来收取收费的 token，只支持稳定币
-	type Currency = Balances;
-	// 协处理器
-	type Coprocessor = Coprocessor;
-	// 实现接口的类型元组ConsensusClient，它定义了此协议部署支持的所有共识算法
-	type ConsensusClients = (
-		ismp_bsc::BscClient<Ismp, Runtime, ismp_bsc::Mainnet>,
-		ismp_sync_committee::SyncCommitteeConsensusClient<Ismp, gnosis::Mainnet, Runtime, ()>,
-	);
-	// 可选的 merkle mountain range overlay tree
-	type Mmr = Mmr;
-	type WeightProvider = ();
-}
-
-pub struct StateMachineProvider;
-
-impl Get<StateMachine> for StateMachineProvider {
-	fn get() -> StateMachine {
-		StateMachine::Polkadot(ParachainInfo::get().into())
-	}
-}
-
-// pub struct Coprocessor;
-//
-// impl Get<Option<StateMachine>> for Coprocessor {
-// 	fn get() -> Option<StateMachine> {
-// 		Some(HostStateMachine::get())
-// 	}
-// }
-
-#[derive(Default)]
-struct Router;
-
-impl IsmpRouter for Router {
-	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
-		let module = match id.as_slice() {
-			// YOUR_MODULE_ID => Box::new(YourModule::default()),
-			// ... other modules
-			_ => Err(Error::ModuleNotFound(id))?,
-		};
-		Ok(module)
-	}
 }
 
 // Below is the implementation of tokens manipulation functions other than native token.
@@ -1886,10 +1824,6 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
-		Ismp: pallet_ismp = 140,
-		Hyperbridge: pallet_hyperbridge = 141,
-		// BifrostIsmp: bifrost_ismp = 142,
-		Mmr: pallet_mmr = 142,
 	}
 }
 
@@ -2031,8 +1965,9 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<Result<(), TransactionValidityError>> {
 		match self {
-			RuntimeCall::Ethereum(call) =>
-				call.pre_dispatch_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+				call.pre_dispatch_self_contained(info, dispatch_info, len)
+			}
 			_ => None,
 		}
 	}
@@ -2042,10 +1977,11 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		info: Self::SignedInfo,
 	) -> Option<sp_runtime::DispatchResultWithInfo<PostDispatchInfoOf<Self>>> {
 		match self {
-			call @ RuntimeCall::Ethereum(pallet_ethereum::Call::transact { .. }) =>
+			call @ RuntimeCall::Ethereum(pallet_ethereum::Call::transact { .. }) => {
 				Some(call.dispatch(RuntimeOrigin::from(
 					pallet_ethereum::RawOrigin::EthereumTransaction(info),
-				))),
+				)))
+			}
 			_ => None,
 		}
 	}
@@ -2519,7 +2455,7 @@ impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 
 			match rs {
 				Ok(val) => val,
-				_ => (CurrencyId::Native(TokenSymbol::BNC), Zero::zero()),
+				_ => (BNC, Zero::zero()),
 			}
 		}
 	}

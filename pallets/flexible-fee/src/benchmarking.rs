@@ -36,7 +36,10 @@ mod benchmarks {
 		let caller = whitelisted_caller();
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller), Some(CurrencyId::Token(TokenSymbol::DOT)));
+		_(
+			RawOrigin::Signed(caller),
+			Some(CurrencyId::Token(TokenSymbol::DOT)),
+		);
 
 		Ok(())
 	}
@@ -50,5 +53,9 @@ mod benchmarks {
 
 		Ok(())
 	}
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Test);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Test
+	);
 }

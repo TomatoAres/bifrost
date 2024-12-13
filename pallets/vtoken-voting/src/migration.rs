@@ -18,6 +18,7 @@
 
 use super::*;
 use frame_support::{storage_alias, weights::Weight};
+use scale_info::prelude::vec;
 
 pub mod v1 {
 	use super::*;
@@ -60,7 +61,10 @@ pub mod v2 {
 		ValueQuery,
 	>;
 
-	pub struct MigrateToV2<T, C>(sp_std::marker::PhantomData<T>, sp_std::marker::PhantomData<C>);
+	pub struct MigrateToV2<T, C>(
+		sp_std::marker::PhantomData<T>,
+		sp_std::marker::PhantomData<C>,
+	);
 	impl<T: Config, C: Get<CurrencyIdOf<T>>> OnRuntimeUpgrade for MigrateToV2<T, C> {
 		fn on_runtime_upgrade() -> Weight {
 			if StorageVersion::get::<Pallet<T>>() < 2 {
@@ -123,7 +127,7 @@ pub fn migrate_to_v2<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
 		weight += T::DbWeight::get().writes(1);
 	}
 
-	let r1 = VotingFor::<T>::clear(u32::MAX, None);
+	let r1 = v3::VotingFor::<T>::clear(u32::MAX, None);
 	weight += T::DbWeight::get().writes(r1.loops as u64);
 
 	let r2 = ClassLocksFor::<T>::clear(u32::MAX, None);
@@ -148,7 +152,23 @@ pub mod v3 {
 	use frame_support::{pallet_prelude::StorageVersion, traits::OnRuntimeUpgrade};
 	use sp_runtime::traits::Get;
 
-	pub struct MigrateToV3<T, C>(sp_std::marker::PhantomData<T>, sp_std::marker::PhantomData<C>);
+	#[storage_alias]
+	pub(super) type VotingFor<T: Config> =
+		StorageMap<Pallet<T>, Twox64Concat, AccountIdOf<T>, VotingOf<T>, ValueQuery>;
+
+	#[storage_alias]
+	pub type ReferendumTimeout<T: Config> = StorageMap<
+		Pallet<T>,
+		Twox64Concat,
+		BlockNumberFor<T>,
+		BoundedVec<(CurrencyIdOf<T>, PollIndex), ConstU32<100>>,
+		ValueQuery,
+	>;
+
+	pub struct MigrateToV3<T, C>(
+		sp_std::marker::PhantomData<T>,
+		sp_std::marker::PhantomData<C>,
+	);
 	impl<T: Config, C: Get<CurrencyIdOf<T>>> OnRuntimeUpgrade for MigrateToV3<T, C> {
 		fn on_runtime_upgrade() -> Weight {
 			if StorageVersion::get::<Pallet<T>>() == 2 {
@@ -200,11 +220,116 @@ pub fn migrate_to_v3<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
 	ClassLocksFor::<T>::translate::<Vec<(PollIndex, BalanceOf<T>)>, _>(
 		|_: T::AccountId, locks: Vec<(PollIndex, BalanceOf<T>)>| {
 			let max_locked_balance = locks.iter().fold(BalanceOf::<T>::zero(), |a, i| a.max(i.1));
-			log::info!("Migrated max_locked_balance for {:?}...", max_locked_balance);
+			log::info!(
+				"Migrated max_locked_balance for {:?}...",
+				max_locked_balance
+			);
 			weight += T::DbWeight::get().writes(1);
 			Some(BoundedVec::try_from(vec![(vtoken, max_locked_balance)]).unwrap())
 		},
 	);
+
+	weight
+}
+
+pub mod v4 {
+	use super::*;
+	use crate::{Config, CurrencyIdOf, Pallet};
+	use cumulus_primitives_core::Weight;
+	use frame_support::{pallet_prelude::StorageVersion, traits::OnRuntimeUpgrade};
+	use sp_runtime::traits::Get;
+
+	pub struct MigrateToV4<T, C>(
+		sp_std::marker::PhantomData<T>,
+		sp_std::marker::PhantomData<C>,
+	);
+	impl<T: Config, C: Get<CurrencyIdOf<T>>> OnRuntimeUpgrade for MigrateToV4<T, C> {
+		fn on_runtime_upgrade() -> Weight {
+			if StorageVersion::get::<Pallet<T>>() == 3 {
+				let weight_consumed = migrate_to_v4::<T, C>();
+				log::info!("Migrating vtoken-voting storage to v4");
+				StorageVersion::new(4).put::<Pallet<T>>();
+				weight_consumed
+			} else {
+				log::warn!("vtoken-voting migration should be removed.");
+				T::DbWeight::get().reads(1)
+			}
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
+			log::info!(
+				"vtoken-voting before migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>(),
+			);
+			log::info!(
+				"vtoken-voting before migration: VotingFor v3 count: {}",
+				v3::VotingFor::<T>::iter().count(),
+			);
+			log::info!(
+				"vtoken-voting before migration: ReferendumTimeout v3 count: {}",
+				v3::ReferendumTimeout::<T>::iter().count(),
+			);
+
+			Ok(Vec::new())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+			log::info!(
+				"vtoken-voting after migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>(),
+			);
+			log::info!(
+				"vtoken-voting after migration: VotingFor v4 count: {}",
+				VotingForV2::<T>::iter().count()
+			);
+			log::info!(
+				"vtoken-voting after migration: ReferendumTimeout v4 count: {}",
+				ReferendumTimeoutV2::<T>::iter().count()
+			);
+
+			Ok(())
+		}
+	}
+}
+
+pub fn migrate_to_v4<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
+	let mut weight: Weight = Weight::zero();
+
+	let token = C::get();
+	let vtoken = token.to_vtoken().unwrap();
+
+	// Iterate over all items in the old storage
+	v3::VotingFor::<T>::iter().for_each(|(account, voting)| {
+		VotingForV2::<T>::insert(vtoken, account, voting);
+		weight += T::DbWeight::get().reads_writes(0, 1);
+	});
+
+	// Iterate over all items in the old storage
+	v3::ReferendumTimeout::<T>::iter().for_each(|(block_number, vec_items)| {
+		let mut pool_index_vec: BoundedVec<PollIndex, ConstU32<256>> = BoundedVec::default();
+		for (_, poll_index) in vec_items {
+			pool_index_vec.try_push(poll_index).unwrap();
+		}
+		// Insert into the new storage
+		ReferendumTimeoutV2::<T>::insert(vtoken, block_number, pool_index_vec);
+		weight += T::DbWeight::get().reads_writes(0, 1);
+	});
+
+	VoteLockingPeriod::<T>::iter().for_each(|(currency_id, _)| {
+		if currency_id == VBNC {
+			VoteLockingPeriod::<T>::insert(currency_id, BlockNumberFor::<T>::from(7200u32));
+			weight += T::DbWeight::get().writes(1);
+		}
+	});
+
+	UndecidingTimeout::<T>::iter().for_each(|(currency_id, _)| {
+		if currency_id == VBNC {
+			UndecidingTimeout::<T>::insert(currency_id, BlockNumberFor::<T>::from(100800u32));
+			weight += T::DbWeight::get().writes(1);
+		}
+	});
 
 	weight
 }

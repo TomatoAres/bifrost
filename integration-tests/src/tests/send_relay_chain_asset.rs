@@ -49,11 +49,21 @@ fn send_relay_chain_asset_to_relay_chain() {
 			CurrencyId::Token2(0),
 			50_000_000_000,
 			Box::new(
-				Location::new(1, [Junction::AccountId32 { network: None, id: BOB.into() }]).into()
+				Location::new(
+					1,
+					[Junction::AccountId32 {
+						network: None,
+						id: BOB.into()
+					}]
+				)
+				.into()
 			),
 			WeightLimit::Unlimited
 		));
-		assert_eq!(BifrostTokens::free_balance(CurrencyId::Token2(0), &ALICE), 50_000_000_000);
+		assert_eq!(
+			BifrostTokens::free_balance(CurrencyId::Token2(0), &ALICE),
+			50_000_000_000
+		);
 	});
 
 	Relay::execute_with(|| {
