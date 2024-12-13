@@ -23,14 +23,14 @@
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(test)]
-mod mock;
+mod mocks;
 #[cfg(test)]
 mod tests;
 
 mod agents;
 mod vote;
 
-// pub mod migration;
+pub mod migration;
 pub mod traits;
 pub mod weights;
 
@@ -66,13 +66,11 @@ use sp_runtime::{
 	},
 	ArithmeticError, Perbill,
 };
-use sp_std::{boxed::Box, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::v4::{prelude::*, Location, Weight as XcmWeight};
 
 const CONVICTION_VOTING_ID: LockIdentifier = *b"vtvoting";
-const SUPPORTED_VTOKENS: &[CurrencyId] = &[VKSM, VDOT, VBNC];
-
 type PollIndex = u32;
 type PollClass = u16;
 
@@ -98,7 +96,7 @@ pub mod pallet {
 	use frame_support::traits::CallerTrait;
 
 	/// The current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -159,6 +157,10 @@ pub mod pallet {
 		type PalletsOrigin: CallerTrait<Self::AccountId>;
 
 		type LocalBlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+
+		/// Relay currency
+		#[pallet::constant]
+		type RelayVCurrency: Get<CurrencyId>;
 	}
 
 	#[pallet::event]
@@ -362,8 +364,15 @@ pub mod pallet {
 	/// All voting for a particular voter in a particular voting class. We store the balance for the
 	/// number of votes that we have recorded.
 	#[pallet::storage]
-	pub type VotingFor<T: Config> =
-		StorageMap<_, Twox64Concat, AccountIdOf<T>, VotingOf<T>, ValueQuery>;
+	pub type VotingForV2<T: Config> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		CurrencyIdOf<T>,
+		Twox64Concat,
+		AccountIdOf<T>,
+		VotingOf<T>,
+		ValueQuery,
+	>;
 
 	/// The voting classes which have a non-zero lock requirement and the lock amounts which they
 	/// require. The actual amount locked on behalf of this pallet should always be the maximum of
@@ -443,11 +452,13 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	pub type ReferendumTimeout<T: Config> = StorageMap<
+	pub type ReferendumTimeoutV2<T: Config> = StorageDoubleMap<
 		_,
 		Twox64Concat,
+		CurrencyIdOf<T>,
+		Twox64Concat,
 		BlockNumberFor<T>,
-		BoundedVec<(CurrencyIdOf<T>, PollIndex), ConstU32<100>>,
+		BoundedVec<PollIndex, ConstU32<256>>,
 		ValueQuery,
 	>;
 
@@ -505,43 +516,37 @@ pub mod pallet {
 			let relay_current_block_number =
 				T::RelaychainBlockNumberProvider::current_block_number();
 
-			for block_number in ReferendumTimeout::<T>::iter_keys() {
-				if relay_current_block_number >= block_number
-					|| bifrost_current_block_number >= block_number
-				{
-					let info_list = ReferendumTimeout::<T>::get(block_number);
-					let len = info_list.len() as u64;
-					let temp_weight = db_weight.reads_writes(len, len) + db_weight.writes(1);
-					if remaining_weight.any_lt(used_weight + temp_weight) {
-						return used_weight;
-					}
-					used_weight += temp_weight;
-					for (vtoken, poll_index) in info_list.iter() {
-						let current_block_number = match Self::get_agent_block_number(&vtoken) {
-							Ok(block_number) => block_number,
-							Err(e) => {
-								log::error!(
-									"Failed to get {:?} current block number: {:?}",
-									vtoken,
-									e
-								);
-								// exit the current loop
-								continue;
-							}
-						};
+			for (vtoken, time_out_block_number) in ReferendumTimeoutV2::<T>::iter_keys() {
+				let referendum_timeout_list =
+					ReferendumTimeoutV2::<T>::get(vtoken, time_out_block_number);
+				let len = referendum_timeout_list.len() as u64;
+				let temp_weight = db_weight.reads_writes(len, len) + db_weight.writes(1);
+				if remaining_weight.any_lt(used_weight + temp_weight) {
+					return used_weight;
+				}
+				used_weight += temp_weight;
 
-						ReferendumInfoFor::<T>::mutate(vtoken, poll_index, |maybe_info| {
-							match maybe_info {
-								Some(info) => {
-									if let ReferendumInfo::Ongoing(_) = info {
-										*info = ReferendumInfo::Completed(current_block_number);
-									}
-								}
-								None => {}
-							}
-						});
+				let relay_vtoken = T::RelayVCurrency::get();
+				if vtoken == VBNC {
+					if bifrost_current_block_number >= time_out_block_number {
+						Self::over_referendum(
+							VBNC,
+							time_out_block_number,
+							bifrost_current_block_number,
+							referendum_timeout_list,
+						);
 					}
-					ReferendumTimeout::<T>::remove(block_number);
+				} else if vtoken == relay_vtoken {
+					if relay_current_block_number >= time_out_block_number {
+						Self::over_referendum(
+							relay_vtoken,
+							time_out_block_number,
+							relay_current_block_number,
+							referendum_timeout_list,
+						);
+					}
+				} else {
+					log::error!("The current token: {:?} is not supported.", vtoken);
 				}
 			}
 
@@ -951,14 +956,15 @@ pub mod pallet {
 							if let ReferendumInfo::Ongoing(status) = info {
 								let current_block_number = Self::get_agent_block_number(&vtoken)?;
 								status.submitted = Some(current_block_number);
-								ReferendumTimeout::<T>::mutate(
+								ReferendumTimeoutV2::<T>::mutate(
+									vtoken,
 									current_block_number.saturating_add(
 										UndecidingTimeout::<T>::get(vtoken)
 											.ok_or(Error::<T>::NoData)?,
 									),
 									|ref_vec| {
 										ref_vec
-											.try_push((vtoken, poll_index))
+											.try_push(poll_index)
 											.map_err(|_| Error::<T>::TooMany)
 									},
 								)?;
@@ -1165,7 +1171,7 @@ pub mod pallet {
 			let mut total_vote = None;
 			Self::try_access_poll(vtoken, poll_index, |poll_status| {
 				let tally = poll_status.ensure_ongoing().ok_or(Error::<T>::NotOngoing)?;
-				VotingFor::<T>::try_mutate(who, |voting| {
+				VotingForV2::<T>::try_mutate(vtoken, who, |voting| {
 					if let Voting::Casting(Casting {
 						ref mut votes,
 						delegations,
@@ -1223,7 +1229,7 @@ pub mod pallet {
 			poll_index: PollIndex,
 			scope: UnvoteScope,
 		) -> DispatchResult {
-			VotingFor::<T>::try_mutate(who, |voting| {
+			VotingForV2::<T>::try_mutate(vtoken, who, |voting| {
 				if let Voting::Casting(Casting {
 					ref mut votes,
 					delegations,
@@ -1278,7 +1284,7 @@ pub mod pallet {
 		/// indicate a security hole) but may be reduced from what they are currently.
 		pub(crate) fn update_lock(who: &AccountIdOf<T>, vtoken: CurrencyIdOf<T>) -> DispatchResult {
 			let current_block = Self::get_agent_block_number(&vtoken)?;
-			let lock_needed = VotingFor::<T>::mutate(who, |voting| {
+			let lock_needed = VotingForV2::<T>::mutate(vtoken, who, |voting| {
 				voting.rejig(current_block);
 				voting.locked_balance()
 			});
@@ -1335,10 +1341,14 @@ pub mod pallet {
 
 		fn ensure_vtoken(vtoken: &CurrencyIdOf<T>) -> Result<(), DispatchError> {
 			ensure!(
-				SUPPORTED_VTOKENS.contains(vtoken),
+				Self::supported_vtoken().contains(vtoken),
 				Error::<T>::VTokenNotSupport
 			);
 			Ok(())
+		}
+
+		fn supported_vtoken() -> Vec<CurrencyId> {
+			vec![T::RelayVCurrency::get(), VBNC]
 		}
 
 		fn ensure_no_pending_vote(
@@ -1591,6 +1601,25 @@ pub mod pallet {
 				BNC => Ok(Location::new(1, [Parachain(T::ParachainId::get().into())])),
 				_ => Err(Error::<T>::VTokenNotSupport),
 			}
+		}
+
+		fn over_referendum(
+			vtoken: CurrencyId,
+			time_out_block_number: BlockNumberFor<T>,
+			current_block_number: BlockNumberFor<T>,
+			referendum_timeout_list: BoundedVec<PollIndex, ConstU32<256>>,
+		) {
+			for poll_index in referendum_timeout_list.iter() {
+				ReferendumInfoFor::<T>::mutate(vtoken, poll_index, |maybe_info| match maybe_info {
+					Some(info) => {
+						if let ReferendumInfo::Ongoing(_) = info {
+							*info = ReferendumInfo::Completed(current_block_number);
+						}
+					}
+					None => {}
+				});
+			}
+			ReferendumTimeoutV2::<T>::remove(vtoken, time_out_block_number);
 		}
 	}
 }

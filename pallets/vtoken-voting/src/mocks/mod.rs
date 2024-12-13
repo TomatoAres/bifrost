@@ -17,10 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #[cfg(test)]
-mod kusama_common_test;
+pub mod kusama_mock;
 
 #[cfg(test)]
-mod polkadot_common_test;
-
-#[cfg(test)]
-mod vbnc_test;
+pub mod polkadot_mock;

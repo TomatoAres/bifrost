@@ -27,7 +27,8 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use bifrost_primitives::{
-	BLP_BNC_VBNC, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, LP_BNC_VBNC, VBNC,
+	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
+	VBNC, VKSM,
 };
 use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
 use core::convert::TryInto;
@@ -219,9 +220,10 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const NativeCurrencyId: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
-	pub const RelayCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
-	pub const StableCurrencyId: CurrencyId = CurrencyId::Stable(TokenSymbol::KUSD);
+	pub const NativeCurrencyId: CurrencyId = BNC;
+	pub const RelayCurrencyId: CurrencyId = KSM;
+	pub const RelayVCurrencyId: CurrencyId = VKSM;
+	pub const StableCurrencyId: CurrencyId = KUSD;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
 	pub const PolkadotCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
 }
@@ -1158,7 +1160,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 			),
 		),
 		// Only relay chain use the Bifrost para account with "para"
-		CurrencyId::Token(TokenSymbol::KSM) => xcm::v3::Location::new(
+		KSM => xcm::v3::Location::new(
 			1,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1170,7 +1172,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 			}),
 		),
 		// Bifrost Kusama Native token
-		CurrencyId::Native(TokenSymbol::BNC) => xcm::v3::Location::new(
+		BNC => xcm::v3::Location::new(
 			0,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1446,6 +1448,7 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vtoken_voting::BifrostWeight<Runtime>;
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
+	type RelayVCurrency = RelayVCurrencyId;
 }
 
 // Bifrost modules end
@@ -2238,7 +2241,7 @@ impl_runtime_apis! {
 
 			match rs {
 				Ok(val) => val,
-				_ => (CurrencyId::Native(TokenSymbol::BNC), Zero::zero()),
+				_ => (BNC, Zero::zero()),
 			}
 		}
 	}

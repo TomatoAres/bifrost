@@ -38,7 +38,7 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
 	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC,
+	TreasuryPalletId, BNC, DOT, VDOT,
 };
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 pub use frame_support::{
@@ -243,8 +243,9 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const NativeCurrencyId: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
-	pub const RelayCurrencyId: CurrencyId = CurrencyId::Token2(DOT_TOKEN_ID);
+	pub const NativeCurrencyId: CurrencyId = BNC;
+	pub const RelayCurrencyId: CurrencyId = DOT;
+	pub const RelayVCurrencyId: CurrencyId = VDOT;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
 }
 
@@ -1013,7 +1014,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLoca
 			),
 		),
 		// Only relay chain use the Bifrost para account with "para"
-		CurrencyId::Token2(DOT_TOKEN_ID) => xcm::v3::Location::new(
+		DOT => xcm::v3::Location::new(
 			1,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1025,7 +1026,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLoca
 			}),
 		),
 		// Bifrost Polkadot Native token
-		CurrencyId::Native(TokenSymbol::BNC) => xcm::v3::Location::new(
+		BNC => xcm::v3::Location::new(
 			0,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1342,6 +1343,7 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vtoken_voting::BifrostWeight<Runtime>;
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
+	type RelayVCurrency = RelayVCurrencyId;
 }
 
 // Bifrost modules end
@@ -2453,7 +2455,7 @@ impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 
 			match rs {
 				Ok(val) => val,
-				_ => (CurrencyId::Native(TokenSymbol::BNC), Zero::zero()),
+				_ => (BNC, Zero::zero()),
 			}
 		}
 	}

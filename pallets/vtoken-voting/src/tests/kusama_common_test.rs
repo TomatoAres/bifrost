@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Ensure we're `no_std` when compiling for Wasm.
-use crate::{mock::*, *};
+use crate::{mocks::kusama_mock::*, *};
 use bifrost_primitives::currency::VPHA;
 use frame_support::{
 	assert_noop, assert_ok,
@@ -29,9 +29,7 @@ use frame_support::{
 };
 use pallet_xcm::Origin as XcmOrigin;
 
-const TOKENS: &[CurrencyId] = if cfg!(feature = "polkadot") {
-	&[VDOT]
-} else if cfg!(feature = "kusama") {
+const TOKENS: &[CurrencyId] = if cfg!(feature = "kusama") {
 	&[VKSM]
 } else {
 	&[]
@@ -335,7 +333,10 @@ fn ensure_balance_after_unlock() {
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 10);
-			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				10
+			);
 		});
 	}
 }
@@ -402,7 +403,10 @@ fn ensure_comprehensive_balance_after_unlock() {
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 2);
-			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 2);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				2
+			);
 
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -418,7 +422,10 @@ fn ensure_comprehensive_balance_after_unlock() {
 
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 10);
-			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				10
+			);
 		});
 	}
 }
@@ -583,7 +590,10 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 				VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 0),
 				Error::<Runtime>::NoPermissionYet
 			);
-			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				10
+			);
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 
 			RelaychainDataProvider::set_block_number(11);
@@ -592,7 +602,10 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 				vtoken,
 				0
 			));
-			assert_eq!(VotingFor::<Runtime>::get(&ALICE).locked_balance(), 10);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				10
+			);
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
 				ClassLocksFor::<Runtime>::get(&ALICE),
@@ -1116,7 +1129,7 @@ fn notify_vote_success_max_works() {
 fn notify_vote_success_exceed_max_fail() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
-			for poll_index in 0..100 {
+			for poll_index in 0..256 {
 				assert_ok!(VtokenVoting::vote(
 					RuntimeOrigin::signed(ALICE),
 					vtoken,
@@ -1129,20 +1142,10 @@ fn notify_vote_success_exceed_max_fail() {
 					response_success()
 				));
 			}
-			let poll_index = 100;
-			assert_ok!(VtokenVoting::vote(
-				RuntimeOrigin::signed(ALICE),
-				vtoken,
-				poll_index,
-				aye(2, 5)
-			));
+			let poll_index = 256;
 			assert_noop!(
-				VtokenVoting::notify_vote(
-					origin_response(),
-					poll_index as QueryId,
-					response_success()
-				),
-				Error::<Runtime>::TooMany
+				VtokenVoting::vote(RuntimeOrigin::signed(ALICE), vtoken, poll_index, aye(2, 5)),
+				Error::<Runtime>::MaxVotesReached
 			);
 		});
 	}
@@ -1461,7 +1464,8 @@ fn on_idle_works() {
 			let mut actual_count = 0;
 			for poll_index in 0..50 {
 				let relay_block_number = poll_index as BlockNumber;
-				if ReferendumTimeout::<Runtime>::get(
+				if ReferendumTimeoutV2::<Runtime>::get(
+					vtoken,
 					relay_block_number + UndecidingTimeout::<Runtime>::get(vtoken).unwrap(),
 				)
 				.is_empty()

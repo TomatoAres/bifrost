@@ -427,6 +427,10 @@ impl VTokenSupplyProvider<CurrencyId, Balance> for SimpleVTokenSupplyProvider {
 	}
 }
 
+parameter_types! {
+	pub const RelayVCurrencyId: CurrencyId = VKSM;
+}
+
 impl vtoken_voting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -445,6 +449,7 @@ impl vtoken_voting::Config for Runtime {
 	type WeightInfo = ();
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
+	type RelayVCurrency = RelayVCurrencyId;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
