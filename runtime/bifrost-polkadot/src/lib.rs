@@ -1675,12 +1675,12 @@ impl pallet_ismp::Config for Runtime {
 	type Coprocessor = Coprocessor;
 	// 实现接口的类型元组ConsensusClient，它定义了此协议部署支持的所有共识算法
 	type ConsensusClients = (
-		ismp_bsc::BscClient<Ismp, Runtime, ismp_bsc::Mainnet>,
-		ismp_sync_committee::SyncCommitteeConsensusClient<Ismp, Mainnet, Runtime, ()>,
-		ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,
+		// ismp_bsc::BscClient<Ismp, Runtime, ismp_bsc::Mainnet>,
+		// ismp_sync_committee::SyncCommitteeConsensusClient<Ismp, Mainnet, Runtime, ()>,
+		// ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,
 	);
 	// 可选的 merkle mountain range overlay tree
-	type Mmr = Mmr;
+	type Mmr = pallet_ismp::NoOpMmrTree<Runtime>;
 	type WeightProvider = ();
 }
 
@@ -1701,7 +1701,7 @@ impl Get<StateMachine> for StateMachineProvider {
 // }
 
 #[derive(Default)]
-struct Router;
+pub struct Router;
 
 impl IsmpRouter for Router {
 	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
@@ -1908,7 +1908,7 @@ construct_runtime! {
 		Ismp: pallet_ismp = 140,
 		Hyperbridge: pallet_hyperbridge = 141,
 		// BifrostIsmp: bifrost_ismp = 142,
-		Mmr: pallet_mmr = 143,
+		// Mmr: pallet_mmr = 143,
 		// IsmpParachain: ismp_parachain = 144,
 	}
 }
