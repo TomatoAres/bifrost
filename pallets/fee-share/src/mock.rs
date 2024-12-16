@@ -182,6 +182,7 @@ impl bifrost_fee_share::Config for Runtime {
 	type WeightInfo = ();
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = MockOraclePriceProvider;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_prices::Config for Runtime {
@@ -421,6 +422,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {

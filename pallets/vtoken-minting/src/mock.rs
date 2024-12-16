@@ -183,6 +183,7 @@ impl vtoken_minting::Config for Runtime {
 	type XcmTransfer = MockXcmTransfer;
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
+	type BlockNumberProvider = System;
 }
 
 ord_parameter_types! {

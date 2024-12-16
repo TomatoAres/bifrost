@@ -141,6 +141,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type WeightInfo = ();
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 pub struct ExtBuilder {

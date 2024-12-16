@@ -1398,6 +1398,7 @@ impl bifrost_system_staking::Config for Runtime {
 	type BlocksPerRound = BlocksPerRound;
 	type MaxTokenLen = MaxTokenLen;
 	type MaxFarmingPoolIdLen = MaxFarmingPoolIdLen;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_fee_share::Config for Runtime {
@@ -1407,6 +1408,7 @@ impl bifrost_fee_share::Config for Runtime {
 	type WeightInfo = weights::bifrost_fee_share::BifrostWeight<Runtime>;
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = Prices;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_cross_in_out::Config for Runtime {
@@ -1578,6 +1580,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_slpx::Config for Runtime {
@@ -1756,6 +1759,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type WeightInfo = weights::bifrost_channel_commission::BifrostWeight<Runtime>;
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_vbnc_convert::Config for Runtime {

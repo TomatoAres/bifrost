@@ -27,7 +27,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;
 pub use pallet::*;
 use sp_runtime::{
-	traits::{AccountIdConversion, Saturating, Zero},
+	traits::{AccountIdConversion, BlockNumberProvider, Saturating, Zero},
 	BoundedVec,
 };
 use sp_std::vec::Vec;
@@ -106,6 +106,9 @@ pub mod pallet {
 		/// This value is set to 1500 in the runtime configuration.
 		#[pallet::constant]
 		type BlocksPerRound: Get<u32>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -309,9 +312,10 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			// Get token list
 			let token_list = TokenList::<T>::get();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 
 			//Get round info, if can't find it in the storage, a new one will be created.
 			let mut round = if let Some(round) = <Round<T>>::get() {
@@ -323,11 +327,11 @@ pub mod pallet {
 
 			// New round start
 			// Current blockNumber -  BlockNumber of Round Start >= Length of Round
-			if round.should_update(n) {
+			if round.should_update(current_block_number) {
 				// Mutate round
 				// Set current round index -= 1
 				// BlockNumber of Round Start = Current blockNumber
-				round.update(n);
+				round.update(current_block_number);
 				<Round<T>>::put(round);
 
 				// Iterate through the token list
@@ -359,7 +363,8 @@ pub mod pallet {
 				if let Some(token_info) = TokenStatus::<T>::get(i) {
 					// Current blockNumber -  BlockNumber of Round Start ==
 					// token_info.current_config.exec_delay ===> true
-					if round.check_delay(n, token_info.current_config.exec_delay) {
+					if round.check_delay(current_block_number, token_info.current_config.exec_delay)
+					{
 						Self::process_token_info(pallet_account.clone(), token_info, i).ok();
 
 						if let Err(_) = Self::do_payout(i) {
