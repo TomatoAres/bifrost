@@ -230,9 +230,11 @@ impl<CurrencyId> CurrencyIdRegister<CurrencyId> for () {
 }
 
 /// The interface to call farming pallet functions.
-pub trait FarmingInfo<Balance, CurrencyId> {
+pub trait FarmingInfo<Balance, CurrencyId, AccountId> {
 	/// Get the currency token shares.
 	fn get_token_shares(pool_id: PoolId, currency_id: CurrencyId) -> Balance;
+	/// Update the token shares for the gauge pool.
+	fn refresh_gauge_pool(exchanger: &AccountId) -> DispatchResult;
 }
 
 pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
@@ -497,4 +499,15 @@ pub trait BalanceCmp<AccountId> {
 		amount: u128,
 		amount_precision: u32,
 	) -> Result<Ordering, Self::Error>;
+}
+
+impl<AccountId, CurrencyId, Balance: Zero> FarmingInfo<Balance, CurrencyId, AccountId> for () {
+	/// Get the currency token shares.
+	fn get_token_shares(_pool_id: PoolId, _currency_id: CurrencyId) -> Balance {
+		Zero::zero()
+	}
+	/// Update the token shares for the gauge pool.
+	fn refresh_gauge_pool(_exchanger: &AccountId) -> DispatchResult {
+		Ok(())
+	}
 }

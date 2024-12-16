@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{traits::BbBNCInterface, *};
-use bifrost_primitives::PoolId;
+use bifrost_primitives::{PoolId, BNC};
 pub use pallet::*;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -229,7 +229,17 @@ impl<T: Config> Pallet<T> {
 						&T::IncentivePalletId::get().into_account_truncating(),
 						who,
 						reward,
-					)
+					)?;
+					if currency == &BNC {
+						let _vtoken_value = T::VtokenMinting::mint(
+							who.clone(),
+							BNC,
+							reward,
+							BoundedVec::default(),
+							None,
+						)?;
+					}
+					Ok(())
 				})?;
 			Rewards::<T>::remove(who);
 			Self::deposit_event(Event::Rewarded {

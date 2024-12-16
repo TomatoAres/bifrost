@@ -1454,6 +1454,8 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type VtokenMinting = VtokenMinting;
+	type FarmingInfo = Farming;
 	type FourYears = MaxBlock;
 	type OneYear = OneYear;
 }
@@ -1998,6 +2000,7 @@ mod benches {
 		[bifrost_buy_back, BuyBack]
 		[bifrost_slp_v2, SlpV2]
 		[bifrost_xcm_interface, XcmInterface]
+		[bifrost_farming, Farming]
 	);
 }
 

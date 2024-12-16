@@ -2041,7 +2041,6 @@ mod benches {
 	define_benchmarks!(
 		[bifrost_asset_registry, AssetRegistry]
 		[bifrost_cross_in_out, CrossInOut]
-		[bifrost_farming, Farming]
 		[bifrost_fee_share, FeeShare]
 		[bifrost_flexible_fee, FlexibleFee]
 		[bifrost_slp, Slp]

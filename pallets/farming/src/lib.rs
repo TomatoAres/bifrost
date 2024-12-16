@@ -34,7 +34,7 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 use crate::boost::*;
-use bifrost_primitives::{FarmingInfo, PoolId};
+use bifrost_primitives::{CurrencyId, FarmingInfo, PoolId};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
@@ -88,7 +88,9 @@ pub mod pallet {
 			+ scale_info::TypeInfo
 			+ MaxEncodedLen
 			+ Ord
-			+ Default;
+			+ Default
+			+ From<CurrencyId>
+			+ Into<CurrencyId>;
 
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = Self::CurrencyId>;
 
@@ -306,6 +308,8 @@ pub mod pallet {
 		PoolNotCleared,
 		/// Invalid remove amount
 		InvalidRemoveAmount,
+		/// User farming pool overflow
+		UserFarmingPoolOverflow,
 	}
 
 	/// Record the id of the new pool.
@@ -393,6 +397,16 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BoostBasicRewards<T: Config> =
 		StorageDoubleMap<_, Twox64Concat, PoolId, Twox64Concat, CurrencyIdOf<T>, BalanceOf<T>>;
+
+	/// The pool ID of the user participating in the farming pool.
+	#[pallet::storage]
+	pub type UserFarmingPool<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		AccountIdOf<T>,
+		BoundedVec<PoolId, ConstU32<256>>,
+		ValueQuery,
+	>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -634,31 +648,27 @@ pub mod pallet {
 					.ok_or(ArithmeticError::Overflow)?;
 				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
 				{
-					match gauge_new_value.cmp(&share_info.share) {
-						Ordering::Less => {
-							let gauge_remove_value =
-								share_info.share.saturating_sub(gauge_new_value);
-							Self::remove_share(
-								&exchanger,
-								gauge_pid,
-								Some(gauge_remove_value),
-								gauge_pool_info.withdraw_limit_time,
-							)?;
-						}
-						Ordering::Equal | Ordering::Greater => {
-							let gauge_add_value = gauge_new_value.saturating_sub(share_info.share);
-							Self::add_share(
-								&exchanger,
-								gauge_pid,
-								&mut gauge_pool_info,
-								gauge_add_value,
-							);
-						}
-					};
+					Self::update_gauge_share(
+						&exchanger,
+						gauge_pid,
+						gauge_new_value,
+						share_info.share,
+						&mut gauge_pool_info,
+					)?;
 				} else {
 					Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
 				}
 			}
+			UserFarmingPool::<T>::try_mutate(&exchanger, |pools| -> DispatchResult {
+				if pools.contains(&pid) {
+					return Ok(());
+				} else {
+					pools
+						.try_push(pid)
+						.map_err(|_| Error::<T>::UserFarmingPoolOverflow)?;
+				}
+				Ok(())
+			})?;
 
 			Self::deposit_event(Event::Deposited {
 				who: exchanger,
@@ -711,28 +721,13 @@ pub mod pallet {
 				if let Some(gauge_share_info) =
 					SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
 				{
-					match gauge_new_value.cmp(&gauge_share_info.share) {
-						Ordering::Less => {
-							let gauge_remove_value =
-								gauge_share_info.share.saturating_sub(gauge_new_value);
-							Self::remove_share(
-								&exchanger,
-								gauge_pid,
-								Some(gauge_remove_value),
-								gauge_pool_info.withdraw_limit_time,
-							)?;
-						}
-						Ordering::Equal | Ordering::Greater => {
-							let gauge_add_value =
-								gauge_new_value.saturating_sub(gauge_share_info.share);
-							Self::add_share(
-								&exchanger,
-								gauge_pid,
-								&mut gauge_pool_info,
-								gauge_add_value,
-							);
-						}
-					};
+					Self::update_gauge_share(
+						&exchanger,
+						gauge_pid,
+						gauge_new_value,
+						gauge_share_info.share,
+						&mut gauge_pool_info,
+					)?;
 				}
 			}
 
@@ -1107,7 +1102,7 @@ pub mod pallet {
 		///
 		/// - `vote_list`: The vote list for the pool
 		#[pallet::call_index(16)]
-		#[pallet::weight(T::WeightInfo::claim())]
+		#[pallet::weight(T::WeightInfo::vote())]
 		pub fn vote(origin: OriginFor<T>, vote_list: Vec<(PoolId, Percent)>) -> DispatchResult {
 			let exchanger = ensure_signed(origin)?;
 			Self::vote_inner(&exchanger, vote_list.clone())?;
@@ -1122,7 +1117,7 @@ pub mod pallet {
 		///
 		/// - `round_length`: The length of the round
 		#[pallet::call_index(17)]
-		#[pallet::weight(T::WeightInfo::claim())]
+		#[pallet::weight(T::WeightInfo::start_boost_round())]
 		pub fn start_boost_round(
 			origin: OriginFor<T>,
 			round_length: BlockNumberFor<T>,
@@ -1134,7 +1129,7 @@ pub mod pallet {
 
 		/// Force end of boost round
 		#[pallet::call_index(18)]
-		#[pallet::weight(T::WeightInfo::claim())]
+		#[pallet::weight(T::WeightInfo::end_boost_round())]
 		pub fn end_boost_round(origin: OriginFor<T>) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::end_boost_round_inner();
@@ -1145,7 +1140,7 @@ pub mod pallet {
 		///
 		/// - `rewards`: The rewards to charge
 		#[pallet::call_index(19)]
-		#[pallet::weight(T::WeightInfo::claim())]
+		#[pallet::weight(T::WeightInfo::charge_boost())]
 		pub fn charge_boost(
 			origin: OriginFor<T>,
 			rewards: Vec<(CurrencyIdOf<T>, BalanceOf<T>)>,
@@ -1167,10 +1162,17 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		#[pallet::call_index(20)]
+		#[pallet::weight(T::WeightInfo::refresh())]
+		pub fn refresh(origin: OriginFor<T>) -> DispatchResult {
+			let exchanger = ensure_signed(origin)?;
+			Self::refresh_gauge_pool(&exchanger)
+		}
 	}
 }
 
-impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>> for Pallet<T> {
+impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>, T::AccountId> for Pallet<T> {
 	fn get_token_shares(pool_id: PoolId, currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
 		if let Some(pool_info) = PoolInfos::<T>::get(&pool_id) {
 			if let Some(token_proportion_value) = pool_info.tokens_proportion.get(&currency_id) {
@@ -1182,5 +1184,33 @@ impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>> for Pallet<T> {
 			}
 		}
 		Zero::zero()
+	}
+
+	fn refresh_gauge_pool(exchanger: &T::AccountId) -> DispatchResult {
+		let pids = UserFarmingPool::<T>::get(&exchanger);
+		for pid in pids {
+			let gauge_pid = pid + GAUGE_BASE_ID;
+			let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
+				.ok_or(Error::<T>::ShareInfoNotExists)?;
+			if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
+				let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+					.checked_mul(&share_info.share)
+					.ok_or(ArithmeticError::Overflow)?;
+				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
+				{
+					Self::update_gauge_share(
+						&exchanger,
+						gauge_pid,
+						gauge_new_value,
+						share_info.share,
+						&mut gauge_pool_info,
+					)?;
+				} else {
+					Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+				}
+			}
+		}
+
+		Ok(())
 	}
 }

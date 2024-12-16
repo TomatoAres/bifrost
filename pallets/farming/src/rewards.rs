@@ -486,4 +486,58 @@ impl<T: Config> Pallet<T> {
 			},
 		)
 	}
+
+	pub fn refresh_inner(exchanger: &T::AccountId, pid: PoolId) -> DispatchResult {
+		let gauge_pid = pid + GAUGE_BASE_ID;
+		let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
+			.ok_or(Error::<T>::ShareInfoNotExists)?;
+		if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
+			let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+				.checked_mul(&share_info.share)
+				.ok_or(ArithmeticError::Overflow)?;
+			if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger) {
+				Self::update_gauge_share(
+					&exchanger,
+					gauge_pid,
+					gauge_new_value,
+					share_info.share,
+					&mut gauge_pool_info,
+				)?;
+			} else {
+				Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+			}
+		}
+
+		Ok(())
+	}
+
+	pub fn update_gauge_share(
+		exchanger: &T::AccountId,
+		gauge_pid: PoolId,
+		gauge_new_value: BalanceOf<T>,
+		share: BalanceOf<T>,
+		gauge_pool_info: &mut PoolInfo<
+			BalanceOf<T>,
+			CurrencyIdOf<T>,
+			AccountIdOf<T>,
+			BlockNumberFor<T>,
+		>,
+	) -> DispatchResult {
+		match gauge_new_value.cmp(&share) {
+			Ordering::Less => {
+				let gauge_remove_value = share.saturating_sub(gauge_new_value);
+				Self::remove_share(
+					exchanger,
+					gauge_pid,
+					Some(gauge_remove_value),
+					gauge_pool_info.withdraw_limit_time,
+				)?;
+			}
+			Ordering::Equal | Ordering::Greater => {
+				let gauge_add_value = gauge_new_value.saturating_sub(share);
+				Self::add_share(exchanger, gauge_pid, gauge_pool_info, gauge_add_value);
+			}
+		};
+		Ok(())
+	}
 }

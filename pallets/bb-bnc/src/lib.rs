@@ -32,7 +32,7 @@ pub mod incentive;
 pub mod traits;
 pub mod weights;
 
-use bifrost_primitives::{Balance, CurrencyId, PoolId};
+use bifrost_primitives::{Balance, CurrencyId, FarmingInfo, PoolId, VtokenMintingInterface};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
@@ -136,6 +136,15 @@ pub mod pallet {
 		/// Maximum number of users per refresh.
 		#[pallet::constant]
 		type MarkupRefreshLimit: Get<u32>;
+
+		type VtokenMinting: VtokenMintingInterface<
+			AccountIdOf<Self>,
+			CurrencyIdOf<Self>,
+			BalanceOf<Self>,
+		>;
+
+		/// The interface to call Farming module functions.
+		type FarmingInfo: FarmingInfo<BalanceOf<Self>, CurrencyIdOf<Self>, AccountIdOf<Self>>;
 
 		#[pallet::constant]
 		type OneYear: Get<BlockNumberFor<Self>>;
@@ -1296,6 +1305,7 @@ pub mod pallet {
 
 			Self::_checkpoint(who, position, old_locked, _locked.clone())?;
 
+			T::FarmingInfo::refresh_gauge_pool(who)?;
 			Self::deposit_event(Event::Withdrawn {
 				who: who.clone(),
 				position,

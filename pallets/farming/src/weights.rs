@@ -73,6 +73,7 @@ pub trait WeightInfo {
 	fn start_boost_round() -> Weight;
 	fn end_boost_round() -> Weight;
 	fn charge_boost() -> Weight;
+	fn refresh() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -361,5 +362,21 @@ impl WeightInfo for () {
 		Weight::from_parts(127_177_000, 6176)
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	/// Storage: `Farming::UserFarmingPool` (r:1 w:0)
+	/// Proof: `Farming::UserFarmingPool` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::SharesAndWithdrawnRewards` (r:2 w:0)
+	/// Proof: `Farming::SharesAndWithdrawnRewards` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::PoolInfos` (r:1 w:0)
+	/// Proof: `Farming::PoolInfos` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPositions` (r:1 w:0)
+	/// Proof: `BbBNC::UserPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn refresh() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `604`
+		//  Estimated: `6544`
+		// Minimum execution time: 16_472_000 picoseconds.
+		Weight::from_parts(17_023_000, 6544)
+			.saturating_add(RocksDbWeight::get().reads(5))
 	}
 }

@@ -77,7 +77,7 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		/// The interface to call Farming module functions.
-		type FarmingInfo: FarmingInfo<BalanceOf<Self>, CurrencyIdOf<Self>>;
+		type FarmingInfo: FarmingInfo<BalanceOf<Self>, CurrencyIdOf<Self>, AccountIdOf<Self>>;
 
 		/// The interface to call VtokenMinting module functions.
 		type VtokenMintingInterface: VtokenMintingInterface<

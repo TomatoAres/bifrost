@@ -355,6 +355,7 @@ runtime-benchmarks = [
 	"bifrost-clouds-convert/runtime-benchmarks",
 	"bifrost-buy-back/runtime-benchmarks",
 	"bifrost-parachain-staking/runtime-benchmarks",
+	"bifrost-farming/runtime-benchmarks",
 ]
 
 try-runtime = [

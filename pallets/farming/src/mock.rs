@@ -178,6 +178,8 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type VtokenMinting = ();
+	type FarmingInfo = Farming;
 	type FourYears = MaxBlock;
 	type OneYear = OneYear;
 }
