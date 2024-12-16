@@ -31,6 +31,7 @@ members = [
 	"pallets/channel-commission",
 	"pallets/clouds-convert",
 	"pallets/vbnc-convert",
+	"pallets/ismp",
 
 	"runtime/bifrost-kusama",
 	"runtime/bifrost-polkadot/src/evm/evm-utility/macro",
@@ -102,6 +103,7 @@ pallet-evm-accounts                    = { path = "pallets/evm-accounts", defaul
 pallet-evm-accounts-rpc-runtime-api    = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-prices                          = { path = "pallets/prices", default-features = false }
 pallet-traits                          = { path = "pallets/traits", default-features = false }
+bifrost-ismp                           = { path = "pallets/ismp", default-features = false }
 
 # Zenlink
 merkle-distributor             = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2407", default-features = false }

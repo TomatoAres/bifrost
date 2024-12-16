@@ -1317,6 +1317,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bifrost-ismp"
+version = "0.8.0"
+dependencies = [
+ "anyhow",
+ "frame-support",
+ "frame-system",
+ "ismp",
+ "pallet-balances",
+ "pallet-ismp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
 name = "bifrost-kusama-runtime"
 version = "0.8.0"
 dependencies = [
@@ -1490,6 +1506,7 @@ dependencies = [
  "bifrost-fee-share",
  "bifrost-flexible-fee",
  "bifrost-flexible-fee-rpc-runtime-api",
+ "bifrost-ismp",
  "bifrost-parachain-staking",
  "bifrost-primitives",
  "bifrost-runtime-common",

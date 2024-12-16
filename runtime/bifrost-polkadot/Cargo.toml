@@ -172,6 +172,7 @@ leverage-staking = { workspace = true }
 bifrost-channel-commission = { workspace = true }
 bifrost-clouds-convert = { workspace = true }
 bifrost-vtoken-minting-rpc-runtime-api = { workspace = true }
+bifrost-ismp = { workspace = true }
 
 # Hyperbridge
 pallet-ismp = { workspace = true, features = ["unsigned"] }
@@ -450,6 +451,7 @@ try-runtime = [
     "pallet-evm-chain-id/try-runtime",
     "pallet-dynamic-fee/try-runtime",
     "bifrost-parachain-staking/try-runtime",
+    "bifrost-ismp/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.
