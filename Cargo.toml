@@ -152,15 +152,20 @@ pallet-evm-precompile-simple   = { git = "https://github.com/bifrost-io/frontier
 precompile-utils               = { git = "https://github.com/bifrost-io/frontier", branch = "release-polkadot-stable2407", default-features = false }
 
 # Hyperbridge
-pallet-ismp           = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
-pallet-ismp-runtime-api  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
-pallet-ismp-rpc  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
-ismp-parachain  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
-ismp-parachain-inherent  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
+pallet-ismp                 = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+ismp                        = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+ismp-sync-committee         = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+pallet-ismp-runtime-api     = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+pallet-ismp-rpc             = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
+ismp-parachain              = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+ismp-parachain-inherent     = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
 ismp-parachain-runtime-api  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
-ismp-grandpa  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
-pallet-hyperbridge  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
-pallet-token-gateway  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+ismp-grandpa                = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+pallet-hyperbridge          = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+pallet-token-gateway        = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+pallet-mmr                  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+ismp-bsc                    = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+anyhow                      = { version = "1.0.93", default-features = false }
 
 # polkadot-sdk (wasm)
 cumulus-client-collator                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
