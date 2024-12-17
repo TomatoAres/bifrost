@@ -738,3 +738,62 @@ fn charge_boost() {
 			assert_eq!(BoostNextRoundWhitelist::<Runtime>::iter().count(), 0);
 		})
 }
+
+#[test]
+fn refresh_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			let (pid, tokens) = init_gauge();
+			System::set_block_number(System::block_number() + 1);
+			assert_ok!(Farming::deposit(RuntimeOrigin::signed(ALICE), pid, tokens));
+			System::set_block_number(System::block_number() + 1);
+			assert_ok!(Farming::deposit(RuntimeOrigin::signed(ALICE), pid, 0));
+			assert_eq!(Tokens::free_balance(KSM, &ALICE), 1000);
+			let keeper: AccountId =
+				<Runtime as Config>::Keeper::get().into_sub_account_truncating(pid);
+			let mut gauge_basic_rewards =
+				BTreeMap::<CurrencyIdOf<Runtime>, BalanceOf<Runtime>>::new();
+			gauge_basic_rewards.entry(KSM).or_insert(990_000);
+			let gauge_reward_issuer: AccountId = <Runtime as Config>::RewardIssuer::get()
+				.into_sub_account_truncating(pid + GAUGE_BASE_ID);
+			let mut basic_rewards_map =
+				BTreeMap::<CurrencyIdOf<Runtime>, BalanceOf<Runtime>>::new();
+			basic_rewards_map.entry(KSM).or_insert(990);
+			let mut tokens_proportion_map = BTreeMap::<CurrencyIdOf<Runtime>, Perbill>::new();
+			tokens_proportion_map
+				.entry(KSM)
+				.or_insert(Perbill::from_percent(100));
+			let gauge_pool_info2 = PoolInfo {
+				tokens_proportion: tokens_proportion_map,
+				total_shares: Default::default(),
+				basic_token: (KSM, Perbill::from_percent(100)),
+				basic_rewards: basic_rewards_map.clone(),
+				rewards: BTreeMap::new(),
+				state: PoolState::Ongoing,
+				keeper: keeper.clone(),
+				reward_issuer: gauge_reward_issuer.clone(),
+				gauge: None,
+				block_startup: None,
+				min_deposit_to_start: Default::default(),
+				after_block_to_start: Default::default(),
+				withdraw_limit_time: Default::default(),
+				claim_limit_time: Default::default(),
+				withdraw_limit_count: Default::default(),
+			};
+			assert_eq!(
+				PoolInfos::<Runtime>::get(pid + GAUGE_BASE_ID),
+				Some(gauge_pool_info2)
+			);
+			Farming::on_initialize(1);
+			Farming::on_initialize(1);
+			System::set_block_number(System::block_number() + 1000);
+
+			assert_ok!(BbBNC::create_lock_inner(
+				&CHARLIE,
+				100_000_000_000,
+				(365 * 86400 - 7 * 86400) / 12
+			));
+		})
+}

@@ -217,6 +217,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 ord_parameter_types! {
@@ -256,8 +257,11 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type VtokenMinting = VtokenMinting;
+	type FarmingInfo = ();
 	type FourYears = FourYears;
 	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 pub struct ParachainId;

@@ -1060,6 +1060,7 @@ fn on_initialize_hook_should_work() {
 			assert_eq!(Currencies::free_balance(VKSM, &commission_account), 11000);
 
 			// set block number to 100
+			System::set_block_number(100);
 			ChannelCommission::on_initialize(100);
 			// set_clearing_environment already been called in block 100
 			// check whether the clearing environment is set correctly for block 100
@@ -1076,6 +1077,7 @@ fn on_initialize_hook_should_work() {
 			// get channel B's vtoken share before being cleared
 			let channel_b_vtoken_share_before = ChannelVtokenShares::<Runtime>::get(1, VKSM);
 
+			System::set_block_number(101);
 			ChannelCommission::on_initialize(101);
 
 			let channel_a_commission = 4;
@@ -1100,6 +1102,7 @@ fn on_initialize_hook_should_work() {
 				channel_b_vtoken_share_before
 			);
 
+			System::set_block_number(102);
 			ChannelCommission::on_initialize(102);
 
 			let channel_b_commission = 2;
@@ -1127,6 +1130,7 @@ fn on_initialize_hook_should_work() {
 				Currencies::free_balance(KSM, &bifrost_commission_receiver);
 			assert_eq!(bifrost_account_balance_before, 0);
 
+			System::set_block_number(103);
 			ChannelCommission::on_initialize(103);
 
 			// cleared commissions should be none

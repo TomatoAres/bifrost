@@ -1378,6 +1378,7 @@ impl bifrost_farming::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type WhitelistMaximumLimit = WhitelistMaximumLimit;
 	type GaugeRewardIssuer = FarmingGaugeRewardIssuerPalletId;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1398,6 +1399,7 @@ impl bifrost_system_staking::Config for Runtime {
 	type BlocksPerRound = BlocksPerRound;
 	type MaxTokenLen = MaxTokenLen;
 	type MaxFarmingPoolIdLen = MaxFarmingPoolIdLen;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_fee_share::Config for Runtime {
@@ -1407,6 +1409,7 @@ impl bifrost_fee_share::Config for Runtime {
 	type WeightInfo = weights::bifrost_fee_share::BifrostWeight<Runtime>;
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = Prices;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_cross_in_out::Config for Runtime {
@@ -1578,6 +1581,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_slpx::Config for Runtime {
@@ -1618,6 +1622,7 @@ impl bifrost_stable_asset::Config for Runtime {
 	type WeightInfo = ();
 	type ListingOrigin = TechAdminOrCouncil;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Runtime {
@@ -1712,6 +1717,7 @@ impl lend_market::Config for Runtime {
 	type RewardAssetId = NativeCurrencyId;
 	type LiquidationFreeAssetId = RelayCurrencyId;
 	type MaxLengthLimit = MaxLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1756,6 +1762,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type WeightInfo = weights::bifrost_channel_commission::BifrostWeight<Runtime>;
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_vbnc_convert::Config for Runtime {
@@ -2041,7 +2048,6 @@ mod benches {
 	define_benchmarks!(
 		[bifrost_asset_registry, AssetRegistry]
 		[bifrost_cross_in_out, CrossInOut]
-		[bifrost_farming, Farming]
 		[bifrost_fee_share, FeeShare]
 		[bifrost_flexible_fee, FlexibleFee]
 		[bifrost_slp, Slp]

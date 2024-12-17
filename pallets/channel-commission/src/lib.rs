@@ -31,7 +31,10 @@ use orml_traits::MultiCurrency;
 use sp_io::MultiRemovalResults;
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
-	traits::{AccountIdConversion, CheckedAdd, UniqueSaturatedFrom, UniqueSaturatedInto, Zero},
+	traits::{
+		AccountIdConversion, BlockNumberProvider, CheckedAdd, UniqueSaturatedFrom,
+		UniqueSaturatedInto, Zero,
+	},
 	PerThing, Percent, Permill, Rounding, SaturatedConversion, Saturating,
 };
 pub use weights::WeightInfo;
@@ -83,6 +86,8 @@ pub mod pallet {
 		// The maximum bytes length of channel name
 		#[pallet::constant]
 		type NameLengthLimit: Get<u32>;
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::error]
@@ -299,23 +304,28 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			let channel_count: u32 = ChannelNextId::<T>::get().into();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 
 			// get the commission token count
 			let commission_token_count = CommissionTokens::<T>::iter().count() as u32;
 
 			// If the current block number is the first block of a new clearing period, we need to
 			// prepare data for clearing.
-			if (n % T::ClearingDuration::get()).is_zero() {
+			if (current_block_number % T::ClearingDuration::get()).is_zero() {
 				Self::set_clearing_environment();
-			} else if (n % T::ClearingDuration::get()) < (channel_count + 1).into() {
-				let channel_index = n % T::ClearingDuration::get() - 1u32.into();
+			} else if (current_block_number % T::ClearingDuration::get())
+				< (channel_count + 1).into()
+			{
+				let channel_index = current_block_number % T::ClearingDuration::get() - 1u32.into();
 				let channel_id: ChannelId =
 					BlockNumberFor::<T>::unique_saturated_into(channel_index);
 				Self::clear_channel_commissions(channel_id);
 				Self::update_channel_vtoken_shares(channel_id);
-			} else if (n % T::ClearingDuration::get()) == (channel_count + 1).into() {
+			} else if (current_block_number % T::ClearingDuration::get())
+				== (channel_count + 1).into()
+			{
 				Self::clear_bifrost_commissions();
 			}
 

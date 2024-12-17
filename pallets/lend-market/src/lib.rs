@@ -48,8 +48,8 @@ use pallet_traits::{
 use sp_core::bounded::BoundedVec;
 use sp_runtime::{
 	traits::{
-		AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One,
-		SaturatedConversion, Saturating, StaticLookup, Zero,
+		AccountIdConversion, BlockNumberProvider, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub,
+		One, SaturatedConversion, Saturating, StaticLookup, Zero,
 	},
 	ArithmeticError, FixedPointNumber, FixedU128,
 };
@@ -128,6 +128,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxLengthLimit: Get<u32>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::error]

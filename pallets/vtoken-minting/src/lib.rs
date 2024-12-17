@@ -42,7 +42,7 @@ use bifrost_primitives::{
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
 	sp_runtime::{
-		traits::{CheckedAdd, CheckedSub, Saturating, Zero},
+		traits::{BlockNumberProvider, CheckedAdd, CheckedSub, Saturating, Zero},
 		DispatchError, Permill,
 	},
 	traits::LockIdentifier,
@@ -134,6 +134,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MoonbeamChainId: Get<u32>;
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::event]
@@ -1023,7 +1025,7 @@ pub mod pallet {
 				&unlocker,
 				v_currency_id,
 				|maybe_ledger| -> Result<(), Error<T>> {
-					let current_block = frame_system::Pallet::<T>::block_number();
+					let current_block = T::BlockNumberProvider::current_block_number();
 
 					if let Some(ref mut ledger) = maybe_ledger {
 						// check the total locked amount

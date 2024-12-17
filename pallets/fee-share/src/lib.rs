@@ -35,7 +35,8 @@ use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
 		traits::{
-			AccountIdConversion, CheckedAdd, CheckedMul, SaturatedConversion, Saturating, Zero,
+			AccountIdConversion, BlockNumberProvider, CheckedAdd, CheckedMul, SaturatedConversion,
+			Saturating, Zero,
 		},
 		ArithmeticError, FixedU128, Perbill,
 	},
@@ -103,6 +104,8 @@ pub mod pallet {
 
 		/// The oracle price feeder
 		type OraclePriceProvider: OraclePriceProvider;
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::event]
@@ -207,16 +210,17 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(bn: BlockNumberFor<T>, _remaining_weight: Weight) -> Weight {
+		fn on_idle(_: BlockNumberFor<T>, _remaining_weight: Weight) -> Weight {
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 			DollarStandardInfos::<T>::iter().for_each(|(distribution_id, mut info)| {
-				if bn.eq(&info.target_block) {
+				if current_block_number.eq(&info.target_block) {
 					info.target_block = info.target_block.saturating_add(info.interval);
 					info.cumulative = Zero::zero();
 					DollarStandardInfos::<T>::insert(distribution_id, info);
 				}
 			});
 			let (era_length, next_era) = AutoEra::<T>::get();
-			if bn.eq(&next_era) {
+			if current_block_number.eq(&next_era) {
 				DistributionInfos::<T>::iter().for_each(|(distribution_id, info)| {
 					if info.if_auto {
 						if let Some(e) =
@@ -353,7 +357,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let current_block = frame_system::Pallet::<T>::block_number();
+			let current_block = T::BlockNumberProvider::current_block_number();
 			let next_era = current_block
 				.checked_add(&era_length)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -430,7 +434,7 @@ pub mod pallet {
 			ensure!(interval > Zero::zero(), Error::<T>::IntervalIsZero);
 			ensure!(target_value > 0, Error::<T>::ValueIsZero);
 
-			let now = frame_system::Pallet::<T>::block_number();
+			let now = T::BlockNumberProvider::current_block_number();
 			let info = DollarStandardInfo {
 				target_value,
 				cumulative: Zero::zero(),

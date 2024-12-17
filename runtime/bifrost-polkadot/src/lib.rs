@@ -1222,6 +1222,7 @@ impl bifrost_farming::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type WhitelistMaximumLimit = WhitelistMaximumLimit;
 	type GaugeRewardIssuer = FarmingGaugeRewardIssuerPalletId;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1243,6 +1244,7 @@ impl bifrost_system_staking::Config for Runtime {
 	type BlocksPerRound = BlocksPerRound;
 	type MaxTokenLen = MaxTokenLen;
 	type MaxFarmingPoolIdLen = MaxFarmingPoolIdLen;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_fee_share::Config for Runtime {
@@ -1252,6 +1254,7 @@ impl bifrost_fee_share::Config for Runtime {
 	type WeightInfo = weights::bifrost_fee_share::BifrostWeight<Runtime>;
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = Prices;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_cross_in_out::Config for Runtime {
@@ -1301,6 +1304,7 @@ impl bifrost_stable_asset::Config for Runtime {
 	type WeightInfo = ();
 	type ListingOrigin = TechAdminOrCouncil;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Runtime {
@@ -1427,6 +1431,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = BbBNC;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1455,8 +1460,11 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type VtokenMinting = VtokenMinting;
+	type FarmingInfo = Farming;
 	type FourYears = MaxBlock;
 	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1540,6 +1548,7 @@ impl lend_market::Config for Runtime {
 	type RewardAssetId = NativeCurrencyId;
 	type LiquidationFreeAssetId = RelayCurrencyId;
 	type MaxLengthLimit = MaxLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1584,6 +1593,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type WeightInfo = weights::bifrost_channel_commission::BifrostWeight<Runtime>;
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_clouds_convert::Config for Runtime {
@@ -1607,6 +1617,7 @@ impl bifrost_buy_back::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
 	type BbBNC = BbBNC;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_slp_v2::Config for Runtime {
@@ -2066,6 +2077,7 @@ mod benches {
 		[bifrost_buy_back, BuyBack]
 		[bifrost_slp_v2, SlpV2]
 		[bifrost_xcm_interface, XcmInterface]
+		[bifrost_farming, Farming]
 	);
 }
 

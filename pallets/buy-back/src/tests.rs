@@ -243,8 +243,11 @@ fn on_initialize_no_burn_should_work() {
 				Some(buyback_account.clone()),
 			);
 			assert_ok!(BuyBack::charge(RuntimeOrigin::signed(ALICE), VKSM, 1000));
+			System::set_block_number(1);
 			BuyBack::on_initialize(1);
+			System::set_block_number(2);
 			BuyBack::on_initialize(2);
+			System::set_block_number(3);
 			BuyBack::on_initialize(3);
 			assert_eq!(Currencies::free_balance(VKSM, &buyback_account), 9000);
 			assert_eq!(
@@ -301,10 +304,10 @@ fn on_initialize_with_burn_should_work() {
 				Some(buyback_account.clone()),
 			);
 			assert_ok!(BuyBack::charge(RuntimeOrigin::signed(ALICE), VKSM, 1000));
-			BuyBack::on_initialize(<frame_system::Pallet<Runtime>>::block_number() + 1);
 			System::set_block_number(System::block_number() + 1);
-			BuyBack::on_initialize(<frame_system::Pallet<Runtime>>::block_number() + 1);
+			BuyBack::on_initialize(0);
 			System::set_block_number(System::block_number() + 1);
+			BuyBack::on_initialize(0);
 			assert_eq!(Currencies::free_balance(VKSM, &buyback_account), 9000);
 			assert_eq!(
 				Currencies::free_balance(VKSM, &zenlink_pair_account_id),
@@ -360,6 +363,7 @@ fn on_initialize_with_bias_should_work() {
 				Some(buyback_account.clone()),
 			);
 			assert_ok!(BuyBack::charge(RuntimeOrigin::signed(ALICE), VKSM, 1000));
+			System::set_block_number(1);
 			BuyBack::on_initialize(1);
 			let path = vec![
 				AssetId::try_convert_from(VKSM, PARAID).unwrap(),
@@ -374,7 +378,9 @@ fn on_initialize_with_bias_should_work() {
 				<frame_system::Pallet<Runtime>>::block_number()
 					+ BlockNumberFor::<Runtime>::from(1u32)
 			));
+			System::set_block_number(2);
 			BuyBack::on_initialize(2);
+			System::set_block_number(3);
 			BuyBack::on_initialize(3);
 			assert_eq!(Currencies::free_balance(VKSM, &buyback_account), 9000);
 			assert_eq!(
