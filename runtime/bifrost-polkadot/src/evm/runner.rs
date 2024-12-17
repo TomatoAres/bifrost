@@ -121,11 +121,11 @@ where
 		let account_id = T::AddressMapping::into_account_id(source);
 		let account_nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
 
-		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id, base_fee)
-			.map_err(|_| RunnerError {
-			error: R::Error::from(TransactionValidationError::BalanceTooLow),
-			weight,
-		})?;
+		let (balance, b_weight) =
+			match B::get_balance_in_currency(evm_currency, &account_id, base_fee) {
+				Ok((balance, b_weight)) => (balance, b_weight),
+				Err(_) => (0, T::DbWeight::get().reads(2)),
+			};
 
 		let (source_account, inner_weight) = (
 			Account {

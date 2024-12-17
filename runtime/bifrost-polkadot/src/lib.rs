@@ -2147,7 +2147,7 @@ impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 						};
 
 			// don't allow calling EVM RPC or Runtime API from a bound address
-			if EVMAccounts::bound_account_id(from).is_some() {
+			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
 				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
 			};
 
@@ -2228,9 +2228,9 @@ impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 				};
 
 			// don't allow calling EVM RPC or Runtime API from a bound address
-			if EVMAccounts::bound_account_id(from).is_some() {
+			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
 				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-				};
+			};
 
 			// the address needs to have a permission to deploy smart contract
 			if !EVMAccounts::can_deploy_contracts(from) {
