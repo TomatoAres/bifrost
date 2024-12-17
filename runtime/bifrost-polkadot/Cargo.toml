@@ -452,6 +452,8 @@ try-runtime = [
     "pallet-dynamic-fee/try-runtime",
     "bifrost-parachain-staking/try-runtime",
     "bifrost-ismp/try-runtime",
+    "pallet-ismp/try-runtime",
+    "pallet-hyperbridge/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.
