@@ -1872,6 +1872,11 @@ construct_runtime! {
 		ZenlinkProtocol: zenlink_protocol = 80,
 		MerkleDistributor: merkle_distributor = 81,
 
+		// Hyperbridge
+		Ismp: pallet_ismp = 90,
+		Hyperbridge: pallet_hyperbridge = 91,
+		BifrostIsmp: bifrost_ismp = 92,
+
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
 		Salp: bifrost_salp = 105,
@@ -1900,9 +1905,6 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
-		Ismp: pallet_ismp = 90,
-		Hyperbridge: pallet_hyperbridge = 91,
-		BifrostIsmp: bifrost_ismp = 92,
 	}
 }
 
