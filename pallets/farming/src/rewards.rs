@@ -225,7 +225,8 @@ impl<T: Config> Pallet<T> {
 			},
 		);
 
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 
 		let mut share_info = SharesAndWithdrawnRewards::<T>::get(pid, who)
 			.unwrap_or_else(|| ShareInfo::new(who.clone(), current_block_number));
@@ -262,7 +263,8 @@ impl<T: Config> Pallet<T> {
 		Self::claim_rewards(who, pool)?;
 
 		SharesAndWithdrawnRewards::<T>::mutate(pool, who, |share_info_old| -> DispatchResult {
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			if let Some(mut share_info) = share_info_old.take() {
 				let remove_amount;
 				if let Some(remove_amount_input) = remove_amount_input {
@@ -340,7 +342,7 @@ impl<T: Config> Pallet<T> {
 			who,
 			|maybe_share_withdrawn| -> DispatchResult {
 				let current_block_number: BlockNumberFor<T> =
-					frame_system::Pallet::<T>::block_number();
+					T::BlockNumberProvider::current_block_number();
 				if let Some(share_info) = maybe_share_withdrawn {
 					if share_info.share.is_zero() {
 						return Ok(());
@@ -431,7 +433,7 @@ impl<T: Config> Pallet<T> {
 			|share_info_old| -> DispatchResult {
 				if let Some(mut share_info) = share_info_old.take() {
 					let current_block_number: BlockNumberFor<T> =
-						frame_system::Pallet::<T>::block_number();
+						T::BlockNumberProvider::current_block_number();
 					let mut tmp: Vec<(BlockNumberFor<T>, BalanceOf<T>)> = Default::default();
 					share_info.withdraw_list.iter().try_for_each(
 						|(dest_block, remove_value)| -> DispatchResult {

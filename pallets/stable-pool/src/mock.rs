@@ -240,6 +240,7 @@ impl bifrost_stable_asset::Config for Test {
 	type WeightInfo = ();
 	type ListingOrigin = EnsureSignedBy<One, u128>;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Test {

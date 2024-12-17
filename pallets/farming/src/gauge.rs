@@ -189,7 +189,7 @@ where
 			None => (),
 			Some(gid) => {
 				let current_block_number: BlockNumberFor<T> =
-					frame_system::Pallet::<T>::block_number();
+					T::BlockNumberProvider::current_block_number();
 				let gauge_pool_info =
 					GaugePoolInfos::<T>::get(gid).ok_or(Error::<T>::GaugePoolNotExist)?;
 				let gauge_info =

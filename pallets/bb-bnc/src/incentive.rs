@@ -63,7 +63,8 @@ where
 impl<T: Config> Pallet<T> {
 	/// Check if the current block number is within the end time of the reward pool
 	pub fn last_time_reward_applicable(pool_id: PoolId) -> BlockNumberFor<T> {
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		if current_block_number < IncentiveConfigs::<T>::get(pool_id).period_finish {
 			current_block_number
 		} else {
@@ -76,7 +77,8 @@ impl<T: Config> Pallet<T> {
 		pool_id: PoolId,
 	) -> Result<BTreeMap<CurrencyIdOf<T>, BalanceOf<T>>, DispatchError> {
 		let mut conf = IncentiveConfigs::<T>::get(pool_id);
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		let total_supply = Self::total_supply(current_block_number)?;
 		if total_supply == BalanceOf::<T>::zero() {
 			return Ok(conf.reward_per_token_stored);
@@ -262,7 +264,8 @@ impl<T: Config> Pallet<T> {
 		};
 		Self::update_reward(pool_id, None, None)?;
 		let mut conf = IncentiveConfigs::<T>::get(pool_id);
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 
 		if current_block_number >= conf.period_finish {
 			Self::add_reward(&account, &mut conf, &rewards, Zero::zero())?;

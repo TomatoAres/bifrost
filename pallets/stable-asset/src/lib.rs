@@ -40,7 +40,10 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::{U256, U512};
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero},
+	traits::{
+		AccountIdConversion, BlockNumberProvider, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub,
+		One, Zero,
+	},
 	ArithmeticError, DispatchError, SaturatedConversion,
 };
 use sp_std::prelude::*;
@@ -352,7 +355,7 @@ pub mod pallet {
 	use orml_traits::MultiCurrency;
 	use parity_scale_codec::Codec;
 	use sp_runtime::{
-		traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero},
+		traits::{BlockNumberProvider, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero},
 		FixedPointOperand, Permill,
 	};
 	use sp_std::prelude::*;
@@ -399,6 +402,9 @@ pub mod pallet {
 
 		/// The origin which may create pool or modify pool.
 		type ListingOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -984,7 +990,7 @@ impl<T: Config> Pallet<T> {
 		a1: T::AtLeast64BitUnsigned,
 		t1: BlockNumberFor<T>,
 	) -> Option<T::AtLeast64BitUnsigned> {
-		let current_block = frame_system::Pallet::<T>::block_number();
+		let current_block = T::BlockNumberProvider::current_block_number();
 		if current_block < t1 {
 			let time_diff: u128 = current_block.checked_sub(&t0)?.saturated_into();
 			let time_diff: T::AtLeast64BitUnsigned = time_diff.into();
@@ -1981,7 +1987,7 @@ impl<T: Config> StableAsset for Pallet<T> {
 
 				let balances = sp_std::vec![Zero::zero(); assets.len()];
 				frame_system::Pallet::<T>::inc_providers(&swap_id);
-				let current_block = frame_system::Pallet::<T>::block_number();
+				let current_block = T::BlockNumberProvider::current_block_number();
 				*maybe_pool_info = Some(StableAssetPoolInfo {
 					pool_id,
 					pool_asset,
@@ -2391,7 +2397,7 @@ impl<T: Config> StableAsset for Pallet<T> {
 				future_a_block > pool_info.a_block,
 				Error::<T>::ArgumentsError
 			);
-			let current_block = frame_system::Pallet::<T>::block_number();
+			let current_block = T::BlockNumberProvider::current_block_number();
 			let initial_a: T::AtLeast64BitUnsigned = Self::get_a(
 				pool_info.a,
 				pool_info.a_block,

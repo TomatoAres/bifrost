@@ -198,7 +198,7 @@ benchmarks! {
 		assert_ok!(LendMarket::<T>::mint(SystemOrigin::Signed(caller.clone()).into(), DOT_U, 100_000_000));
 		assert_ok!(LendMarket::<T>::add_reward(SystemOrigin::Signed(caller.clone()).into(), 1_000_000_000_000_u128));
 		assert_ok!(LendMarket::<T>::update_market_reward_speed(SystemOrigin::Root.into(), DOT_U, Some(1_000_000), Some(1_000_000)));
-		let target_height = frame_system::Pallet::<T>::block_number().saturating_add(One::one());
+		let target_height = T::BlockNumberProvider::current_block_number().saturating_add(One::one());
 		frame_system::Pallet::<T>::set_block_number(target_height);
 	}: _(SystemOrigin::Signed(caller.clone()))
 	verify {
@@ -213,7 +213,7 @@ benchmarks! {
 		assert_ok!(LendMarket::<T>::mint(SystemOrigin::Signed(caller.clone()).into(), DOT_U, 100_000_000));
 		assert_ok!(LendMarket::<T>::add_reward(SystemOrigin::Signed(caller.clone()).into(), 1_000_000_000_000_u128));
 		assert_ok!(LendMarket::<T>::update_market_reward_speed(SystemOrigin::Root.into(), DOT_U, Some(1_000_000), Some(1_000_000)));
-		let target_height = frame_system::Pallet::<T>::block_number().saturating_add(One::one());
+		let target_height = T::BlockNumberProvider::current_block_number().saturating_add(One::one());
 		frame_system::Pallet::<T>::set_block_number(target_height);
 	}: _(SystemOrigin::Signed(caller.clone()), DOT_U)
 	verify {

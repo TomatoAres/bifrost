@@ -205,6 +205,7 @@ impl bb_bnc::Config for Runtime {
 	type FarmingInfo = ();
 	type FourYears = MaxBlock;
 	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 pub struct ExtBuilder {

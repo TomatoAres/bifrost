@@ -261,6 +261,7 @@ impl bb_bnc::Config for Runtime {
 	type FarmingInfo = ();
 	type FourYears = FourYears;
 	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 pub struct ParachainId;

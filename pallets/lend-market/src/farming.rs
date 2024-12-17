@@ -61,7 +61,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn update_reward_supply_index(asset_id: AssetIdOf<T>) -> DispatchResult {
-		let current_block_number = <frame_system::Pallet<T>>::block_number();
+		let current_block_number = T::BlockNumberProvider::current_block_number();
 		RewardSupplyState::<T>::try_mutate(asset_id, |supply_state| -> DispatchResult {
 			let delta_block = current_block_number.saturating_sub(supply_state.block);
 			if delta_block.is_zero() {
@@ -84,7 +84,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn update_reward_borrow_index(asset_id: AssetIdOf<T>) -> DispatchResult {
-		let current_block_number = <frame_system::Pallet<T>>::block_number();
+		let current_block_number = T::BlockNumberProvider::current_block_number();
 		RewardBorrowState::<T>::try_mutate(asset_id, |borrow_state| -> DispatchResult {
 			let delta_block = current_block_number.saturating_sub(borrow_state.block);
 			if delta_block.is_zero() {

@@ -39,8 +39,8 @@ use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
 		traits::{
-			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul,
-			CheckedSub, Convert, Saturating, Zero,
+			AccountIdConversion, AtLeast32BitUnsigned, BlockNumberProvider, CheckedAdd, CheckedDiv,
+			CheckedMul, CheckedSub, Convert, Saturating, Zero,
 		},
 		ArithmeticError, Perbill, Percent,
 	},
@@ -126,6 +126,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type GaugeRewardIssuer: Get<PalletId>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::event]
@@ -410,7 +413,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			let n: BlockNumberFor<T> = T::BlockNumberProvider::current_block_number();
 			PoolInfos::<T>::iter().for_each(|(pid, mut pool_info)| match pool_info.state {
 				PoolState::Ongoing => {
 					pool_info.basic_rewards.clone().iter_mut().for_each(
@@ -622,7 +626,7 @@ pub mod pallet {
 
 			if let PoolState::Charged = pool_info.state {
 				let current_block_number: BlockNumberFor<T> =
-					frame_system::Pallet::<T>::block_number();
+					T::BlockNumberProvider::current_block_number();
 				ensure!(
 					current_block_number >= pool_info.after_block_to_start,
 					Error::<T>::CanNotDeposit
@@ -758,7 +762,8 @@ pub mod pallet {
 				Error::<T>::InvalidPoolState
 			);
 
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
 				.ok_or(Error::<T>::ShareInfoNotExists)?;
 			ensure!(

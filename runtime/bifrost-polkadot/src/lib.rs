@@ -1221,6 +1221,7 @@ impl bifrost_farming::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type WhitelistMaximumLimit = WhitelistMaximumLimit;
 	type GaugeRewardIssuer = FarmingGaugeRewardIssuerPalletId;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1302,6 +1303,7 @@ impl bifrost_stable_asset::Config for Runtime {
 	type WeightInfo = ();
 	type ListingOrigin = TechAdminOrCouncil;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Runtime {
@@ -1461,6 +1463,7 @@ impl bb_bnc::Config for Runtime {
 	type FarmingInfo = Farming;
 	type FourYears = MaxBlock;
 	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1544,6 +1547,7 @@ impl lend_market::Config for Runtime {
 	type RewardAssetId = NativeCurrencyId;
 	type LiquidationFreeAssetId = RelayCurrencyId;
 	type MaxLengthLimit = MaxLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1612,6 +1616,7 @@ impl bifrost_buy_back::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
 	type BbBNC = BbBNC;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_slp_v2::Config for Runtime {

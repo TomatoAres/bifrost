@@ -109,7 +109,8 @@ impl<T: Config> Pallet<T> {
 			);
 		}
 
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		boost_pool_info.start_round = current_block_number;
 		boost_pool_info.end_round = current_block_number.saturating_add(round_length);
 		boost_pool_info.total_votes = Zero::zero();
@@ -156,7 +157,8 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::RoundStartError { info: e });
 			})
 			.ok();
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		boost_pool_info.start_round = current_block_number;
 		boost_pool_info.end_round =
 			current_block_number.saturating_add(boost_pool_info.round_length);
@@ -211,7 +213,7 @@ impl<T: Config> Pallet<T> {
 		who: &AccountIdOf<T>,
 		vote_list: Vec<(PoolId, Percent)>,
 	) -> DispatchResult {
-		let current_block_number = frame_system::Pallet::<T>::block_number();
+		let current_block_number = T::BlockNumberProvider::current_block_number();
 		let mut boost_pool_info = BoostPoolInfos::<T>::get();
 
 		if let Some(user_boost_info) = UserBoostInfos::<T>::get(who) {

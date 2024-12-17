@@ -178,6 +178,7 @@ impl bifrost_buy_back::Config for Runtime {
 	type ParachainId = ParaInfo;
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
 	type BbBNC = BbBNC;
+	type BlockNumberProvider = System;
 }
 
 pub struct ParaInfo;
@@ -490,6 +491,7 @@ impl bb_bnc::Config for Runtime {
 	type FarmingInfo = ();
 	type FourYears = MaxBlock;
 	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 pub struct ExtBuilder {

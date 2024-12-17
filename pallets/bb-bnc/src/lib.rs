@@ -37,8 +37,8 @@ use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
 		traits::{
-			AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Convert,
-			Saturating, UniqueSaturatedInto, Zero,
+			AccountIdConversion, BlockNumberProvider, CheckedAdd, CheckedDiv, CheckedMul,
+			CheckedSub, Convert, Saturating, UniqueSaturatedInto, Zero,
 		},
 		ArithmeticError, DispatchError, FixedPointNumber, FixedU128, SaturatedConversion,
 	},
@@ -151,6 +151,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type FourYears: Get<BlockNumberFor<Self>>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::event]
@@ -396,7 +399,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			let n: BlockNumberFor<T> = T::BlockNumberProvider::current_block_number();
 			let conf = IncentiveConfigs::<T>::get(BB_BNC_SYSTEM_POOL_ID);
 			if n == conf.period_finish {
 				if let Some(e) = Self::notify_reward_amount(
@@ -590,7 +594,8 @@ pub mod pallet {
 			if !TotalLock::<T>::contains_key(currency_id) {
 				TotalLock::<T>::insert(currency_id, BalanceOf::<T>::zero());
 			}
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			MarkupCoefficient::<T>::insert(
 				currency_id,
 				MarkupCoefficientInfo {
@@ -661,7 +666,8 @@ pub mod pallet {
 			let mut u_new = Point::<BalanceOf<T>, BlockNumberFor<T>>::default();
 			let mut new_dslope = 0_i128;
 			let mut g_epoch: U256 = Epoch::<T>::get();
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 
 			if old_locked.end > current_block_number && old_locked.amount > BalanceOf::<T>::zero() {
 				u_old.slope = U256::from(old_locked.amount.saturated_into::<u128>())
@@ -835,7 +841,8 @@ pub mod pallet {
 			unlock_time: BlockNumberFor<T>,
 			locked_balance: LockedBalance<BalanceOf<T>, BlockNumberFor<T>>,
 		) -> DispatchResult {
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			let mut _locked = locked_balance;
 			let supply_before = Supply::<T>::get();
 			let supply_after = supply_before
@@ -892,7 +899,8 @@ pub mod pallet {
 		pub(crate) fn balance_of_position_current_block(
 			position: PositionId,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			let u_epoch = UserPointEpoch::<T>::get(position);
 			if u_epoch == U256::zero() {
 				return Ok(Zero::zero());
@@ -929,7 +937,8 @@ pub mod pallet {
 			position: PositionId,
 			block: BlockNumberFor<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			ensure!(block <= current_block_number, Error::<T>::Expired);
 
 			// Binary search
@@ -1051,7 +1060,8 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 
 			let mut user_markup_info = UserMarkupInfos::<T>::get(&who).unwrap_or_default();
 			let mut locked_token =
@@ -1174,7 +1184,8 @@ pub mod pallet {
 		pub fn refresh_inner(currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let markup_coefficient =
 				MarkupCoefficient::<T>::get(currency_id).ok_or(Error::<T>::ArgumentsError)?;
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			let limit = T::MarkupRefreshLimit::get();
 			let mut all_refreshed = true;
 			let mut refresh_count = 0;
@@ -1339,7 +1350,8 @@ pub mod pallet {
 		/// This function will check the lock and redeem it regardless of whether it has expired.
 		pub fn redeem_unlock_inner(who: &AccountIdOf<T>, position: PositionId) -> DispatchResult {
 			let mut _locked = Locked::<T>::get(position);
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			ensure!(_locked.end > current_block_number, Error::<T>::Expired);
 			let fast = Self::redeem_commission(_locked.end - current_block_number)?;
 			Self::withdraw_no_ensure(who, position, _locked, Some(fast))
@@ -1386,7 +1398,8 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 		let bb_config = BbConfigs::<T>::get();
 		ensure!(value >= bb_config.min_mint, Error::<T>::BelowMinimumMint);
 
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		let _locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> =
 			Locked::<T>::get(new_position);
 		let real_unlock_time: BlockNumberFor<T> = unlock_time
@@ -1432,7 +1445,8 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 	) -> DispatchResult {
 		let bb_config = BbConfigs::<T>::get();
 		let locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> = Locked::<T>::get(position);
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 
 		ensure!(locked.end > current_block_number, Error::<T>::Expired); // Cannot add to expired/non-existent lock
 		let real_unlock_time: BlockNumberFor<T> = unlock_time
@@ -1487,7 +1501,8 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 			_locked.amount > BalanceOf::<T>::zero(),
 			Error::<T>::LockNotExist
 		); // Need to be executed after create_lock
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		ensure!(_locked.end > current_block_number, Error::<T>::Expired); // Cannot add to expired/non-existent lock
 		Self::_deposit_for(who, position, value, Zero::zero(), _locked)?;
 		Self::deposit_event(Event::AmountIncreased {
@@ -1507,7 +1522,8 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 	#[transactional]
 	fn withdraw_inner(who: &AccountIdOf<T>, position: u128) -> DispatchResult {
 		let mut _locked = Locked::<T>::get(position);
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		ensure!(current_block_number >= _locked.end, Error::<T>::Expired);
 		Self::withdraw_no_ensure(who, position, _locked, None)
 	}

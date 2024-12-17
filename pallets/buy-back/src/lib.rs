@@ -36,7 +36,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
-		traits::{AccountIdConversion, One, Zero},
+		traits::{AccountIdConversion, BlockNumberProvider, One, Zero},
 		Permill, SaturatedConversion, Saturating,
 	},
 	transactional, PalletId,
@@ -95,6 +95,9 @@ pub mod pallet {
 			BalanceOf<Self>,
 			BlockNumberFor<Self>,
 		>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::event]
@@ -196,7 +199,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			let n: BlockNumberFor<T> = T::BlockNumberProvider::current_block_number();
 			let buyback_address = T::BuyBackAccount::get().into_account_truncating();
 			let liquidity_address = T::LiquidityAccount::get().into_account_truncating();
 			for (currency_id, mut info) in Infos::<T>::iter() {
@@ -357,7 +361,7 @@ pub mod pallet {
 				Error::<T>::ZeroDuration
 			);
 
-			let now = frame_system::Pallet::<T>::block_number();
+			let now = T::BlockNumberProvider::current_block_number();
 
 			let info = Info {
 				min_swap_value,
