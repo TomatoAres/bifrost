@@ -1551,7 +1551,6 @@ dependencies = [
  "ismp",
  "ismp-bsc",
  "ismp-grandpa",
- "ismp-parachain",
  "ismp-parachain-runtime-api",
  "ismp-sync-committee",
  "lend-market",
@@ -7190,31 +7189,6 @@ dependencies = [
  "scale-info",
  "sp-consensus-aura",
  "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-trie",
- "substrate-state-machine",
-]
-
-[[package]]
-name = "ismp-parachain"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-primitives-core",
- "frame-support",
- "frame-system",
- "hex-literal 0.4.1",
- "ismp",
- "log",
- "pallet-ismp",
- "parity-scale-codec",
- "primitive-types",
- "scale-info",
- "serde",
- "sp-consensus-aura",
- "sp-inherents",
  "sp-io",
  "sp-runtime",
  "sp-trie",

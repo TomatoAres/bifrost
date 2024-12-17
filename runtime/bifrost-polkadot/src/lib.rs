@@ -57,7 +57,7 @@ pub use frame_support::{
 	PalletId, StorageValue,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter, Error};
+use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -1642,21 +1642,22 @@ impl pallet_hyperbridge::Config for Runtime {
 
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// 修改共识客户端的权限，以 TechAdmin 为例
+	// Modify the consensus client's permissions, for example, TechAdmin
 	type AdminOrigin = TechAdminOrCouncil;
-	// 链的状态机标识符--平行链 id
+	// The state machine identifier of the chain -- parachain id
 	type HostStateMachine = StateMachineProvider;
 	type TimestampProvider = Timestamp;
-	// Router 路由器是一种IsmpModule为模块 id 提供实现的类型。
+	// The router provides the implementation for the IsmpModule as the module id.
 	type Router = Router;
 	type Balance = Balance;
-	// 用来收取收费的 token，只支持稳定币
+	// The token used to collect fees, only stablecoins are supported
 	type Currency = Balances;
-	// 协处理器
+	// Co-processor
 	type Coprocessor = Coprocessor;
-	// 实现接口的类型元组ConsensusClient，它定义了此协议部署支持的所有共识算法
+	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
+	// type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>);
 	type ConsensusClients = ();
-	// 可选的 merkle mountain range overlay tree
+	// Optional Merkle Mountain Range overlay tree
 	type Mmr = pallet_ismp::NoOpMmrTree<Runtime>;
 	type WeightProvider = ();
 }
@@ -1682,12 +1683,10 @@ pub struct Router;
 
 impl IsmpRouter for Router {
 	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
-		// let module = match id.as_slice() {
-		// 	// YOUR_MODULE_ID => Box::new(YourModule::default()),
-		// 	// ... other modules
-		// 	_ => Err(Error::ModuleNotFound(id))?,
-		// };
-		let module = Err(Error::ModuleNotFound(id))?;
+		let module = match id.as_slice() {
+			bifrost_ismp::PALLET_BIFROST_ID => Box::new(bifrost_ismp::Pallet::<Runtime>::default()),
+			_ => Err(ismp::Error::ModuleNotFound(id))?,
+		};
 		Ok(module)
 	}
 }
@@ -1893,7 +1892,6 @@ construct_runtime! {
 		Ismp: pallet_ismp = 140,
 		Hyperbridge: pallet_hyperbridge = 141,
 		BifrostIsmp: bifrost_ismp = 142,
-		// IsmpParachain: ismp_parachain = 144,
 	}
 }
 

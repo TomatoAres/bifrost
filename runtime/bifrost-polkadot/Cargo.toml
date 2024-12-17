@@ -179,7 +179,6 @@ pallet-ismp = { workspace = true, features = ["unsigned"] }
 ismp = { workspace = true }
 ismp-sync-committee = { workspace = true }
 pallet-ismp-runtime-api = { workspace = true }
-ismp-parachain = { workspace = true }
 ismp-parachain-runtime-api = { workspace = true }
 ismp-grandpa = { workspace = true }
 pallet-hyperbridge = { workspace = true }
@@ -324,7 +323,6 @@ std = [
     "ismp/std",
     "ismp-sync-committee/std",
     "pallet-ismp-runtime-api/std",
-    "ismp-parachain/std",
     "ismp-parachain-runtime-api/std",
     "ismp-grandpa/std",
     "pallet-hyperbridge/std",

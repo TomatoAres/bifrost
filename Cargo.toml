@@ -159,7 +159,6 @@ ismp                        = { git = "https://github.com/bifrost-io/hyperbridge
 ismp-sync-committee         = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 pallet-ismp-runtime-api     = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 pallet-ismp-rpc             = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
-ismp-parachain              = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 ismp-parachain-inherent     = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
 ismp-parachain-runtime-api  = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 ismp-grandpa                = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }

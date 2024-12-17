@@ -21,10 +21,10 @@
 extern crate alloc;
 
 use alloc::{format, string::String};
-use frame_support::{traits::fungible::Mutate, PalletId};
+use frame_support::pallet_prelude::RuntimeDebug;
+use frame_support::PalletId;
 use ismp::{
 	error::Error as IsmpError,
-	host::StateMachine,
 	module::IsmpModule,
 	router::{PostRequest, Request, Response, Timeout},
 };
@@ -32,12 +32,39 @@ pub use pallet::*;
 use pallet_ismp::ModuleId;
 use sp_core::H160;
 
-/// Constant Pallet ID
-pub const PALLET_ID: ModuleId = ModuleId::Pallet(PalletId(*b"ismp-bnc"));
+/// Transfer payload
+/// This would be encoded to bytes as the request data
+#[derive(
+	Clone, codec::Encode, codec::Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug,
+)]
+pub struct Payload<AccountId, Balance> {
+	/// Destination account
+	pub to: AccountId,
+	/// Source account
+	pub from: AccountId,
+	/// Amount to be transferred
+	pub amount: Balance,
+}
+
+/// Extrisnic params for evm dispatch
+#[derive(
+	Clone, codec::Encode, codec::Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug,
+)]
+pub struct EvmParams {
+	/// Destination module
+	pub module: H160,
+	/// Destination EVM host
+	pub destination: u32,
+	/// Timeout timestamp on destination chain in seconds
+	pub timeout: u64,
+	/// Request count
+	pub count: u64,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::alloc::string::ToString;
 	use alloc::{vec, vec::Vec};
 	use frame_support::{
 		pallet_prelude::*,
@@ -53,8 +80,20 @@ pub mod pallet {
 		host::{IsmpHost, StateMachine},
 	};
 
+	/// [`IsmpModule`] module identifier for incoming requests from hyperbridge
+	pub const PALLET_BIFROST_ID: &'static [u8] = b"ismp-bnc";
+
+	/// [`PalletId`] where protocol fees will be collected
+	pub const PALLET_ID: ModuleId = ModuleId::Pallet(PalletId(*b"ismp-bnc"));
+
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
+
+	impl<T> Default for Pallet<T> {
+		fn default() -> Self {
+			Self(PhantomData)
+		}
+	}
 
 	/// Pallet Configuration
 	#[pallet::config]
@@ -185,100 +224,62 @@ pub mod pallet {
 		}
 	}
 
-	/// Transfer payload
-	/// This would be encoded to bytes as the request data
-	#[derive(
-		Clone, codec::Encode, codec::Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug,
-	)]
-	pub struct Payload<AccountId, Balance> {
-		/// Destination account
-		pub to: AccountId,
-		/// Source account
-		pub from: AccountId,
-		/// Amount to be transferred
-		pub amount: Balance,
-	}
+	impl<T: Config> IsmpModule for Pallet<T> {
+		fn on_accept(&self, request: PostRequest) -> Result<(), anyhow::Error> {
+			let source_chain = request.source;
 
-	/// Extrisnic params for evm dispatch
-	#[derive(
-		Clone, codec::Encode, codec::Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug,
-	)]
-	pub struct EvmParams {
-		/// Destination module
-		pub module: H160,
-		/// Destination EVM host
-		pub destination: u32,
-		/// Timeout timestamp on destination chain in seconds
-		pub timeout: u64,
-		/// Request count
-		pub count: u64,
-	}
-}
+			match source_chain {
+				StateMachine::Evm(_) => Pallet::<T>::deposit_event(Event::Request {
+					source: source_chain,
+					data: unsafe { String::from_utf8_unchecked(request.body) },
+				}),
+				source => Err(IsmpError::Custom(format!("Unsupported source {source:?}")))?,
+			}
 
-/// Module callback for the pallet
-pub struct IsmpModuleCallback<T: Config>(core::marker::PhantomData<T>);
-
-impl<T: Config> Default for IsmpModuleCallback<T> {
-	fn default() -> Self {
-		Self(core::marker::PhantomData)
-	}
-}
-
-impl<T: Config> IsmpModule for IsmpModuleCallback<T> {
-	fn on_accept(&self, request: PostRequest) -> Result<(), anyhow::Error> {
-		let source_chain = request.source;
-
-		match source_chain {
-			StateMachine::Evm(_) => Pallet::<T>::deposit_event(Event::Request {
-				source: source_chain,
-				data: unsafe { String::from_utf8_unchecked(request.body) },
-			}),
-			source => Err(IsmpError::Custom(format!("Unsupported source {source:?}")))?,
+			Ok(())
 		}
 
-		Ok(())
-	}
+		fn on_response(&self, response: Response) -> Result<(), anyhow::Error> {
+			match response {
+				Response::Post(_) => Err(IsmpError::Custom(
+					"Balance transfer protocol does not accept post responses".to_string(),
+				))?,
+				Response::Get(res) => Pallet::<T>::deposit_event(Event::<T>::GetResponse(
+					res.values
+						.into_iter()
+						.map(|storage_value| storage_value.value)
+						.collect(),
+				)),
+			};
 
-	fn on_response(&self, response: Response) -> Result<(), anyhow::Error> {
-		match response {
-			Response::Post(_) => Err(IsmpError::Custom(
-				"Balance transfer protocol does not accept post responses".to_string(),
-			))?,
-			Response::Get(res) => Pallet::<T>::deposit_event(Event::<T>::GetResponse(
-				res.values
-					.into_iter()
-					.map(|storage_value| storage_value.value)
-					.collect(),
-			)),
-		};
+			Ok(())
+		}
 
-		Ok(())
-	}
+		fn on_timeout(&self, timeout: Timeout) -> Result<(), anyhow::Error> {
+			let request = match timeout {
+				Timeout::Request(Request::Post(post)) => Request::Post(post),
+				_ => Err(IsmpError::Custom(
+					"Only Post requests allowed, found Get".to_string(),
+				))?,
+			};
+			let source_chain = request.source_chain();
 
-	fn on_timeout(&self, timeout: Timeout) -> Result<(), anyhow::Error> {
-		let request = match timeout {
-			Timeout::Request(Request::Post(post)) => Request::Post(post),
-			_ => Err(IsmpError::Custom(
-				"Only Post requests allowed, found Get".to_string(),
-			))?,
-		};
-		let source_chain = request.source_chain();
-
-		let payload = <Payload<T::AccountId, <T as Config>::Balance> as codec::Decode>::decode(
-			&mut &*request.body().expect("Request has been checked; qed"),
-		)
-		.map_err(|_| IsmpError::Custom("Failed to decode request data".to_string()))?;
-		<T::NativeCurrency as Mutate<T::AccountId>>::mint_into(
-			&payload.from,
-			payload.amount.into(),
-		)
-		.map_err(|_| IsmpError::Custom("Failed to mint funds".to_string()))?;
-		Pallet::<T>::deposit_event(Event::<T>::BalanceReceived {
-			from: payload.from,
-			to: payload.to,
-			amount: payload.amount,
-			source_chain,
-		});
-		Ok(())
+			let payload = <Payload<T::AccountId, <T as Config>::Balance> as codec::Decode>::decode(
+				&mut &*request.body().expect("Request has been checked; qed"),
+			)
+			.map_err(|_| IsmpError::Custom("Failed to decode request data".to_string()))?;
+			<T::NativeCurrency as Mutate<T::AccountId>>::mint_into(
+				&payload.from,
+				payload.amount.into(),
+			)
+			.map_err(|_| IsmpError::Custom("Failed to mint funds".to_string()))?;
+			Pallet::<T>::deposit_event(Event::<T>::BalanceReceived {
+				from: payload.from,
+				to: payload.to,
+				amount: payload.amount,
+				source_chain,
+			});
+			Ok(())
+		}
 	}
 }
