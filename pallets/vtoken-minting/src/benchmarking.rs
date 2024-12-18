@@ -100,7 +100,7 @@ benchmarks! {
 		// assert_ok!(VtokenMinting::<T>::set_minimum_redeem(RawOrigin::Root.into(), VKSM, vtoken_amount));
 		T::MultiCurrency::deposit(KSM, &caller, token_amount)?;
 		assert_ok!(VtokenMinting::<T>::mint(RawOrigin::Signed(caller.clone()).into(), KSM, token_amount,BoundedVec::default(), None));
-	}: _(RawOrigin::Signed(caller.clone()), VKSM, redeem_amount)
+	}: _(RawOrigin::Signed(caller.clone()), None, VKSM, redeem_amount)
 
 	rebond {
 		let caller: T::AccountId = whitelisted_caller();
@@ -117,7 +117,7 @@ benchmarks! {
 		T::MultiCurrency::deposit(KSM, &caller, token_amount)?;
 		T::MultiCurrency::deposit(VKSM, &caller, redeem_amount)?;
 		assert_ok!(VtokenMinting::<T>::mint(RawOrigin::Signed(caller.clone()).into(), KSM, mint_amount,BoundedVec::default(), None));
-		assert_ok!(VtokenMinting::<T>::redeem(RawOrigin::Signed(caller.clone()).into(), VKSM, redeem_amount));
+		assert_ok!(VtokenMinting::<T>::redeem(RawOrigin::Signed(caller.clone()).into(), None, VKSM, redeem_amount));
 		assert_ok!(VtokenMinting::<T>::add_support_rebond_token(T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?, KSM));
 	}: _(RawOrigin::Signed(caller), KSM, rebond_amount)
 
@@ -136,7 +136,7 @@ benchmarks! {
 		T::MultiCurrency::deposit(KSM, &caller, token_amount)?;
 		T::MultiCurrency::deposit(VKSM, &caller, redeem_amount)?;
 		assert_ok!(VtokenMinting::<T>::mint(RawOrigin::Signed(caller.clone()).into(), KSM, mint_amount,BoundedVec::default(), None));
-		assert_ok!(VtokenMinting::<T>::redeem(RawOrigin::Signed(caller.clone()).into(), VKSM, redeem_amount));
+		assert_ok!(VtokenMinting::<T>::redeem(RawOrigin::Signed(caller.clone()).into(), None, VKSM, redeem_amount));
 		assert_ok!(VtokenMinting::<T>::add_support_rebond_token(T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?, KSM));
 		let unlock_id:UnlockId = 0;
 	}: _(RawOrigin::Signed(caller), KSM, unlock_id)

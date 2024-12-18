@@ -23,7 +23,7 @@
 use crate::{mock::*, DispatchError::Module, *};
 use bifrost_primitives::{
 	currency::{BNC, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
-	VtokenMintingOperator,
+	VtokenMintingOperator, V_WETH, WETH,
 };
 use frame_support::{assert_noop, assert_ok, sp_runtime::Permill, BoundedVec};
 use sp_runtime::ModuleError;
@@ -53,7 +53,12 @@ fn mint_bnc() {
 				TimeUnit::Era(1)
 			));
 			assert_eq!(Tokens::free_balance(VBNC, &BOB), 95000000000);
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VBNC, 20000000000));
+			assert_ok!(VtokenMinting::redeem(
+				Some(BOB).into(),
+				None,
+				VBNC,
+				20000000000
+			));
 		});
 }
 
@@ -88,7 +93,12 @@ fn redeem_bnc() {
 				TimeUnit::Era(1)
 			));
 			assert_eq!(Tokens::free_balance(VBNC, &BOB), 100000000000);
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VBNC, 20000000000));
+			assert_ok!(VtokenMinting::redeem(
+				Some(BOB).into(),
+				None,
+				VBNC,
+				20000000000
+			));
 		});
 }
 
@@ -173,15 +183,15 @@ fn redeem() {
 				None
 			));
 			assert_noop!(
-				VtokenMinting::redeem(Some(BOB).into(), VKSM, 80),
+				VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 80),
 				Error::<Runtime>::BelowMinimumRedeem
 			);
 			assert_noop!(
-				VtokenMinting::redeem(Some(BOB).into(), KSM, 80),
+				VtokenMinting::redeem(Some(BOB).into(), None, KSM, 80),
 				Error::<Runtime>::NotSupportTokenType
 			);
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 100));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 100));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
 			assert_eq!(TokenPool::<Runtime>::get(KSM), 1686); // 1000 + 980 - 98 - 196
 			assert_eq!(UnlockingTotal::<Runtime>::get(KSM), 294); // 98 + 196
 			assert_ok!(VtokenMinting::set_unlock_duration(
@@ -202,6 +212,7 @@ fn redeem() {
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
+				None,
 				VMOVR,
 				20000000000000000000
 			));
@@ -285,8 +296,8 @@ fn rebond() {
 				BoundedVec::default(),
 				None
 			));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 200));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 100));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 100));
 			assert_eq!(
 				TokenUnlockLedger::<Runtime>::get(KSM, 1),
 				Some((BOB, 100, TimeUnit::Era(1), RedeemType::Native))
@@ -361,16 +372,19 @@ fn movr() {
 			assert_eq!(Tokens::free_balance(VMOVR, &BOB), 294000000000000000000);
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
+				None,
 				VMOVR,
 				200000000000000000000
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
+				None,
 				VMOVR,
 				80000000000000000000
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
+				None,
 				VMOVR,
 				10000000000000000000
 			));
@@ -394,6 +408,7 @@ fn movr() {
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(CHARLIE).into(),
+				None,
 				VMOVR,
 				20000000000000000000000
 			));
@@ -416,6 +431,122 @@ fn movr() {
 				3
 			));
 			assert_eq!(UnlockingTotal::<Runtime>::get(MOVR), 0);
+		});
+}
+
+#[test]
+fn set_supported_eths() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(VtokenMinting::set_supported_eth(
+			RuntimeOrigin::signed(ALICE),
+			vec![WETH].try_into().unwrap()
+		));
+
+		assert_eq!(SupportedEth::<Runtime>::get().to_vec(), vec![WETH]);
+	})
+}
+
+#[test]
+fn eth() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			let (entrance_account, _) = VtokenMinting::get_entrance_and_exit_accounts();
+			assert_ok!(VtokenMinting::set_hook_iteration_limit(
+				RuntimeOrigin::signed(ALICE),
+				10
+			));
+			assert_ok!(VtokenMinting::set_min_time_unit(
+				RuntimeOrigin::signed(ALICE),
+				WETH,
+				TimeUnit::Round(1)
+			));
+			pub const FEE: Permill = Permill::from_percent(2);
+			assert_ok!(VtokenMinting::set_fees(RuntimeOrigin::root(), FEE, FEE));
+			assert_ok!(VtokenMinting::set_unlock_duration(
+				RuntimeOrigin::signed(ALICE),
+				WETH,
+				TimeUnit::Round(1)
+			));
+			assert_ok!(VtokenMinting::update_ongoing_time_unit(
+				WETH,
+				TimeUnit::Round(1)
+			));
+			assert_ok!(VtokenMinting::mint(
+				Some(BOB).into(),
+				WETH,
+				300000000000000000000,
+				BoundedVec::default(),
+				None
+			));
+			assert_eq!(
+				Tokens::free_balance(WETH, &entrance_account),
+				294000000000000000000
+			);
+			assert_eq!(Tokens::free_balance(V_WETH, &BOB), 294000000000000000000);
+			SupportedEth::<Runtime>::set(vec![WETH].try_into().unwrap());
+			assert_ok!(VtokenMinting::redeem(
+				Some(BOB).into(),
+				Some(WETH),
+				V_WETH,
+				200000000000000000000
+			));
+			assert_ok!(VtokenMinting::redeem(
+				Some(BOB).into(),
+				Some(WETH),
+				V_WETH,
+				80000000000000000000
+			));
+			assert_ok!(VtokenMinting::redeem(
+				Some(BOB).into(),
+				Some(WETH),
+				V_WETH,
+				10000000000000000000
+			));
+			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_initialize(100);
+			assert_eq!(MinTimeUnit::<Runtime>::get(WETH), TimeUnit::Round(2));
+			assert_eq!(
+				OngoingTimeUnit::<Runtime>::get(WETH),
+				Some(TimeUnit::Round(1))
+			);
+			assert_eq!(Tokens::free_balance(WETH, &BOB), 984200000000000000000);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 0), None);
+			assert_ok!(VtokenMinting::mint(
+				Some(CHARLIE).into(),
+				WETH,
+				30000000000000000000000,
+				BoundedVec::default(),
+				None
+			));
+			assert_ok!(VtokenMinting::redeem(
+				Some(CHARLIE).into(),
+				Some(WETH),
+				V_WETH,
+				20000000000000000000000
+			));
+			assert_ok!(VtokenMinting::add_support_rebond_token(
+				RuntimeOrigin::signed(ALICE),
+				WETH
+			));
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 0), None);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 1), None);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 2), None);
+			assert_eq!(TokenUnlockNextId::<Runtime>::get(WETH), 4);
+			assert_ok!(VtokenMinting::rebond(
+				Some(CHARLIE).into(),
+				WETH,
+				19000000000000000000000
+			));
+			assert_ok!(VtokenMinting::rebond_by_unlock_id(
+				Some(CHARLIE).into(),
+				WETH,
+				3
+			));
+			assert_eq!(UnlockingTotal::<Runtime>::get(WETH), 0);
 		});
 }
 
@@ -462,8 +593,8 @@ fn hook() {
 				BoundedVec::default(),
 				None
 			));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 200));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 100));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 100));
 			assert_eq!(UnlockingTotal::<Runtime>::get(KSM), 300); // 200 + 100
 			assert_noop!(
 				VtokenMinting::rebond(Some(BOB).into(), KSM, 100),
@@ -507,7 +638,7 @@ fn hook() {
 				BoundedVec::default(),
 				None
 			));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
 			VtokenMinting::on_initialize(0);
 			assert_eq!(
 				TokenUnlockLedger::<Runtime>::get(KSM, 2),
@@ -562,8 +693,8 @@ fn rebond_by_unlock_id() {
 				BoundedVec::default(),
 				None
 			));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 200));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VKSM, 100));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 100));
 			assert_eq!(TokenPool::<Runtime>::get(KSM), 1000);
 			assert_noop!(
 				VtokenMinting::rebond_by_unlock_id(Some(BOB).into(), KSM, 0),
@@ -653,8 +784,8 @@ fn fast_redeem_for_fil() {
 				BoundedVec::default(),
 				None
 			));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VFIL, 200));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VFIL, 100));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VFIL, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VFIL, 100));
 			assert_eq!(UnlockingTotal::<Runtime>::get(FIL), 300); // 200 + 100
 			assert_noop!(
 				VtokenMinting::rebond(Some(BOB).into(), FIL, 100),
@@ -698,7 +829,7 @@ fn fast_redeem_for_fil() {
 				BoundedVec::default(),
 				None
 			));
-			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), VFIL, 200));
+			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VFIL, 200));
 			VtokenMinting::on_initialize(0);
 			assert_eq!(
 				TokenUnlockLedger::<Runtime>::get(FIL, 2),
