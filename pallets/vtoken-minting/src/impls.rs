@@ -41,6 +41,7 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use orml_traits::{MultiCurrency, MultiLockableCurrency, XcmTransfer};
 use sp_core::U256;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{helpers_128bit::multiply_by_rational_with_rounding, Rounding};
 use sp_std::{vec, vec::Vec};
 use xcm::{prelude::*, v4::Location};
@@ -762,7 +763,7 @@ impl<T: Config> Pallet<T> {
 				// get the vtoken lock duration from VtokenIncentiveCoef
 				let lock_duration = MintWithLockBlocks::<T>::get(v_currency_id)
 					.ok_or(Error::<T>::IncentiveLockBlocksNotSet)?;
-				let current_block = frame_system::Pallet::<T>::block_number();
+				let current_block = T::BlockNumberProvider::current_block_number();
 				let due_block = current_block
 					.checked_add(&lock_duration)
 					.ok_or(Error::<T>::CalculationOverflow)?;
@@ -816,7 +817,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// get current block number
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		// get the veBNC total amount
 		let vebnc_total_issuance = T::BbBNC::total_supply(current_block_number)
 			.map_err(|_| Error::<T>::VeBNCCheckingError)?;
