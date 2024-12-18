@@ -481,3 +481,8 @@ pub(crate) fn roll_to(n: u64) -> u64 {
 	}
 	num_blocks
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
+	ExtBuilder::default().build()
+}

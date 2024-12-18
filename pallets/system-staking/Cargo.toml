@@ -24,6 +24,7 @@ sp-arithmetic = { workspace = true }
 orml-traits = { workspace = true }
 sp-runtime = { workspace = true }
 bifrost-primitives = { workspace = true }
+bifrost-vtoken-minting = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true }
@@ -34,7 +35,6 @@ orml-tokens = { workspace = true }
 orml-xtokens = { workspace = true }
 orml-traits = { workspace = true }
 hex-literal = { workspace = true }
-bifrost-vtoken-minting = { workspace = true }
 bifrost-slp = { workspace = true }
 bifrost-farming = { workspace = true }
 bifrost-asset-registry = { workspace = true }

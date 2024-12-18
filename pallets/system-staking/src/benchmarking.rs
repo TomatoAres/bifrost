@@ -17,9 +17,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg(feature = "runtime-benchmarks")]
-use crate::{Pallet as SystemStaking, *};
-use bifrost_primitives::{CurrencyId, PoolId, TokenSymbol};
-use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use crate::{Config, Pallet as SystemStaking, *};
+use bifrost_primitives::{CurrencyId, PoolId, TokenSymbol, *};
+use frame_benchmarking::v2::*;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{traits::UniqueSaturatedFrom, Perbill, Permill},
@@ -28,10 +28,12 @@ use frame_support::{
 use frame_system::{Pallet as System, RawOrigin};
 use sp_std::vec;
 
-benchmarks! {
-	on_initialize {
-		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
-		const MOVR: CurrencyId = CurrencyId::Token(TokenSymbol::MOVR);
+#[benchmarks(where T: Config + bifrost_vtoken_minting::Config)]
+mod benchmarks {
+	use super::*;
+
+	#[benchmark]
+	fn on_initialize() -> Result<(), BenchmarkError> {
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			KSM,
@@ -42,6 +44,7 @@ benchmarks! {
 			Some(vec![1 as PoolId]),
 			Some(vec![Perbill::from_percent(100)]),
 		));
+
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			MOVR,
@@ -52,23 +55,41 @@ benchmarks! {
 			Some(vec![1 as PoolId]),
 			Some(vec![Perbill::from_percent(100)]),
 		));
-		System::<T>::set_block_number(
-			System::<T>::block_number() + 1u32.into()
-		);
-		SystemStaking::<T>::on_initialize(System::<T>::block_number());
-		System::<T>::set_block_number(
-			System::<T>::block_number() + 1u32.into()
-		);
-		SystemStaking::<T>::on_initialize(System::<T>::block_number());
-	}:{SystemStaking::<T>::on_initialize(System::<T>::block_number());}
 
-	token_config {
+		System::<T>::set_block_number(System::<T>::block_number() + 1u32.into());
+		SystemStaking::<T>::on_initialize(System::<T>::block_number());
+		System::<T>::set_block_number(System::<T>::block_number() + 1u32.into());
+		SystemStaking::<T>::on_initialize(System::<T>::block_number());
+		#[block]
+		{
+			SystemStaking::<T>::on_initialize(System::<T>::block_number());
+		}
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn token_config() -> Result<(), BenchmarkError> {
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
 		let token_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
 		let pool_id = PoolId::from(1u32);
-	}: _(RawOrigin::Root, KSM, Some(BlockNumberFor::<T>::from(1u32)), Some(Permill::from_percent(80)),Some(false),Some(token_amount),Some(vec![pool_id]),Some(vec![Perbill::from_percent(100)]))
+		#[extrinsic_call]
+		_(
+			RawOrigin::Root,
+			KSM,
+			Some(BlockNumberFor::<T>::from(1u32)),
+			Some(Permill::from_percent(80)),
+			Some(false),
+			Some(token_amount),
+			Some(vec![pool_id]),
+			Some(vec![Perbill::from_percent(100)]),
+		);
 
-	refresh_token_info {
+		Ok(())
+	}
+
+	#[benchmark]
+	fn refresh_token_info() -> Result<(), BenchmarkError> {
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
@@ -80,10 +101,14 @@ benchmarks! {
 			Some(vec![1 as PoolId]),
 			Some(vec![Perbill::from_percent(100)]),
 		));
-	}: _(RawOrigin::Root,KSM)
+		#[extrinsic_call]
+		_(RawOrigin::Root, KSM);
 
-	payout {
-		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn payout() -> Result<(), BenchmarkError> {
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			KSM,
@@ -94,13 +119,29 @@ benchmarks! {
 			Some(vec![1 as PoolId]),
 			Some(vec![Perbill::from_percent(100)]),
 		));
+
 		let caller: T::AccountId = whitelisted_caller();
-		assert_ok!(T::MultiCurrency::deposit(KSM, &caller, BalanceOf::<T>::unique_saturated_from(1000u128)));
-		assert_ok!(T::VtokenMintingInterface::mint(caller, KSM, BalanceOf::<T>::unique_saturated_from(1000u128), BoundedVec::default(),None));
-	}: _(RawOrigin::Root,KSM)
+		assert_ok!(<T as Config>::MultiCurrency::deposit(
+			KSM,
+			&caller,
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000u128).into()
+		));
+		assert_ok!(T::VtokenMintingInterface::mint(
+			caller,
+			KSM,
+			BalanceOf::<T>::unique_saturated_from(10_000_000_000u128),
+			BoundedVec::default(),
+			None
+		));
 
-	on_redeem_success {
-		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
+		#[extrinsic_call]
+		_(RawOrigin::Root, KSM);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn on_redeem_success() -> Result<(), BenchmarkError> {
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			KSM,
@@ -113,10 +154,16 @@ benchmarks! {
 		));
 		let caller: T::AccountId = whitelisted_caller();
 		let token_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
-	}:{SystemStaking::<T>::on_redeem_success(KSM,caller,token_amount);}
+		#[block]
+		{
+			SystemStaking::<T>::on_redeem_success(KSM, caller, token_amount);
+		}
 
-	on_redeemed {
-		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn on_redeemed() -> Result<(), BenchmarkError> {
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			KSM,
@@ -130,10 +177,16 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let token_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
 		let fee_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
-	}:{SystemStaking::<T>::on_redeemed(caller,KSM,token_amount,token_amount,fee_amount);}
+		#[block]
+		{
+			SystemStaking::<T>::on_redeemed(caller, KSM, token_amount, token_amount, fee_amount);
+		}
 
-	delete_token {
-		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn delete_token() -> Result<(), BenchmarkError> {
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			KSM,
@@ -144,13 +197,16 @@ benchmarks! {
 			Some(vec![1 as PoolId]),
 			Some(vec![Perbill::from_percent(100)]),
 		));
-	}: _(RawOrigin::Root,KSM)
-}
 
-impl_benchmark_test_suite!(
-	SystemStaking,
-	crate::mock::ExtBuilder::default()
-		.one_hundred_for_alice_n_bob()
-		.build(),
-	crate::mock::Runtime
-);
+		#[extrinsic_call]
+		_(RawOrigin::Root, KSM);
+
+		Ok(())
+	}
+
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
+}
