@@ -177,15 +177,8 @@ bifrost-ismp = { workspace = true }
 # Hyperbridge
 pallet-ismp = { workspace = true, features = ["unsigned"] }
 ismp = { workspace = true }
-ismp-sync-committee = { workspace = true }
-pallet-ismp-runtime-api = { workspace = true }
-ismp-parachain-runtime-api = { workspace = true }
-ismp-grandpa = { workspace = true }
 pallet-hyperbridge = { workspace = true }
-pallet-token-gateway = { workspace = true }
-pallet-mmr = { workspace = true }
 anyhow = { workspace = true }
-ismp-bsc = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -321,15 +314,8 @@ std = [
     "substrate-wasm-builder",
     "pallet-ismp/std",
     "ismp/std",
-    "ismp-sync-committee/std",
-    "pallet-ismp-runtime-api/std",
-    "ismp-parachain-runtime-api/std",
-    "ismp-grandpa/std",
     "pallet-hyperbridge/std",
-    "pallet-token-gateway/std",
-    "pallet-mmr/std",
     "anyhow/std",
-    "ismp-bsc/std",
 ]
 with-tracing = ["frame-executive/with-tracing"]
 
