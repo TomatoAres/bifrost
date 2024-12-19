@@ -2,7 +2,7 @@
 name = "bifrost-stable-pool"
 version = "0.8.0"
 description = "FRAME pallet template for defining custom runtime logic."
-authors = ["Sora Yu <ymlll0508@gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 
 [package.metadata.docs.rs]

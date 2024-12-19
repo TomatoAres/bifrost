@@ -1,7 +1,7 @@
 [package]
 name = "bifrost-vtoken-minting-rpc"
 version = "0.8.0"
-authors = ["Tiebing <suntiebing@bifrost.finance>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 
 [dependencies]

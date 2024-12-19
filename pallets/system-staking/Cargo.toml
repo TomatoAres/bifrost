@@ -2,7 +2,7 @@
 name = "bifrost-system-staking"
 version = "4.0.0-dev"
 description = "System staking pallet"
-authors = ["Akagi201 <akagi201@gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 homepage = "https://github.com/bifrost-io/bifrost"
 edition = "2021"
 publish = false

@@ -1,5 +1,5 @@
 [package]
-authors = ["Kadokura <ymlll0508@gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 name = "bifrost-buy-back"
 version = "0.8.0"

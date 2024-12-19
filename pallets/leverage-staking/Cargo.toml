@@ -1,5 +1,5 @@
 [package]
-authors = ["yooml <ymlll0508@gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 name = "leverage-staking"
 version = "0.8.0"
