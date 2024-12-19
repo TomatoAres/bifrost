@@ -8,7 +8,7 @@ on:
   workflow_call:
   push:
     tags:
-      - 'v*'  # 先使用更宽松的匹配规则测试
+      - 'v[0-9]+.[0-9]+.[0-9]+*' 
 
 jobs:
   build:
