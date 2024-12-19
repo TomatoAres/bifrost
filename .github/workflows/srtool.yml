@@ -4,11 +4,11 @@ env:
   SUBWASM_VERSION: 0.20.0
 
 on:
-  # workflow_dispatch:
+  workflow_dispatch:
   workflow_call:
   push:
     tags:
-      - '*' # 匹配 v0.15.0-rc1 这样的格式
+      - '*' 
 
 jobs:
   build:
