@@ -8,7 +8,7 @@ on:
   workflow_call:
   push:
     tags:
-      - 'v*'  # 匹配 v0.15.0-rc1 这样的格式
+      - '*' # 匹配 v0.15.0-rc1 这样的格式
 
 jobs:
   build:
@@ -69,19 +69,20 @@ jobs:
           subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }}
           subwasm meta ${{ steps.srtool_build.outputs.wasm }}
 
-      - name: Send to Slack with Runtime Info
+      - uses: 8398a7/action-slack@v3
+        name: "Send Slack Notification"
         if: success()
-        uses: adrey/slack-file-upload-action@master
         with:
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          path: ${{ matrix.chain }}-runtime-${{ github.event.inputs.ref || github.ref_name }}.zip
-          channel: runtime-releases
-          initial_comment: |
-            New runtime build for ${{ matrix.chain }} (${{ github.event.inputs.ref || github.ref_name }}) :rocket:
-            
-            Runtime Information:
-            ```
-            ${{ steps.runtime_info.outputs.compressed_info }}
-            ```
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "good",
+                "text": ":rocket: New runtime build for ${{ matrix.chain }} (${{ github.event.inputs.ref || github.ref_name }})\n\n```\n${{ steps.runtime_info.outputs.compressed_info }}```\n\nDownload artifacts: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 
