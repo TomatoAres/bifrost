@@ -15,7 +15,7 @@ env:
 
 jobs:
   build:
-    if: "!contains(github.event.commits[0].message, '[skip ci]')"
+    if: "!contains(github.event.commits[0].message, '[skip ci]')" && github.ref != 'refs/tags/*'
     runs-on: [self-hosted, normal]
     steps:
       - name: Check to latest commit
