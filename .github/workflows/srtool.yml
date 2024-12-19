@@ -8,7 +8,7 @@ on:
   workflow_call:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'  # 匹配 v0.15.0-rc1 这样的格式
+      - 'v[0-9]*'   # 匹配 v0.15.0-rc1 这样的格式
 
 jobs:
   build:
