@@ -85,4 +85,11 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
+      - name: Debug Trigger
+        run: |
+          echo "github.ref: ${{ github.ref }}"
+          echo "github.ref_name: ${{ github.ref_name }}"
+          echo "github.event_name: ${{ github.event_name }}"
+          echo "github.action: ${{ github.action }}"
+
 
