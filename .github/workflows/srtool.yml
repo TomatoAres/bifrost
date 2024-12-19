@@ -80,7 +80,7 @@ jobs:
             {
               "attachments": [{
                 "color": "good",
-                "text": ":rocket: New runtime build for ${{ matrix.chain }} (${{ github.event.inputs.ref || github.ref_name }})\nDownload artifacts: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload_artifacts.outputs.artifact_id }}"
+                "text": ":rocket: New runtime build for ${{ matrix.chain }} (${{ github.event.inputs.ref || github.ref_name }})\nDownload artifacts: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload_artifacts.outputs.artifact-id }}"
               }]
             }
         env:

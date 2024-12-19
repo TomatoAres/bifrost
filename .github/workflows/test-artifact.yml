@@ -1,0 +1,40 @@
+name: Test Artifact ID
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create a file
+        run: echo "I won't live long" > my_file.txt
+
+      - name: Upload Artifact
+        id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-artifact
+          path: my_file.txt
+          retention-days: 5
+
+      - name: Print Artifact Info
+        run: |
+          echo "Artifact ID: ${{ steps.upload_artifact.outputs.artifact-id }}"
+          echo "Artifact URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload_artifact.outputs.artifact-id }}"
+          echo "URL short: ${{steps.upload_artifact.outputs.url}}"
+
+      - uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "good",
+                "text": "Artifact uploaded!\nDownload URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload_artifact.outputs.artifact-id }}"
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 
