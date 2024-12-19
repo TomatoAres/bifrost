@@ -1,0 +1,15 @@
+name: Test Tag
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*' 
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo Tag Info
+        run: |
+          echo "${{ github.event.inputs.ref || github.ref_name }}"
