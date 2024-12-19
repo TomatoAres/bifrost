@@ -1,0 +1,30 @@
+name: Test Slack Notification
+
+on:
+  workflow_dispatch:
+
+env:
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # 确保您在 GitHub Secrets 中配置了这个变量
+  CHAIN_NAME: bifrost-kusama
+  VERSION: v0.100.1-rc6
+  COMPRESSED_INFO: "🏋️  Runtime size:             2.024 MB (2,122,734 bytes) ⚠️ HEAVY\n  🗜  Compressed:               Yes, 77.15%\n  ✨ Reserved meta:            OK - [6D, 65, 74, 61]\n  🎁 Metadata version:         V14\n  🔥 Core version:             bifrost-15003 (bifrost-0.tx1.au1)\n  🗳️  system.setCode hash:      0xd8a3758356c7cd6263eb02d4392d103b71a5bd301f1e688f832fc806c2e0a77b\n  🗳️  authorizeUpgrade hash:    0xf20efb4953625c48108420fee2ece69a467bf1555a7939e79938f8b15eeaeafe\n  🗳️  Blake2-256 hash:          0xe56e75861e07c5d7b7bd7b3f50e2688a3cdf3af5592657d3b7c885661010bbe4\n  📦 IPFS:                     https://www.ipfs.io/ipfs/QmZhfRR3F8rEhKvRwSchcLgeY3xe7k4YQH7M7SVD3ZUqNJ"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Mock Slack Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "good",
+                "text": ":rocket: New runtime build for ${{ env.CHAIN_NAME }} (${{ env.VERSION }})\n\n```${{ env.COMPRESSED_INFO }}```\n\nDownload artifacts: https://github.com/TomatoAres/bifrost/actions/runs/12408750255/artifacts"
+              }]
+            } 
