@@ -17,23 +17,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::governance::TechAdminOrCouncil;
-use crate::{Balances, Ismp, IsmpMmr, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
+use crate::{Balances, Ismp, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
 use bifrost_primitives::Balance;
 use frame_support::parameter_types;
 use hyperbridge_client_machine::HyperbridgeClientMachine;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
-use pallet_ismp::mmr::Leaf;
-use sp_mmr_primitives::INDEXING_PREFIX;
-use sp_runtime::traits::Keccak256;
+use pallet_ismp::NoOpMmrTree;
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
-
-impl pallet_mmr::Config for Runtime {
-	const INDEXING_PREFIX: &'static [u8] = INDEXING_PREFIX;
-	type Hashing = Keccak256;
-	type Leaf = Leaf;
-	type ForkIdentifierProvider = Ismp;
-}
 
 impl pallet_hyperbridge::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -76,7 +67,7 @@ impl pallet_ismp::Config for Runtime {
 		>,
 	);
 	// Optional Merkle Mountain Range overlay tree
-	type Mmr = IsmpMmr;
+	type Mmr = NoOpMmrTree<Runtime>;
 	type WeightProvider = ();
 }
 

@@ -65,7 +65,6 @@ pub use pallet_timestamp::Call as TimestampCall;
 use sp_api::impl_runtime_apis;
 use sp_arithmetic::Percent;
 use sp_core::{OpaqueMetadata, H160, H256, U256};
-use sp_mmr_primitives::LeafIndex;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Zero},
@@ -1819,7 +1818,6 @@ construct_runtime! {
 
 		// Hyperbridge
 		IsmpHostExecutive: pallet_ismp_host_executive = 90,
-		IsmpMmr: pallet_mmr = 91,
 		Ismp: pallet_ismp = 92,
 		IsmpParachain: ismp_parachain = 93,
 		Hyperbridge: pallet_hyperbridge = 94,
@@ -2352,27 +2350,6 @@ impl_runtime_apis! {
 		}
 		fn account_id(evm_address: H160) -> AccountId {
 			EVMAccounts::account_id(evm_address)
-		}
-	}
-
-	impl pallet_mmr_runtime_api::MmrRuntimeApi<Block, <Block as BlockT>::Hash, BlockNumber, Leaf> for Runtime {
-		/// Return Block number where pallet-mmr was added to the runtime
-		fn pallet_genesis() -> Result<Option<BlockNumber>, sp_mmr_primitives::Error> {
-			Ok(IsmpMmr::initial_height())
-		}
-
-		/// Return the number of MMR leaves.
-		fn mmr_leaf_count() -> Result<LeafIndex, sp_mmr_primitives::Error> {
-			Ok(IsmpMmr::leaf_count())
-		}
-
-		/// Return the on-chain MMR root hash.
-		fn mmr_root() -> Result<Hash, sp_mmr_primitives::Error> {
-			Ok(IsmpMmr::mmr_root_hash())
-		}
-
-		fn fork_identifier() -> Result<Hash, sp_mmr_primitives::Error> {
-			Ok(Ismp::child_trie_root())
 		}
 	}
 
