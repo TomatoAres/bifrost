@@ -295,6 +295,10 @@ pub mod pallet {
 			v_currency_id: CurrencyIdOf<T>,
 			blocks: Option<BlockNumberFor<T>>,
 		},
+		/// Set Supported eths.
+		SupportedEthSet {
+			eths: BoundedVec<CurrencyId, ConstU32<10>>,
+		},
 	}
 
 	#[pallet::error]
@@ -456,6 +460,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type HookIterationLimit<T: Config> = StorageValue<_, u32, ValueQuery>;
 
+	#[pallet::storage]
+	pub type SupportedEth<T: Config> =
+		StorageValue<_, BoundedVec<CurrencyId, ConstU32<10>>, ValueQuery>;
+
 	//【vtoken -> Blocks】, the locked blocks for each vtoken when minted in an incentive mode
 	#[pallet::storage]
 	pub type MintWithLockBlocks<T: Config> =
@@ -537,12 +545,14 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::redeem())]
 		pub fn redeem(
 			origin: OriginFor<T>,
+			currency_id: Option<CurrencyIdOf<T>>,
 			v_currency_id: CurrencyIdOf<T>,
 			v_currency_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			let redeemer = ensure_signed(origin)?;
 			Self::do_redeem(
 				redeemer,
+				currency_id,
 				v_currency_id,
 				v_currency_amount,
 				RedeemType::Native,
@@ -1146,6 +1156,23 @@ pub mod pallet {
 				v_currency_id,
 				blocks: new_blockes_op,
 			});
+
+			Ok(())
+		}
+
+		/// Set Supported eths.
+		/// Parameters:
+		/// - `eths`: The supported eths.
+		#[pallet::call_index(18)]
+		#[pallet::weight(T::DbWeight::get().writes(1u64))]
+		pub fn set_supported_eth(
+			origin: OriginFor<T>,
+			eths: BoundedVec<CurrencyId, ConstU32<10>>,
+		) -> DispatchResult {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			SupportedEth::<T>::put(eths.clone());
+			Self::deposit_event(Event::SupportedEthSet { eths });
 
 			Ok(())
 		}
