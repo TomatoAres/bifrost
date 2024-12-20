@@ -20,7 +20,6 @@ use crate::governance::TechAdminOrCouncil;
 use crate::{Balances, Ismp, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
 use bifrost_primitives::Balance;
 use frame_support::parameter_types;
-use hyperbridge_client_machine::HyperbridgeClientMachine;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
@@ -58,13 +57,7 @@ impl pallet_ismp::Config for Runtime {
 	// Co-processor
 	type Coprocessor = Coprocessor;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
-	type ConsensusClients = (
-		ismp_parachain::ParachainConsensusClient<
-			Runtime,
-			IsmpParachain,
-			HyperbridgeClientMachine<Runtime, Ismp>,
-		>,
-	);
+	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
 	type WeightProvider = ();
 	type OffchainDB = ();
 }
