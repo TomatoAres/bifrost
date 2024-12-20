@@ -1818,12 +1818,12 @@ construct_runtime! {
 		MerkleDistributor: merkle_distributor = 81,
 
 		// Hyperbridge
-		IsmpHostExecutive: pallet_ismp_host_executive = 96,
-		IsmpMmr: pallet_mmr = 94,
-		Ismp: pallet_ismp = 90,
-		IsmpParachain: ismp_parachain = 91,
-		Hyperbridge: pallet_hyperbridge = 92,
-		BifrostIsmp: bifrost_ismp = 93,
+		IsmpHostExecutive: pallet_ismp_host_executive = 90,
+		IsmpMmr: pallet_mmr = 91,
+		Ismp: pallet_ismp = 92,
+		IsmpParachain: ismp_parachain = 93,
+		Hyperbridge: pallet_hyperbridge = 94,
+		BifrostIsmp: bifrost_ismp = 95,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
