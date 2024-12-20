@@ -40,6 +40,7 @@ use bifrost_primitives::{
 	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
 	TreasuryPalletId, BNC, DOT, VDOT,
 };
+use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 pub use frame_support::{
 	construct_runtime, match_types, parameter_types,
@@ -64,6 +65,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 use sp_api::impl_runtime_apis;
 use sp_arithmetic::Percent;
 use sp_core::{OpaqueMetadata, H160, H256, U256};
+use sp_mmr_primitives::LeafIndex;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Zero},
@@ -1816,9 +1818,12 @@ construct_runtime! {
 		MerkleDistributor: merkle_distributor = 81,
 
 		// Hyperbridge
+		IsmpHostExecutive: pallet_ismp_host_executive = 96,
+		IsmpMmr: pallet_mmr = 94,
 		Ismp: pallet_ismp = 90,
-		Hyperbridge: pallet_hyperbridge = 91,
-		BifrostIsmp: bifrost_ismp = 92,
+		IsmpParachain: ismp_parachain = 91,
+		Hyperbridge: pallet_hyperbridge = 92,
+		BifrostIsmp: bifrost_ismp = 93,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
@@ -2350,6 +2355,27 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_mmr_runtime_api::MmrRuntimeApi<Block, <Block as BlockT>::Hash, BlockNumber, Leaf> for Runtime {
+		/// Return Block number where pallet-mmr was added to the runtime
+		fn pallet_genesis() -> Result<Option<BlockNumber>, sp_mmr_primitives::Error> {
+			Ok(IsmpMmr::initial_height())
+		}
+
+		/// Return the number of MMR leaves.
+		fn mmr_leaf_count() -> Result<LeafIndex, sp_mmr_primitives::Error> {
+			Ok(IsmpMmr::leaf_count())
+		}
+
+		/// Return the on-chain MMR root hash.
+		fn mmr_root() -> Result<Hash, sp_mmr_primitives::Error> {
+			Ok(IsmpMmr::mmr_root_hash())
+		}
+
+		fn fork_identifier() -> Result<Hash, sp_mmr_primitives::Error> {
+			Ok(Ismp::child_trie_root())
+		}
+	}
+
 	impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
 		fn host_state_machine() -> StateMachine {
 			<Runtime as pallet_ismp::Config>::HostStateMachine::get()
@@ -2403,6 +2429,15 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl ismp_parachain_runtime_api::IsmpParachainApi<Block> for Runtime {
+		fn para_ids() -> Vec<u32> {
+			IsmpParachain::para_ids()
+		}
+
+		fn current_relay_chain_state() -> RelayChainState {
+			IsmpParachain::current_relay_chain_state()
+		}
+	}
 
 	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
 		Block,

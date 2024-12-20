@@ -126,6 +126,8 @@ bifrost-salp-rpc-runtime-api = { workspace = true }
 bifrost-farming-rpc-runtime-api = { workspace = true }
 bb-bnc-rpc-runtime-api = { workspace = true }
 
+ismp-parachain-inherent = { workspace = true }
+
 [features]
 default = [ "std" ]
 std = []

@@ -17,12 +17,23 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::governance::TechAdminOrCouncil;
-use crate::{Balances, Ismp, ParachainInfo, Runtime, RuntimeEvent, Timestamp};
+use crate::{Balances, Ismp, IsmpMmr, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
 use bifrost_primitives::Balance;
+use frame_support::parameter_types;
+use hyperbridge_client_machine::HyperbridgeClientMachine;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
-use sp_core::Get;
+use pallet_ismp::mmr::Leaf;
+use sp_mmr_primitives::INDEXING_PREFIX;
+use sp_runtime::traits::Keccak256;
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
+
+impl pallet_mmr::Config for Runtime {
+	const INDEXING_PREFIX: &'static [u8] = INDEXING_PREFIX;
+	type Hashing = Keccak256;
+	type Leaf = Leaf;
+	type ForkIdentifierProvider = Ismp;
+}
 
 impl pallet_hyperbridge::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -30,12 +41,24 @@ impl pallet_hyperbridge::Config for Runtime {
 	type IsmpHost = Ismp;
 }
 
+impl pallet_ismp_host_executive::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type IsmpHost = Ismp;
+}
+
+parameter_types! {
+	// The hyperbridge parachain on Polkadot
+	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
+	 // The host state machine of this pallet, your state machine id goes here
+	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2030); // polkadot
+}
+
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
 	type AdminOrigin = TechAdminOrCouncil;
 	// The state machine identifier of the chain -- parachain id
-	type HostStateMachine = StateMachineProvider;
+	type HostStateMachine = HostStateMachine;
 	type TimestampProvider = Timestamp;
 	// The router provides the implementation for the IsmpModule as the module id.
 	type Router = Router;
@@ -45,27 +68,22 @@ impl pallet_ismp::Config for Runtime {
 	// Co-processor
 	type Coprocessor = Coprocessor;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
-	// type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>);
-	type ConsensusClients = ();
+	type ConsensusClients = (
+		ismp_parachain::ParachainConsensusClient<
+			Runtime,
+			IsmpParachain,
+			HyperbridgeClientMachine<Runtime, Ismp>,
+		>,
+	);
 	// Optional Merkle Mountain Range overlay tree
-	type Mmr = pallet_ismp::NoOpMmrTree<Runtime>;
+	type Mmr = IsmpMmr;
 	type WeightProvider = ();
 }
 
-pub struct StateMachineProvider;
-
-impl Get<StateMachine> for StateMachineProvider {
-	fn get() -> StateMachine {
-		StateMachine::Polkadot(ParachainInfo::get().into())
-	}
-}
-
-pub struct Coprocessor;
-
-impl Get<Option<StateMachine>> for Coprocessor {
-	fn get() -> Option<StateMachine> {
-		Some(StateMachineProvider::get())
-	}
+impl ismp_parachain::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	// pallet-ismp implements the IsmpHost
+	type IsmpHost = Ismp;
 }
 
 #[derive(Default)]
