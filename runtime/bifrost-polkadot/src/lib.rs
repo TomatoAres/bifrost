@@ -1819,7 +1819,6 @@ construct_runtime! {
 		MerkleDistributor: merkle_distributor = 81,
 
 		// Hyperbridge
-		IsmpHostExecutive: pallet_ismp_host_executive = 90,
 		Ismp: pallet_ismp = 92,
 		IsmpParachain: ismp_parachain = 93,
 		Hyperbridge: pallet_hyperbridge = 94,

@@ -154,16 +154,12 @@ pallet-evm-precompile-simple   = { git = "https://github.com/bifrost-io/frontier
 precompile-utils               = { git = "https://github.com/bifrost-io/frontier", branch = "release-polkadot-stable2407", default-features = false }
 
 # Hyperbridge
-pallet-mmr                 = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
-pallet-mmr-runtime-api       = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
-pallet-ismp-host-executive  = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
 pallet-ismp                 = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
 pallet-ismp-rpc             = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407" }
 pallet-ismp-runtime-api     = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
-ismp-parachain = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
-hyperbridge-client-machine  = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
-ismp-parachain-inherent = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
-ismp-parachain-runtime-api     = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp-parachain 				= { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp-parachain-inherent 	= { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
+ismp-parachain-runtime-api  = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
 ismp                        = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
 pallet-hyperbridge          = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2407", default-features = false }
 anyhow                      = { version = "1.0.93", default-features = false }

@@ -30,11 +30,6 @@ impl pallet_hyperbridge::Config for Runtime {
 	type IsmpHost = Ismp;
 }
 
-impl pallet_ismp_host_executive::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type IsmpHost = Ismp;
-}
-
 parameter_types! {
 	// The hyperbridge parachain on Polkadot
 	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));

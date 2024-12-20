@@ -176,13 +176,9 @@ bifrost-ismp = { workspace = true }
 
 # Hyperbridge
 pallet-ismp = { workspace = true, features = ["unsigned"] }
-pallet-ismp-host-executive = { workspace = true }
-hyperbridge-client-machine = { workspace = true }
 pallet-ismp-runtime-api = { workspace = true }
 ismp-parachain = { workspace = true  }
 ismp-parachain-runtime-api = { workspace = true  }
-pallet-mmr = { workspace = true }
-pallet-mmr-runtime-api = { workspace = true }
 sp-mmr-primitives = { workspace = true }
 ismp = { workspace = true }
 pallet-hyperbridge = { workspace = true }
@@ -321,12 +317,8 @@ std = [
     "bifrost-parachain-staking/std",
     "substrate-wasm-builder",
 
-    "pallet-mmr/std",
-    "pallet-mmr-runtime-api/std",
-    "pallet-ismp-host-executive/std",
     "pallet-ismp/std",
     "pallet-ismp-runtime-api/std",
-    "hyperbridge-client-machine/std",
     "ismp-parachain/std",
     "ismp-parachain-runtime-api/std",
     "sp-mmr-primitives/std",
