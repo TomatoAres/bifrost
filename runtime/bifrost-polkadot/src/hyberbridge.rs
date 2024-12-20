@@ -22,7 +22,6 @@ use bifrost_primitives::Balance;
 use frame_support::parameter_types;
 use hyperbridge_client_machine::HyperbridgeClientMachine;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
-use pallet_ismp::NoOpMmrTree;
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
 
@@ -66,9 +65,8 @@ impl pallet_ismp::Config for Runtime {
 			HyperbridgeClientMachine<Runtime, Ismp>,
 		>,
 	);
-	// Optional Merkle Mountain Range overlay tree
-	type Mmr = NoOpMmrTree<Runtime>;
 	type WeightProvider = ();
+	type OffchainDB = ();
 }
 
 impl ismp_parachain::Config for Runtime {

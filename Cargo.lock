@@ -6268,7 +6268,7 @@ dependencies = [
 [[package]]
 name = "hyperbridge-client-machine"
 version = "0.1.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "hash-db 0.16.0",
  "ismp",
@@ -6559,7 +6559,7 @@ dependencies = [
 [[package]]
 name = "ismp"
 version = "0.2.2"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "anyhow",
  "derive_more 1.0.0",
@@ -6570,14 +6570,13 @@ dependencies = [
  "scale-info",
  "serde",
  "serde-hex-utils",
- "serde_json",
  "thiserror 2.0.8",
 ]
 
 [[package]]
 name = "ismp-parachain"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6601,8 +6600,8 @@ dependencies = [
 
 [[package]]
 name = "ismp-parachain-inherent"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6623,7 +6622,7 @@ dependencies = [
 [[package]]
 name = "ismp-parachain-runtime-api"
 version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "sp-api",
@@ -8062,12 +8061,13 @@ dependencies = [
 
 [[package]]
 name = "mmr-primitives"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.2"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "ckb-merkle-mountain-range",
  "frame-system",
  "ismp",
+ "pallet-ismp",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -9579,8 +9579,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-hyperbridge"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "anyhow",
  "frame-support",
@@ -9646,8 +9646,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-ismp"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "anyhow",
  "fortuples",
@@ -9656,7 +9656,6 @@ dependencies = [
  "frame-system",
  "ismp",
  "log",
- "mmr-primitives",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -9671,7 +9670,7 @@ dependencies = [
 [[package]]
 name = "pallet-ismp-host-executive"
 version = "0.1.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-macro",
@@ -9690,14 +9689,14 @@ dependencies = [
 
 [[package]]
 name = "pallet-ismp-rpc"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "anyhow",
  "frame-system",
  "hash-db 0.16.0",
  "hex",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "ismp",
  "jsonrpsee",
  "pallet-ismp",
@@ -9720,8 +9719,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-ismp-runtime-api"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "ismp",
  "pallet-ismp",
@@ -9770,7 +9769,7 @@ dependencies = [
 [[package]]
 name = "pallet-mmr"
 version = "0.1.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "ckb-merkle-mountain-range",
  "frame-benchmarking",
@@ -9778,6 +9777,7 @@ dependencies = [
  "frame-system",
  "log",
  "mmr-primitives",
+ "pallet-ismp",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -9808,7 +9808,7 @@ dependencies = [
 [[package]]
 name = "pallet-mmr-runtime-api"
 version = "0.1.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "parity-scale-codec",
  "serde",
@@ -14844,7 +14844,7 @@ dependencies = [
 [[package]]
 name = "serde-hex-utils"
 version = "0.1.0"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "anyhow",
  "hex",
@@ -16505,8 +16505,8 @@ dependencies = [
 
 [[package]]
 name = "substrate-state-machine"
-version = "1.15.1"
-source = "git+https://github.com/bifrost-io/hyperbridge?branch=stable2407#b814ef3a015c1821fb0c7ec11e559cf4ddad7598"
+version = "1.15.3"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2407#87ff81f261fe9a4bfaea9da0847058b42b29f9ee"
 dependencies = [
  "frame-support",
  "hash-db 0.16.0",

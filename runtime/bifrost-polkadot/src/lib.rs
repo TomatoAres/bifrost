@@ -153,7 +153,9 @@ use ismp::{
 	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
 	router::{Request, Response},
 };
-use pallet_ismp::mmr::{Leaf, Proof, ProofKeys};
+use pallet_ismp::offchain::Leaf;
+use pallet_ismp::offchain::Proof;
+use pallet_ismp::offchain::ProofKeys;
 use xcm::IntoVersion;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
