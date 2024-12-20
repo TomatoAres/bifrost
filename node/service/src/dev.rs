@@ -207,6 +207,7 @@ where
 	let pubsub_notification_sinks = Arc::new(pubsub_notification_sinks);
 
 	let rpc_builder = {
+		let backend = backend.clone();
 		let client = client.clone();
 		let is_authority = parachain_config.role.is_authority();
 		let transaction_pool = transaction_pool.clone();
@@ -224,6 +225,7 @@ where
 				pool: transaction_pool.clone(),
 				deny_unsafe,
 				command_sink: Some(command_sink.clone()),
+				backend: backend.clone(),
 			};
 			let module = crate::rpc::create_full_polkadot(deps)?;
 

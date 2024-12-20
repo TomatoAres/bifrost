@@ -50,13 +50,16 @@ use bifrost_vtoken_minting_rpc_runtime_api::VtokenMintingRuntimeApi;
 use futures::channel::mpsc;
 use lend_market_rpc::{LendMarket, LendMarketApiServer};
 use lend_market_rpc_runtime_api::LendMarketApi;
+use pallet_ismp_rpc::{IsmpApiServer, IsmpRpcHandler};
 use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+use sc_client_api::{AuxStore, BlockBackend, ProofProvider};
 use sc_consensus_manual_seal::rpc::{EngineCommand, ManualSeal, ManualSealApiServer};
 use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+use sp_core::H256;
 use sp_runtime::traits::BlockIdTo;
 use substrate_frame_rpc_system::{System, SystemApiServer};
 use zenlink_protocol::AssetId;
@@ -78,7 +81,7 @@ pub struct FullDeps<C, P> {
 }
 
 /// Full client dependencies.
-pub struct FullDepsPolkadot<C, P> {
+pub struct FullDepsPolkadot<C, P, B> {
 	/// The client instance to use.
 	pub client: Arc<C>,
 	/// Transaction pool instance.
@@ -87,6 +90,8 @@ pub struct FullDepsPolkadot<C, P> {
 	pub deny_unsafe: DenyUnsafe,
 	/// Manual seal command sink
 	pub command_sink: Option<mpsc::Sender<EngineCommand<Hash>>>,
+	/// Backend used by the node.
+	pub backend: Arc<B>,
 }
 
 /// A IO handler that uses all Full RPC extensions.
@@ -140,12 +145,15 @@ where
 }
 
 /// RPC of bifrost-polkadot runtime.
-pub fn create_full_polkadot<C, P>(
-	deps: FullDepsPolkadot<C, P>,
+pub fn create_full_polkadot<C, P, B>(
+	deps: FullDepsPolkadot<C, P, B>,
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>
 		+ HeaderBackend<Block>
+		+ AuxStore
+		+ BlockBackend<Block>
+		+ ProofProvider<Block>
 		+ HeaderMetadata<Block, Error = BlockChainError>
 		+ Send
 		+ Sync
@@ -162,6 +170,10 @@ where
 	C::Api: ZenlinkProtocolRuntimeApi<Block, AccountId, AssetId>,
 	C::Api: StablePoolRuntimeApi<Block>,
 	C::Api: BlockBuilder<Block>,
+	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
+	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
+	// pallet_ismp_runtime_api bound
+	C::Api: pallet_ismp_runtime_api::IsmpRuntimeApi<Block, H256>,
 	P: TransactionPool + Sync + Send + 'static,
 {
 	let mut module = RpcExtension::new(());
@@ -170,6 +182,7 @@ where
 		pool,
 		deny_unsafe,
 		command_sink,
+		backend,
 	} = deps;
 
 	module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
@@ -182,7 +195,9 @@ where
 	module.merge(ZenlinkProtocol::new(client.clone()).into_rpc())?;
 	module.merge(StablePoolRpc::new(client.clone()).into_rpc())?;
 	module.merge(LendMarket::new(client.clone()).into_rpc())?;
-	module.merge(VtokenMintingRpc::new(client).into_rpc())?;
+	module.merge(VtokenMintingRpc::new(client.clone()).into_rpc())?;
+
+	module.merge(IsmpRpcHandler::new(client, backend.clone())?.into_rpc())?;
 
 	if let Some(command_sink) = command_sink {
 		module.merge(

@@ -57,7 +57,7 @@ pub use frame_support::{
 	PalletId, StorageValue,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
+use ismp::host::StateMachine;
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -139,6 +139,8 @@ pub use xcm_config::{BifrostTreasuryAccount, MultiCurrency};
 use xcm_executor::{traits::QueryHandler, XcmExecutor};
 
 pub mod governance;
+mod hyberbridge;
+
 use crate::xcm_config::XcmRouter;
 use bifrost_primitives::OraclePriceProvider;
 use frame_support::weights::WeightToFee as _;
@@ -146,6 +148,11 @@ use governance::{
 	custom_origins, CoreAdminOrCouncil, LiquidStaking, SALPAdmin, Spender, TechAdmin,
 	TechAdminOrCouncil,
 };
+use ismp::{
+	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
+	router::{Request, Response},
+};
+use pallet_ismp::mmr::{Leaf, Proof, ProofKeys};
 use xcm::IntoVersion;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -1645,70 +1652,6 @@ impl bifrost_slp_v2::Config for Runtime {
 	type MaxValidators = ConstU32<256>;
 }
 
-impl pallet_hyperbridge::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	// pallet-ismp implements the IsmpHost
-	type IsmpHost = Ismp;
-}
-
-impl pallet_ismp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	// Modify the consensus client's permissions, for example, TechAdmin
-	type AdminOrigin = TechAdminOrCouncil;
-	// The state machine identifier of the chain -- parachain id
-	type HostStateMachine = StateMachineProvider;
-	type TimestampProvider = Timestamp;
-	// The router provides the implementation for the IsmpModule as the module id.
-	type Router = Router;
-	type Balance = Balance;
-	// The token used to collect fees, only stablecoins are supported
-	type Currency = Balances;
-	// Co-processor
-	type Coprocessor = Coprocessor;
-	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
-	// type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>);
-	type ConsensusClients = ();
-	// Optional Merkle Mountain Range overlay tree
-	type Mmr = pallet_ismp::NoOpMmrTree<Runtime>;
-	type WeightProvider = ();
-}
-
-pub struct StateMachineProvider;
-
-impl Get<StateMachine> for StateMachineProvider {
-	fn get() -> StateMachine {
-		StateMachine::Polkadot(ParachainInfo::get().into())
-	}
-}
-
-pub struct Coprocessor;
-
-impl Get<Option<StateMachine>> for Coprocessor {
-	fn get() -> Option<StateMachine> {
-		Some(StateMachineProvider::get())
-	}
-}
-
-#[derive(Default)]
-pub struct Router;
-
-impl IsmpRouter for Router {
-	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
-		let module = match id.as_slice() {
-			bifrost_ismp::PALLET_BIFROST_ID => Box::new(bifrost_ismp::Pallet::<Runtime>::default()),
-			_ => Err(ismp::Error::ModuleNotFound(id))?,
-		};
-		Ok(module)
-	}
-}
-
-impl bifrost_ismp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type NativeCurrency = Balances;
-	type IsmpHost = Ismp;
-}
-
 // Below is the implementation of tokens manipulation functions other than native token.
 pub struct LocalAssetAdaptor<Local>(PhantomData<Local>);
 
@@ -2134,7 +2077,7 @@ impl_runtime_apis! {
 		}
 	}
 
-impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
+	impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 		fn chain_id() -> u64 {
 			<Runtime as pallet_evm::Config>::ChainId::get()
 		}
@@ -2406,6 +2349,60 @@ impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 			EVMAccounts::account_id(evm_address)
 		}
 	}
+
+	impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
+		fn host_state_machine() -> StateMachine {
+			<Runtime as pallet_ismp::Config>::HostStateMachine::get()
+		}
+
+		fn challenge_period(state_machine_id: StateMachineId) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
+		}
+
+		/// Generate a proof for the provided leaf indices
+		fn generate_proof(
+			keys: ProofKeys
+		) -> Result<(Vec<Leaf>, Proof<<Block as BlockT>::Hash>), sp_mmr_primitives::Error> {
+			pallet_ismp::Pallet::<Runtime>::generate_proof(keys)
+		}
+
+		/// Fetch all ISMP events in the block, should only be called from runtime-api.
+		fn block_events() -> Vec<::ismp::events::Event> {
+			pallet_ismp::Pallet::<Runtime>::block_events()
+		}
+
+		/// Fetch all ISMP events and their extrinsic metadata, should only be called from runtime-api.
+		fn block_events_with_metadata() -> Vec<(::ismp::events::Event, Option<u32>)> {
+			pallet_ismp::Pallet::<Runtime>::block_events_with_metadata()
+		}
+
+		/// Return the scale encoded consensus state
+		fn consensus_state(id: ConsensusClientId) -> Option<Vec<u8>> {
+			pallet_ismp::Pallet::<Runtime>::consensus_states(id)
+		}
+
+		/// Return the timestamp this client was last updated in seconds
+		fn state_machine_update_time(height: StateMachineHeight) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::state_machine_update_time(height)
+		}
+
+		/// Return the latest height of the state machine
+		fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
+		}
+
+
+		/// Get actual requests
+		fn requests(commitments: Vec<H256>) -> Vec<Request> {
+			pallet_ismp::Pallet::<Runtime>::requests(commitments)
+		}
+
+		/// Get actual requests
+		fn responses(commitments: Vec<H256>) -> Vec<Response> {
+			pallet_ismp::Pallet::<Runtime>::responses(commitments)
+		}
+	}
+
 
 	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
 		Block,

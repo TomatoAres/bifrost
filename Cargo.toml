@@ -38,7 +38,7 @@ members = [
 	"runtime/bifrost-polkadot/src/evm/precompiles/call-permit",
 	"runtime/bifrost-polkadot",
 
-#	"integration-tests"
+	"integration-tests"
 ]
 resolver = "2"
 
@@ -155,6 +155,8 @@ precompile-utils               = { git = "https://github.com/bifrost-io/frontier
 
 # Hyperbridge
 pallet-ismp                 = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
+pallet-ismp-rpc             = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407" }
+pallet-ismp-runtime-api     = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 ismp                        = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 pallet-hyperbridge          = { git = "https://github.com/bifrost-io/hyperbridge", branch = "stable2407", default-features = false }
 anyhow                      = { version = "1.0.93", default-features = false }
@@ -230,6 +232,7 @@ sp-genesis-builder                         = { git = "https://github.com/parityt
 sp-inherents                               = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-io                                      = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-keystore                                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
+sp-mmr-primitives                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-offchain                                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-runtime                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-session                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
