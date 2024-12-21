@@ -629,7 +629,7 @@ pub fn paseo_config() -> ChainSpec {
 		},
 	)
 	.with_name("Bifrost Paseo")
-	.with_id("bifrost_paseo")
+	.with_id("bifrost-paseo")
 	.with_chain_type(ChainType::Live)
 	.with_genesis_config_patch(bifrost_polkadot_genesis(
 		invulnerables,
