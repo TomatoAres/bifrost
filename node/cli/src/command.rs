@@ -255,7 +255,9 @@ fn set_default_ss58_version(spec: &Box<dyn ChainSpec>) {
 /// Parse command line arguments into service configuration.
 #[allow(unreachable_code)]
 pub fn run() -> Result<()> {
-	let cli = Cli::from_args();
+	let mut cli = Cli::from_args();
+
+	cli.run.base.offchain_worker_params.indexing_enabled = true;
 
 	match &cli.subcommand {
 		Some(Subcommand::BuildSpec(cmd)) => {
