@@ -30,6 +30,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	FixedU128, MultiSignature, OpaqueExtrinsic, Permill,
 };
+use sp_std::vec::Vec;
 
 pub mod currency;
 pub use currency::*;
