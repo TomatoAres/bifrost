@@ -182,6 +182,7 @@ ismp-parachain-runtime-api = { workspace = true  }
 sp-mmr-primitives = { workspace = true }
 ismp = { workspace = true }
 pallet-hyperbridge = { workspace = true }
+pallet-token-gateway = { workspace = true }
 anyhow = { workspace = true }
 
 [build-dependencies]
@@ -324,6 +325,7 @@ std = [
     "sp-mmr-primitives/std",
     "ismp/std",
     "pallet-hyperbridge/std",
+    "pallet-token-gateway/std",
     "anyhow/std",
 ]
 with-tracing = ["frame-executive/with-tracing"]
@@ -448,6 +450,8 @@ try-runtime = [
     "bifrost-ismp/try-runtime",
     "pallet-ismp/try-runtime",
     "pallet-hyperbridge/try-runtime",
+    "pallet-token-gateway/try-runtime",
+    "ismp-parachain/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.

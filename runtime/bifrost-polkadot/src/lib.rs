@@ -38,7 +38,7 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
 	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC, DOT, VDOT,
+	TreasuryPalletId, BNC, BNC_DECIMALS, DOT, VDOT,
 };
 use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
@@ -255,6 +255,7 @@ parameter_types! {
 
 parameter_types! {
 	pub const NativeCurrencyId: CurrencyId = BNC;
+	pub const BncDecimals: u8 = BNC_DECIMALS;
 	pub const RelayCurrencyId: CurrencyId = DOT;
 	pub const RelayVCurrencyId: CurrencyId = VDOT;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
@@ -1823,6 +1824,7 @@ construct_runtime! {
 		IsmpParachain: ismp_parachain = 93,
 		Hyperbridge: pallet_hyperbridge = 94,
 		BifrostIsmp: bifrost_ismp = 95,
+		TokenGateway: pallet_token_gateway = 96,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,

@@ -17,8 +17,12 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::governance::TechAdminOrCouncil;
-use crate::{Balances, Ismp, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
-use bifrost_primitives::Balance;
+use crate::Treasury;
+use crate::{Balances, Ismp, IsmpParachain, NativeCurrencyId, Runtime, RuntimeEvent, Timestamp};
+use crate::{BncDecimals, Currencies};
+use bifrost_asset_registry::AssetIdMaps;
+use bifrost_primitives::{AccountId, Balance};
+use frame_support::__private::Get;
 use frame_support::parameter_types;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use sp_std::boxed::Box;
@@ -81,4 +85,34 @@ impl bifrost_ismp::Config for Runtime {
 	type Balance = Balance;
 	type NativeCurrency = Balances;
 	type IsmpHost = Ismp;
+}
+
+/// Should provide an account that is funded and can be used to pay for asset creation
+pub struct AssetAdmin;
+impl Get<AccountId> for AssetAdmin {
+	fn get() -> AccountId {
+		Treasury::account_id()
+	}
+}
+
+impl pallet_token_gateway::Config for Runtime {
+	// configure the runtime event
+	type RuntimeEvent = RuntimeEvent;
+	// Configured as Pallet Ismp
+	type Dispatcher = Ismp;
+	// Configured as Pallet Assets
+	type Assets = Currencies;
+	// Configured as Pallet balances
+	type NativeCurrency = Balances;
+	// AssetAdmin account
+	type AssetAdmin = AssetAdmin;
+	// The Native asset Id
+	type NativeAssetId = NativeCurrencyId;
+	// A type that provides a function for creating unique asset ids
+	// A concrete implementation for your specific runtime is required
+	type AssetIdFactory = ();
+	// The precision of the native asset
+	type Decimals = BncDecimals;
+	type ControlOrigin = TechAdminOrCouncil;
+	type CurrencyIdConvert = AssetIdMaps<Runtime>;
 }

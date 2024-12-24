@@ -38,6 +38,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+// use bifrost_primitives::{
+// 	ContributionStatus, CurrencyIdConversion, CurrencyIdRegister, TrieIndex, VtokenMintingInterface,
+// };
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -128,6 +131,8 @@ pub mod module {
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
+
+		// type AssetIdMaps: CurrencyIdRegister<CurrencyId>;
 	}
 
 	#[pallet::error]

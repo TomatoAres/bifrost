@@ -160,6 +160,14 @@ pub type DerivativeIndex = u16;
 
 pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
 
+#[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, TypeInfo)]
+pub struct AssetMetadata<Balance> {
+	pub name: Vec<u8>,
+	pub symbol: Vec<u8>,
+	pub decimals: u8,
+	pub minimal_balance: Balance,
+}
+
 // Pallet Id
 parameter_types! {
 	pub const BifrostCrowdloanId: PalletId = PalletId(*b"bf/salp#");

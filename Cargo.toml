@@ -104,6 +104,7 @@ pallet-evm-accounts-rpc-runtime-api    = { path = "pallets/evm-accounts/rpc/runt
 pallet-prices                          = { path = "pallets/prices", default-features = false }
 pallet-traits                          = { path = "pallets/traits", default-features = false }
 bifrost-ismp                           = { path = "pallets/ismp", default-features = false }
+pallet-token-gateway                   = { path = "pallets/token-gateway", default-features = false }
 
 # Zenlink
 merkle-distributor             = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2407", default-features = false }
@@ -340,6 +341,9 @@ strum                 = { version = "0.26.3", default-features = false, features
 strum_macros          = { version = "0.26.2" }
 syn                   = { version = "1.0.98", features = ["full", "fold", "extra-traits", "visit"] }
 tiny-keccak           = { version = "2.0", features = ["fips202"] }
+alloy-sol-macro = "0.7.7"
+alloy-sol-types = { version = "0.7.7", default-features = false }
+alloy-primitives = { version = "0.7.7", default-features = false, features = ["rlp"] }
 
 [profile.dev]
 split-debuginfo = "unpacked"

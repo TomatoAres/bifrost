@@ -31,7 +31,9 @@ mod benchmarking;
 pub mod weights;
 
 use bb_bnc::{BbBNCInterface, BB_BNC_SYSTEM_POOL_ID};
-use bifrost_primitives::{currency::BNC, CurrencyId, CurrencyIdRegister, TryConvertFrom};
+use bifrost_primitives::{
+	currency::BNC, AssetMetadata, CurrencyId, CurrencyIdRegister, TryConvertFrom,
+};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
@@ -87,7 +89,7 @@ pub mod pallet {
 
 		type ParachainId: Get<ParaId>;
 
-		type CurrencyIdRegister: CurrencyIdRegister<CurrencyId>;
+		type CurrencyIdRegister: CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 
 		type BbBNC: BbBNCInterface<
 			AccountIdOf<Self>,

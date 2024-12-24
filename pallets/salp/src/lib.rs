@@ -24,7 +24,8 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use bifrost_primitives::{
-	ContributionStatus, CurrencyIdConversion, CurrencyIdRegister, TrieIndex, VtokenMintingInterface,
+	AssetMetadata, ContributionStatus, CurrencyIdConversion, CurrencyIdRegister, TrieIndex,
+	VtokenMintingInterface,
 };
 use bifrost_stable_pool::{traits::StablePoolHandler, StableAssetPoolId};
 use cumulus_primitives_core::QueryId;
@@ -163,7 +164,7 @@ pub mod pallet {
 
 		type CurrencyIdConversion: CurrencyIdConversion<CurrencyId>;
 
-		type CurrencyIdRegister: CurrencyIdRegister<CurrencyId>;
+		type CurrencyIdRegister: CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 
 		type StablePool: StablePoolHandler<Balance = BalanceOf<Self>, AccountId = Self::AccountId>;
 
