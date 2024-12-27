@@ -25,9 +25,17 @@ build-bifrost-polkadot-release:
 build-all-release: copy-genesis-config-release
 	cargo build -p bifrost-cli --locked --features "with-all-runtime" --release
 
-.PHONY: check-all # cargo check all runtime
-check-all: format
-	SKIP_WASM_BUILD= cargo check -p bifrost-cli --locked --features "with-all-runtime,runtime-benchmarks,try-runtime"
+.PHONY: check-all # cargo check all
+check-all: check-bin check-runtimes
+
+.PHONY: check-bin # cargo check bin
+check-bin:
+		SKIP_WASM_BUILD= cargo check -p bifrost-cli --features "with-all-runtime runtime-benchmarks try-runtime"
+
+.PHONY: check-runtimes # cargo check all runtime
+check-runtimes:
+		SKIP_WASM_BUILD= cargo check -p bifrost-polkadot-runtime --features on-chain-release-build
+    	SKIP_WASM_BUILD= cargo check -p bifrost-kusama-runtime --features on-chain-release-build
 
 .PHONY: test-all # cargo test all
 test-all: test-runtimes test-benchmarks test-vtoken-voting-kusama
@@ -54,15 +62,26 @@ copy-genesis-config-release:
 
 .PHONY: format # cargo fmt
 format:
-	cargo +nightly fmt --all
+	cargo fmt --all
+
+.PHONY: clippy-all
+clippy-all: format-check runtime-clippy runtime-benchmarks-clippy try-runtime-clippy
+
+.PHONY: runtime-clippy
+runtime-clippy:
+	SKIP_WASM_BUILD= cargo clippy --features "with-all-runtime,on-chain-release-build" -- -D warnings
+
+.PHONY: runtime-benchmarks-clippy
+runtime-benchmarks-clippy:
+	SKIP_WASM_BUILD= cargo clippy --features "with-all-runtime,on-chain-release-build,runtime-benchmarks" -- -D warnings
+
+.PHONY: try-runtime-clippy
+try-runtime-clippy:
+	SKIP_WASM_BUILD= cargo clippy --features "with-all-runtime,on-chain-release-build,try-runtime" -- -D warnings
 
 .PHONY: format-check # cargo fmt check
 format-check:
-	cargo +nightly fmt --all -- --check
-
-.PHONY: clippy # cargo clippy
-clippy: format-check
-	cargo clippy --all --all-targets --features "with-all-runtime,runtime-benchmarks,try-runtime" -- -D warnings
+	cargo fmt --all -- --check
 
 .PHONY: benchmarking-staking # benchmarking staking pallet
 benchmarking-staking:

@@ -18,11 +18,9 @@
 
 use crate::*;
 use frame_support::{
-	ensure,
 	pallet_prelude::StorageVersion,
 	traits::{GetStorageVersion, OnRuntimeUpgrade},
 };
-use parity_scale_codec::{Decode, Encode};
 #[cfg(feature = "try-runtime")]
 use sp_runtime::TryRuntimeError;
 
@@ -100,6 +98,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
+		use parity_scale_codec::Encode;
 		let cnt = TokenStatus::<T>::iter().count();
 		// print out the pre-migrate storage count
 		log::info!(target: LOG_TARGET, "TokenStatus pre-migrate storage count: {:?}", cnt);
@@ -108,6 +107,8 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(cnt: Vec<u8>) -> Result<(), TryRuntimeError> {
+		use frame_support::ensure;
+		use parity_scale_codec::Decode;
 		let new_count = TokenStatus::<T>::iter().count();
 
 		let old_count: u64 = Decode::decode(&mut cnt.as_slice())

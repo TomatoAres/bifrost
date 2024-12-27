@@ -40,7 +40,10 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::{U256, U512};
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero},
+	traits::{
+		AccountIdConversion, BlockNumberProvider, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub,
+		One, Zero,
+	},
 	ArithmeticError, DispatchError, SaturatedConversion,
 };
 use sp_std::prelude::*;
@@ -291,7 +294,12 @@ pub mod traits {
 			input_asset: Self::AssetId,
 			output_asset: Self::AssetId,
 			input_amount: Self::Balance,
-		) -> Option<(StableAssetPoolId, PoolTokenIndex, PoolTokenIndex, Self::Balance)>;
+		) -> Option<(
+			StableAssetPoolId,
+			PoolTokenIndex,
+			PoolTokenIndex,
+			Self::Balance,
+		)>;
 
 		/// Get the swap result at exact input amount.
 		///  params:
@@ -347,7 +355,7 @@ pub mod pallet {
 	use orml_traits::MultiCurrency;
 	use parity_scale_codec::Codec;
 	use sp_runtime::{
-		traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero},
+		traits::{BlockNumberProvider, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero},
 		FixedPointOperand, Permill,
 	};
 	use sp_std::prelude::*;
@@ -394,6 +402,9 @@ pub mod pallet {
 
 		/// The origin which may create pool or modify pool.
 		type ListingOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -634,7 +645,10 @@ pub mod pallet {
 			/// The pool id.
 			pool_id: StableAssetPoolId,
 			/// The token rate info[(currency_id, (denominator, numerator))].
-			token_rate: Vec<(T::AssetId, (T::AtLeast64BitUnsigned, T::AtLeast64BitUnsigned))>,
+			token_rate: Vec<(
+				T::AssetId,
+				(T::AtLeast64BitUnsigned, T::AtLeast64BitUnsigned),
+			)>,
 		},
 		/// The hardcap of the token rate is configured.
 		TokenRateHardcapConfigured {
@@ -789,7 +803,10 @@ pub mod pallet {
 			precision: T::AtLeast64BitUnsigned,
 		) -> DispatchResult {
 			T::ListingOrigin::ensure_origin(origin.clone())?;
-			ensure!(T::EnsurePoolAssetId::validate(pool_asset), Error::<T>::InvalidPoolAsset);
+			ensure!(
+				T::EnsurePoolAssetId::validate(pool_asset),
+				Error::<T>::InvalidPoolAsset
+			);
 			<Self as StableAsset>::create_pool(
 				pool_asset,
 				assets,
@@ -973,7 +990,7 @@ impl<T: Config> Pallet<T> {
 		a1: T::AtLeast64BitUnsigned,
 		t1: BlockNumberFor<T>,
 	) -> Option<T::AtLeast64BitUnsigned> {
-		let current_block = frame_system::Pallet::<T>::block_number();
+		let current_block = T::BlockNumberProvider::current_block_number();
 		if current_block < t1 {
 			let time_diff: u128 = current_block.checked_sub(&t0)?.saturated_into();
 			let time_diff: T::AtLeast64BitUnsigned = time_diff.into();
@@ -1090,17 +1107,21 @@ impl<T: Config> Pallet<T> {
 			.checked_mul(target_d_u256)?
 			.checked_mul(a_precision_u256)?
 			.checked_div(ann.checked_mul(balance_size)?)?;
-		let b: U512 =
-			sum.checked_add(target_d_u256.checked_mul(a_precision_u256)?.checked_div(ann)?)?;
+		let b: U512 = sum.checked_add(
+			target_d_u256
+				.checked_mul(a_precision_u256)?
+				.checked_div(ann)?,
+		)?;
 		let mut prev_y: U512;
 		let mut y: U512 = target_d_u256;
 
 		for _i in 0..NUMBER_OF_ITERATIONS_TO_CONVERGE {
 			prev_y = y;
-			y = y
-				.checked_mul(y)?
-				.checked_add(c)?
-				.checked_div(y.checked_mul(two)?.checked_add(b)?.checked_sub(target_d_u256)?)?;
+			y = y.checked_mul(y)?.checked_add(c)?.checked_div(
+				y.checked_mul(two)?
+					.checked_add(b)?
+					.checked_sub(target_d_u256)?,
+			)?;
 			if y > prev_y {
 				if y - prev_y <= one {
 					break;
@@ -1154,7 +1175,9 @@ impl<T: Config> Pallet<T> {
 			}
 			let result: T::AtLeast64BitUnsigned = balances[i]
 				.checked_add(
-					&amounts[i].checked_mul(&pool_info.precisions[i]).ok_or(Error::<T>::Math)?,
+					&amounts[i]
+						.checked_mul(&pool_info.precisions[i])
+						.ok_or(Error::<T>::Math)?,
 				)
 				.ok_or(Error::<T>::Math)?;
 			balances[i] = result;
@@ -1176,7 +1199,9 @@ impl<T: Config> Pallet<T> {
 			.map_err(|_| Error::<T>::Math)?
 			.into();
 
-			mint_amount = mint_amount.checked_sub(&fee_amount).ok_or(Error::<T>::Math)?;
+			mint_amount = mint_amount
+				.checked_sub(&fee_amount)
+				.ok_or(Error::<T>::Math)?;
 		}
 
 		Ok(MintResult {
@@ -1395,8 +1420,9 @@ impl<T: Config> Pallet<T> {
 			.map_err(|_| Error::<T>::Math)?
 			.into();
 			balances[i] = balance_i.checked_sub(&diff_i).ok_or(Error::<T>::Math)?;
-			let amounts_i: T::AtLeast64BitUnsigned =
-				diff_i.checked_div(&pool_info.precisions[i]).ok_or(Error::<T>::Math)?;
+			let amounts_i: T::AtLeast64BitUnsigned = diff_i
+				.checked_div(&pool_info.precisions[i])
+				.ok_or(Error::<T>::Math)?;
 			amounts.push(amounts_i);
 		}
 		let total_supply: T::AtLeast64BitUnsigned =
@@ -1463,9 +1489,13 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// The pool token amount becomes D - _amount
-		let y: T::AtLeast64BitUnsigned =
-			Self::get_y(&balances, i, d.checked_sub(&amount).ok_or(Error::<T>::Math)?, a)
-				.ok_or(Error::<T>::Math)?;
+		let y: T::AtLeast64BitUnsigned = Self::get_y(
+			&balances,
+			i,
+			d.checked_sub(&amount).ok_or(Error::<T>::Math)?,
+			a,
+		)
+		.ok_or(Error::<T>::Math)?;
 		// dy = (balance[i] - y - 1) / precisions[i] in case there was rounding errors
 		let balance_i: T::AtLeast64BitUnsigned = pool_info.balances[i_usize].into();
 		let dy: T::AtLeast64BitUnsigned = balance_i
@@ -1522,8 +1552,9 @@ impl<T: Config> Pallet<T> {
 			}
 			let balance_i: T::AtLeast64BitUnsigned = balances[i];
 			// balance = balance + amount * precision
-			let sub_amount: T::AtLeast64BitUnsigned =
-				amounts_i.checked_mul(&pool_info.precisions[i]).ok_or(Error::<T>::Math)?;
+			let sub_amount: T::AtLeast64BitUnsigned = amounts_i
+				.checked_mul(&pool_info.precisions[i])
+				.ok_or(Error::<T>::Math)?;
 			balances[i] = balance_i.checked_sub(&sub_amount).ok_or(Error::<T>::Math)?;
 		}
 		let new_d: T::AtLeast64BitUnsigned = Self::get_d(&balances, a).ok_or(Error::<T>::Math)?;
@@ -1532,8 +1563,9 @@ impl<T: Config> Pallet<T> {
 		let mut fee_amount: T::AtLeast64BitUnsigned = zero;
 		if pool_info.redeem_fee > zero {
 			let fee_denominator: T::AtLeast64BitUnsigned = T::FeePrecision::get();
-			let div_amount: T::AtLeast64BitUnsigned =
-				fee_denominator.checked_sub(&pool_info.redeem_fee).ok_or(Error::<T>::Math)?;
+			let div_amount: T::AtLeast64BitUnsigned = fee_denominator
+				.checked_sub(&pool_info.redeem_fee)
+				.ok_or(Error::<T>::Math)?;
 			redeem_amount = u128::try_from(
 				U256::from(redeem_amount.saturated_into::<u128>())
 					.checked_mul(U256::from(fee_denominator.saturated_into::<u128>()))
@@ -1545,10 +1577,13 @@ impl<T: Config> Pallet<T> {
 			.into();
 			let sub_amount: T::AtLeast64BitUnsigned =
 				old_d.checked_sub(&new_d).ok_or(Error::<T>::Math)?;
-			fee_amount = redeem_amount.checked_sub(&sub_amount).ok_or(Error::<T>::Math)?;
+			fee_amount = redeem_amount
+				.checked_sub(&sub_amount)
+				.ok_or(Error::<T>::Math)?;
 		}
-		let burn_amount: T::AtLeast64BitUnsigned =
-			redeem_amount.checked_sub(&fee_amount).ok_or(Error::<T>::Math)?;
+		let burn_amount: T::AtLeast64BitUnsigned = redeem_amount
+			.checked_sub(&fee_amount)
+			.ok_or(Error::<T>::Math)?;
 		let total_supply: T::AtLeast64BitUnsigned =
 			old_d.checked_sub(&burn_amount).ok_or(Error::<T>::Math)?;
 		Ok(RedeemMultiResult {
@@ -1595,7 +1630,9 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| Error::<T>::Math)?
 				.into();
 			}
-			*balance = balance_of.checked_mul(&pool_info.precisions[i]).ok_or(Error::<T>::Math)?;
+			*balance = balance_of
+				.checked_mul(&pool_info.precisions[i])
+				.ok_or(Error::<T>::Math)?;
 		}
 		let new_d: T::AtLeast64BitUnsigned = Self::get_d(&balances, a).ok_or(Error::<T>::Math)?;
 		let old_d_div_100: T::AtLeast64BitUnsigned =
@@ -1691,8 +1728,10 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| Error::<T>::Math)?
 				.into();
 			}
-			*balance =
-				balance_of.checked_mul(&pool_info.precisions[i]).ok_or(Error::<T>::Math)?.into();
+			*balance = balance_of
+				.checked_mul(&pool_info.precisions[i])
+				.ok_or(Error::<T>::Math)?
+				.into();
 		}
 		let mut cloned_stable_asset_info = pool_info.clone();
 		cloned_stable_asset_info.balances = updated_balances;
@@ -1729,8 +1768,10 @@ impl<T: Config> StableAsset for Pallet<T> {
 		}
 		Self::deposit_event(Event::TokenRateSet {
 			pool_id,
-			token_rate: TokenRateCaches::<T>::iter_prefix(pool_id)
-				.collect::<Vec<(T::AssetId, (T::AtLeast64BitUnsigned, T::AtLeast64BitUnsigned))>>(),
+			token_rate: TokenRateCaches::<T>::iter_prefix(pool_id).collect::<Vec<(
+				T::AssetId,
+				(T::AtLeast64BitUnsigned, T::AtLeast64BitUnsigned),
+			)>>(),
 		});
 		Ok(())
 	}
@@ -1872,8 +1913,11 @@ impl<T: Config> StableAsset for Pallet<T> {
 	) -> DispatchResult {
 		let old_balances = pool_info.balances.clone();
 		let old_total_supply = pool_info.total_supply;
-		let PendingFeeResult { fee_amount, balances, total_supply } =
-			Self::get_pending_fee_amount(pool_info)?;
+		let PendingFeeResult {
+			fee_amount,
+			balances,
+			total_supply,
+		} = Self::get_pending_fee_amount(pool_info)?;
 		let zero: T::Balance = Zero::zero();
 		pool_info.total_supply = total_supply;
 		pool_info.balances = balances;
@@ -1931,7 +1975,10 @@ impl<T: Config> StableAsset for Pallet<T> {
 		ensure!(assets.len() > 1, Error::<T>::ArgumentsError);
 		let pool_asset_limit = T::PoolAssetLimit::get() as usize;
 		ensure!(assets.len() <= pool_asset_limit, Error::<T>::ArgumentsError);
-		ensure!(assets.len() == precisions.len(), Error::<T>::ArgumentsMismatch);
+		ensure!(
+			assets.len() == precisions.len(),
+			Error::<T>::ArgumentsMismatch
+		);
 		PoolCount::<T>::try_mutate(|pool_count| -> DispatchResult {
 			let pool_id = *pool_count;
 			let swap_id: T::AccountId = T::PalletId::get().into_sub_account_truncating(pool_id);
@@ -1940,7 +1987,7 @@ impl<T: Config> StableAsset for Pallet<T> {
 
 				let balances = sp_std::vec![Zero::zero(); assets.len()];
 				frame_system::Pallet::<T>::inc_providers(&swap_id);
-				let current_block = frame_system::Pallet::<T>::block_number();
+				let current_block = T::BlockNumberProvider::current_block_number();
 				*maybe_pool_info = Some(StableAssetPoolInfo {
 					pool_id,
 					pool_asset,
@@ -1993,8 +2040,12 @@ impl<T: Config> StableAsset for Pallet<T> {
 		Pools::<T>::try_mutate_exists(pool_id, |maybe_pool_info| -> DispatchResult {
 			let pool_info = maybe_pool_info.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 			Self::collect_yield(pool_id, pool_info)?;
-			let MintResult { mint_amount, fee_amount, balances, total_supply } =
-				Self::get_mint_amount(pool_info, &amounts)?;
+			let MintResult {
+				mint_amount,
+				fee_amount,
+				balances,
+				total_supply,
+			} = Self::get_mint_amount(pool_info, &amounts)?;
 			let a: T::AtLeast64BitUnsigned = Self::get_a(
 				pool_info.a,
 				pool_info.a_block,
@@ -2133,7 +2184,10 @@ impl<T: Config> StableAsset for Pallet<T> {
 			} = Self::get_redeem_proportion_amount(pool_info, amount)?;
 			let zero: T::Balance = Zero::zero();
 			for i in 0..amounts.len() {
-				ensure!(amounts[i] >= min_redeem_amounts[i], Error::<T>::RedeemUnderMin);
+				ensure!(
+					amounts[i] >= min_redeem_amounts[i],
+					Error::<T>::RedeemUnderMin
+				);
 				T::Assets::transfer(pool_info.assets[i], &pool_info.account_id, who, amounts[i])?;
 			}
 			if fee_amount > zero {
@@ -2275,7 +2329,10 @@ impl<T: Config> StableAsset for Pallet<T> {
 				burn_amount,
 			} = Self::get_redeem_multi_amount(pool_info, &amounts)?;
 			let zero: T::Balance = Zero::zero();
-			ensure!(redeem_amount <= max_redeem_amount, Error::<T>::RedeemOverMax);
+			ensure!(
+				redeem_amount <= max_redeem_amount,
+				Error::<T>::RedeemOverMax
+			);
 			if fee_amount > zero {
 				T::Assets::transfer(
 					pool_info.pool_asset,
@@ -2336,8 +2393,11 @@ impl<T: Config> StableAsset for Pallet<T> {
 	) -> DispatchResult {
 		Pools::<T>::try_mutate_exists(pool_id, |maybe_pool_info| -> DispatchResult {
 			let pool_info = maybe_pool_info.as_mut().ok_or(Error::<T>::PoolNotFound)?;
-			ensure!(future_a_block > pool_info.a_block, Error::<T>::ArgumentsError);
-			let current_block = frame_system::Pallet::<T>::block_number();
+			ensure!(
+				future_a_block > pool_info.a_block,
+				Error::<T>::ArgumentsError
+			);
+			let current_block = T::BlockNumberProvider::current_block_number();
 			let initial_a: T::AtLeast64BitUnsigned = Self::get_a(
 				pool_info.a,
 				pool_info.a_block,
@@ -2349,7 +2409,11 @@ impl<T: Config> StableAsset for Pallet<T> {
 			pool_info.a_block = current_block;
 			pool_info.future_a = a;
 			pool_info.future_a_block = future_a_block;
-			Self::deposit_event(Event::AModified { pool_id, value: a, time: future_a_block });
+			Self::deposit_event(Event::AModified {
+				pool_id,
+				value: a,
+				time: future_a_block,
+			});
 			Ok(())
 		})
 	}
@@ -2411,7 +2475,12 @@ impl<T: Config> StableAsset for Pallet<T> {
 		input_asset: Self::AssetId,
 		output_asset: Self::AssetId,
 		input_amount: Self::Balance,
-	) -> Option<(StableAssetPoolId, PoolTokenIndex, PoolTokenIndex, Self::Balance)> {
+	) -> Option<(
+		StableAssetPoolId,
+		PoolTokenIndex,
+		PoolTokenIndex,
+		Self::Balance,
+	)> {
 		let mut maybe_best: Option<(
 			StableAssetPoolId,
 			PoolTokenIndex,
@@ -2478,8 +2547,9 @@ impl<T: Config> StableAsset for Pallet<T> {
 	) -> Option<SwapResult<Self::Balance>> {
 		let pool_info_opt = Self::pool(pool_id);
 		match pool_info_opt {
-			Some(pool_info) =>
-				Self::get_swap_amount(&pool_info, input_index, output_index, dx_bal).ok(),
+			Some(pool_info) => {
+				Self::get_swap_amount(&pool_info, input_index, output_index, dx_bal).ok()
+			}
 			None => None,
 		}
 	}
@@ -2492,8 +2562,9 @@ impl<T: Config> StableAsset for Pallet<T> {
 	) -> Option<SwapResult<Self::Balance>> {
 		let pool_info_opt = Self::pool(pool_id);
 		match pool_info_opt {
-			Some(pool_info) =>
-				Self::get_swap_amount_exact(&pool_info, input_index, output_index, dy_bal),
+			Some(pool_info) => {
+				Self::get_swap_amount_exact(&pool_info, input_index, output_index, dy_bal)
+			}
 			None => None,
 		}
 	}

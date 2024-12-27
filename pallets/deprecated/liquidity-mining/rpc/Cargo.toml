@@ -1,7 +1,7 @@
 [package]
 name = "bifrost-liquidity-mining-rpc-api"
 version = "0.8.0"
-authors = ["Allen Pocket <AllenPocketGamer@Gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 
 [dependencies]

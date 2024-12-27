@@ -42,10 +42,12 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let validators =
 			ValidatorsByStakingProtocolAndDelegator::<T>::get(ASTAR_DAPP_STAKING, delegator);
-		let is_exist = validators.iter().any(|storage_validator| match storage_validator {
-			Validator::AstarDappStaking(astar_validator) => *astar_validator == validator,
-			_ => false,
-		});
+		let is_exist = validators
+			.iter()
+			.any(|storage_validator| match storage_validator {
+				Validator::AstarDappStaking(astar_validator) => *astar_validator == validator,
+				_ => false,
+			});
 		ensure!(is_exist, Error::<T>::ValidatorNotFound);
 		Ok(().into())
 	}
@@ -58,17 +60,15 @@ impl<T: Config> Pallet<T> {
 		let (call, pending_status) = match task.clone() {
 			DappStaking::Lock(amount) => (
 				AstarCall::<T>::DappStaking(DappStaking::<T::AccountId>::Lock(amount)).encode(),
-				Some(PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::Lock(
-					delegator.clone(),
-					amount,
-				))),
+				Some(PendingStatus::AstarDappStaking(
+					AstarDappStakingPendingStatus::Lock(delegator.clone(), amount),
+				)),
 			),
 			DappStaking::Unlock(amount) => (
 				AstarCall::<T>::DappStaking(DappStaking::<T::AccountId>::Unlock(amount)).encode(),
-				Some(PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::UnLock(
-					delegator.clone(),
-					amount,
-				))),
+				Some(PendingStatus::AstarDappStaking(
+					AstarDappStakingPendingStatus::UnLock(delegator.clone(), amount),
+				)),
 			),
 			DappStaking::ClaimUnlocked => (
 				AstarCall::<T>::DappStaking(DappStaking::<T::AccountId>::ClaimUnlocked).encode(),
@@ -86,7 +86,7 @@ impl<T: Config> Pallet<T> {
 					.encode(),
 					None,
 				)
-			},
+			}
 			DappStaking::Unstake(validator, amount) => {
 				Self::ensure_validator_exist(delegator.clone(), validator.clone())?;
 				(
@@ -97,7 +97,7 @@ impl<T: Config> Pallet<T> {
 					.encode(),
 					None,
 				)
-			},
+			}
 			DappStaking::ClaimStakerRewards => (
 				AstarCall::<T>::DappStaking(DappStaking::<T::AccountId>::ClaimStakerRewards)
 					.encode(),
@@ -112,7 +112,7 @@ impl<T: Config> Pallet<T> {
 					.encode(),
 					None,
 				)
-			},
+			}
 			DappStaking::RelockUnlocking => (
 				AstarCall::<T>::DappStaking(DappStaking::<T::AccountId>::RelockUnlocking).encode(),
 				None,
@@ -167,8 +167,9 @@ impl<T: Config> Pallet<T> {
 		pending_status: PendingStatus<T::AccountId>,
 	) -> Result<(), Error<T>> {
 		let delegator = match pending_status.clone() {
-			PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::Lock(delegator, _)) =>
-				delegator,
+			PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::Lock(delegator, _)) => {
+				delegator
+			}
 			PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::UnLock(
 				delegator,
 				_,
@@ -188,7 +189,7 @@ impl<T: Config> Pallet<T> {
 							amount,
 						)) => {
 							pending_ledger.add_lock_amount(amount);
-						},
+						}
 						PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::UnLock(
 							_,
 							amount,
@@ -206,9 +207,12 @@ impl<T: Config> Pallet<T> {
 								.ok_or(Error::<T>::TimeUnitNotFound)?;
 							pending_ledger
 								.unlocking
-								.try_push(AstarUnlockingRecord { amount, unlock_time })
+								.try_push(AstarUnlockingRecord {
+									amount,
+									unlock_time,
+								})
 								.map_err(|_| Error::<T>::UnlockRecordOverflow)?;
-						},
+						}
 						PendingStatus::AstarDappStaking(
 							AstarDappStakingPendingStatus::ClaimUnlocked(_),
 						) => {
@@ -219,14 +223,17 @@ impl<T: Config> Pallet<T> {
 							pending_ledger.unlocking.retain(|record| {
 								current_time_unit.cmp(&record.unlock_time) != Ordering::Greater
 							});
-						},
+						}
 					};
 					*ledger = Some(Ledger::AstarDappStaking(pending_ledger));
 				};
 				Ok(())
 			},
 		)?;
-		Self::deposit_event(Event::<T>::NotifyResponseReceived { responder, pending_status });
+		Self::deposit_event(Event::<T>::NotifyResponseReceived {
+			responder,
+			pending_status,
+		});
 		Ok(())
 	}
 }

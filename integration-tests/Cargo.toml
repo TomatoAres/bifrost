@@ -1,7 +1,7 @@
 [package]
 name = "bifrost-integration-tests"
 version = "0.8.0"
-authors = ["hqwangningbo <2536935847@qq.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 
 [dev-dependencies]
@@ -49,3 +49,6 @@ xcm-builder                   = { workspace = true }
 xcm-emulator                  = { workspace = true }
 xcm-executor                  = { workspace = true }
 xcm-simulator                 = { workspace = true }
+
+[features]
+try-runtime = []

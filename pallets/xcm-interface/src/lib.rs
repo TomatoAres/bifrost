@@ -191,7 +191,10 @@ pub mod pallet {
 					Box::new(
 						Location::new(
 							0,
-							[AccountKey20 { network: None, key: to.to_fixed_bytes() }],
+							[AccountKey20 {
+								network: None,
+								key: to.to_fixed_bytes(),
+							}],
 						)
 						.into(),
 					),
@@ -204,7 +207,10 @@ pub mod pallet {
 
 			let remote_xcm = Xcm(vec![
 				WithdrawAsset(fee.clone().into()),
-				BuyExecution { fees: fee.clone(), weight_limit: Unlimited },
+				BuyExecution {
+					fees: fee.clone(),
+					weight_limit: Unlimited,
+				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most,

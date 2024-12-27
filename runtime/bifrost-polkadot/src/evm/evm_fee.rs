@@ -106,7 +106,12 @@ where
 		MC::withdraw(fee_currency, &account_id, fee_amount)
 			.map_err(|_| Error::<T>::WithdrawFailed)?;
 
-		Ok(Some(EvmPaymentInfo { fee_amount, fee_currency, fee_currency_price, weth_price }))
+		Ok(Some(EvmPaymentInfo {
+			fee_amount,
+			fee_currency,
+			fee_currency_price,
+			weth_price,
+		}))
 	}
 
 	fn correct_and_deposit_fee(
@@ -126,7 +131,9 @@ where
 				payment_info.fee_currency_price,
 			) {
 				// Calculate how much refund we should return
-				let refund_amount = payment_info.fee_amount.saturating_sub(converted_corrected_fee);
+				let refund_amount = payment_info
+					.fee_amount
+					.saturating_sub(converted_corrected_fee);
 
 				// refund to the account that paid the fees. If this fails, the
 				// account might have dropped below the existential balance. In

@@ -240,6 +240,7 @@ impl bifrost_stable_asset::Config for Test {
 	type WeightInfo = ();
 	type ListingOrigin = EnsureSignedBy<One, u128>;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Test {
@@ -289,6 +290,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 pub struct Slp;
@@ -331,7 +333,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -364,7 +368,10 @@ impl ExtBuilder {
 
 	// Build genesis storage according to the mock runtime.
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into();
+		let mut t = frame_system::GenesisConfig::<Test>::default()
+			.build_storage()
+			.unwrap()
+			.into();
 
 		bifrost_asset_registry::GenesisConfig::<Test> {
 			currency: vec![
@@ -409,4 +416,9 @@ impl ExtBuilder {
 
 		t.into()
 	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
+	ExtBuilder::default().build()
 }

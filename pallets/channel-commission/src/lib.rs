@@ -31,13 +31,17 @@ use orml_traits::MultiCurrency;
 use sp_io::MultiRemovalResults;
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
-	traits::{AccountIdConversion, CheckedAdd, UniqueSaturatedFrom, UniqueSaturatedInto, Zero},
+	traits::{
+		AccountIdConversion, BlockNumberProvider, CheckedAdd, UniqueSaturatedFrom,
+		UniqueSaturatedInto, Zero,
+	},
 	PerThing, Percent, Permill, Rounding, SaturatedConversion, Saturating,
 };
 pub use weights::WeightInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod migrations;
 mod mock;
 mod tests;
 pub mod weights;
@@ -82,6 +86,8 @@ pub mod pallet {
 		// The maximum bytes length of channel name
 		#[pallet::constant]
 		type NameLengthLimit: Get<u32>;
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::error]
@@ -289,29 +295,37 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(PhantomData<T>);
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			let channel_count: u32 = ChannelNextId::<T>::get().into();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 
 			// get the commission token count
 			let commission_token_count = CommissionTokens::<T>::iter().count() as u32;
 
 			// If the current block number is the first block of a new clearing period, we need to
 			// prepare data for clearing.
-			if (n % T::ClearingDuration::get()).is_zero() {
+			if (current_block_number % T::ClearingDuration::get()).is_zero() {
 				Self::set_clearing_environment();
-			} else if (n % T::ClearingDuration::get()) < (channel_count + 1).into() {
-				let channel_index = n % T::ClearingDuration::get() - 1u32.into();
+			} else if (current_block_number % T::ClearingDuration::get())
+				< (channel_count + 1).into()
+			{
+				let channel_index = current_block_number % T::ClearingDuration::get() - 1u32.into();
 				let channel_id: ChannelId =
 					BlockNumberFor::<T>::unique_saturated_into(channel_index);
 				Self::clear_channel_commissions(channel_id);
 				Self::update_channel_vtoken_shares(channel_id);
-			} else if (n % T::ClearingDuration::get()) == (channel_count + 1).into() {
+			} else if (current_block_number % T::ClearingDuration::get())
+				== (channel_count + 1).into()
+			{
 				Self::clear_bifrost_commissions();
 			}
 
@@ -368,7 +382,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			// check if the channel exists
-			ensure!(Channels::<T>::contains_key(channel_id), Error::<T>::ChannelNotExist);
+			ensure!(
+				Channels::<T>::contains_key(channel_id),
+				Error::<T>::ChannelNotExist
+			);
 
 			Self::settle_channel_commission(channel_id)?;
 
@@ -447,7 +464,10 @@ pub mod pallet {
 			ensure!(vtoken.is_vtoken(), Error::<T>::InvalidVtoken);
 
 			// check if the channel exists
-			ensure!(Channels::<T>::contains_key(channel_id), Error::<T>::ChannelNotExist);
+			ensure!(
+				Channels::<T>::contains_key(channel_id),
+				Error::<T>::ChannelNotExist
+			);
 			// check if the vtoken exists
 			ensure!(
 				CommissionTokens::<T>::contains_key(vtoken),
@@ -462,7 +482,11 @@ pub mod pallet {
 				ChannelCommissionTokenRates::<T>::insert(channel_id, vtoken, rate);
 			}
 
-			Self::deposit_event(Event::ChannelCommissionSet { channel_id, vtoken, rate });
+			Self::deposit_event(Event::ChannelCommissionSet {
+				channel_id,
+				vtoken,
+				rate,
+			});
 
 			Ok(())
 		}
@@ -485,6 +509,7 @@ pub mod pallet {
 			if let Some(commission_token) = commission_token_op {
 				// set the commission token
 				CommissionTokens::<T>::insert(vtoken, commission_token);
+				PeriodClearedCommissions::<T>::insert(vtoken, BalanceOf::<T>::zero());
 
 				// set VtokenIssuanceSnapshots for the vtoken
 				let issuance = T::MultiCurrency::total_issuance(vtoken);
@@ -527,7 +552,10 @@ pub mod pallet {
 				// only ChannelClaimableCommissions not removed. Channel can still claim the
 				// previous commission
 
-				Self::deposit_event(Event::CommissionTokenSet { vtoken, commission_token: None });
+				Self::deposit_event(Event::CommissionTokenSet {
+					vtoken,
+					commission_token: None,
+				});
 			}
 
 			Ok(())
@@ -553,7 +581,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			// check if the channel exists
-			ensure!(Channels::<T>::contains_key(channel_id), Error::<T>::ChannelNotExist);
+			ensure!(
+				Channels::<T>::contains_key(channel_id),
+				Error::<T>::ChannelNotExist
+			);
 
 			// check if the vtoken exists
 			ensure!(
@@ -825,6 +856,9 @@ impl<T: Config> Pallet<T> {
 			// get the cleared amount from the PeriodClearedCommissions storage
 			let cleared_commission = PeriodClearedCommissions::<T>::get(commission_token);
 
+			// Reset the PeriodClearedCommissions of commission_token to 0.
+			PeriodClearedCommissions::<T>::insert(commission_token, BalanceOf::<T>::zero());
+
 			// calculate the bifrost commission amount
 			let bifrost_commission = total_commission.saturating_sub(cleared_commission);
 
@@ -852,18 +886,6 @@ impl<T: Config> Pallet<T> {
 				});
 			}
 		});
-
-		// clear PeriodClearedCommissions
-		let res = PeriodClearedCommissions::<T>::clear(REMOVE_TOKEN_LIMIT, None);
-		let executed_num = res.backend;
-		if let Err(_) = Self::check_removed_all(res) {
-			log::error!("The removal process was not complete; cursor is still present.");
-			Self::deposit_event(Event::RemovalNotCompleteError {
-				target_num: PeriodClearedCommissions::<T>::iter().count() as u32,
-				limit: REMOVE_TOKEN_LIMIT,
-				executed_num,
-			});
-		}
 	}
 
 	pub(crate) fn calculate_mul_div_result(
@@ -916,7 +938,11 @@ impl<T: Config> Pallet<T> {
 		// Remove the collected tokens from ChannelClaimableCommissions storage
 		for (commission_token, amount) in tokens_to_remove {
 			ChannelClaimableCommissions::<T>::remove(channel_id, commission_token);
-			Self::deposit_event(Event::CommissionClaimed { channel_id, commission_token, amount });
+			Self::deposit_event(Event::CommissionClaimed {
+				channel_id,
+				commission_token,
+				amount,
+			});
 		}
 
 		Ok(())
@@ -941,7 +967,10 @@ impl<T: Config> VTokenMintRedeemProvider<CurrencyId, BalanceOf<T>> for Pallet<T>
 		// Retrieve and update total mint for the given vtoken in a single step.
 		PeriodVtokenTotalMint::<T>::mutate(vtoken, |total_mint| -> Result<(), Error<T>> {
 			// Safely add the new amount to the existing total.
-			total_mint.1 = total_mint.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			total_mint.1 = total_mint
+				.1
+				.checked_add(&amount)
+				.ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})?;
 
@@ -951,8 +980,10 @@ impl<T: Config> VTokenMintRedeemProvider<CurrencyId, BalanceOf<T>> for Pallet<T>
 				channel_id,
 				vtoken,
 				|channel_vtoken_mint| -> Result<(), Error<T>> {
-					let sum_up_amount =
-						channel_vtoken_mint.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					let sum_up_amount = channel_vtoken_mint
+						.1
+						.checked_add(&amount)
+						.ok_or(Error::<T>::Overflow)?;
 
 					channel_vtoken_mint.1 = sum_up_amount;
 					Ok(())
@@ -970,7 +1001,10 @@ impl<T: Config> VTokenMintRedeemProvider<CurrencyId, BalanceOf<T>> for Pallet<T>
 
 		// First, add to PeriodVtokenTotalRedeem.
 		PeriodVtokenTotalRedeem::<T>::mutate(vtoken, |total_redeem| -> Result<(), Error<T>> {
-			total_redeem.1 = total_redeem.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			total_redeem.1 = total_redeem
+				.1
+				.checked_add(&amount)
+				.ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})?;
 
@@ -989,15 +1023,19 @@ impl<T: Config> SlpHostingFeeProvider<CurrencyId, BalanceOf<T>, AccountIdOf<T>> 
 		}
 
 		// get the commission token of the staking token
-		let vtoken = staking_token.to_vtoken().map_err(|_| Error::<T>::ConversionError)?;
+		let vtoken = staking_token
+			.to_vtoken()
+			.map_err(|_| Error::<T>::ConversionError)?;
 
 		// If the vtoken is configured for commission, record the hosting fee
 		if let Some(commission_token) = CommissionTokens::<T>::get(vtoken) {
 			PeriodTotalCommissions::<T>::mutate(
 				commission_token,
 				|total_commission| -> Result<(), Error<T>> {
-					let sum_up_amount =
-						total_commission.1.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					let sum_up_amount = total_commission
+						.1
+						.checked_add(&amount)
+						.ok_or(Error::<T>::Overflow)?;
 
 					total_commission.1 = sum_up_amount;
 					Ok(())

@@ -19,7 +19,7 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::{BalanceOf, Call, Config, Pallet as BbBNC, Pallet};
+use crate::{BalanceOf, Call, Config, Pallet as BbBNC, Pallet, *};
 use bifrost_primitives::{CurrencyId, TokenSymbol};
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, traits::EnsureOrigin};
@@ -31,6 +31,36 @@ use sp_std::vec;
 #[benchmarks]
 mod benchmarks {
 	use super::*;
+
+	#[benchmark]
+	fn on_initialize() -> Result<(), BenchmarkError> {
+		assert_ok!(BbBNC::<T>::set_config(
+			RawOrigin::Root.into(),
+			Some((4 * 365 * 86400 / 12u32).into()),
+			Some((7 * 86400 / 12u32).into())
+		));
+
+		let rewards = vec![CurrencyId::Native(TokenSymbol::BNC)];
+
+		T::MultiCurrency::deposit(
+			CurrencyId::Native(TokenSymbol::BNC),
+			&account("seed", 1, 1),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		)?;
+		assert_ok!(BbBNC::<T>::notify_rewards(
+			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
+			account("seed", 1, 1),
+			Some((7 * 86400 / 12u32).into()),
+			rewards
+		));
+
+		#[block]
+		{
+			BbBNC::<T>::on_initialize(BlockNumberFor::<T>::from(7 * 86400 / 12u32));
+		}
+
+		Ok(())
+	}
 
 	#[benchmark]
 	fn set_config() -> Result<(), BenchmarkError> {
@@ -170,7 +200,11 @@ mod benchmarks {
 		));
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(test_account), 0, (7 * 86400 / 12u32 + 365 * 86400 / 12u32).into());
+		_(
+			RawOrigin::Signed(test_account),
+			0,
+			(7 * 86400 / 12u32 + 365 * 86400 / 12u32).into(),
+		);
 
 		Ok(())
 	}
@@ -281,7 +315,12 @@ mod benchmarks {
 		)?;
 
 		#[extrinsic_call]
-		_(RawOrigin::Root, account("seed", 1, 1), Some((7 * 86400 / 12u32).into()), rewards);
+		_(
+			RawOrigin::Root,
+			account("seed", 1, 1),
+			Some((7 * 86400 / 12u32).into()),
+			rewards,
+		);
 
 		Ok(())
 	}
@@ -419,7 +458,10 @@ mod benchmarks {
 		<frame_system::Pallet<T>>::set_block_number((2 * 365 * 86400 / 12u32).into());
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(test_account), CurrencyId::VToken(TokenSymbol::BNC));
+		_(
+			RawOrigin::Signed(test_account),
+			CurrencyId::VToken(TokenSymbol::BNC),
+		);
 
 		Ok(())
 	}
@@ -535,10 +577,17 @@ mod benchmarks {
 		<frame_system::Pallet<T>>::set_block_number((2 * 86400 / 12u32).into());
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(test_account), CurrencyId::VToken(TokenSymbol::BNC));
+		_(
+			RawOrigin::Signed(test_account),
+			CurrencyId::VToken(TokenSymbol::BNC),
+		);
 
 		Ok(())
 	}
 
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext_benchmark(), crate::mock::Runtime);
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
 }

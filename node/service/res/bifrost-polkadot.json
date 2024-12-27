@@ -16,7 +16,7 @@
   ],
   "protocolId": "bifrost_polkadot",
   "properties": {
-    "ss58Format": 6,
+    "ss58Format": 0,
     "tokenDecimals": [
       12
     ],
@@ -26,7 +26,7 @@
   },
   "relayChain": "polkadot",
   "paraId": 2030,
-  "evmSince": 5331574,
+  "evmSince": 5331575,
   "codeSubstitutes": {},
   "genesis": {
     "raw": {

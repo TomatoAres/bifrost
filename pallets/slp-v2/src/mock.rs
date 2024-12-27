@@ -250,6 +250,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -294,14 +295,19 @@ impl slp_v2::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let t = system::GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
 
 pub(crate) fn last_event() -> RuntimeEvent {
-	system::Pallet::<Test>::events().pop().expect("Event expected").event
+	system::Pallet::<Test>::events()
+		.pop()
+		.expect("Event expected")
+		.event
 }
 
 pub(crate) fn expect_event<E: Into<RuntimeEvent>>(e: E) {

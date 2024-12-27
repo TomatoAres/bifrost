@@ -309,6 +309,7 @@ impl bifrost_slp::Config for Runtime {
 	type StablePoolHandler = ();
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_asset_registry::Config for Runtime {

@@ -97,6 +97,7 @@ pub mod pallet {
 	use frame_support::dispatch::GetDispatchInfo;
 	use orml_traits::XcmTransfer;
 	use pallet_xcm::ensure_response;
+	use sp_runtime::traits::BlockNumberProvider;
 	use xcm::v3::{MaybeErrorCode, Response};
 
 	#[pallet::config]
@@ -168,6 +169,9 @@ pub mod pallet {
 
 		// asset registry to get asset metadata
 		type AssetIdMaps: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
+
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		#[pallet::constant]
 		type TreasuryAccount: Get<Self::AccountId>;
@@ -710,7 +714,10 @@ pub mod pallet {
 				staking_agent.initialize_delegator(currency_id, delegator_location)?;
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::DelegatorInitialized { currency_id, delegator_id });
+			Pallet::<T>::deposit_event(Event::DelegatorInitialized {
+				currency_id,
+				delegator_id,
+			});
 			Ok(())
 		}
 
@@ -1119,7 +1126,11 @@ pub mod pallet {
 			)?;
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::ConvertAsset { currency_id, who: *who, amount });
+			Pallet::<T>::deposit_event(Event::ConvertAsset {
+				currency_id,
+				who: *who,
+				amount,
+			});
 
 			Ok(())
 		}
@@ -1140,7 +1151,10 @@ pub mod pallet {
 			T::VtokenMinting::increase_token_pool(currency_id, amount)?;
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::PoolTokenIncreased { currency_id, amount });
+			Pallet::<T>::deposit_event(Event::PoolTokenIncreased {
+				currency_id,
+				amount,
+			});
 			Ok(())
 		}
 
@@ -1160,7 +1174,10 @@ pub mod pallet {
 			T::VtokenMinting::decrease_token_pool(currency_id, amount)?;
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::PoolTokenDecreased { currency_id, amount });
+			Pallet::<T>::deposit_event(Event::PoolTokenDecreased {
+				currency_id,
+				amount,
+			});
 			Ok(())
 		}
 
@@ -1180,9 +1197,10 @@ pub mod pallet {
 
 			let last_update_block = LastTimeUpdatedOngoingTimeUnit::<T>::get(currency_id)
 				.ok_or(Error::<T>::LastTimeUpdatedOngoingTimeUnitNotExist)?;
-			let current_block = frame_system::Pallet::<T>::block_number();
-			let blocks_between =
-				current_block.checked_sub(&last_update_block).ok_or(Error::<T>::UnderFlow)?;
+			let current_block = T::BlockNumberProvider::current_block_number();
+			let blocks_between = current_block
+				.checked_sub(&last_update_block)
+				.ok_or(Error::<T>::UnderFlow)?;
 
 			ensure!(blocks_between >= interval, Error::<T>::TooFrequent);
 
@@ -1313,7 +1331,10 @@ pub mod pallet {
 				currency_id,
 				amount: fee_to_charge,
 			});
-			Pallet::<T>::deposit_event(Event::PoolTokenIncreased { currency_id, amount: value });
+			Pallet::<T>::deposit_event(Event::PoolTokenIncreased {
+				currency_id,
+				amount: value,
+			});
 			Ok(())
 		}
 
@@ -1337,7 +1358,10 @@ pub mod pallet {
 			});
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::OperateOriginSet { currency_id, operator: who });
+			Pallet::<T>::deposit_event(Event::OperateOriginSet {
+				currency_id,
+				operator: who,
+			});
 
 			Ok(())
 		}
@@ -1358,7 +1382,10 @@ pub mod pallet {
 			});
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::FeeSourceSet { currency_id, who_and_fee });
+			Pallet::<T>::deposit_event(Event::FeeSourceSet {
+				currency_id,
+				who_and_fee,
+			});
 
 			Ok(())
 		}
@@ -1401,7 +1428,10 @@ pub mod pallet {
 			staking_agent.remove_delegator(&who, currency_id)?;
 
 			// Deposit event.
-			Pallet::<T>::deposit_event(Event::DelegatorRemoved { currency_id, delegator_id: *who });
+			Pallet::<T>::deposit_event(Event::DelegatorRemoved {
+				currency_id,
+				delegator_id: *who,
+			});
 			Ok(())
 		}
 
@@ -1598,7 +1628,10 @@ pub mod pallet {
 				*fee_set = maybe_fee_set;
 			});
 
-			Pallet::<T>::deposit_event(Event::HostingFeesSet { currency_id, fees: maybe_fee_set });
+			Pallet::<T>::deposit_event(Event::HostingFeesSet {
+				currency_id,
+				fees: maybe_fee_set,
+			});
 
 			Ok(())
 		}
@@ -1885,7 +1918,7 @@ pub mod pallet {
 				Pallet::<T>::check_length_and_deduplicate(currency_id, validator_list)?;
 
 			// get current block number
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 			// get the due block number
 			let due_block_number = current_block_number
 				.checked_add(&BlockNumberFor::<T>::from(SIX_MONTHS))
@@ -1957,7 +1990,7 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			// get current block number
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 
 			// get the due block number if the validator is not in the validator boost list
 			let mut due_block_number = current_block_number
@@ -1971,8 +2004,9 @@ pub mod pallet {
 				// if the validator is in the validator boost list, change the due block
 				// number
 				validator_boost_vec = validator_boost_list.to_vec();
-				if let Some(index) =
-					validator_boost_vec.iter().position(|(validator, _)| validator == who.as_ref())
+				if let Some(index) = validator_boost_vec
+					.iter()
+					.position(|(validator, _)| validator == who.as_ref())
 				{
 					let original_due_block = validator_boost_vec[index].1;
 					// get the due block number
@@ -2093,7 +2127,9 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 			ensure!(amount > Zero::zero(), Error::<T>::AmountZero);
 
-			let token = vtoken.to_token().map_err(|_| Error::<T>::NotSupportedCurrencyId)?;
+			let token = vtoken
+				.to_token()
+				.map_err(|_| Error::<T>::NotSupportedCurrencyId)?;
 			let (pool_id, _, _) = T::StablePoolHandler::get_pool_id(&vtoken, &token)
 				.ok_or(Error::<T>::StablePoolNotFound)?;
 
@@ -2155,7 +2191,7 @@ pub mod pallet {
 				0
 			};
 
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			let current_block_number = T::BlockNumberProvider::current_block_number();
 			let mut remove_num = 0;
 			// for each validator in the validator boost list, if the due block number is less than
 			// or equal to the current block number, remove it
@@ -2202,12 +2238,14 @@ pub mod pallet {
 			match origin.clone().into() {
 				Ok(RawOrigin::Signed(ref signer))
 					if Some(signer) == <OperateOrigins<T>>::get(currency_id).as_ref() =>
-					Ok(()),
+				{
+					Ok(())
+				}
 				_ => {
 					T::ControlOrigin::ensure_origin(origin)
 						.map_err(|_| Error::<T>::NotAuthorized)?;
 					Ok(())
-				},
+				}
 			}
 		}
 
@@ -2225,8 +2263,10 @@ pub mod pallet {
 		}
 
 		pub fn confirm_delegator_ledger_call() -> <T as Config>::RuntimeCall {
-			let call =
-				Call::<T>::confirm_delegator_ledger { query_id: 0, response: Default::default() };
+			let call = Call::<T>::confirm_delegator_ledger {
+				query_id: 0,
+				response: Default::default(),
+			};
 			<T as Config>::RuntimeCall::from(call)
 		}
 
@@ -2272,10 +2312,13 @@ impl<T: Config, F: Contains<CurrencyIdOf<T>>>
 		derivative_index: DerivativeIndex,
 	) -> Option<AccountIdOf<T>> {
 		Self::get_multilocation(token, derivative_index).and_then(|location| {
-			location.interior.last().and_then(|interior| match interior {
-				AccountId32 { id, .. } => T::AccountId::decode(&mut &id[..]).ok(),
-				_ => None,
-			})
+			location
+				.interior
+				.last()
+				.and_then(|interior| match interior {
+					AccountId32 { id, .. } => T::AccountId::decode(&mut &id[..]).ok(),
+					_ => None,
+				})
 		})
 	}
 
@@ -2286,8 +2329,10 @@ impl<T: Config, F: Contains<CurrencyIdOf<T>>>
 		Self::get_multilocation(token, derivative_index).and_then(|location| {
 			DelegatorLedgers::<T>::get(token, location).and_then(|ledger| match ledger {
 				Ledger::Substrate(l) if F::contains(&token) => Some((l.total, l.active)),
-				Ledger::ParachainStaking(l) if F::contains(&token) =>
-					Some((l.total, l.total.checked_sub(&l.less_total).unwrap_or_default())),
+				Ledger::ParachainStaking(l) if F::contains(&token) => Some((
+					l.total,
+					l.total.checked_sub(&l.less_total).unwrap_or_default(),
+				)),
 				_ => None,
 			})
 		})

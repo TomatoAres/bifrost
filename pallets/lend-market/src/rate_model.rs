@@ -1,16 +1,20 @@
-// Copyright 2021 Parallel Finance Developer.
-// This file is part of Parallel Finance.
+// This file is part of Bifrost.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
+// Copyright (C) Liebi Technologies PTE. LTD.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_primitives::{Rate, Ratio};
 use scale_info::TypeInfo;
@@ -44,7 +48,12 @@ impl InterestRateModel {
 		full_rate: Rate,
 		jump_utilization: Ratio,
 	) -> Self {
-		Self::Jump(JumpModel::new_model(base_rate, jump_rate, full_rate, jump_utilization))
+		Self::Jump(JumpModel::new_model(
+			base_rate,
+			jump_rate,
+			full_rate,
+			jump_utilization,
+		))
 	}
 
 	pub fn new_curve_model(base_rate: Rate) -> Self {
@@ -102,14 +111,19 @@ impl JumpModel {
 		full_rate: Rate,
 		jump_utilization: Ratio,
 	) -> JumpModel {
-		Self { base_rate, jump_rate, full_rate, jump_utilization }
+		Self {
+			base_rate,
+			jump_rate,
+			full_rate,
+			jump_utilization,
+		}
 	}
 
 	/// Check the jump model for sanity
 	pub fn check_model(&self) -> bool {
-		if self.base_rate > Self::MAX_BASE_RATE ||
-			self.jump_rate > Self::MAX_JUMP_RATE ||
-			self.full_rate > Self::MAX_FULL_RATE
+		if self.base_rate > Self::MAX_BASE_RATE
+			|| self.jump_rate > Self::MAX_JUMP_RATE
+			|| self.full_rate > Self::MAX_FULL_RATE
 		{
 			return false;
 		}
@@ -172,7 +186,9 @@ impl CurveModel {
 	pub fn get_borrow_rate(&self, utilization: Ratio) -> Option<Rate> {
 		const NINE: usize = 9;
 		let utilization_rate: Rate = utilization.into();
-		utilization_rate.saturating_pow(NINE).checked_add(&self.base_rate)
+		utilization_rate
+			.saturating_pow(NINE)
+			.checked_add(&self.base_rate)
 	}
 }
 
@@ -229,9 +245,9 @@ mod tests {
 		let excess_util = util.saturating_sub(jump_utilization);
 		assert_eq!(
 			borrow_rate,
-			(jump_model.full_rate - jump_model.jump_rate).saturating_mul(excess_util.into()) /
-				FixedU128::saturating_from_rational(20, 100) +
-				normal_rate,
+			(jump_model.full_rate - jump_model.jump_rate).saturating_mul(excess_util.into())
+				/ FixedU128::saturating_from_rational(20, 100)
+				+ normal_rate,
 		);
 	}
 

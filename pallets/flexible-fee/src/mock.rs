@@ -20,16 +20,20 @@
 
 use super::*;
 use crate::{self as flexible_fee, mock_price::MockOraclePriceProvider};
+use bifrost_asset_registry::AssetIdMaps;
 use bifrost_currencies::BasicCurrencyAdapter;
-use bifrost_primitives::{Balance, CurrencyId, FlexibleFeePalletId, TokenSymbol, ZenlinkPalletId};
+use bifrost_primitives::{
+	Balance, CurrencyId, EvmPermit, FlexibleFeePalletId, TokenSymbol, ZenlinkPalletId,
+};
 use cumulus_primitives_core::ParaId as Pid;
 use frame_support::{
-	derive_impl, parameter_types,
+	derive_impl, ord_parameter_types, parameter_types,
 	sp_runtime::{DispatchError, DispatchResult},
 	traits::{ConstU128, Get, Nothing},
 	weights::{ConstantMultiplier, IdentityFee},
 	PalletId,
 };
+use frame_system::EnsureSignedBy;
 use frame_system::{self, EnsureRoot};
 use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
@@ -38,7 +42,7 @@ use sp_runtime::{
 	AccountId32, BuildStorage, SaturatedConversion,
 };
 use sp_std::marker::PhantomData;
-use std::convert::TryInto;
+use std::{cell::RefCell, convert::TryInto};
 use zenlink_protocol::{
 	AssetBalance, AssetId as ZenlinkAssetId, LocalAssetHandler, PairLpGenerate, ZenlinkMultiAssets,
 };
@@ -62,16 +66,23 @@ frame_support::construct_runtime!(
 		ZenlinkProtocol: zenlink_protocol,
 		Currencies: bifrost_currencies,
 		AssetRegistry: bifrost_asset_registry,
+		EVMAccounts: pallet_evm_accounts,
 	}
 );
 
 pub(crate) const BALANCE_TRANSFER_CALL: <Test as frame_system::Config>::RuntimeCall =
-	RuntimeCall::Balances(BalancesCall::transfer_allow_death { dest: ALICE, value: 69 });
+	RuntimeCall::Balances(BalancesCall::transfer_allow_death {
+		dest: ALICE,
+		value: 69,
+	});
 
+ord_parameter_types! {
+	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
+}
 impl bifrost_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type RegisterOrigin = EnsureRoot<AccountId>;
+	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
 }
 
@@ -146,6 +157,21 @@ impl orml_tokens::Config for Test {
 	type CurrencyHooks = ();
 }
 
+pub struct EvmNonceProvider;
+impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
+	fn get_nonce(_: sp_core::H160) -> sp_core::U256 {
+		sp_core::U256::zero()
+	}
+}
+
+impl pallet_evm_accounts::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type EvmNonceProvider = EvmNonceProvider;
+	type FeeMultiplier = ConstU32<10>;
+	type ControllerOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const TreasuryAccount: AccountId32 = TREASURY_ACCOUNT;
 	pub const MaxFeeCurrencyOrderListLen: u32 = 50;
@@ -167,6 +193,9 @@ impl crate::Config for Test {
 	type XcmRouter = ();
 	type PalletId = FlexibleFeePalletId;
 	type OraclePriceProvider = MockOraclePriceProvider;
+	type InspectEvmAccounts = EVMAccounts;
+	type EvmPermit = PermitDispatchHandler;
+	type AssetIdMaps = AssetIdMaps<Test>;
 }
 
 pub struct XcmDestWeightAndFee;
@@ -255,7 +284,12 @@ where
 		amount: AssetBalance,
 	) -> DispatchResult {
 		let currency_id: CurrencyId = asset_id.try_into().unwrap();
-		Local::transfer(currency_id, &origin, &target, amount.unique_saturated_into())?;
+		Local::transfer(
+			currency_id,
+			&origin,
+			&target,
+			amount.unique_saturated_into(),
+		)?;
 
 		Ok(())
 	}
@@ -284,7 +318,9 @@ where
 
 // Build genesis storage according to the mock runtime.
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut t = frame_system::GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap();
 	// We use default for brevity, but you can configure as desired if needed.
 	pallet_balances::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
@@ -309,4 +345,128 @@ impl BalanceCmp<AccountId> for Test {
 	) -> Result<Ordering, Self::Error> {
 		Pallet::<Test>::cmp_with_precision(account, currency, amount, amount_precision)
 	}
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PermitDispatchData {
+	pub source: H160,
+	pub target: H160,
+	pub input: Vec<u8>,
+	pub value: U256,
+	pub gas_limit: u64,
+	pub max_fee_per_gas: U256,
+	pub max_priority_fee_per_gas: Option<U256>,
+	pub nonce: Option<U256>,
+	pub access_list: Vec<(H160, Vec<H256>)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ValidationData {
+	pub source: H160,
+	pub target: H160,
+	pub input: Vec<u8>,
+	pub value: U256,
+	pub gas_limit: u64,
+	pub deadline: U256,
+	pub v: u8,
+	pub r: H256,
+	pub s: H256,
+}
+
+thread_local! {
+	static PERMIT_VALIDATION: RefCell<Vec<ValidationData>> = const { RefCell::new(vec![]) };
+	static PERMIT_DISPATCH: RefCell<Vec<PermitDispatchData>> = const { RefCell::new(vec![]) };
+}
+
+pub struct PermitDispatchHandler;
+
+impl PermitDispatchHandler {
+	pub fn last_validation_call_data() -> ValidationData {
+		PERMIT_VALIDATION.with(|v| v.borrow().last().unwrap().clone())
+	}
+
+	pub fn last_dispatch_call_data() -> PermitDispatchData {
+		PERMIT_DISPATCH.with(|v| v.borrow().last().unwrap().clone())
+	}
+}
+
+impl EvmPermit for PermitDispatchHandler {
+	fn validate_permit(
+		source: H160,
+		target: H160,
+		input: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		deadline: U256,
+		v: u8,
+		r: H256,
+		s: H256,
+	) -> DispatchResult {
+		let data = ValidationData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		};
+		PERMIT_VALIDATION.with(|v| v.borrow_mut().push(data));
+		Ok(())
+	}
+
+	fn dispatch_permit(
+		source: H160,
+		target: H160,
+		input: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		max_fee_per_gas: U256,
+		max_priority_fee_per_gas: Option<U256>,
+		nonce: Option<U256>,
+		access_list: Vec<(H160, Vec<H256>)>,
+	) -> DispatchResultWithPostInfo {
+		let data = PermitDispatchData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			max_fee_per_gas,
+			max_priority_fee_per_gas,
+			nonce,
+			access_list,
+		};
+		PERMIT_DISPATCH.with(|v| v.borrow_mut().push(data));
+		Ok(PostDispatchInfo::default())
+	}
+
+	fn gas_price() -> (U256, Weight) {
+		(U256::from(222u128), Weight::zero())
+	}
+
+	fn dispatch_weight(_gas_limit: u64) -> Weight {
+		todo!()
+	}
+
+	fn permit_nonce(_account: H160) -> U256 {
+		U256::default()
+	}
+
+	fn on_dispatch_permit_error() {}
+}
+
+pub struct ExtBuilder;
+
+impl ExtBuilder {
+	pub fn build(self) -> sp_io::TestExternalities {
+		new_test_ext()
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
+	ExtBuilder.build()
 }

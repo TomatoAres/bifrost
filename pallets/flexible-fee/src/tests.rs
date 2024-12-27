@@ -23,37 +23,228 @@ use crate::{
 	impls::on_charge_transaction::PaymentInfo, mock::*, BlockNumberFor, BoundedVec, Config,
 	DispatchError::BadOrigin, Error, UserDefaultFeeCurrency,
 };
+use bifrost_asset_registry::AssetMetadata;
+use bifrost_asset_registry::CurrencyMetadatas;
 use bifrost_primitives::{
 	AccountFeeCurrency, BalanceCmp, CurrencyId, TryConvertFrom, BNC, DOT, KSM, MANTA, VBNC, VDOT,
 	WETH,
 };
 use frame_support::{
-	assert_noop, assert_ok,
+	assert_noop, assert_ok, assert_storage_noop,
 	dispatch::{DispatchInfo, PostDispatchInfo},
+	pallet_prelude::ValidateUnsigned,
 	traits::fungibles::Mutate,
 	weights::Weight,
 };
 use orml_traits::MultiCurrency;
+use pallet_traits::evm::InspectEvmAccounts;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_arithmetic::FixedU128;
-use sp_runtime::AccountId32;
+use sp_core::{H256, U256};
+use sp_runtime::{transaction_validity::TransactionSource, AccountId32};
 use std::cmp::Ordering::{Greater, Less};
 use zenlink_protocol::AssetId;
 
 // some common variables
 pub const CHARLIE: AccountId32 = AccountId32::new([0u8; 32]);
 
-pub const ALICE: AccountId32 = AccountId32::new([2u8; 32]);
+pub const ALICE: AccountId = AccountId::new([1; 32]);
+pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const DICK: AccountId32 = AccountId32::new([3u8; 32]);
 
 /// create a transaction info struct from weight. Handy to avoid building the whole struct.
 pub fn info() -> DispatchInfo {
 	// pays_fee: Pays::Yes -- class: DispatchClass::Normal
-	DispatchInfo { weight: Weight::default(), ..Default::default() }
+	DispatchInfo {
+		weight: Weight::default(),
+		..Default::default()
+	}
 }
 
 fn post_info() -> PostDispatchInfo {
-	PostDispatchInfo { actual_weight: Some(Weight::default()), pays_fee: Default::default() }
+	PostDispatchInfo {
+		actual_weight: Some(Weight::default()),
+		pays_fee: Default::default(),
+	}
+}
+
+fn ini_meta_data() {
+	let metadata = AssetMetadata {
+		name: b"Polkadot DOT".to_vec(),
+		symbol: b"DOT".to_vec(),
+		decimals: 10,
+		minimal_balance: 1000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	assert_ok!(AssetRegistry::register_vtoken_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		0
+	));
+
+	assert_eq!(CurrencyMetadatas::<Test>::get(DOT), Some(metadata.clone()));
+
+	let metadata = AssetMetadata {
+		name: b"Moonbeam Native Token".to_vec(),
+		symbol: b"GLMR".to_vec(),
+		decimals: 18,
+		minimal_balance: 1000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Tether USD".to_vec(),
+		symbol: b"USDT".to_vec(),
+		decimals: 6,
+		minimal_balance: 1000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Astar".to_vec(),
+		symbol: b"ASTR".to_vec(),
+		decimals: 18,
+		minimal_balance: 10000000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Filecoin Network Token".to_vec(),
+		symbol: b"FIL".to_vec(),
+		decimals: 18,
+		minimal_balance: 1000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"USD Coin".to_vec(),
+		symbol: b"USDC".to_vec(),
+		decimals: 6,
+		minimal_balance: 1000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"interBTC".to_vec(),
+		symbol: b"IBTC".to_vec(),
+		decimals: 8,
+		minimal_balance: 100,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Interlay".to_vec(),
+		symbol: b"INTR".to_vec(),
+		decimals: 10,
+		minimal_balance: 10000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Manta Network".to_vec(),
+		symbol: b"MANTA".to_vec(),
+		decimals: 18,
+		minimal_balance: 1000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"bncs-20 inscription token BNCS".to_vec(),
+		symbol: b"BNCS".to_vec(),
+		decimals: 12,
+		minimal_balance: 10000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"PINK".to_vec(),
+		symbol: b"PINK".to_vec(),
+		decimals: 10,
+		minimal_balance: 100000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"DED".to_vec(),
+		symbol: b"DED".to_vec(),
+		decimals: 10,
+		minimal_balance: 1,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Pendulum".to_vec(),
+		symbol: b"PEN".to_vec(),
+		decimals: 12,
+		minimal_balance: 100000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Wrapped ETH".to_vec(),
+		symbol: b"WETH".to_vec(),
+		decimals: 18,
+		minimal_balance: 15000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	assert_eq!(CurrencyMetadatas::<Test>::get(WETH), Some(metadata.clone()));
 }
 
 fn basic_setup() {
@@ -147,7 +338,10 @@ fn set_user_default_fee_currency_should_work() {
 		let alice_default_currency = UserDefaultFeeCurrency::<Test>::get(ALICE).unwrap();
 		assert_eq!(alice_default_currency, BNC);
 
-		assert_ok!(FlexibleFee::set_user_default_fee_currency(origin_signed_alice.clone(), None));
+		assert_ok!(FlexibleFee::set_user_default_fee_currency(
+			origin_signed_alice.clone(),
+			None
+		));
 		assert_eq!(UserDefaultFeeCurrency::<Test>::get(ALICE).is_none(), true);
 	});
 }
@@ -185,7 +379,10 @@ fn set_default_fee_currency_list_should_work() {
 			asset_order_list_vec.clone()
 		));
 
-		assert_eq!(crate::UniversalFeeCurrencyOrderList::<Test>::get(), asset_order_list_vec);
+		assert_eq!(
+			crate::UniversalFeeCurrencyOrderList::<Test>::get(),
+			asset_order_list_vec
+		);
 	});
 }
 
@@ -389,12 +586,20 @@ fn get_currency_asset_id_should_work() {
 	new_test_ext().execute_with(|| {
 		// BNC
 		let asset_id = FlexibleFee::get_currency_asset_id(BNC).unwrap();
-		let bnc_asset_id = AssetId { chain_id: 2001, asset_type: 0, asset_index: 0 };
+		let bnc_asset_id = AssetId {
+			chain_id: 2001,
+			asset_type: 0,
+			asset_index: 0,
+		};
 		assert_eq!(asset_id, bnc_asset_id);
 
 		// KSM
 		let asset_id = FlexibleFee::get_currency_asset_id(KSM).unwrap();
-		let ksm_asset_id = AssetId { chain_id: 2001, asset_type: 2, asset_index: 516 };
+		let ksm_asset_id = AssetId {
+			chain_id: 2001,
+			asset_type: 2,
+			asset_index: 516,
+		};
 		assert_eq!(asset_id, ksm_asset_id);
 	});
 }
@@ -402,6 +607,8 @@ fn get_currency_asset_id_should_work() {
 #[test]
 fn get_fee_currency_should_work_with_default_currency() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -422,6 +629,8 @@ fn get_fee_currency_should_work_with_default_currency() {
 #[test]
 fn get_fee_currency_should_work_with_default_currency_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -442,6 +651,8 @@ fn get_fee_currency_should_work_with_default_currency_poor() {
 #[test]
 fn get_fee_currency_should_work_with_weth() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 100u128.pow(12))); // BNC
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
@@ -456,6 +667,8 @@ fn get_fee_currency_should_work_with_weth() {
 #[test]
 fn get_fee_currency_should_work_with_weth_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 100u128.pow(12))); // BNC
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
@@ -480,6 +693,8 @@ fn get_fee_currency_should_work_with_weth_poor() {
 #[test]
 fn get_fee_currency_should_work_with_universal_fee_currency() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -510,6 +725,8 @@ fn get_fee_currency_should_work_with_universal_fee_currency() {
 #[test]
 fn get_fee_currency_should_work_with_universal_fee_currency_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 1u128.pow(12))); // BNC
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 1u128.pow(10))); // vDOT
@@ -534,6 +751,8 @@ fn get_fee_currency_should_work_with_universal_fee_currency_poor() {
 #[test]
 fn get_fee_currency_should_work_with_all_currency_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -564,6 +783,8 @@ fn get_fee_currency_should_work_with_all_currency_poor() {
 #[test]
 fn cmp_with_precision_should_work_with_weth() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(WETH, &ALICE, 10u128.pow(18) - 1)); // ETH
 
 		let ordering =
@@ -575,6 +796,8 @@ fn cmp_with_precision_should_work_with_weth() {
 #[test]
 fn cmp_with_precision_should_work_with_dot() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 10u128.pow(11) + 1)); // DOT
 
 		let ordering =
@@ -591,5 +814,141 @@ fn cmp_with_precision_should_work_with_bnc() {
 		let ordering =
 			FlexibleFee::cmp_with_precision(&ALICE, &BNC, 10u128.pow(18), 18u32).unwrap();
 		assert_eq!(ordering, Greater);
+	});
+}
+
+#[test]
+fn validate_unsigned_should_correctly_call_validate_handler() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+
+	new_test_ext().execute_with(|| {
+		let r: [u8; 32] = [100; 32];
+		let s: [u8; 32] = [200; 32];
+
+		let call = crate::Call::dispatch_permit {
+			from: alice_evm_address,
+			to: other_evm_address,
+			data: b"test".to_vec(),
+			value: U256::from(1234),
+			gas_limit: 123,
+			deadline: U256::from(99999),
+			v: 255,
+			r: H256::from(r),
+			s: H256::from(s),
+		};
+
+		assert_storage_noop!({
+			let res = FlexibleFee::validate_unsigned(TransactionSource::Local, &call);
+			assert_ok!(res);
+		});
+
+		let expected = ValidationData {
+			source: alice_evm_address,
+			target: other_evm_address,
+			input: b"test".to_vec(),
+			value: U256::from(1234),
+			gas_limit: 123,
+			deadline: U256::from(99999),
+			v: 255,
+			r: H256::from(r),
+			s: H256::from(s),
+		};
+
+		assert_eq!(PermitDispatchHandler::last_validation_call_data(), expected);
+	});
+}
+
+#[test]
+fn validate_unsigned_should_correctly_dry_run_dispatch() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+
+	new_test_ext().execute_with(|| {
+		let r: [u8; 32] = [100; 32];
+		let s: [u8; 32] = [200; 32];
+
+		let call = crate::Call::dispatch_permit {
+			from: alice_evm_address,
+			to: other_evm_address,
+			data: b"test".to_vec(),
+			value: U256::from(1234),
+			gas_limit: 123,
+			deadline: U256::from(99999),
+			v: 255,
+			r: H256::from(r),
+			s: H256::from(s),
+		};
+
+		assert_storage_noop!({
+			let res = FlexibleFee::validate_unsigned(TransactionSource::Local, &call);
+			assert_ok!(res);
+		});
+
+		let expected = PermitDispatchData {
+			source: alice_evm_address,
+			target: other_evm_address,
+			input: b"test".to_vec(),
+			value: U256::from(1234),
+			gas_limit: 123,
+			max_fee_per_gas: U256::from(222u128),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		};
+
+		assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
+	});
+}
+
+#[test]
+fn dispatch_should_correctly_call_validate_and_dispatch() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+
+	new_test_ext().execute_with(|| {
+		let r: [u8; 32] = [50; 32];
+		let s: [u8; 32] = [100; 32];
+
+		assert_ok!(FlexibleFee::dispatch_permit(
+			RuntimeOrigin::none(),
+			alice_evm_address,
+			other_evm_address,
+			U256::from(1234),
+			b"test".to_vec(),
+			333,
+			U256::from(99999u128),
+			128,
+			H256::from(r),
+			H256::from(s),
+		));
+
+		let expected = ValidationData {
+			source: alice_evm_address,
+			target: other_evm_address,
+			input: b"test".to_vec(),
+			value: U256::from(1234),
+			gas_limit: 333,
+			deadline: U256::from(99999u128),
+			v: 128,
+			r: H256::from(r),
+			s: H256::from(s),
+		};
+
+		assert_eq!(PermitDispatchHandler::last_validation_call_data(), expected);
+
+		let expected = PermitDispatchData {
+			source: alice_evm_address,
+			target: other_evm_address,
+			input: b"test".to_vec(),
+			value: U256::from(1234),
+			gas_limit: 333,
+			max_fee_per_gas: U256::from(222u128),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		};
+
+		assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
 	});
 }

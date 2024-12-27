@@ -117,7 +117,13 @@ where
 		backend: Arc<fc_db::kv::Backend<B, C>>,
 		evm_since: BlockNumberOf<B>,
 	) -> Self {
-		Self { inner, client, backend, evm_since, _marker: PhantomData }
+		Self {
+			inner,
+			client,
+			backend,
+			evm_since,
+			_marker: PhantomData,
+		}
 	}
 }
 
@@ -134,10 +140,7 @@ where
 {
 	type Error = ConsensusError;
 
-	async fn check_block(
-		&mut self,
-		block: BlockCheckParams<B>,
-	) -> Result<ImportResult, Self::Error> {
+	async fn check_block(&self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
 		self.inner.check_block(block).await.map_err(Into::into)
 	}
 

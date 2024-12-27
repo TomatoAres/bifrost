@@ -252,6 +252,7 @@ impl bifrost_stable_asset::Config for Test {
 	type WeightInfo = ();
 	type ListingOrigin = EnsureSignedBy<One, u128>;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Test {
@@ -311,6 +312,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 pub struct Slp;
@@ -355,7 +357,10 @@ pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
 pub struct MockDataProvider;
 impl DataProvider<CurrencyId, TimeStampedPrice> for MockDataProvider {
 	fn get(_asset_id: &CurrencyId) -> Option<TimeStampedPrice> {
-		Some(TimeStampedPrice { value: Price::saturating_from_integer(100), timestamp: 0 })
+		Some(TimeStampedPrice {
+			value: Price::saturating_from_integer(100),
+			timestamp: 0,
+		})
 	}
 }
 
@@ -393,7 +398,9 @@ impl MockOraclePriceProvider {
 
 	pub fn set_price(asset_id: CurrencyId, price: Price) {
 		Self::PRICES.with(|prices| {
-			prices.borrow_mut().insert(CurrencyIdWrap(asset_id), Some((price, 1u64)));
+			prices
+				.borrow_mut()
+				.insert(CurrencyIdWrap(asset_id), Some((price, 1u64)));
 		});
 	}
 
@@ -448,6 +455,7 @@ impl lend_market::Config for Test {
 	type RewardAssetId = RewardAssetId;
 	type LiquidationFreeAssetId = LiquidationFreeAssetId;
 	type MaxLengthLimit = MaxLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_prices::Config for Test {
@@ -493,7 +501,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -514,7 +524,10 @@ impl ExtBuilder {
 
 	// Build genesis storage according to the mock runtime.
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into();
+		let mut t = frame_system::GenesisConfig::<Test>::default()
+			.build_storage()
+			.unwrap()
+			.into();
 
 		bifrost_asset_registry::GenesisConfig::<Test> {
 			currency: vec![

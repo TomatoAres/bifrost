@@ -113,6 +113,37 @@ where
 			withdraw_limit_count,
 		}
 	}
+	pub fn new_gauge(
+		keeper: AccountIdOf,
+		reward_issuer: AccountIdOf,
+		tokens_proportion: BTreeMap<CurrencyIdOf, Perbill>,
+		basic_token: (CurrencyIdOf, Perbill),
+		basic_rewards: BTreeMap<CurrencyIdOf, BalanceOf>,
+		gauge: Option<PoolId>,
+		min_deposit_to_start: BalanceOf,
+		after_block_to_start: BlockNumberFor,
+		withdraw_limit_time: BlockNumberFor,
+		claim_limit_time: BlockNumberFor,
+		withdraw_limit_count: u8,
+	) -> Self {
+		Self {
+			tokens_proportion,
+			basic_token,
+			total_shares: Default::default(),
+			basic_rewards,
+			rewards: BTreeMap::new(),
+			state: PoolState::Ongoing,
+			keeper,
+			reward_issuer,
+			gauge,
+			block_startup: None,
+			min_deposit_to_start,
+			after_block_to_start,
+			withdraw_limit_time,
+			claim_limit_time,
+			withdraw_limit_count,
+		}
+	}
 }
 
 #[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
@@ -134,7 +165,9 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 		PoolInfos::<T>::mutate_exists(pool, |maybe_pool_info| -> DispatchResult {
-			let pool_info = maybe_pool_info.as_mut().ok_or(Error::<T>::PoolDoesNotExist)?;
+			let pool_info = maybe_pool_info
+				.as_mut()
+				.ok_or(Error::<T>::PoolDoesNotExist)?;
 
 			pool_info
 				.rewards
@@ -174,7 +207,10 @@ impl<T: Config> Pallet<T> {
 						U256::from(add_amount.to_owned().saturated_into::<u128>())
 							.saturating_mul(total_reward.to_owned().saturated_into::<u128>().into())
 							.checked_div(
-								initial_total_shares.to_owned().saturated_into::<u128>().into(),
+								initial_total_shares
+									.to_owned()
+									.saturated_into::<u128>()
+									.into(),
 							)
 							.unwrap_or_default(),
 					)
@@ -189,21 +225,24 @@ impl<T: Config> Pallet<T> {
 			},
 		);
 
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 
 		let mut share_info = SharesAndWithdrawnRewards::<T>::get(pid, who)
 			.unwrap_or_else(|| ShareInfo::new(who.clone(), current_block_number));
 		share_info.share = share_info.share.saturating_add(add_amount);
 		// update withdrawn inflation for each reward currency
-		withdrawn_inflation.into_iter().for_each(|(reward_currency, reward_inflation)| {
-			share_info
-				.withdrawn_rewards
-				.entry(reward_currency)
-				.and_modify(|withdrawn_reward| {
-					*withdrawn_reward = withdrawn_reward.saturating_add(reward_inflation);
-				})
-				.or_insert(reward_inflation);
-		});
+		withdrawn_inflation
+			.into_iter()
+			.for_each(|(reward_currency, reward_inflation)| {
+				share_info
+					.withdrawn_rewards
+					.entry(reward_currency)
+					.and_modify(|withdrawn_reward| {
+						*withdrawn_reward = withdrawn_reward.saturating_add(reward_inflation);
+					})
+					.or_insert(reward_inflation);
+			});
 		SharesAndWithdrawnRewards::<T>::insert(pid, who, share_info);
 		PoolInfos::<T>::insert(&pid, pool_info);
 	}
@@ -224,7 +263,8 @@ impl<T: Config> Pallet<T> {
 		Self::claim_rewards(who, pool)?;
 
 		SharesAndWithdrawnRewards::<T>::mutate(pool, who, |share_info_old| -> DispatchResult {
-			let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
 			if let Some(mut share_info) = share_info_old.take() {
 				let remove_amount;
 				if let Some(remove_amount_input) = remove_amount_input {
@@ -242,7 +282,9 @@ impl<T: Config> Pallet<T> {
 				}
 
 				PoolInfos::<T>::mutate(pool, |maybe_pool_info| -> DispatchResult {
-					let pool_info = maybe_pool_info.as_mut().ok_or(Error::<T>::PoolDoesNotExist)?;
+					let pool_info = maybe_pool_info
+						.as_mut()
+						.ok_or(Error::<T>::PoolDoesNotExist)?;
 
 					share_info
 						.withdraw_list
@@ -295,26 +337,21 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn claim_rewards(who: &T::AccountId, pool: PoolId) -> DispatchResult {
-		if let Some(_) = GaugePoolInfos::<T>::get(pool) {
-			let pool_info = PoolInfos::<T>::get(pool).ok_or(Error::<T>::PoolDoesNotExist)?;
-			let share_info = SharesAndWithdrawnRewards::<T>::get(pool, who)
-				.ok_or(Error::<T>::ShareInfoNotExists)?;
-			T::BbBNC::get_rewards(pool, who, Some((share_info.share, pool_info.total_shares)))?;
-		}
 		SharesAndWithdrawnRewards::<T>::mutate_exists(
 			pool,
 			who,
 			|maybe_share_withdrawn| -> DispatchResult {
 				let current_block_number: BlockNumberFor<T> =
-					frame_system::Pallet::<T>::block_number();
+					T::BlockNumberProvider::current_block_number();
 				if let Some(share_info) = maybe_share_withdrawn {
 					if share_info.share.is_zero() {
 						return Ok(());
 					}
 
 					PoolInfos::<T>::mutate(pool, |maybe_pool_info| -> DispatchResult {
-						let pool_info =
-							maybe_pool_info.as_mut().ok_or(Error::<T>::PoolDoesNotExist)?;
+						let pool_info = maybe_pool_info
+							.as_mut()
+							.ok_or(Error::<T>::PoolDoesNotExist)?;
 
 						let total_shares =
 							U256::from(pool_info.total_shares.to_owned().saturated_into::<u128>());
@@ -364,6 +401,7 @@ impl<T: Config> Pallet<T> {
 										account_to_send = T::TreasuryAccount::get();
 									}
 								}
+
 								// pay reward to `who`
 								T::MultiCurrency::transfer(
 									*reward_currency,
@@ -395,7 +433,7 @@ impl<T: Config> Pallet<T> {
 			|share_info_old| -> DispatchResult {
 				if let Some(mut share_info) = share_info_old.take() {
 					let current_block_number: BlockNumberFor<T> =
-						frame_system::Pallet::<T>::block_number();
+						T::BlockNumberProvider::current_block_number();
 					let mut tmp: Vec<(BlockNumberFor<T>, BalanceOf<T>)> = Default::default();
 					share_info.withdraw_list.iter().try_for_each(
 						|(dest_block, remove_value)| -> DispatchResult {
@@ -438,10 +476,10 @@ impl<T: Config> Pallet<T> {
 					share_info.withdraw_list = tmp;
 
 					// if withdraw_list and share both are empty, and if_remove is true, remove it.
-					if share_info.withdraw_list !=
-						Vec::<(BlockNumberFor<T>, BalanceOf<T>)>::default() ||
-						!share_info.share.is_zero() ||
-						!if_remove
+					if share_info.withdraw_list
+						!= Vec::<(BlockNumberFor<T>, BalanceOf<T>)>::default()
+						|| !share_info.share.is_zero()
+						|| !if_remove
 					{
 						*share_info_old = Some(share_info);
 					};
@@ -449,5 +487,66 @@ impl<T: Config> Pallet<T> {
 				Ok(())
 			},
 		)
+	}
+
+	pub fn refresh_inner(exchanger: &T::AccountId, pid: PoolId) -> DispatchResult {
+		let gauge_pid = pid + GAUGE_BASE_ID;
+		if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger) {
+			if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
+				let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+					.checked_mul(&share_info.share)
+					.ok_or(ArithmeticError::Overflow)?;
+				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
+				{
+					Self::update_gauge_share(
+						&exchanger,
+						gauge_pid,
+						gauge_new_value,
+						share_info.share,
+						&mut gauge_pool_info,
+					)?;
+				} else {
+					Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+				}
+			}
+		} else {
+			// If `SharesAndWithdrawnRewards` returns `None`, remove the `pid` from `UserFarmingPool`.
+			UserFarmingPool::<T>::mutate(&exchanger, |pids| {
+				pids.retain(|&x| x != pid);
+			});
+			SharesAndWithdrawnRewards::<T>::remove(gauge_pid, &exchanger);
+		}
+
+		Ok(())
+	}
+
+	pub fn update_gauge_share(
+		exchanger: &T::AccountId,
+		gauge_pid: PoolId,
+		gauge_new_value: BalanceOf<T>,
+		share: BalanceOf<T>,
+		gauge_pool_info: &mut PoolInfo<
+			BalanceOf<T>,
+			CurrencyIdOf<T>,
+			AccountIdOf<T>,
+			BlockNumberFor<T>,
+		>,
+	) -> DispatchResult {
+		match gauge_new_value.cmp(&share) {
+			Ordering::Less => {
+				let gauge_remove_value = share.saturating_sub(gauge_new_value);
+				Self::remove_share(
+					exchanger,
+					gauge_pid,
+					Some(gauge_remove_value),
+					gauge_pool_info.withdraw_limit_time,
+				)?;
+			}
+			Ordering::Equal | Ordering::Greater => {
+				let gauge_add_value = gauge_new_value.saturating_sub(share);
+				Self::add_share(exchanger, gauge_pid, gauge_pool_info, gauge_add_value);
+			}
+		};
+		Ok(())
 	}
 }

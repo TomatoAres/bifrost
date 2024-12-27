@@ -117,7 +117,7 @@ impl<T: frame_system::Config> bifrost_buy_back::WeightInfo for BifrostWeight<T> 
 	/// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:2 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
-	fn on_idle() -> Weight {
+	fn on_initialize() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `502`
 		//  Estimated: `6442`

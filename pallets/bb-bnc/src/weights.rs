@@ -53,6 +53,7 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for bb_bnc.
 pub trait WeightInfo {
+	fn on_initialize() -> Weight;
 	fn set_config() -> Weight;
 	fn create_lock() -> Weight;
 	fn increase_amount() -> Weight;
@@ -69,6 +70,32 @@ pub trait WeightInfo {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
+	/// Storage: `BbBNC::IncentiveConfigs` (r:1 w:1)
+	/// Proof: `BbBNC::IncentiveConfigs` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Number` (r:1 w:0)
+	/// Proof: `System::Number` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `BbBNC::Epoch` (r:1 w:0)
+	/// Proof: `BbBNC::Epoch` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::PointHistory` (r:1 w:0)
+	/// Proof: `BbBNC::PointHistory` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:2 w:0)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `System::ExecutionPhase` (r:1 w:0)
+	/// Proof: `System::ExecutionPhase` (`max_values`: Some(1), `max_size`: Some(5), added: 500, mode: `MaxEncodedLen`)
+	/// Storage: `System::EventCount` (r:1 w:1)
+	/// Proof: `System::EventCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `System::Events` (r:1 w:1)
+	/// Proof: `System::Events` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	fn on_initialize() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `462`
+		//  Estimated: `6196`
+		// Minimum execution time: 22_033_000 picoseconds.
+		Weight::from_parts(22_373_000, 0)
+			.saturating_add(Weight::from_parts(0, 6196))
+			.saturating_add(RocksDbWeight::get().reads(9))
+			.saturating_add(RocksDbWeight::get().writes(3))
+	}
 	/// Storage: `BbBNC::BbConfigs` (r:1 w:1)
 	/// Proof: `BbBNC::BbConfigs` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// Storage: `System::Number` (r:1 w:0)

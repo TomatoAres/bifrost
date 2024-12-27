@@ -42,7 +42,10 @@ where
 		RawOrigin::Root.into(),
 		STAKING_PROTOCOL,
 		ProtocolConfiguration {
-			xcm_task_fee: XcmFee { weight: Weight::zero(), fee: 100 },
+			xcm_task_fee: XcmFee {
+				weight: Weight::zero(),
+				fee: 100
+			},
 			protocol_fee_rate: Permill::from_perthousand(100),
 			unlock_period: TimeUnit::Era(9),
 			operator: AccountId::from([0u8; 32]).into(),
@@ -70,7 +73,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		#[extrinsic_call]
 		_(RawOrigin::Root, STAKING_PROTOCOL, delegator);
 
@@ -84,7 +91,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		let validator = Validator::AstarDappStaking(AstarValidator::Evm(H160::zero()));
 		#[extrinsic_call]
 		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, validator);
@@ -98,7 +109,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		let validator = Validator::AstarDappStaking(AstarValidator::Evm(H160::zero()));
 		assert_ok!(SlpV2::<T>::add_validator(
 			RawOrigin::Root.into(),
@@ -118,7 +133,10 @@ mod benchmarks {
 			RawOrigin::Root,
 			STAKING_PROTOCOL,
 			ProtocolConfiguration {
-				xcm_task_fee: XcmFee { weight: Weight::zero(), fee: 100 },
+				xcm_task_fee: XcmFee {
+					weight: Weight::zero(),
+					fee: 100,
+				},
 				protocol_fee_rate: Permill::from_perthousand(100),
 				unlock_period: TimeUnit::Era(9),
 				operator: AccountId::from([0u8; 32]).into(),
@@ -141,7 +159,11 @@ mod benchmarks {
 			locked: 100,
 			unlocking: Default::default(),
 		});
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 
 		#[extrinsic_call]
 		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, ledger);
@@ -155,7 +177,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		#[extrinsic_call]
 		_(RawOrigin::Root, STAKING_PROTOCOL, delegator);
 		Ok(())
@@ -168,7 +194,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		do_set_protocol_configuration::<T>();
 		#[extrinsic_call]
 		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, 1000);
@@ -189,7 +219,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		#[extrinsic_call]
 		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, 1000);
 		Ok(())
@@ -202,7 +236,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		do_set_protocol_configuration::<T>();
 		let task = DappStaking::Lock(100);
 		#[extrinsic_call]
@@ -217,7 +255,11 @@ mod benchmarks {
 				.unwrap()
 				.into(),
 		);
-		assert_ok!(SlpV2::<T>::add_delegator(RawOrigin::Root.into(), STAKING_PROTOCOL, None));
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			STAKING_PROTOCOL,
+			None
+		));
 		do_set_protocol_configuration::<T>();
 
 		PendingStatusByQueryId::<T>::insert(
@@ -228,7 +270,11 @@ mod benchmarks {
 			)),
 		);
 		#[extrinsic_call]
-		_(RawOrigin::Root, 0, xcm::v4::Response::DispatchResult(MaybeErrorCode::Success));
+		_(
+			RawOrigin::Root,
+			0,
+			xcm::v4::Response::DispatchResult(MaybeErrorCode::Success),
+		);
 		Ok(())
 	}
 

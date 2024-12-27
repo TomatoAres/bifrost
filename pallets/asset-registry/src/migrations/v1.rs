@@ -72,16 +72,24 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
-		ensure!(Pallet::<T>::on_chain_storage_version() == 0, "must upgrade linearly");
-		ensure!(Pallet::<T>::in_code_storage_version() == 1, "must upgrade linearly");
+		ensure!(
+			Pallet::<T>::on_chain_storage_version() == 0,
+			"must upgrade linearly"
+		);
+		ensure!(
+			Pallet::<T>::in_code_storage_version() == 1,
+			"must upgrade linearly"
+		);
 		let currency_id_to_locations_count = CurrencyIdToLocations::<T>::iter().count();
 		log::info!(target: LOG_TARGET, "CurrencyIdToLocations pre-migrate storage count: {:?}", currency_id_to_locations_count);
 
 		let location_to_currency_ids_count = LocationToCurrencyIds::<T>::iter().count();
 		log::info!(target: LOG_TARGET, "LocationToCurrencyIds pre-migrate storage count: {:?}", location_to_currency_ids_count);
 
-		let combined_data =
-			(currency_id_to_locations_count as u64, location_to_currency_ids_count as u64);
+		let combined_data = (
+			currency_id_to_locations_count as u64,
+			location_to_currency_ids_count as u64,
+		);
 
 		Ok(combined_data.encode())
 	}

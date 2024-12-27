@@ -44,14 +44,38 @@ macro_rules! decode_optional {
 
 #[test]
 fn decode_asset_id_from_evm_address_should_work() {
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000001")), CurrencyId::Native(BNC));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000800")), CurrencyId::Token2(0));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000900")), CurrencyId::VToken2(0));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000204")), CurrencyId::Token(KSM));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000104")), CurrencyId::VToken(KSM));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000404")), CurrencyId::VSToken(KSM));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000a00")), CurrencyId::VSToken2(0));
-	assert_eq!(decode!(hex!("ffffffff00000000000000000000000000000a00")), CurrencyId::VSToken2(0));
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000001")),
+		CurrencyId::Native(BNC)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000800")),
+		CurrencyId::Token2(0)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000900")),
+		CurrencyId::VToken2(0)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000204")),
+		CurrencyId::Token(KSM)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000104")),
+		CurrencyId::VToken(KSM)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000404")),
+		CurrencyId::VSToken(KSM)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000a00")),
+		CurrencyId::VSToken2(0)
+	);
+	assert_eq!(
+		decode!(hex!("ffffffff00000000000000000000000000000a00")),
+		CurrencyId::VSToken2(0)
+	);
 	assert_eq!(
 		decode!(hex!("ffffffff00000b00000000000000000000000000")),
 		CurrencyId::VSBond2(0, 0, 0, 0)
@@ -68,12 +92,30 @@ fn decode_asset_id_from_evm_address_should_work() {
 
 #[test]
 fn decode_asset_id_from_evm_address_should_not_work_with_invalid_asset_addresses() {
-	assert_eq!(decode_optional!(hex!("0000000000000000000000000000000200000000")), None);
-	assert_eq!(decode_optional!(hex!("0000000000000000000000000000000000000001")), None);
-	assert_eq!(decode_optional!(hex!("90000000000000000000000000000001ffffffff")), None);
-	assert_eq!(decode_optional!(hex!("0000000000000000000000000000001100000003")), None);
-	assert_eq!(decode_optional!(hex!("0000000000000000900000000000000100000003")), None);
-	assert_eq!(decode_optional!(hex!("7777777777777777777777777777777777777777")), None);
+	assert_eq!(
+		decode_optional!(hex!("0000000000000000000000000000000200000000")),
+		None
+	);
+	assert_eq!(
+		decode_optional!(hex!("0000000000000000000000000000000000000001")),
+		None
+	);
+	assert_eq!(
+		decode_optional!(hex!("90000000000000000000000000000001ffffffff")),
+		None
+	);
+	assert_eq!(
+		decode_optional!(hex!("0000000000000000000000000000001100000003")),
+		None
+	);
+	assert_eq!(
+		decode_optional!(hex!("0000000000000000900000000000000100000003")),
+		None
+	);
+	assert_eq!(
+		decode_optional!(hex!("7777777777777777777777777777777777777777")),
+		None
+	);
 }
 
 #[test]
@@ -103,7 +145,12 @@ fn encode_asset_id_to_evm_address_should_work() {
 		H160::from(hex!("ffffffff00000b00000000000000000000000000"))
 	);
 	assert_eq!(
-		encode!(CurrencyId::LPToken(TokenSymbol::BNC, 0, TokenSymbol::DOT, 0)),
+		encode!(CurrencyId::LPToken(
+			TokenSymbol::BNC,
+			0,
+			TokenSymbol::DOT,
+			0
+		)),
 		H160::from(hex!("ffffffff00000000000000000000000601000300"))
 	);
 	assert_eq!(

@@ -15,3 +15,27 @@ pub trait InspectEvmAccounts<AccountId, EvmAddress> {
 	/// Returns `True` if the address is allowed to deploy smart contracts.
 	fn can_deploy_contracts(evm_address: EvmAddress) -> bool;
 }
+
+impl<AccountId: From<[u8; 32]>, EvmAddress: Default> InspectEvmAccounts<AccountId, EvmAddress>
+	for ()
+{
+	fn evm_address(_account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
+		EvmAddress::default()
+	}
+
+	fn convert_account_id(_evm_address: EvmAddress) -> AccountId {
+		[0u8; 32].into()
+	}
+
+	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
+		None
+	}
+
+	fn account_id(_evm_address: EvmAddress) -> AccountId {
+		[0u8; 32].into()
+	}
+
+	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
+		false
+	}
+}

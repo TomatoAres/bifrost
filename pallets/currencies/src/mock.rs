@@ -142,7 +142,9 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self

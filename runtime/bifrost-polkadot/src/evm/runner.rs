@@ -66,8 +66,12 @@ where
 	) -> Result<Self::Output, DispatchError> {
 		let from_currency = AC::get_fee_currency(account, fee)
 			.map_err(|_| DispatchError::Other("Get Currency Error."))?;
-		let account_balance =
-			I::reducible_balance(from_currency, account, Preservation::Preserve, Fortitude::Polite);
+		let account_balance = I::reducible_balance(
+			from_currency,
+			account,
+			Preservation::Preserve,
+			Fortitude::Polite,
+		);
 		let price_weight = T::DbWeight::get().reads(2); // 1 read to get currency and 1 read to get balance
 
 		if from_currency == to_currency {
@@ -117,11 +121,11 @@ where
 		let account_id = T::AddressMapping::into_account_id(source);
 		let account_nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
 
-		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id, base_fee)
-			.map_err(|_| RunnerError {
-			error: R::Error::from(TransactionValidationError::BalanceTooLow),
-			weight,
-		})?;
+		let (balance, b_weight) =
+			match B::get_balance_in_currency(evm_currency, &account_id, base_fee) {
+				Ok((balance, b_weight)) => (balance, b_weight),
+				Err(_) => (0, T::DbWeight::get().reads(2)),
+			};
 
 		let (source_account, inner_weight) = (
 			Account {

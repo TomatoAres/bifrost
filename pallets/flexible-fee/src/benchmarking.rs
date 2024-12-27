@@ -18,7 +18,7 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use frame_benchmarking::v1::{benchmarks, whitelisted_caller};
+use frame_benchmarking::v2::*;
 use frame_support::BoundedVec;
 
 use bifrost_primitives::{CurrencyId, TokenSymbol};
@@ -27,17 +27,35 @@ use sp_std::vec;
 
 use crate::{Call, Config, Pallet};
 
-benchmarks! {
-	set_user_default_fee_currency {
+#[benchmarks]
+mod benchmarks {
+	use super::*;
+
+	#[benchmark]
+	fn set_user_default_fee_currency() -> Result<(), BenchmarkError> {
 		let caller = whitelisted_caller();
-	}: _(RawOrigin::Signed(caller),Some(CurrencyId::Token(TokenSymbol::DOT)))
 
-	set_default_fee_currency_list {
+		#[extrinsic_call]
+		_(
+			RawOrigin::Signed(caller),
+			Some(CurrencyId::Token(TokenSymbol::DOT)),
+		);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn set_default_fee_currency_list() -> Result<(), BenchmarkError> {
 		let default_list = BoundedVec::try_from(vec![CurrencyId::Token(TokenSymbol::DOT)]).unwrap();
-	}: _(RawOrigin::Root,default_list)
 
+		#[extrinsic_call]
+		_(RawOrigin::Root, default_list);
+
+		Ok(())
+	}
 	impl_benchmark_test_suite!(
-	Pallet,
-	crate::mock::new_test_ext(),
-	crate::mock::Test)
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Test
+	);
 }

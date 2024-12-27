@@ -97,9 +97,14 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		CloudsConverted { clouds: BalanceOf<T>, vebnc: BalanceOf<T> },
+		CloudsConverted {
+			clouds: BalanceOf<T>,
+			vebnc: BalanceOf<T>,
+		},
 
-		VbncCharged { vbnc: BalanceOf<T> },
+		VbncCharged {
+			vbnc: BalanceOf<T>,
+		},
 	}
 
 	#[pallet::pallet]
@@ -125,10 +130,16 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::NotEnoughBalance)?;
 
 			let can_get_vbnc = Self::calculate_can_get_vbnc(value)?;
-			ensure!(can_get_vbnc >= expected_min_vebnc, Error::<T>::LessThanExpected);
+			ensure!(
+				can_get_vbnc >= expected_min_vebnc,
+				Error::<T>::LessThanExpected
+			);
 			// ensure can_get_vbnc greater than existential deposit
 			let existential_deposit = T::MultiCurrency::minimum_balance(VBNC);
-			ensure!(can_get_vbnc >= existential_deposit, Error::<T>::LessThanExistentialDeposit);
+			ensure!(
+				can_get_vbnc >= existential_deposit,
+				Error::<T>::LessThanExistentialDeposit
+			);
 
 			// burn clouds
 			T::MultiCurrency::withdraw(CLOUD, &who, value)?;
@@ -141,7 +152,10 @@ pub mod pallet {
 			T::BbBNC::create_lock_inner(&who, can_get_vbnc, T::LockedBlocks::get())?;
 
 			// deposit event
-			Self::deposit_event(Event::CloudsConverted { clouds: value, vebnc: can_get_vbnc });
+			Self::deposit_event(Event::CloudsConverted {
+				clouds: value,
+				vebnc: can_get_vbnc,
+			});
 
 			Ok(())
 		}

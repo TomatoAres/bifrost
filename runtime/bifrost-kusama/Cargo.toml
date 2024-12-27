@@ -1,7 +1,7 @@
 [package]
 name = "bifrost-kusama-runtime"
 version = "0.8.0"
-authors = ["Edwin Wang <lark930@gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 edition = "2021"
 build = "build.rs"
 
@@ -61,6 +61,7 @@ sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
+sp-debug-derive = { workspace = true }
 sp-inherents = { workspace = true }
 sp-io = { workspace = true }
 sp-offchain = { workspace = true }
@@ -93,7 +94,7 @@ polkadot-runtime-common = { workspace = true }
 xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
-xcm-fee-payment-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # orml
 orml-tokens = { workspace = true }
@@ -132,7 +133,6 @@ bifrost-slp = { workspace = true }
 bifrost-slpx = { workspace = true }
 bifrost-stable-pool = { workspace = true }
 bifrost-stable-pool-rpc-runtime-api = { workspace = true }
-bifrost-system-maker = { workspace = true }
 bifrost-system-staking = { workspace = true }
 bifrost-token-issuer = { workspace = true }
 bifrost-vesting = { workspace = true }
@@ -200,6 +200,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-inherents/std",
 	"sp-io/std",
 	"sp-offchain/std",
@@ -226,7 +227,7 @@ std = [
 	"xcm/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
-	"xcm-fee-payment-runtime-api/std",
+	"xcm-runtime-apis/std",
 
 	"orml-tokens/std",
 	"orml-traits/std",
@@ -259,7 +260,6 @@ std = [
 	"bifrost-slpx/std",
 	"bifrost-stable-pool-rpc-runtime-api/std",
 	"bifrost-stable-pool/std",
-	"bifrost-system-maker/std",
 	"bifrost-system-staking/std",
 	"bifrost-token-issuer/std",
 	"bifrost-vesting/std",
@@ -310,9 +310,7 @@ runtime-benchmarks = [
 	"bifrost-salp/runtime-benchmarks",
 	"bifrost-token-issuer/runtime-benchmarks",
 	"bifrost-vtoken-minting/runtime-benchmarks",
-	"bifrost-farming/runtime-benchmarks",
 	"bifrost-system-staking/runtime-benchmarks",
-	"bifrost-system-maker/runtime-benchmarks",
 	"bifrost-vstoken-conversion/runtime-benchmarks",
 	"bifrost-slp/runtime-benchmarks",
 	"bifrost-asset-registry/runtime-benchmarks",
@@ -388,7 +386,6 @@ try-runtime = [
 	"bifrost-vstoken-conversion/try-runtime",
 	"bifrost-farming/try-runtime",
 	"bifrost-system-staking/try-runtime",
-	"bifrost-system-maker/try-runtime",
 	"bifrost-fee-share/try-runtime",
 	"bifrost-cross-in-out/try-runtime",
 	"bifrost-slpx/try-runtime",
@@ -418,3 +415,7 @@ on-chain-release-build = ["sp-api/disable-logging", "metadata-hash"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []
+
+# By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled. 
+# This feature enables the detailed display of debug output.
+force-debug = ["sp-debug-derive/force-debug"]

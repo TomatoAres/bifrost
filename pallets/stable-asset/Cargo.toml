@@ -1,6 +1,6 @@
 [package]
 name = "bifrost-stable-asset"
-authors = ["Sora Yu <ymlll0508@gmail.com>"]
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
 description = "Substrate-based runtime version of NUTS stable assets."
 edition = "2021"
 version = "0.8.0"

@@ -1,16 +1,21 @@
-// Copyright 2021 Parallel Finance Developer.
-// This file is part of Parallel Finance.
+// This file is part of Bifrost.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
+// Copyright (C) Liebi Technologies PTE. LTD.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 #![allow(ambiguous_glob_reexports)]
 #![allow(hidden_glob_reexports)]
 
@@ -160,7 +165,10 @@ pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
 pub struct MockDataProvider;
 impl DataProvider<CurrencyId, TimeStampedPrice> for MockDataProvider {
 	fn get(_asset_id: &CurrencyId) -> Option<TimeStampedPrice> {
-		Some(TimeStampedPrice { value: Price::saturating_from_integer(100), timestamp: 0 })
+		Some(TimeStampedPrice {
+			value: Price::saturating_from_integer(100),
+			timestamp: 0,
+		})
 	}
 }
 
@@ -227,7 +235,9 @@ impl MockOraclePriceProvider {
 
 	pub fn set_price(asset_id: CurrencyId, price: Price) {
 		Self::PRICES.with(|prices| {
-			prices.borrow_mut().insert(CurrencyIdWrap(asset_id), Some((price, 1u64)));
+			prices
+				.borrow_mut()
+				.insert(CurrencyIdWrap(asset_id), Some((price, 1u64)));
 		});
 	}
 
@@ -323,10 +333,13 @@ impl Config for Test {
 	type RewardAssetId = RewardAssetId;
 	type LiquidationFreeAssetId = LiquidationFreeAssetId;
 	type MaxLengthLimit = MaxLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut t = frame_system::GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap();
 
 	bifrost_asset_registry::GenesisConfig::<Test> {
 		currency: vec![
@@ -389,7 +402,13 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 
 		Assets::mint(RuntimeOrigin::signed(ALICE), KSM.into(), ALICE, unit(1000)).unwrap();
 		Assets::mint(RuntimeOrigin::signed(ALICE), DOT.into(), ALICE, unit(1000)).unwrap();
-		Assets::mint(RuntimeOrigin::signed(ALICE), DOT_U.into(), ALICE, unit(1000)).unwrap();
+		Assets::mint(
+			RuntimeOrigin::signed(ALICE),
+			DOT_U.into(),
+			ALICE,
+			unit(1000),
+		)
+		.unwrap();
 		Assets::mint(RuntimeOrigin::signed(ALICE), PHA.into(), ALICE, unit(1000)).unwrap();
 		Assets::mint(RuntimeOrigin::signed(ALICE), KSM.into(), BOB, unit(1000)).unwrap();
 		Assets::mint(RuntimeOrigin::signed(ALICE), DOT.into(), BOB, unit(1000)).unwrap();

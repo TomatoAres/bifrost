@@ -20,7 +20,10 @@
 use std::{sync::Arc, time::Duration};
 
 use crate::eth::EthConfiguration;
-#[cfg(any(feature = "with-bifrost-kusama-runtime", feature = "with-bifrost-runtime"))]
+#[cfg(any(
+	feature = "with-bifrost-kusama-runtime",
+	feature = "with-bifrost-runtime"
+))]
 pub use bifrost_kusama_runtime;
 use bifrost_kusama_runtime::RuntimeApi;
 use bifrost_primitives::Block;
@@ -73,7 +76,11 @@ pub fn new_partial(
 		MaybeFullSelectChain,
 		sc_consensus::import_queue::BasicQueue<Block>,
 		sc_transaction_pool::FullPool<Block, FullClient>,
-		(ParachainBlockImport, Option<Telemetry>, Option<TelemetryWorkerHandle>),
+		(
+			ParachainBlockImport,
+			Option<Telemetry>,
+			Option<TelemetryWorkerHandle>,
+		),
 	>,
 	sc_service::Error,
 > {
@@ -90,7 +97,9 @@ pub fn new_partial(
 
 	let heap_pages = config
 		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+			extra_pages: h as _,
+		});
 
 	let executor = sc_executor::WasmExecutor::<HostFunctions>::builder()
 		.with_execution_method(config.wasm_method)
@@ -112,7 +121,9 @@ pub fn new_partial(
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+		task_manager
+			.spawn_handle()
+			.spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -126,7 +137,11 @@ pub fn new_partial(
 		client.clone(),
 	);
 
-	let select_chain = if dev { Some(LongestChain::new(backend.clone())) } else { None };
+	let select_chain = if dev {
+		Some(LongestChain::new(backend.clone()))
+	} else {
+		None
+	};
 
 	let block_import = ParachainBlockImport::new(client.clone(), backend.clone());
 
@@ -205,7 +220,7 @@ fn start_consensus(
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
 	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
-	sync_oracle: Arc<SyncingService<Block>>,
+	_sync_oracle: Arc<SyncingService<Block>>,
 	keystore: KeystorePtr,
 	relay_chain_slot_duration: Duration,
 	para_id: ParaId,
@@ -237,9 +252,11 @@ fn start_consensus(
 		para_backend: backend.clone(),
 		relay_client: relay_chain_interface,
 		code_hash_provider: move |block_hash| {
-			client.code_at(block_hash).ok().map(|c| ValidationCode::from(c).hash())
+			client
+				.code_at(block_hash)
+				.ok()
+				.map(|c| ValidationCode::from(c).hash())
 		},
-		sync_oracle,
 		keystore,
 		collator_key,
 		para_id,
@@ -252,11 +269,12 @@ fn start_consensus(
 		reinitialize: false,
 	};
 
-	let fut =
-		aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(
-			params,
-		);
-	task_manager.spawn_essential_handle().spawn("aura", None, fut);
+	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(
+		params,
+	);
+	task_manager
+		.spawn_essential_handle()
+		.spawn("aura", None, fut);
 
 	Ok(())
 }

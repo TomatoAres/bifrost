@@ -202,6 +202,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 ord_parameter_types! {
@@ -272,6 +273,7 @@ impl bifrost_slp::Config for Runtime {
 	type StablePoolHandler = ();
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = TreasuryAccount;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -296,6 +298,7 @@ impl bifrost_farming::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type WhitelistMaximumLimit = WhitelistMaximumLimit;
 	type GaugeRewardIssuer = FarmingGaugeRewardIssuerPalletId;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -317,6 +320,7 @@ impl system_staking::Config for Runtime {
 	type BlocksPerRound = BlocksPerRound;
 	type MaxTokenLen = MaxTokenLen;
 	type MaxFarmingPoolIdLen = MaxFarmingPoolIdLen;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -396,7 +400,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -423,7 +429,9 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self
@@ -472,4 +480,9 @@ pub(crate) fn roll_to(n: u64) -> u64 {
 		num_blocks += 1;
 	}
 	num_blocks
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
+	ExtBuilder::default().build()
 }

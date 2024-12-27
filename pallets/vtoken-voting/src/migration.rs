@@ -61,7 +61,10 @@ pub mod v2 {
 		ValueQuery,
 	>;
 
-	pub struct MigrateToV2<T, C>(sp_std::marker::PhantomData<T>, sp_std::marker::PhantomData<C>);
+	pub struct MigrateToV2<T, C>(
+		sp_std::marker::PhantomData<T>,
+		sp_std::marker::PhantomData<C>,
+	);
 	impl<T: Config, C: Get<CurrencyIdOf<T>>> OnRuntimeUpgrade for MigrateToV2<T, C> {
 		fn on_runtime_upgrade() -> Weight {
 			if StorageVersion::get::<Pallet<T>>() < 2 {
@@ -162,7 +165,10 @@ pub mod v3 {
 		ValueQuery,
 	>;
 
-	pub struct MigrateToV3<T, C>(sp_std::marker::PhantomData<T>, sp_std::marker::PhantomData<C>);
+	pub struct MigrateToV3<T, C>(
+		sp_std::marker::PhantomData<T>,
+		sp_std::marker::PhantomData<C>,
+	);
 	impl<T: Config, C: Get<CurrencyIdOf<T>>> OnRuntimeUpgrade for MigrateToV3<T, C> {
 		fn on_runtime_upgrade() -> Weight {
 			if StorageVersion::get::<Pallet<T>>() == 2 {
@@ -214,7 +220,10 @@ pub fn migrate_to_v3<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
 	ClassLocksFor::<T>::translate::<Vec<(PollIndex, BalanceOf<T>)>, _>(
 		|_: T::AccountId, locks: Vec<(PollIndex, BalanceOf<T>)>| {
 			let max_locked_balance = locks.iter().fold(BalanceOf::<T>::zero(), |a, i| a.max(i.1));
-			log::info!("Migrated max_locked_balance for {:?}...", max_locked_balance);
+			log::info!(
+				"Migrated max_locked_balance for {:?}...",
+				max_locked_balance
+			);
 			weight += T::DbWeight::get().writes(1);
 			Some(BoundedVec::try_from(vec![(vtoken, max_locked_balance)]).unwrap())
 		},
@@ -230,7 +239,10 @@ pub mod v4 {
 	use frame_support::{pallet_prelude::StorageVersion, traits::OnRuntimeUpgrade};
 	use sp_runtime::traits::Get;
 
-	pub struct MigrateToV4<T, C>(sp_std::marker::PhantomData<T>, sp_std::marker::PhantomData<C>);
+	pub struct MigrateToV4<T, C>(
+		sp_std::marker::PhantomData<T>,
+		sp_std::marker::PhantomData<C>,
+	);
 	impl<T: Config, C: Get<CurrencyIdOf<T>>> OnRuntimeUpgrade for MigrateToV4<T, C> {
 		fn on_runtime_upgrade() -> Weight {
 			if StorageVersion::get::<Pallet<T>>() == 3 {

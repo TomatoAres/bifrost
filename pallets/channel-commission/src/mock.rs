@@ -141,6 +141,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type WeightInfo = ();
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 pub struct ExtBuilder {
@@ -149,7 +150,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -175,7 +178,9 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self

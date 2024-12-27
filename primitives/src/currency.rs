@@ -80,6 +80,7 @@ pub const PEN_TOKEN_ID: u8 = 12u8;
 pub const PEN: CurrencyId = CurrencyId::Token2(PEN_TOKEN_ID);
 pub const WETH_TOKEN_ID: u8 = 13u8;
 pub const WETH: CurrencyId = CurrencyId::Token2(WETH_TOKEN_ID);
+pub const V_WETH: CurrencyId = CurrencyId::VToken2(WETH_TOKEN_ID);
 pub const VSBOND_BNC_2001_0_8: CurrencyId = CurrencyId::VSBond(TokenSymbol::BNC, 2001, 0, 8);
 pub const CLOUD_TOKEN_ID: u8 = 12u8;
 pub const CLOUD: CurrencyId = CurrencyId::Token2(CLOUD_TOKEN_ID);
@@ -92,12 +93,21 @@ pub const LUSDT: CurrencyId = CurrencyId::Lend(2);
 pub const LVDOT: CurrencyId = CurrencyId::Lend(3);
 pub const BLP_BNC_VBNC: CurrencyId = CurrencyId::BLP(2);
 pub const LP_BNC_VBNC: CurrencyId = CurrencyId::LPToken(TokenSymbol::ASG, 0, TokenSymbol::BNC, 1);
-pub const KUSAMA_VBNC_ASSET_INDEX: AssetId =
-	AssetId { chain_id: 2001, asset_type: 2, asset_index: 257 };
-pub const KUSAMA_VBNC_LP_ASSET_INDEX: AssetId =
-	AssetId { chain_id: 2001, asset_type: 2, asset_index: 1103806596608 };
-pub const KUSAMA_BNC_ASSET_INDEX: AssetId =
-	AssetId { chain_id: 2001, asset_type: 0, asset_index: 0 };
+pub const KUSAMA_VBNC_ASSET_INDEX: AssetId = AssetId {
+	chain_id: 2001,
+	asset_type: 2,
+	asset_index: 257,
+};
+pub const KUSAMA_VBNC_LP_ASSET_INDEX: AssetId = AssetId {
+	chain_id: 2001,
+	asset_type: 2,
+	asset_index: 1103806596608,
+};
+pub const KUSAMA_BNC_ASSET_INDEX: AssetId = AssetId {
+	chain_id: 2001,
+	asset_type: 0,
+	asset_index: 0,
+};
 
 macro_rules! create_currency_id {
 	($(#[$meta:meta])*
@@ -352,8 +362,9 @@ impl CurrencyId {
 		let vsbond_origin = CurrencyId::VSBond(symbol, index, first_slot, last_slot);
 
 		let vsbond_fixed = match vsbond_origin {
-			Self::VSBond(TokenSymbol::KSM, 2001, 13, 20) =>
-				Self::VSBond(TokenSymbol::BNC, 2001, 13, 20),
+			Self::VSBond(TokenSymbol::KSM, 2001, 13, 20) => {
+				Self::VSBond(TokenSymbol::BNC, 2001, 13, 20)
+			}
 			_ => vsbond_origin,
 		};
 
@@ -455,28 +466,33 @@ impl TryFrom<u64> for CurrencyId {
 				let token_symbol_1 = TokenSymbol::try_from(token_symbol_num_1).unwrap_or_default();
 				let token_symbol_2 = TokenSymbol::try_from(token_symbol_num_2).unwrap_or_default();
 
-				Ok(Self::LPToken(token_symbol_1, token_type_1, token_symbol_2, token_type_2))
-			},
+				Ok(Self::LPToken(
+					token_symbol_1,
+					token_type_1,
+					token_symbol_2,
+					token_type_2,
+				))
+			}
 			7 => {
 				let foreign_asset_id = ((id & 0x0000_ffff_ffff_0000) >> 16) as ForeignAssetId;
 				Ok(Self::ForeignAsset(foreign_asset_id))
-			},
+			}
 			8 => {
 				let token_id = t_discr as TokenId;
 				Ok(Self::Token2(token_id))
-			},
+			}
 			9 => {
 				let token_id = t_discr as TokenId;
 				Ok(Self::VToken2(token_id))
-			},
+			}
 			10 => {
 				let token_id = t_discr as TokenId;
 				Ok(Self::VSToken2(token_id))
-			},
+			}
 			11 => {
 				let token_id = t_discr as TokenId;
 				Ok(Self::VSBond2(token_id, pid, lp1, lp2))
-			},
+			}
 			_ => Err(()),
 		}
 	}

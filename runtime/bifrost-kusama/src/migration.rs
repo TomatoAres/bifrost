@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::*;
 use frame_support::{pallet_prelude::*, storage_alias, traits::OnRuntimeUpgrade};
 use log;
@@ -60,13 +62,29 @@ pub mod v0 {
 			>,
 		),
 		/// Referendum finished with approval. Submission deposit is held.
-		Approved(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		Approved(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished with rejection. Submission deposit is held.
-		Rejected(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		Rejected(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished with cancellation. Submission deposit is held.
-		Cancelled(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		Cancelled(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished and was never decided. Submission deposit is held.
-		TimedOut(Moment, Option<Deposit<AccountId, Balance>>, Option<Deposit<AccountId, Balance>>),
+		TimedOut(
+			Moment,
+			Option<Deposit<AccountId, Balance>>,
+			Option<Deposit<AccountId, Balance>>,
+		),
 		/// Referendum finished with a kill.
 		Killed(Moment),
 	}
@@ -137,40 +155,64 @@ pub mod v1 {
 					v0::ReferendumInfo::Ongoing(_) | v0::ReferendumInfo::Killed(_) => None,
 					v0::ReferendumInfo::Approved(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::Approved(e, s, d))
-					},
+					}
 					v0::ReferendumInfo::Rejected(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::Rejected(e, s, d))
-					},
+					}
 					v0::ReferendumInfo::Cancelled(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::Cancelled(e, s, d))
-					},
+					}
 					v0::ReferendumInfo::TimedOut(e, mut s, mut d) => {
 						if let Some(a) = &item[0].deposit1 {
-							s = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							s = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						if let Some(a) = &item[0].deposit2 {
-							d = Some(Deposit { amount: a.amount, who: a.who.clone() })
+							d = Some(Deposit {
+								amount: a.amount,
+								who: a.who.clone(),
+							})
 						}
 						Some(ReferendumInfo::TimedOut(e, s, d))
-					},
+					}
 				};
 				if let Some(new_value) = maybe_new_value {
 					weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
@@ -190,7 +232,10 @@ pub mod v1 {
 			let pre_referendum_count: u32 = Decode::decode(&mut &state[..])
 				.expect("failed to decode the state from pre-upgrade.");
 			let post_referendum_count = ReferendumInfoFor::<T, I>::iter().count() as u32;
-			ensure!(post_referendum_count == pre_referendum_count, "must migrate all referendums.");
+			ensure!(
+				post_referendum_count == pre_referendum_count,
+				"must migrate all referendums."
+			);
 
 			let result: Vec<ForeignReferendumInfo<T::AccountId, BalanceOf<T, I>>> =
 				serde_json::from_str(R::get()).expect("Failed to deserialize JSON");
@@ -200,15 +245,15 @@ pub mod v1 {
 
 				match referendum_info {
 					ReferendumInfo::Ongoing(_) | ReferendumInfo::Killed(_) => (),
-					ReferendumInfo::Approved(_e, s, d) |
-					ReferendumInfo::Rejected(_e, s, d) |
-					ReferendumInfo::Cancelled(_e, s, d) |
-					ReferendumInfo::TimedOut(_e, s, d) => {
+					ReferendumInfo::Approved(_e, s, d)
+					| ReferendumInfo::Rejected(_e, s, d)
+					| ReferendumInfo::Cancelled(_e, s, d)
+					| ReferendumInfo::TimedOut(_e, s, d) => {
 						match (s, item.deposit1) {
 							(Some(s), Some(a)) => {
 								ensure!(s.amount == a.amount, "amount not equal");
 								ensure!(s.who == a.who, "who not equal");
-							},
+							}
 							(None, None) => (),
 							_ => return Err(TryRuntimeError::Other("Referenda Data mismatch")),
 						}
@@ -216,12 +261,12 @@ pub mod v1 {
 							(Some(d), Some(a)) => {
 								ensure!(d.amount == a.amount, "amount not equal");
 								ensure!(d.who == a.who, "who not equal");
-							},
+							}
 							(None, None) => (),
 							_ => return Err(TryRuntimeError::Other("Referenda Data mismatch")),
 						}
 						()
-					},
+					}
 				};
 			}
 
@@ -239,11 +284,12 @@ pub mod slpx_migrates_whitelist {
 	pub struct UpdateWhitelist;
 	impl OnRuntimeUpgrade for UpdateWhitelist {
 		fn on_runtime_upgrade() -> Weight {
-			let new_whitelist: BoundedVec<AccountId, ConstU32<10>> =
-				vec![AccountId::from_ss58check("gtXJWw9ME9w7cXfmR6n9MFkKCSu2MrtA3dcFV2BhHpEZFjZ")
-					.unwrap()]
-				.try_into()
-				.unwrap();
+			let new_whitelist: BoundedVec<AccountId, ConstU32<10>> = vec![
+				AccountId::from_ss58check("gtXJWw9ME9w7cXfmR6n9MFkKCSu2MrtA3dcFV2BhHpEZFjZ")
+					.unwrap(),
+			]
+			.try_into()
+			.unwrap();
 			bifrost_slpx::WhitelistAccountId::<Runtime>::insert(
 				SupportChain::Moonbeam,
 				new_whitelist,
@@ -256,11 +302,12 @@ pub mod slpx_migrates_whitelist {
 		fn post_upgrade(_state: Vec<u8>) -> Result<(), TryRuntimeError> {
 			let whitelist =
 				bifrost_slpx::WhitelistAccountId::<Runtime>::get(SupportChain::Moonbeam);
-			let new_whitelist: BoundedVec<AccountId, ConstU32<10>> =
-				vec![AccountId::from_ss58check("gtXJWw9ME9w7cXfmR6n9MFkKCSu2MrtA3dcFV2BhHpEZFjZ")
-					.unwrap()]
-				.try_into()
-				.unwrap();
+			let new_whitelist: BoundedVec<AccountId, ConstU32<10>> = vec![
+				AccountId::from_ss58check("gtXJWw9ME9w7cXfmR6n9MFkKCSu2MrtA3dcFV2BhHpEZFjZ")
+					.unwrap(),
+			]
+			.try_into()
+			.unwrap();
 			assert_eq!(whitelist, new_whitelist);
 
 			Ok(())
@@ -462,10 +509,10 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!("Transfer successful: {:?} of BNC transferred", bnc_balance);
-					},
+					}
 					Err(e) => {
 						log::error!("Failed to transfer {:?} of BNC: {:?}", bnc_balance, e);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for BNC as the balance is 0");
@@ -482,10 +529,10 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!("Transfer successful: {:?} of KSM transferred", ksm_balance);
-					},
+					}
 					Err(e) => {
 						log::error!("Failed to transfer {:?} of KSM: {:?}", ksm_balance, e);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for KSM as the balance is 0");
@@ -506,14 +553,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2092, 15, 22); transferred",
 							vs_bond_1_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2092, 15, 22);: {:?}",
 							vs_bond_1_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::KSM, 2092, 15, 22) as the balance is 0");
@@ -534,14 +581,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2096, 17, 24) transferred",
 							vs_bond_2_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2096, 17, 24): {:?}",
 							vs_bond_2_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::KSM, 2096, 17, 24) as the balance is 0");
@@ -562,14 +609,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2100, 18, 25) transferred",
 							vs_bond_3_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2100, 18, 25): {:?}",
 							vs_bond_3_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::KSM, 2100, 18, 25) as the balance is 0");
@@ -590,14 +637,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2125, 23, 30) transferred",
 							vs_bond_4_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2125, 23, 30): {:?}",
 							vs_bond_4_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::KSM, 2125, 23, 30) as the balance is 0");
@@ -618,14 +665,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2114, 20, 27) transferred",
 							vs_bond_5_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2114, 20, 27): {:?}",
 							vs_bond_5_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::KSM, 2114, 20, 27) as the balance is 0");
@@ -646,14 +693,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2118, 22, 29) transferred",
 							vs_bond_6_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2118, 22, 29): {:?}",
 							vs_bond_6_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::KSM, 2118, 22, 29) as the balance is 0");
@@ -674,14 +721,14 @@ pub mod vsbond_auction {
 							"Transfer successful: {:?} of VSBond(TokenSymbol::BNC, 2001, 13, 20) transferred",
 							vs_bond_7_balance
 						);
-					},
+					}
 					Err(e) => {
 						log::error!(
 							"Failed to transfer {:?} of VSBond(TokenSymbol::BNC, 2001, 13, 20): {:?}",
 							vs_bond_7_balance,
 							e
 						);
-					},
+					}
 				}
 			} else {
 				log::info!("No transfer needed for VSBond(TokenSymbol::BNC, 2001, 13, 20) as the balance is 0");

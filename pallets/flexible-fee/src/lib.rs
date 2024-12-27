@@ -19,17 +19,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use crate::pallet::*;
+use bifrost_asset_registry::{AssetMetadata, CurrencyIdMapping, TokenInfo};
 use bifrost_primitives::{
-	currency::{VGLMR, VMANTA, WETH},
-	traits::XcmDestWeightAndFeeHandler,
-	AssetHubChainId, Balance, BalanceCmp, CurrencyId, DerivativeIndex, OraclePriceProvider, Price,
-	TryConvertFrom, XcmOperationType, BNC, DOT, GLMR, MANTA, VBNC, VDOT,
+	traits::XcmDestWeightAndFeeHandler, AssetHubChainId, Balance, BalanceCmp, CurrencyId,
+	DerivativeIndex, OraclePriceProvider, Price, TryConvertFrom, XcmOperationType, BNC, VBNC,
 };
 use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	pallet_prelude::*,
+	dispatch::PostDispatchInfo,
+	pallet_prelude::{ValidateUnsigned, *},
+	storage::with_transaction,
 	traits::{
 		fungibles::Inspect,
 		tokens::{Fortitude, Preservation},
@@ -41,11 +42,13 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
+use pallet_traits::evm::InspectEvmAccounts;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_arithmetic::traits::UniqueSaturatedInto;
+use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	traits::{AccountIdConversion, One},
-	BoundedVec,
+	BoundedVec, ModuleError, TransactionOutcome,
 };
 use sp_std::{boxed::Box, cmp::Ordering, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -63,6 +66,9 @@ pub mod weights;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T>>>::Balance;
+pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+	<T as frame_system::Config>::AccountId,
+>>::CurrencyId;
 pub type RawCallName = BoundedVec<u8, ConstU32<32>>;
 
 #[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -74,7 +80,7 @@ pub enum TargetChain {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use bifrost_primitives::{Balance, OraclePriceProvider};
+	use bifrost_primitives::{Balance, EvmPermit, OraclePriceProvider};
 	use frame_support::traits::fungibles::Inspect;
 
 	#[pallet::config]
@@ -96,6 +102,9 @@ pub mod pallet {
 		type ControlOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Get the weight and fee for executing Xcm.
 		type XcmWeightAndFeeHandler: XcmDestWeightAndFeeHandler<CurrencyId, Balance>;
+		/// EVM Accounts info
+		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, H160>;
+		type EvmPermit: EvmPermit;
 		/// Get TreasuryAccount
 		#[pallet::constant]
 		type TreasuryAccount: Get<Self::AccountId>;
@@ -115,6 +124,8 @@ pub mod pallet {
 		type ParachainId: Get<ParaId>;
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+		// asset registry to get asset metadata
+		type AssetIdMaps: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 	}
 
 	#[pallet::hooks]
@@ -144,11 +155,20 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Transfer to another chain
-		TransferTo { from: T::AccountId, target_chain: TargetChain, amount: BalanceOf<T> },
+		TransferTo {
+			from: T::AccountId,
+			target_chain: TargetChain,
+			amount: BalanceOf<T>,
+		},
 		/// Set user default fee currency
-		SetDefaultFeeCurrency { who: T::AccountId, currency_id: Option<CurrencyId> },
+		SetDefaultFeeCurrency {
+			who: T::AccountId,
+			currency_id: Option<CurrencyId>,
+		},
 		/// Set universal fee currency order list
-		SetFeeCurrencyList { currency_list: BoundedVec<CurrencyId, T::MaxFeeCurrencyOrderListLen> },
+		SetFeeCurrencyList {
+			currency_list: BoundedVec<CurrencyId, T::MaxFeeCurrencyOrderListLen>,
+		},
 		/// Set extra fee by call
 		SetExtraFee {
 			/// The raw call name to be set as the extra fee call.
@@ -202,6 +222,14 @@ pub mod pallet {
 		CurrencyNotSupport,
 		/// The maximum number of currencies that can be handled has been reached.
 		MaxCurrenciesReached,
+		/// EVM permit expired.
+		EvmPermitExpired,
+		/// EVM permit is invalid.
+		EvmPermitInvalid,
+		/// EVM permit call failed.
+		EvmPermitCallExecutionError,
+		/// EVM permit call failed.
+		EvmPermitRunnerError,
 	}
 
 	#[pallet::call]
@@ -262,8 +290,154 @@ pub mod pallet {
 				Some(fee_info) => ExtraFeeByCall::<T>::insert(&raw_call_name, fee_info),
 				None => ExtraFeeByCall::<T>::remove(&raw_call_name),
 			};
-			Self::deposit_event(Event::<T>::SetExtraFee { raw_call_name, fee_info });
+			Self::deposit_event(Event::<T>::SetExtraFee {
+				raw_call_name,
+				fee_info,
+			});
 			Ok(())
+		}
+
+		/// Dispatch EVM permit.
+		/// The main purpose of this function is to allow EVM accounts to pay for the transaction
+		/// fee in non-native currency by allowing them to self-dispatch pre-signed permit.
+		/// The EVM fee is paid in the currency set for the account.
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::EvmPermit::dispatch_weight(*gas_limit))]
+		pub fn dispatch_permit(
+			origin: OriginFor<T>,
+			from: H160,
+			to: H160,
+			value: U256,
+			data: Vec<u8>,
+			gas_limit: u64,
+			deadline: U256,
+			v: u8,
+			r: H256,
+			s: H256,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
+
+			// dispatch permit should never return error.
+			// validate_unsigned should prevent the transaction getting to this point in case of
+			// invalid permit. In case of any error, we call error handler ( which should pause
+			// this transaction) and return ok.
+			if T::EvmPermit::validate_permit(
+				from,
+				to,
+				data.clone(),
+				value,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			)
+			.is_err()
+			{
+				T::EvmPermit::on_dispatch_permit_error();
+				return Ok(PostDispatchInfo::default());
+			};
+
+			let (gas_price, _) = T::EvmPermit::gas_price();
+
+			let result = T::EvmPermit::dispatch_permit(
+				from,
+				to,
+				data,
+				value,
+				gas_limit,
+				gas_price,
+				None,
+				None,
+				vec![],
+			)
+			.unwrap_or_else(|e| {
+				// In case of runner error, account has not been charged, so we need to call error
+				// handler to pause dispatch error
+				if e.error == Error::<T>::EvmPermitRunnerError.into() {
+					T::EvmPermit::on_dispatch_permit_error();
+				}
+				e.post_info
+			});
+
+			Ok(result)
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::dispatch_permit {
+					from,
+					to,
+					value,
+					data,
+					gas_limit,
+					deadline,
+					v,
+					r,
+					s,
+				} => {
+					// We need to wrap this as separate tx, and since we also "dry-run" the
+					// dispatch, we need to rollback the changes if any
+					let result = with_transaction::<(), DispatchError, _>(|| {
+						// First verify signature
+						let result = T::EvmPermit::validate_permit(
+							*from,
+							*to,
+							data.clone(),
+							*value,
+							*gas_limit,
+							*deadline,
+							*v,
+							*r,
+							*s,
+						);
+						if let Some(error_res) = result.err() {
+							return TransactionOutcome::Rollback(Err(error_res));
+						}
+
+						let (gas_price, _) = T::EvmPermit::gas_price();
+
+						let result = T::EvmPermit::dispatch_permit(
+							*from,
+							*to,
+							data.clone(),
+							*value,
+							*gas_limit,
+							gas_price,
+							None,
+							None,
+							vec![],
+						);
+						match result {
+							Ok(_post_info) => TransactionOutcome::Rollback(Ok(())),
+							Err(e) => TransactionOutcome::Rollback(Err(e.error)),
+						}
+					});
+					let nonce = T::EvmPermit::permit_nonce(*from);
+					match result {
+						Ok(()) => ValidTransaction::with_tag_prefix("EvmPermit")
+							.and_provides((nonce, from))
+							.priority(0)
+							.longevity(64)
+							.propagate(true)
+							.build(),
+						Err(e) => {
+							let error_number = match e {
+								DispatchError::Module(ModuleError { error, .. }) => error[0],
+								_ => 0, /* this case should never happen because an Error is
+								         * always converted to DispatchError::Module(ModuleError) */
+							};
+							InvalidTransaction::Custom(error_number).into()
+						}
+					}
+				}
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 }
@@ -314,11 +488,17 @@ impl<T: Config> Pallet<T> {
 				)
 				.ok_or(Error::<T>::WeightAndFeeNotExist)?;
 
-			let fee: Asset = Asset { id: AssetId(Location::here()), fun: Fungible(xcm_fee) };
+			let fee: Asset = Asset {
+				id: AssetId(Location::here()),
+				fun: Fungible(xcm_fee),
+			};
 
 			let remote_xcm = Xcm(vec![
 				WithdrawAsset(fee.clone().into()),
-				BuyExecution { fees: fee.clone(), weight_limit: Unlimited },
+				BuyExecution {
+					fees: fee.clone(),
+					weight_limit: Unlimited,
+				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most,
@@ -368,19 +548,27 @@ impl<T: Config> Pallet<T> {
 	/// Get user fee charge assets order
 	fn get_fee_currency_list(account_id: &T::AccountId) -> Vec<CurrencyId> {
 		// Get universal fee currency order list
-		let mut fee_currency_list: Vec<CurrencyId> =
-			UniversalFeeCurrencyOrderList::<T>::get().into_iter().collect();
+		let mut fee_currency_list: Vec<CurrencyId> = UniversalFeeCurrencyOrderList::<T>::get()
+			.into_iter()
+			.collect();
 
 		// Get user default fee currency
 		if let Some(default_fee_currency) = UserDefaultFeeCurrency::<T>::get(&account_id) {
-			if let Some(index) = fee_currency_list.iter().position(|&c| c == default_fee_currency) {
+			if let Some(index) = fee_currency_list
+				.iter()
+				.position(|&c| c == default_fee_currency)
+			{
 				fee_currency_list.remove(index);
 			}
 			let first_fee_currency_index = 0;
 			fee_currency_list.insert(first_fee_currency_index, default_fee_currency);
 		};
 
-		fee_currency_list
+		if fee_currency_list.is_empty() {
+			vec![BNC]
+		} else {
+			fee_currency_list
+		}
 	}
 
 	fn get_fee_currency_and_fee_amount(
@@ -439,14 +627,14 @@ impl<T: Config> Pallet<T> {
 					Ok(amount_in) => {
 						fee_info = Some((currency_id, amount_in));
 						break;
-					},
-					Err(_) => {},
+					}
+					Err(_) => {}
 				}
 			}
 		}
 
 		match fee_info {
-			Some((fee_currency, fee_amount)) =>
+			Some((fee_currency, fee_amount)) => {
 				if fee_currency == extra_fee_currency {
 					T::MultiCurrency::transfer(fee_currency, who, extra_fee_receiver, fee_amount)
 						.map_err(|_| Error::<T>::NotEnoughBalance)?;
@@ -465,7 +653,8 @@ impl<T: Config> Pallet<T> {
 					)
 					.map_err(|_| Error::<T>::NotEnoughBalance)?;
 					Ok(())
-				},
+				}
+			}
 			None => Err(Error::<T>::ConversionError),
 		}
 	}
@@ -508,7 +697,7 @@ impl<T: Config> Pallet<T> {
 				T::MultiCurrency::ensure_can_withdraw(from_currency, who, amount_in)
 					.map_err(|_| Error::<T>::NotEnoughBalance)?;
 				Ok(amount_in)
-			},
+			}
 			Err(_) => Err(Error::<T>::NotEnoughBalance)?,
 		}
 	}
@@ -555,12 +744,14 @@ impl<T: Config> BalanceCmp<T::AccountId> for Pallet<T> {
 		let amount = amount.saturating_mul(adjust_precision);
 
 		// Adjust the balance based on currency type.
-		let balance_precision_offset = match *currency {
-			WETH | GLMR | VGLMR | MANTA | VMANTA => standard_precision.saturating_sub(18),
-			BNC | VBNC => standard_precision.saturating_sub(12),
-			DOT | VDOT => standard_precision.saturating_sub(10),
-			_ => return Err(Error::<T>::CurrencyNotSupport),
-		};
+		let decimals = currency
+			.decimals()
+			.or_else(|| {
+				T::AssetIdMaps::get_currency_metadata(*currency)
+					.map(|metadata| metadata.decimals.into())
+			})
+			.ok_or(Error::<T>::CurrencyNotSupport)?;
+		let balance_precision_offset = standard_precision.saturating_sub(decimals.into());
 
 		// Apply precision adjustment to balance.
 		balance = balance.saturating_mul(10u128.pow(balance_precision_offset));

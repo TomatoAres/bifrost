@@ -90,7 +90,10 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn start_boost_round_inner(round_length: BlockNumberFor<T>) -> DispatchResult {
 		ensure!(round_length != Zero::zero(), Error::<T>::RoundLengthNotSet);
 		let mut boost_pool_info = BoostPoolInfos::<T>::get();
-		ensure!(boost_pool_info.end_round == Zero::zero(), Error::<T>::RoundNotOver);
+		ensure!(
+			boost_pool_info.end_round == Zero::zero(),
+			Error::<T>::RoundNotOver
+		);
 
 		// Update whitelist
 		if BoostNextRoundWhitelist::<T>::iter_keys().count() != 0 {
@@ -100,10 +103,14 @@ impl<T: Config> Pallet<T> {
 			});
 			let _ = BoostNextRoundWhitelist::<T>::clear(u32::max_value(), None);
 		} else {
-			ensure!(BoostWhitelist::<T>::iter_keys().count() != 0, Error::<T>::WhitelistEmpty);
+			ensure!(
+				BoostWhitelist::<T>::iter_keys().count() != 0,
+				Error::<T>::WhitelistEmpty
+			);
 		}
 
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		boost_pool_info.start_round = current_block_number;
 		boost_pool_info.end_round = current_block_number.saturating_add(round_length);
 		boost_pool_info.total_votes = Zero::zero();
@@ -150,12 +157,15 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::RoundStartError { info: e });
 			})
 			.ok();
-		let current_block_number: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		let current_block_number: BlockNumberFor<T> =
+			T::BlockNumberProvider::current_block_number();
 		boost_pool_info.start_round = current_block_number;
 		boost_pool_info.end_round =
 			current_block_number.saturating_add(boost_pool_info.round_length);
 		boost_pool_info.total_votes = Zero::zero();
-		Self::deposit_event(Event::RoundStart { round_length: boost_pool_info.round_length });
+		Self::deposit_event(Event::RoundStart {
+			round_length: boost_pool_info.round_length,
+		});
 		BoostPoolInfos::<T>::set(boost_pool_info);
 		let _ = BoostVotingPools::<T>::clear(u32::max_value(), None);
 	}
@@ -170,27 +180,30 @@ impl<T: Config> Pallet<T> {
 			})
 			.try_for_each(|(pid, value, pool_info)| -> DispatchResult {
 				let proportion = Percent::from_rational(value, boost_pool_info.total_votes);
-				pool_info.basic_rewards.keys().try_for_each(|currency| -> DispatchResult {
-					// proportion * free_balance
-					let transfer_balance: BalanceOf<T> =
-						proportion.mul_floor(T::MultiCurrency::free_balance(
+				pool_info
+					.basic_rewards
+					.keys()
+					.try_for_each(|currency| -> DispatchResult {
+						// proportion * free_balance
+						let transfer_balance: BalanceOf<T> =
+							proportion.mul_floor(T::MultiCurrency::free_balance(
+								*currency,
+								&T::FarmingBoost::get().into_account_truncating(),
+							));
+
+						BoostBasicRewards::<T>::mutate_exists(pid, currency, |value| {
+							// Store None if overflow
+							*value = transfer_balance.checked_div(
+								&T::BlockNumberToBalance::convert(boost_pool_info.round_length),
+							);
+						});
+						T::MultiCurrency::transfer(
 							*currency,
 							&T::FarmingBoost::get().into_account_truncating(),
-						));
-
-					BoostBasicRewards::<T>::mutate_exists(pid, currency, |value| {
-						// Store None if overflow
-						*value = transfer_balance.checked_div(&T::BlockNumberToBalance::convert(
-							boost_pool_info.round_length,
-						));
-					});
-					T::MultiCurrency::transfer(
-						*currency,
-						&T::FarmingBoost::get().into_account_truncating(),
-						&T::RewardIssuer::get().into_sub_account_truncating(pid),
-						transfer_balance,
-					)
-				})?;
+							&T::RewardIssuer::get().into_sub_account_truncating(pid),
+							transfer_balance,
+						)
+					})?;
 
 				Ok(())
 			})
@@ -200,7 +213,7 @@ impl<T: Config> Pallet<T> {
 		who: &AccountIdOf<T>,
 		vote_list: Vec<(PoolId, Percent)>,
 	) -> DispatchResult {
-		let current_block_number = frame_system::Pallet::<T>::block_number();
+		let current_block_number = T::BlockNumberProvider::current_block_number();
 		let mut boost_pool_info = BoostPoolInfos::<T>::get();
 
 		if let Some(user_boost_info) = UserBoostInfos::<T>::get(who) {
@@ -229,26 +242,34 @@ impl<T: Config> Pallet<T> {
 
 		let new_vote_amount = T::BbBNC::balance_of(who, None)?;
 		let mut percent_check = Percent::from_percent(0);
-		vote_list.iter().try_for_each(|(pid, proportion)| -> DispatchResult {
-			ensure!(BoostWhitelist::<T>::get(pid) != None, Error::<T>::NotInWhitelist);
-			let increace = *proportion * new_vote_amount;
-			percent_check =
-				percent_check.checked_add(proportion).ok_or(Error::<T>::PercentOverflow)?;
-			BoostVotingPools::<T>::mutate(pid, |maybe_total_votes| -> DispatchResult {
-				match maybe_total_votes.as_mut() {
-					Some(total_votes) =>
-						*total_votes =
-							total_votes.checked_add(&increace).ok_or(ArithmeticError::Overflow)?,
-					None => *maybe_total_votes = Some(increace),
-				}
+		vote_list
+			.iter()
+			.try_for_each(|(pid, proportion)| -> DispatchResult {
+				ensure!(
+					BoostWhitelist::<T>::get(pid) != None,
+					Error::<T>::NotInWhitelist
+				);
+				let increace = *proportion * new_vote_amount;
+				percent_check = percent_check
+					.checked_add(proportion)
+					.ok_or(Error::<T>::PercentOverflow)?;
+				BoostVotingPools::<T>::mutate(pid, |maybe_total_votes| -> DispatchResult {
+					match maybe_total_votes.as_mut() {
+						Some(total_votes) => {
+							*total_votes = total_votes
+								.checked_add(&increace)
+								.ok_or(ArithmeticError::Overflow)?
+						}
+						None => *maybe_total_votes = Some(increace),
+					}
+					Ok(())
+				})?;
+				boost_pool_info.total_votes = boost_pool_info
+					.total_votes
+					.checked_add(&new_vote_amount)
+					.ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
-			boost_pool_info.total_votes = boost_pool_info
-				.total_votes
-				.checked_add(&new_vote_amount)
-				.ok_or(ArithmeticError::Overflow)?;
-			Ok(())
-		})?;
 		BoostPoolInfos::<T>::set(boost_pool_info);
 
 		let vote_list_bound =

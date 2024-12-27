@@ -42,7 +42,7 @@ use bifrost_primitives::{
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
 	sp_runtime::{
-		traits::{CheckedAdd, CheckedSub, Saturating, Zero},
+		traits::{BlockNumberProvider, CheckedAdd, CheckedSub, Saturating, Zero},
 		DispatchError, Permill,
 	},
 	traits::LockIdentifier,
@@ -134,6 +134,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MoonbeamChainId: Get<u32>;
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::event]
@@ -284,11 +286,18 @@ pub mod pallet {
 			incentive_vtoken_amount: BalanceOf<T>,
 		},
 		/// Incentive coefficient set.
-		VtokenIncentiveCoefSet { v_currency_id: CurrencyIdOf<T>, coefficient: Option<u128> },
+		VtokenIncentiveCoefSet {
+			v_currency_id: CurrencyIdOf<T>,
+			coefficient: Option<u128>,
+		},
 		/// Incentive lock blocks set.
 		VtokenIncentiveLockBlocksSet {
 			v_currency_id: CurrencyIdOf<T>,
 			blocks: Option<BlockNumberFor<T>>,
+		},
+		/// Set Supported eths.
+		SupportedEthSet {
+			eths: BoundedVec<CurrencyId, ConstU32<10>>,
 		},
 	}
 
@@ -451,6 +460,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type HookIterationLimit<T: Config> = StorageValue<_, u32, ValueQuery>;
 
+	#[pallet::storage]
+	pub type SupportedEth<T: Config> =
+		StorageValue<_, BoundedVec<CurrencyId, ConstU32<10>>, ValueQuery>;
+
 	//【vtoken -> Blocks】, the locked blocks for each vtoken when minted in an incentive mode
 	#[pallet::storage]
 	pub type MintWithLockBlocks<T: Config> =
@@ -470,7 +483,10 @@ pub mod pallet {
 		AccountIdOf<T>,
 		Blake2_128Concat,
 		CurrencyId,
-		(BalanceOf<T>, BoundedVec<(BalanceOf<T>, BlockNumberFor<T>), T::MaxLockRecords>),
+		(
+			BalanceOf<T>,
+			BoundedVec<(BalanceOf<T>, BlockNumberFor<T>), T::MaxLockRecords>,
+		),
 		OptionQuery,
 	>;
 
@@ -488,7 +504,7 @@ pub mod pallet {
 							"Received invalid justification for {:?}",
 							err,
 						);
-					},
+					}
 				}
 			}
 
@@ -529,11 +545,18 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::redeem())]
 		pub fn redeem(
 			origin: OriginFor<T>,
+			currency_id: Option<CurrencyIdOf<T>>,
 			v_currency_id: CurrencyIdOf<T>,
 			v_currency_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			let redeemer = ensure_signed(origin)?;
-			Self::do_redeem(redeemer, v_currency_id, v_currency_amount, RedeemType::Native)
+			Self::do_redeem(
+				redeemer,
+				currency_id,
+				v_currency_id,
+				v_currency_amount,
+				RedeemType::Native,
+			)
 		}
 
 		/// Already redeemed currency by burning v_currency. But need to wait for the unlock period.
@@ -550,13 +573,17 @@ pub mod pallet {
 			currency_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let rebonder = ensure_signed(origin)?;
-			let v_currency_id =
-				currency_id.to_vtoken().map_err(|_| Error::<T>::NotSupportTokenType)?;
+			let v_currency_id = currency_id
+				.to_vtoken()
+				.map_err(|_| Error::<T>::NotSupportTokenType)?;
 
 			let (user_unlock_amount, unlock_id_list) =
 				UserUnlockLedger::<T>::get(&rebonder, currency_id)
 					.ok_or(Error::<T>::UserUnlockLedgerNotFound)?;
-			ensure!(user_unlock_amount >= currency_amount, Error::<T>::NotEnoughBalanceToUnlock);
+			ensure!(
+				user_unlock_amount >= currency_amount,
+				Error::<T>::NotEnoughBalanceToUnlock
+			);
 
 			let mut temp_currency_amount = currency_amount;
 			for unlock_id in unlock_id_list.into_iter().rev() {
@@ -599,7 +626,7 @@ pub mod pallet {
 							.checked_add(&currency_amount)
 							.ok_or(Error::<T>::CalculationOverflow)?;
 						Ok(())
-					},
+					}
 					None => Err(Error::<T>::InvalidRebondToken),
 				}
 			})?;
@@ -627,8 +654,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			let rebonder = ensure_signed(origin)?;
 
-			let v_currency_id =
-				currency_id.to_vtoken().map_err(|_| Error::<T>::NotSupportTokenType)?;
+			let v_currency_id = currency_id
+				.to_vtoken()
+				.map_err(|_| Error::<T>::NotSupportTokenType)?;
 
 			let (who, unlock_amount, time_unit, _) =
 				TokenUnlockLedger::<T>::get(currency_id, unlock_id)
@@ -655,7 +683,7 @@ pub mod pallet {
 							.checked_add(&currency_amount)
 							.ok_or(Error::<T>::CalculationOverflow)?;
 						Ok(())
-					},
+					}
 					None => Err(Error::<T>::InvalidRebondToken),
 				}
 			})?;
@@ -688,7 +716,10 @@ pub mod pallet {
 				*old_unlock_duration = Some(unlock_duration.clone());
 			});
 
-			Self::deposit_event(Event::UnlockDurationSet { currency_id, unlock_duration });
+			Self::deposit_event(Event::UnlockDurationSet {
+				currency_id,
+				unlock_duration,
+			});
 			Ok(())
 		}
 
@@ -709,7 +740,10 @@ pub mod pallet {
 				*old_amount = minimum_amount;
 			});
 
-			Self::deposit_event(Event::MinimumMintSet { currency_id, minimum_amount });
+			Self::deposit_event(Event::MinimumMintSet {
+				currency_id,
+				minimum_amount,
+			});
 
 			Ok(())
 		}
@@ -731,7 +765,10 @@ pub mod pallet {
 				*old_amount = minimum_amount;
 			});
 
-			Self::deposit_event(Event::MinimumRedeemSet { currency_id, minimum_amount });
+			Self::deposit_event(Event::MinimumRedeemSet {
+				currency_id,
+				minimum_amount,
+			});
 			Ok(())
 		}
 
@@ -753,7 +790,7 @@ pub mod pallet {
 						*maybe_value = Some(BalanceOf::<T>::zero());
 						Self::deposit_event(Event::SupportRebondTokenAdded { currency_id });
 						Ok(())
-					},
+					}
 				}
 			})
 		}
@@ -775,7 +812,7 @@ pub mod pallet {
 						*maybe_value = None;
 						Self::deposit_event(Event::SupportRebondTokenRemoved { currency_id });
 						Ok(())
-					},
+					}
 					None => Err(Error::<T>::InvalidRebondToken.into()),
 				}
 			})
@@ -796,7 +833,10 @@ pub mod pallet {
 
 			Fees::<T>::mutate(|fees| *fees = (mint_fee, redeem_fee));
 
-			Self::deposit_event(Event::FeeSet { mint_fee, redeem_fee });
+			Self::deposit_event(Event::FeeSet {
+				mint_fee,
+				redeem_fee,
+			});
 			Ok(())
 		}
 
@@ -830,7 +870,10 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			Self::update_unlocking_total(&currency_id, &currency_amount, Operation::Set)?;
-			Self::deposit_event(Event::UnlockingTotalSet { currency_id, currency_amount });
+			Self::deposit_event(Event::UnlockingTotalSet {
+				currency_id,
+				currency_amount,
+			});
 			Ok(())
 		}
 
@@ -851,7 +894,10 @@ pub mod pallet {
 				*old_time_unit = time_unit.clone()
 			});
 
-			Self::deposit_event(Event::MinTimeUnitSet { currency_id, time_unit });
+			Self::deposit_event(Event::MinTimeUnitSet {
+				currency_id,
+				time_unit,
+			});
 			Ok(())
 		}
 
@@ -872,7 +918,10 @@ pub mod pallet {
 				*old_time_unit = Some(time_unit.clone())
 			});
 
-			Self::deposit_event(Event::SetOngoingTimeUnit { currency_id, time_unit });
+			Self::deposit_event(Event::SetOngoingTimeUnit {
+				currency_id,
+				time_unit,
+			});
 			Ok(())
 		}
 
@@ -894,16 +943,23 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::NotEnoughBalance)?;
 
 			// check whether the currency_id is supported
-			ensure!(MinimumMint::<T>::contains_key(currency_id), Error::<T>::NotSupportTokenType);
+			ensure!(
+				MinimumMint::<T>::contains_key(currency_id),
+				Error::<T>::NotSupportTokenType
+			);
 
 			// check whether the user has veBNC
 			let vebnc_balance =
 				T::BbBNC::balance_of(&minter, None).map_err(|_| Error::<T>::VeBNCCheckingError)?;
-			ensure!(vebnc_balance > BalanceOf::<T>::zero(), Error::<T>::NotEnoughBalance);
+			ensure!(
+				vebnc_balance > BalanceOf::<T>::zero(),
+				Error::<T>::NotEnoughBalance
+			);
 
 			// check whether the vtoken coefficient is set
-			let v_currency_id =
-				currency_id.to_vtoken().map_err(|_| Error::<T>::NotSupportTokenType)?;
+			let v_currency_id = currency_id
+				.to_vtoken()
+				.map_err(|_| Error::<T>::NotSupportTokenType)?;
 
 			ensure!(
 				VtokenIncentiveCoef::<T>::contains_key(v_currency_id),
@@ -915,11 +971,19 @@ pub mod pallet {
 			let vtoken_pool_balance =
 				T::MultiCurrency::free_balance(v_currency_id, &incentive_pool_account);
 
-			ensure!(vtoken_pool_balance > BalanceOf::<T>::zero(), Error::<T>::NotEnoughBalance);
+			ensure!(
+				vtoken_pool_balance > BalanceOf::<T>::zero(),
+				Error::<T>::NotEnoughBalance
+			);
 
 			// mint vtoken
-			let vtoken_minted =
-				Self::do_mint(minter.clone(), currency_id, currency_amount, remark, channel_id)?;
+			let vtoken_minted = Self::do_mint(
+				minter.clone(),
+				currency_id,
+				currency_amount,
+				remark,
+				channel_id,
+			)?;
 
 			// lock vtoken and record the lock
 			Self::lock_vtoken_for_incentive_minting(minter.clone(), v_currency_id, vtoken_minted)?;
@@ -971,7 +1035,7 @@ pub mod pallet {
 				&unlocker,
 				v_currency_id,
 				|maybe_ledger| -> Result<(), Error<T>> {
-					let current_block = frame_system::Pallet::<T>::block_number();
+					let current_block = T::BlockNumberProvider::current_block_number();
 
 					if let Some(ref mut ledger) = maybe_ledger {
 						// check the total locked amount
@@ -999,7 +1063,10 @@ pub mod pallet {
 						}
 
 						// check the unlock amount
-						ensure!(unlock_amount > BalanceOf::<T>::zero(), Error::<T>::NoUnlockRecord);
+						ensure!(
+							unlock_amount > BalanceOf::<T>::zero(),
+							Error::<T>::NoUnlockRecord
+						);
 
 						let remaining_locked_amount = total_locked
 							.checked_sub(&unlock_amount)
@@ -1089,6 +1156,23 @@ pub mod pallet {
 				v_currency_id,
 				blocks: new_blockes_op,
 			});
+
+			Ok(())
+		}
+
+		/// Set Supported eths.
+		/// Parameters:
+		/// - `eths`: The supported eths.
+		#[pallet::call_index(18)]
+		#[pallet::weight(T::DbWeight::get().writes(1u64))]
+		pub fn set_supported_eth(
+			origin: OriginFor<T>,
+			eths: BoundedVec<CurrencyId, ConstU32<10>>,
+		) -> DispatchResult {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			SupportedEth::<T>::put(eths.clone());
+			Self::deposit_event(Event::SupportedEthSet { eths });
 
 			Ok(())
 		}

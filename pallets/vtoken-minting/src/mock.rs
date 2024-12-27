@@ -26,7 +26,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId, CurrencyIdMapping,
-	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, SlpxOperator, KUSD,
+	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, SlpxOperator, KUSD, V_WETH, WETH,
 };
 use bifrost_runtime_common::{micro, milli};
 use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::Nothing};
@@ -124,6 +124,9 @@ orml_traits::parameter_type_with_key! {
 			&VKSM => 0,
 			&FIL => 0,
 			&VFIL => 0,
+			&V_WETH => 0,
+			&WETH => 0,
+			&VFIL => 0,
 			&MOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
 			&VMOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
 			&VBNC => 10 * milli::<Runtime>(NativeCurrencyId::get()),  // 0.01 BNC
@@ -183,6 +186,7 @@ impl vtoken_minting::Config for Runtime {
 	type XcmTransfer = MockXcmTransfer;
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
+	type BlockNumberProvider = System;
 }
 
 ord_parameter_types! {
@@ -208,7 +212,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -227,12 +233,16 @@ impl ExtBuilder {
 			(BOB, MOVR, 1000000000000000000000),
 			(BOB, VFIL, 1000),
 			(BOB, FIL, 100000000000000000000000),
+			(BOB, WETH, 1000000000000000000000),
 			(CHARLIE, MOVR, 100000000000000000000000),
+			(CHARLIE, WETH, 100000000000000000000000),
 		])
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self

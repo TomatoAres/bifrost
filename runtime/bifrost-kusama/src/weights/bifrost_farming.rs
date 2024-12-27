@@ -132,23 +132,6 @@ impl<T: frame_system::Config> bifrost_farming::WeightInfo for BifrostWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	// Storage: Farming GaugePoolInfos (r:1 w:1)
-	// Proof Skipped: Farming GaugePoolInfos (max_values: None, max_size: None, mode: Measured)
-	// Storage: Farming GaugeInfos (r:1 w:1)
-	// Proof Skipped: Farming GaugeInfos (max_values: None, max_size: None, mode: Measured)
-	// Storage: Farming PoolInfos (r:1 w:0)
-	// Proof Skipped: Farming PoolInfos (max_values: None, max_size: None, mode: Measured)
-	// Storage: Farming SharesAndWithdrawnRewards (r:1 w:0)
-	// Proof Skipped: Farming SharesAndWithdrawnRewards (max_values: None, max_size: None, mode: Measured)
-	fn gauge_withdraw() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `832`
-		//  Estimated: `4297`
-		// Minimum execution time: 82_224 nanoseconds.
-		Weight::from_parts(84_369_000, 4297)
-			.saturating_add(T::DbWeight::get().reads(4))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
 	// Storage: Farming PoolInfos (r:1 w:0)
 	// Proof Skipped: Farming PoolInfos (max_values: None, max_size: None, mode: Measured)
 	// Storage: Farming SharesAndWithdrawnRewards (r:1 w:1)
@@ -355,5 +338,22 @@ impl<T: frame_system::Config> bifrost_farming::WeightInfo for BifrostWeight<T> {
 		Weight::from_parts(131_856_000, 6176)
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(3))
+	}
+	/// Storage: `Farming::UserFarmingPool` (r:1 w:0)
+	/// Proof: `Farming::UserFarmingPool` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::SharesAndWithdrawnRewards` (r:2 w:0)
+	/// Proof: `Farming::SharesAndWithdrawnRewards` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::PoolInfos` (r:1 w:0)
+	/// Proof: `Farming::PoolInfos` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPositions` (r:1 w:0)
+	/// Proof: `BbBNC::UserPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn refresh() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `604`
+		//  Estimated: `6544`
+		// Minimum execution time: 16_472_000 picoseconds.
+		Weight::from_parts(17_023_000, 0)
+			.saturating_add(Weight::from_parts(0, 6544))
+			.saturating_add(T::DbWeight::get().reads(5))
 	}
 }

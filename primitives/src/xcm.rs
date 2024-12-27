@@ -82,8 +82,8 @@ where
 {
 	fn contains(asset: &Asset, origin: &Location) -> bool {
 		let loc = Origin::get();
-		&loc == origin &&
-			matches!(asset, Asset { id: AssetId(asset_loc), fun: Fungible(_a) }
+		&loc == origin
+			&& matches!(asset, Asset { id: AssetId(asset_loc), fun: Fungible(_a) }
 			if asset_loc.starts_with(&Prefix::get()))
 	}
 }
@@ -93,8 +93,8 @@ pub struct NativeAssetFrom<T>(PhantomData<T>);
 impl<T: Get<Location>> ContainsPair<Asset, Location> for NativeAssetFrom<T> {
 	fn contains(asset: &Asset, origin: &Location) -> bool {
 		let loc = T::get();
-		&loc == origin &&
-			matches!(asset, Asset { id: AssetId(asset_loc), fun: Fungible(_a) }
+		&loc == origin
+			&& matches!(asset, Asset { id: AssetId(asset_loc), fun: Fungible(_a) }
 			if *asset_loc == Location::from(Parent))
 	}
 }
@@ -103,7 +103,13 @@ impl<T: Get<Location>> ContainsPair<Asset, Location> for NativeAssetFrom<T> {
 pub struct AccountIdToLocation;
 impl Convert<AccountId, Location> for AccountIdToLocation {
 	fn convert(account: AccountId) -> Location {
-		Location::new(0, [AccountId32 { network: None, id: account.into() }])
+		Location::new(
+			0,
+			[AccountId32 {
+				network: None,
+				id: account.into(),
+			}],
+		)
 	}
 }
 
@@ -122,7 +128,16 @@ mod test {
 	fn bifrost_account_to_location() {
 		let account: AccountId = AccountId::new([0u8; 32]);
 		let location: Location = AccountIdToLocation::convert(account);
-		assert_eq!(location, Location::new(0, [AccountId32 { network: None, id: [0u8; 32] }]));
+		assert_eq!(
+			location,
+			Location::new(
+				0,
+				[AccountId32 {
+					network: None,
+					id: [0u8; 32]
+				}]
+			)
+		);
 	}
 
 	#[test]

@@ -71,7 +71,9 @@ pub type RelayXcmPallet = pallet_xcm::Pallet<relaychain::Runtime>;
 pub fn para_ext(para_id: u32) -> TestExternalities {
 	use bifrost::{MessageQueue, Runtime, System};
 
-	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+	let mut t = frame_system::GenesisConfig::<Runtime>::default()
+		.build_storage()
+		.unwrap();
 
 	bifrost_asset_registry::GenesisConfig::<Runtime> {
 		currency: vec![(CurrencyId::Token2(0), 1_000_000, None)],
@@ -99,11 +101,15 @@ pub fn para_ext(para_id: u32) -> TestExternalities {
 pub fn relay_ext() -> TestExternalities {
 	use relaychain::{Runtime, System};
 
-	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
-
-	pallet_balances::GenesisConfig::<Runtime> { balances: vec![(ALICE, 100_000_000_000)] }
-		.assimilate_storage(&mut t)
+	let mut t = frame_system::GenesisConfig::<Runtime>::default()
+		.build_storage()
 		.unwrap();
+
+	pallet_balances::GenesisConfig::<Runtime> {
+		balances: vec![(ALICE, 100_000_000_000)],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	let mut ext = TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

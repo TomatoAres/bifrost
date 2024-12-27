@@ -20,28 +20,64 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use bifrost_primitives::{currency::CLOUD, VBNC};
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
 use sp_runtime::traits::{UniqueSaturatedFrom, Zero};
 
 use crate::{BalanceOf, Call, Config, Pallet as CloudsConvert, Pallet};
 use orml_traits::MultiCurrency;
 
-benchmarks! {
-clouds_to_vebnc {
-	let test_account: T::AccountId = account("seed",1,1);
+#[benchmarks]
+mod benchmarks {
+	use super::*;
 
-	T::MultiCurrency::deposit(CLOUD, &test_account, BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128))?;
-	T::MultiCurrency::deposit(VBNC, &CloudsConvert::<T>::clouds_pool_account(), BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_000_000u128))?;
+	#[benchmark]
+	fn clouds_to_vebnc() -> Result<(), BenchmarkError> {
+		let test_account: T::AccountId = account("seed", 1, 1);
 
-}: _(RawOrigin::Signed(test_account), BalanceOf::<T>::unique_saturated_from(10_000_000_000_000u128), Zero::zero())
+		T::MultiCurrency::deposit(
+			CLOUD,
+			&test_account,
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		)?;
+		T::MultiCurrency::deposit(
+			VBNC,
+			&CloudsConvert::<T>::clouds_pool_account(),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_000_000u128),
+		)?;
 
-charge_vbnc {
-	let test_account: T::AccountId = account("seed",1,1);
+		#[extrinsic_call]
+		_(
+			RawOrigin::Signed(test_account),
+			BalanceOf::<T>::unique_saturated_from(10_000_000_000_000u128),
+			Zero::zero(),
+		);
 
-	T::MultiCurrency::deposit(VBNC, &test_account, BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128))?;
+		Ok(())
+	}
 
-}: _(RawOrigin::Signed(test_account),BalanceOf::<T>::unique_saturated_from(50_000_000_000u128))
+	#[benchmark]
+	fn charge_vbnc() -> Result<(), BenchmarkError> {
+		let test_account: T::AccountId = account("seed", 1, 1);
 
-	impl_benchmark_test_suite!(CloudsConvert,crate::mock::ExtBuilder::default().build(),crate::mock::Runtime);
+		T::MultiCurrency::deposit(
+			VBNC,
+			&test_account,
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		)?;
+
+		#[extrinsic_call]
+		_(
+			RawOrigin::Signed(test_account),
+			BalanceOf::<T>::unique_saturated_from(50_000_000_000u128),
+		);
+
+		Ok(())
+	}
+
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::mock::new_test_ext_benchmark(),
+		crate::mock::Runtime
+	);
 }

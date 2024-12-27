@@ -84,7 +84,7 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 						_ => hopeless_currency,
 					};
 					continue;
-				},
+				}
 				Ordering::Equal => return Ok(*maybe_currency),
 				Ordering::Greater => return Ok(*maybe_currency),
 			};

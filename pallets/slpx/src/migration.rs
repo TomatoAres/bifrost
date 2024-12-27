@@ -36,7 +36,10 @@ impl<T: Config> OnRuntimeUpgrade for BifrostKusamaAddCurrencyToSupportXcmFee<T> 
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 		let currency_count = SupportXcmFeeList::<T>::get().len();
-		ensure!(currency_count == 0, "SupportXcmFeeList post-migrate storage count not match");
+		ensure!(
+			currency_count == 0,
+			"SupportXcmFeeList post-migrate storage count not match"
+		);
 
 		Ok(sp_std::vec![])
 	}
@@ -44,7 +47,10 @@ impl<T: Config> OnRuntimeUpgrade for BifrostKusamaAddCurrencyToSupportXcmFee<T> 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_cnt: Vec<u8>) -> Result<(), TryRuntimeError> {
 		let currency_count_new = SupportXcmFeeList::<T>::get().len();
-		ensure!(currency_count_new == 3, "Validators post-migrate storage count not match");
+		ensure!(
+			currency_count_new == 3,
+			"Validators post-migrate storage count not match"
+		);
 
 		Ok(())
 	}
@@ -62,7 +68,10 @@ impl<T: Config> OnRuntimeUpgrade for BifrostPolkadotAddCurrencyToSupportXcmFee<T
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 		let currency_count = SupportXcmFeeList::<T>::get().len();
-		ensure!(currency_count == 0, "SupportXcmFeeList post-migrate storage count not match");
+		ensure!(
+			currency_count == 0,
+			"SupportXcmFeeList post-migrate storage count not match"
+		);
 
 		Ok(sp_std::vec![])
 	}
@@ -70,7 +79,10 @@ impl<T: Config> OnRuntimeUpgrade for BifrostPolkadotAddCurrencyToSupportXcmFee<T
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_cnt: Vec<u8>) -> Result<(), TryRuntimeError> {
 		let currency_count_new = SupportXcmFeeList::<T>::get().len();
-		ensure!(currency_count_new == 5, "Validators post-migrate storage count not match");
+		ensure!(
+			currency_count_new == 5,
+			"Validators post-migrate storage count not match"
+		);
 
 		Ok(())
 	}
@@ -150,16 +162,28 @@ pub mod v1 {
 
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
-			log::info!("slpx before migration: version: {:?}", StorageVersion::get::<Pallet<T>>());
-			log::info!("slpx before migration: v0 count: {}", v0::OrderQueue::<T>::get().len());
+			log::info!(
+				"slpx before migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>()
+			);
+			log::info!(
+				"slpx before migration: v0 count: {}",
+				v0::OrderQueue::<T>::get().len()
+			);
 
 			Ok(Vec::new())
 		}
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
-			log::info!("slpx after migration: version: {:?}", StorageVersion::get::<Pallet<T>>());
-			log::info!("slpx after migration: v1 count: {}", OrderQueue::<T>::get().len());
+			log::info!(
+				"slpx after migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>()
+			);
+			log::info!(
+				"slpx after migration: v1 count: {}",
+				OrderQueue::<T>::get().len()
+			);
 
 			Ok(())
 		}
@@ -221,7 +245,9 @@ pub fn migrate_to_v1<T: Config>() -> Weight {
 		};
 
 		v1::OrderQueue::<T>::mutate(|order_queue| -> DispatchResultWithPostInfo {
-			order_queue.try_push(order.clone()).map_err(|_| Error::<T>::ErrorArguments)?;
+			order_queue
+				.try_push(order.clone())
+				.map_err(|_| Error::<T>::ErrorArguments)?;
 			Ok(().into())
 		})
 		.expect("BoundedVec should not overflow");
@@ -253,7 +279,9 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 		};
 
 		OrderQueue::<T>::mutate(|order_queue| -> DispatchResultWithPostInfo {
-			order_queue.try_push(order.clone()).map_err(|_| Error::<T>::ErrorArguments)?;
+			order_queue
+				.try_push(order.clone())
+				.map_err(|_| Error::<T>::ErrorArguments)?;
 			Ok(().into())
 		})
 		.expect("BoundedVec should not overflow");

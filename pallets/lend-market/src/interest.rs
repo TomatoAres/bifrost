@@ -1,16 +1,20 @@
-// Copyright 2021 Parallel Finance Developer.
-// This file is part of Parallel Finance.
+// This file is part of Bifrost.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
+// Copyright (C) Liebi Technologies PTE. LTD.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_primitives::{Timestamp, SECONDS_PER_YEAR};
 use sp_runtime::{traits::Zero, DispatchResult};
@@ -57,7 +61,18 @@ impl<T: Config> Pallet<T> {
 
 	pub fn get_market_status(
 		asset_id: AssetIdOf<T>,
-	) -> Result<(Rate, Rate, Rate, Ratio, BalanceOf<T>, BalanceOf<T>, FixedU128), DispatchError> {
+	) -> Result<
+		(
+			Rate,
+			Rate,
+			Rate,
+			Ratio,
+			BalanceOf<T>,
+			BalanceOf<T>,
+			FixedU128,
+		),
+		DispatchError,
+	> {
 		let market = Self::market(asset_id)?;
 		let total_supply = TotalSupply::<T>::get(asset_id);
 		let total_cash = Self::get_total_cash(asset_id);
@@ -66,8 +81,10 @@ impl<T: Config> Pallet<T> {
 		let mut borrow_index = BorrowIndex::<T>::get(asset_id);
 
 		let util = Self::calc_utilization_ratio(total_cash, total_borrows, total_reserves)?;
-		let borrow_rate =
-			market.rate_model.get_borrow_rate(util).ok_or(ArithmeticError::Overflow)?;
+		let borrow_rate = market
+			.rate_model
+			.get_borrow_rate(util)
+			.ok_or(ArithmeticError::Overflow)?;
 		let supply_rate =
 			InterestRateModel::get_supply_rate(borrow_rate, util, market.reserve_factor);
 
@@ -141,8 +158,8 @@ impl<T: Config> Pallet<T> {
 	/// The exchange rate should be greater than 0.02 and less than 1
 	pub(crate) fn ensure_valid_exchange_rate(exchange_rate: Rate) -> DispatchResult {
 		ensure!(
-			exchange_rate >= Rate::from_inner(MIN_EXCHANGE_RATE) &&
-				exchange_rate < Rate::from_inner(MAX_EXCHANGE_RATE),
+			exchange_rate >= Rate::from_inner(MIN_EXCHANGE_RATE)
+				&& exchange_rate < Rate::from_inner(MAX_EXCHANGE_RATE),
 			Error::<T>::InvalidExchangeRate
 		);
 

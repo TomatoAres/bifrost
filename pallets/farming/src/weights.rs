@@ -58,7 +58,6 @@ pub trait WeightInfo {
 	fn deposit() -> Weight;
 	fn withdraw() -> Weight;
 	fn claim() -> Weight;
-	fn gauge_withdraw() -> Weight;
 	fn withdraw_claim() -> Weight;
 	fn reset_pool() -> Weight;
 	fn force_retire_pool() -> Weight;
@@ -74,6 +73,7 @@ pub trait WeightInfo {
 	fn start_boost_round() -> Weight;
 	fn end_boost_round() -> Weight;
 	fn charge_boost() -> Weight;
+	fn refresh() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -154,23 +154,6 @@ impl WeightInfo for () {
 		// Minimum execution time: 76_622_000 picoseconds.
 		Weight::from_parts(78_830_000, 4012)
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
-	}
-	/// Storage: Farming GaugePoolInfos (r:1 w:1)
-	/// Proof Skipped: Farming GaugePoolInfos (max_values: None, max_size: None, mode: Measured)
-	/// Storage: Farming GaugeInfos (r:1 w:1)
-	/// Proof Skipped: Farming GaugeInfos (max_values: None, max_size: None, mode: Measured)
-	/// Storage: Farming PoolInfos (r:1 w:0)
-	/// Proof Skipped: Farming PoolInfos (max_values: None, max_size: None, mode: Measured)
-	/// Storage: Farming SharesAndWithdrawnRewards (r:1 w:0)
-	/// Proof Skipped: Farming SharesAndWithdrawnRewards (max_values: None, max_size: None, mode: Measured)
-	fn gauge_withdraw() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `832`
-		//  Estimated: `4297`
-		// Minimum execution time: 82_741_000 picoseconds.
-		Weight::from_parts(83_538_000, 4297)
-			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 	/// Storage: Farming PoolInfos (r:1 w:0)
@@ -379,5 +362,21 @@ impl WeightInfo for () {
 		Weight::from_parts(127_177_000, 6176)
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	/// Storage: `Farming::UserFarmingPool` (r:1 w:0)
+	/// Proof: `Farming::UserFarmingPool` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::SharesAndWithdrawnRewards` (r:2 w:0)
+	/// Proof: `Farming::SharesAndWithdrawnRewards` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::PoolInfos` (r:1 w:0)
+	/// Proof: `Farming::PoolInfos` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPositions` (r:1 w:0)
+	/// Proof: `BbBNC::UserPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn refresh() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `604`
+		//  Estimated: `6544`
+		// Minimum execution time: 16_472_000 picoseconds.
+		Weight::from_parts(17_023_000, 6544)
+			.saturating_add(RocksDbWeight::get().reads(5))
 	}
 }

@@ -20,7 +20,6 @@ use frame_support::{pallet_prelude::Get, parameter_types, traits::FindAuthor, Co
 use orml_tokens::CurrencyAdapter;
 use pallet_ethereum::PostLogContent;
 use pallet_evm::EnsureAddressTruncated;
-use pallet_transaction_payment::Multiplier;
 use primitive_types::U256;
 
 pub use crate::evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated};
@@ -34,6 +33,7 @@ use bifrost_primitives::{currency::WETH, CurrencyId};
 
 mod accounts_conversion;
 mod evm_fee;
+pub mod permit;
 pub mod precompiles;
 mod runner;
 
@@ -63,14 +63,6 @@ impl Get<CurrencyId> for WethAssetId {
 }
 
 type WethCurrency = CurrencyAdapter<Runtime, WethAssetId>;
-
-pub struct TransactionPaymentMultiplier;
-
-impl Get<Multiplier> for TransactionPaymentMultiplier {
-	fn get() -> Multiplier {
-		crate::TransactionPayment::next_fee_multiplier()
-	}
-}
 
 parameter_types! {
 	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare

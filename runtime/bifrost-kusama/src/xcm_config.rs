@@ -138,7 +138,11 @@ pub type BifrostAssetTransactor = MultiCurrencyAdapter<
 pub struct ToTreasury;
 impl TakeRevenue for ToTreasury {
 	fn take_revenue(revenue: Asset) {
-		if let Asset { id: AssetId(location), fun: Fungible(amount) } = revenue {
+		if let Asset {
+			id: AssetId(location),
+			fun: Fungible(amount),
+		} = revenue
+		{
 			if let Some(currency_id) =
 				CurrencyIdConvert::<ParachainInfo, Runtime>::convert(location)
 			{
@@ -160,7 +164,10 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
 		#[cfg(feature = "runtime-benchmarks")]
 		{
-			if matches!(call, RuntimeCall::System(frame_system::Call::remark_with_event { .. })) {
+			if matches!(
+				call,
+				RuntimeCall::System(frame_system::Call::remark_with_event { .. })
+			) {
 				return true;
 			}
 		}
@@ -424,10 +431,10 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 			SystemStakingPalletId::get().into_account_truncating(),
 			VBNCConvertPalletId::get().into_account_truncating(),
 		];
-		whitelist.contains(a) ||
-			FarmingKeeperPalletId::get().check_sub_account::<PoolId>(a) ||
-			FarmingRewardIssuerPalletId::get().check_sub_account::<PoolId>(a) ||
-			FeeSharePalletId::get().check_sub_account::<DistributionId>(a)
+		whitelist.contains(a)
+			|| FarmingKeeperPalletId::get().check_sub_account::<PoolId>(a)
+			|| FarmingRewardIssuerPalletId::get().check_sub_account::<PoolId>(a)
+			|| FeeSharePalletId::get().check_sub_account::<DistributionId>(a)
 	}
 }
 

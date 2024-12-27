@@ -45,7 +45,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, Convert, IdentityLookup, TrailingZeroInput},
 	AccountId32, BuildStorage,
 };
-use sp_std::{boxed::Box, vec::Vec};
+use sp_std::vec::Vec;
 use xcm::v3::{prelude::*, MultiLocation, Weight};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
@@ -207,6 +207,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -348,7 +349,7 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 				} else {
 					MultiLocation::default()
 				}
-			},
+			}
 		}
 	}
 }
@@ -458,6 +459,7 @@ impl Config for Runtime {
 	type StablePoolHandler = ();
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
+	type BlockNumberProvider = System;
 }
 
 pub struct XcmDestWeightAndFee;
@@ -556,7 +558,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -582,7 +586,9 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self

@@ -112,27 +112,25 @@ where
 		pid: PoolId,
 		pool_info: &mut PoolInfo<BalanceOf<T>, CurrencyIdOf<T>, AccountIdOf<T>, BlockNumberFor<T>>,
 		gauge_basic_rewards: BTreeMap<CurrencyIdOf<T>, BalanceOf<T>>,
-		max_block: BlockNumberFor<T>,
 	) -> DispatchResult {
-		pool_info.gauge = Some(pid);
-		let current_block_number = frame_system::Pallet::<T>::block_number();
-		let gauge_pool_info = GaugePoolInfo::new(
-			pid,
+		let gid: u32 = pid + GAUGE_BASE_ID;
+		pool_info.gauge = Some(gid);
+		let gauge_reward_issuer: AccountIdOf<T> =
+			T::RewardIssuer::get().into_sub_account_truncating(gid);
+		let gauge_pool_info = PoolInfo::new_gauge(
 			pool_info.keeper.clone(),
-			pool_info.reward_issuer.clone(),
+			gauge_reward_issuer,
+			pool_info.tokens_proportion.clone(),
+			pool_info.basic_token,
 			gauge_basic_rewards,
-			max_block,
-			current_block_number,
+			None,
+			Zero::zero(), // min_deposit_to_start,
+			Default::default(),
+			Default::default(),
+			Default::default(),
+			Default::default(),
 		);
-
-		GaugePoolInfos::<T>::insert(pid, &gauge_pool_info);
-		GaugePoolNextId::<T>::mutate(|id| -> DispatchResult {
-			*id = id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
-			Ok(())
-		})?;
-
-		let controller = T::GaugeRewardIssuer::get().into_sub_account_truncating(pid);
-		T::BbBNC::set_incentive(pid, Some(max_block), Some(controller));
+		PoolInfos::<T>::insert(gid, &gauge_pool_info);
 		Ok(())
 	}
 
@@ -148,8 +146,11 @@ where
 
 		pool_info.rewards.iter().try_for_each(
 			|(reward_currency, (total_reward, total_withdrawn_reward))| -> DispatchResult {
-				let withdrawn_reward =
-					share_info.withdrawn_rewards.get(reward_currency).copied().unwrap_or_default();
+				let withdrawn_reward = share_info
+					.withdrawn_rewards
+					.get(reward_currency)
+					.copied()
+					.unwrap_or_default();
 
 				let total_reward_proportion: BalanceOf<T> = u128::try_from(
 					U256::from(share_info.share.to_owned().saturated_into::<u128>())
@@ -188,7 +189,7 @@ where
 			None => (),
 			Some(gid) => {
 				let current_block_number: BlockNumberFor<T> =
-					frame_system::Pallet::<T>::block_number();
+					T::BlockNumberProvider::current_block_number();
 				let gauge_pool_info =
 					GaugePoolInfos::<T>::get(gid).ok_or(Error::<T>::GaugePoolNotExist)?;
 				let gauge_info =
@@ -199,8 +200,8 @@ where
 					current_block_number
 				};
 
-				let latest_claimed_time_factor = gauge_info.latest_time_factor +
-					gauge_info
+				let latest_claimed_time_factor = gauge_info.latest_time_factor
+					+ gauge_info
 						.gauge_amount
 						.saturated_into::<u128>()
 						.checked_mul(
@@ -248,19 +249,8 @@ where
 						Ok(())
 					},
 				)?;
-			},
+			}
 		};
 		Ok(result_vec)
-	}
-
-	pub fn update_reward(who: &AccountIdOf<T>, pid: PoolId) -> Result<(), DispatchError> {
-		let pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
-		let share_info =
-			SharesAndWithdrawnRewards::<T>::get(pid, who).ok_or(Error::<T>::ShareInfoNotExists)?;
-		if T::BbBNC::balance_of(who, None)? == BalanceOf::<T>::zero() {
-			return Ok(());
-		}
-		T::BbBNC::update_reward(pid, Some(who), Some((share_info.share, pool_info.total_shares)))?;
-		Ok(())
 	}
 }

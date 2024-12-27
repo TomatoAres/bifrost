@@ -153,5 +153,8 @@ impl xcm_interface::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
+	system::GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap()
+		.into()
 }

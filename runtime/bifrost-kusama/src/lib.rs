@@ -27,7 +27,8 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use bifrost_primitives::{
-	BLP_BNC_VBNC, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, LP_BNC_VBNC, VBNC, VKSM,
+	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
+	VBNC, VKSM,
 };
 use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
 use core::convert::TryInto;
@@ -147,7 +148,7 @@ pub use xcm_config::{
 	SiblingParachainConvertsVia, XcmConfig, XcmRouter,
 };
 use xcm_executor::{traits::QueryHandler, XcmExecutor};
-use xcm_fee_payment_runtime_api::{
+use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
 };
@@ -164,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost"),
 	impl_name: create_runtime_str!("bifrost"),
 	authoring_version: 1,
-	spec_version: 15003,
+	spec_version: 16000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -174,7 +175,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
@@ -212,14 +216,14 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub const SS58Prefix: u8 = 6;
+	pub const SS58Prefix: u8 = 0;
 }
 
 parameter_types! {
-	pub const NativeCurrencyId: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
-	pub const RelayCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
+	pub const NativeCurrencyId: CurrencyId = BNC;
+	pub const RelayCurrencyId: CurrencyId = KSM;
 	pub const RelayVCurrencyId: CurrencyId = VKSM;
-	pub const StableCurrencyId: CurrencyId = CurrencyId::Stable(TokenSymbol::KUSD);
+	pub const StableCurrencyId: CurrencyId = KUSD;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
 	pub const PolkadotCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
 }
@@ -251,9 +255,9 @@ impl Contains<RuntimeCall> for CallFilter {
 			let is_disabled = match call {
 				// Disable specific `transfer`, `transfer_all`, and `transfer_keep_alive` calls for
 				// certain currencies
-				RuntimeCall::Tokens(orml_tokens::Call::transfer { currency_id, .. }) |
-				RuntimeCall::Tokens(orml_tokens::Call::transfer_all { currency_id, .. }) |
-				RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive {
+				RuntimeCall::Tokens(orml_tokens::Call::transfer { currency_id, .. })
+				| RuntimeCall::Tokens(orml_tokens::Call::transfer_all { currency_id, .. })
+				| RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive {
 					currency_id, ..
 				}) => [VBNC, BLP_BNC_VBNC, LP_BNC_VBNC].contains(currency_id),
 
@@ -261,17 +265,17 @@ impl Contains<RuntimeCall> for CallFilter {
 				RuntimeCall::StablePool(bifrost_stable_pool::Call::add_liquidity {
 					pool_id,
 					..
-				}) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::swap { pool_id, .. }) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_proportion {
+				})
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::swap { pool_id, .. })
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_proportion {
 					pool_id,
 					..
-				}) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_single {
+				})
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_single {
 					pool_id,
 					..
-				}) |
-				RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_multi {
+				})
+				| RuntimeCall::StablePool(bifrost_stable_pool::Call::redeem_multi {
 					pool_id,
 					..
 				}) => *pool_id == 2,
@@ -285,13 +289,13 @@ impl Contains<RuntimeCall> for CallFilter {
 					asset_0,
 					asset_1,
 					..
-				}) |
-				RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::remove_liquidity {
+				})
+				| RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::remove_liquidity {
 					asset_0,
 					asset_1,
 					..
-				}) |
-				RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::bootstrap_claim {
+				})
+				| RuntimeCall::ZenlinkProtocol(zenlink_protocol::Call::bootstrap_claim {
 					asset_0,
 					asset_1,
 					..
@@ -300,8 +304,8 @@ impl Contains<RuntimeCall> for CallFilter {
 				// Disable ZenlinkProtocol swap calls if the path contains VBNC assets
 				RuntimeCall::ZenlinkProtocol(
 					zenlink_protocol::Call::swap_exact_assets_for_assets { path, .. },
-				) |
-				RuntimeCall::ZenlinkProtocol(
+				)
+				| RuntimeCall::ZenlinkProtocol(
 					zenlink_protocol::Call::swap_assets_for_exact_assets { path, .. },
 				) => path.contains(&KUSAMA_VBNC_ASSET_INDEX),
 
@@ -459,8 +463,11 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::ParachainStaking(..)
 			),
 			ProxyType::Staking => {
-				matches!(c, RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..))
-			},
+				matches!(
+					c,
+					RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..)
+				)
+			}
 			ProxyType::Governance => matches!(
 				c,
 				RuntimeCall::Democracy(..) |
@@ -476,12 +483,15 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 						RuntimeCall::Whitelist(..)
 			),
 			ProxyType::CancelProxy => {
-				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
-			},
+				matches!(
+					c,
+					RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })
+				)
+			}
 			ProxyType::IdentityJudgement => matches!(
 				c,
-				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. }) |
-					RuntimeCall::Utility(..)
+				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })
+					| RuntimeCall::Utility(..)
 			),
 		}
 	}
@@ -831,13 +841,7 @@ parameter_types! {
 	pub const MaxBalance: Balance = 800_000 * BNCS;
 }
 
-type ApproveOrigin = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
->;
-
 impl pallet_treasury::Config for Runtime {
-	type ApproveOrigin = ApproveOrigin;
 	type SpendOrigin = EitherOf<EnsureRootWithSuccess<AccountId, MaxBalance>, Spender>;
 	type Burn = Burn;
 	type BurnDestination = ();
@@ -852,11 +856,7 @@ impl pallet_treasury::Config for Runtime {
 	type PayoutPeriod = PayoutSpendPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type OnSlash = Treasury;
 	type PalletId = TreasuryPalletId;
-	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ProposalBondMinimum;
-	type ProposalBondMaximum = ProposalBondMaximum;
 	type RejectOrigin = MoreThanHalfCouncil;
 	type SpendFunds = ();
 	type SpendPeriod = SpendPeriod;
@@ -877,7 +877,10 @@ impl pallet_transaction_payment::Config for Runtime {
 pub struct TxPauseWhitelistedCalls;
 impl Contains<pallet_tx_pause::RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
 	fn contains(full_name: &pallet_tx_pause::RuntimeCallNameOf<Runtime>) -> bool {
-		matches!(full_name.0.as_slice(), b"System" | b"Timestamp" | b"TxPause")
+		matches!(
+			full_name.0.as_slice(),
+			b"System" | b"Timestamp" | b"TxPause"
+		)
 	}
 }
 
@@ -905,8 +908,10 @@ where
 		<UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
 	)> {
 		// take the biggest period possible.
-		let period =
-			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+		let period = BlockHashCount::get()
+			.checked_next_power_of_two()
+			.map(|c| c / 2)
+			.unwrap_or(2) as u64;
 		let current_block = System::block_number()
 			.saturated_into::<u64>()
 			// The `System::block_number` is initialized with `n+1`,
@@ -997,7 +1002,10 @@ parameter_types! {
 	/// Rounds before the reward is paid
 	pub const RewardPaymentDelay: u32 = 2;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	pub const MinSelectedCandidates: u32 = prod_or_fast!(16,6);
+	/// The collator incentives on Bifrost-Kusama will be discontinued. The number of active
+	/// collators will be set to 4, ensuring that all collators are nodes operated by Bifrost
+	/// itself.
+	pub const MinSelectedCandidates: u32 = prod_or_fast!(4,4);
 	/// Maximum top delegations per candidate
 	pub const MaxTopDelegationsPerCandidate: u32 = 300;
 	/// Maximum bottom delegations per candidate
@@ -1098,6 +1106,7 @@ impl bifrost_vesting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vesting::BifrostWeight<Runtime>;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	const MAX_VESTING_SCHEDULES: u32 = 28;
+	type BlockNumberProvider = System;
 }
 
 // Bifrost modules start
@@ -1122,6 +1131,9 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type XcmRouter = XcmRouter;
 	type PalletId = FlexibleFeePalletId;
 	type OraclePriceProvider = Prices;
+	type InspectEvmAccounts = ();
+	type EvmPermit = bifrost_flexible_fee::impls::evm_permit::DisabledEvmPermitHandler<Runtime>;
+	type AssetIdMaps = AssetIdMaps<Runtime>;
 }
 
 parameter_types! {
@@ -1149,7 +1161,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 			),
 		),
 		// Only relay chain use the Bifrost para account with "para"
-		CurrencyId::Token(TokenSymbol::KSM) => xcm::v3::Location::new(
+		KSM => xcm::v3::Location::new(
 			1,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1161,7 +1173,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 			}),
 		),
 		// Bifrost Kusama Native token
-		CurrencyId::Native(TokenSymbol::BNC) => xcm::v3::Location::new(
+		BNC => xcm::v3::Location::new(
 			0,
 			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
 				network: None,
@@ -1203,7 +1215,7 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 			} else {
 				xcm::v3::Location::default()
 			}
-		},
+		}
 	}
 }
 
@@ -1335,6 +1347,7 @@ impl bifrost_slp::Config for Runtime {
 	type StablePoolHandler = StablePool;
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_vstoken_conversion::Config for Runtime {
@@ -1366,6 +1379,7 @@ impl bifrost_farming::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type WhitelistMaximumLimit = WhitelistMaximumLimit;
 	type GaugeRewardIssuer = FarmingGaugeRewardIssuerPalletId;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1386,6 +1400,7 @@ impl bifrost_system_staking::Config for Runtime {
 	type BlocksPerRound = BlocksPerRound;
 	type MaxTokenLen = MaxTokenLen;
 	type MaxFarmingPoolIdLen = MaxFarmingPoolIdLen;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_fee_share::Config for Runtime {
@@ -1395,6 +1410,7 @@ impl bifrost_fee_share::Config for Runtime {
 	type WeightInfo = weights::bifrost_fee_share::BifrostWeight<Runtime>;
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = Prices;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_cross_in_out::Config for Runtime {
@@ -1566,6 +1582,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_slpx::Config for Runtime {
@@ -1581,6 +1598,7 @@ impl bifrost_slpx::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
+	type BlockNumberProvider = System;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1605,6 +1623,7 @@ impl bifrost_stable_asset::Config for Runtime {
 	type WeightInfo = ();
 	type ListingOrigin = TechAdminOrCouncil;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Runtime {
@@ -1699,6 +1718,7 @@ impl lend_market::Config for Runtime {
 	type RewardAssetId = NativeCurrencyId;
 	type LiquidationFreeAssetId = RelayCurrencyId;
 	type MaxLengthLimit = MaxLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -1743,6 +1763,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type WeightInfo = weights::bifrost_channel_commission::BifrostWeight<Runtime>;
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_vbnc_convert::Config for Runtime {
@@ -2005,7 +2026,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_vtoken_voting::migration::v4::MigrateToV4<Runtime, RelayCurrencyId>,
+		bifrost_channel_commission::migrations::v1::MigrateToV1<Runtime>,
 	);
 }
 
@@ -2028,7 +2049,6 @@ mod benches {
 	define_benchmarks!(
 		[bifrost_asset_registry, AssetRegistry]
 		[bifrost_cross_in_out, CrossInOut]
-		[bifrost_farming, Farming]
 		[bifrost_fee_share, FeeShare]
 		[bifrost_flexible_fee, FlexibleFee]
 		[bifrost_slp, Slp]
@@ -2177,7 +2197,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::fees::XcmPaymentApi<Block> for Runtime {
+	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			let acceptable_assets = AssetRegistry::asset_ids();
 			PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
@@ -2210,7 +2230,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
 		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
 			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call)
 		}
@@ -2228,7 +2248,7 @@ impl_runtime_apis! {
 
 			match rs {
 				Ok(val) => val,
-				_ => (CurrencyId::Native(TokenSymbol::BNC), Zero::zero()),
+				_ => (BNC, Zero::zero()),
 			}
 		}
 	}

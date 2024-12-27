@@ -150,11 +150,13 @@ impl bifrost_farming::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type WhitelistMaximumLimit = WhitelistMaximumLimit;
 	type GaugeRewardIssuer = FarmingGaugeRewardIssuerPalletId;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
 	pub const BbBNCTokenType: CurrencyId = VBNC;
 	pub const Week: BlockNumber = 50400; // a week
+	pub const OneYear: BlockNumber = 2620800; // one year
 	pub const MaxBlock: BlockNumber = 10512000; // four years
 	pub const Multiplier: Balance = 10_u128.pow(12);
 	pub const VoteWeightMultiplier: Balance = 1;
@@ -177,6 +179,11 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type VtokenMinting = ();
+	type FarmingInfo = Farming;
+	type FourYears = MaxBlock;
+	type OneYear = OneYear;
+	type BlockNumberProvider = System;
 }
 
 ord_parameter_types! {
@@ -195,7 +202,9 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { endowed_accounts: vec![] }
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
@@ -223,7 +232,9 @@ impl ExtBuilder {
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		env_logger::try_init().unwrap_or(());
-		let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self
