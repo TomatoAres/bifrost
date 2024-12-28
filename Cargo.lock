@@ -3921,6 +3921,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9077,7 +9097,7 @@ dependencies = [
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.3"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "evm",
  "fp-evm",
  "frame-support",
@@ -10265,7 +10285,7 @@ name = "polkadot-availability-distribution"
 version = "17.0.1"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf6e1a276d194f2245c20561e37a38c273929"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "fatality",
  "futures 0.3.31",
  "parity-scale-codec",
@@ -10383,7 +10403,7 @@ name = "polkadot-dispute-distribution"
 version = "17.0.1"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf6e1a276d194f2245c20561e37a38c273929"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "fatality",
  "futures 0.3.31",
  "futures-timer",
@@ -10486,7 +10506,7 @@ version = "17.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf6e1a276d194f2245c20561e37a38c273929"
 dependencies = [
  "bitvec",
- "derive_more",
+ "derive_more 0.99.18",
  "futures 0.3.31",
  "futures-timer",
  "itertools 0.11.0",
@@ -10824,7 +10844,7 @@ dependencies = [
  "async-channel",
  "async-trait",
  "bitvec",
- "derive_more",
+ "derive_more 0.99.18",
  "fatality",
  "futures 0.3.31",
  "hex",
@@ -10882,7 +10902,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf
 dependencies = [
  "async-trait",
  "bitvec",
- "derive_more",
+ "derive_more 0.99.18",
  "fatality",
  "futures 0.3.31",
  "orchestra",
@@ -10911,7 +10931,7 @@ version = "17.1.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf6e1a276d194f2245c20561e37a38c273929"
 dependencies = [
  "async-trait",
- "derive_more",
+ "derive_more 0.99.18",
  "fatality",
  "futures 0.3.31",
  "futures-channel",
@@ -10969,7 +10989,7 @@ version = "14.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf6e1a276d194f2245c20561e37a38c273929"
 dependencies = [
  "bounded-collections",
- "derive_more",
+ "derive_more 0.99.18",
  "parity-scale-codec",
  "polkadot-core-primitives",
  "scale-info",
@@ -11109,7 +11129,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#c29cf
 dependencies = [
  "bitflags 1.3.2",
  "bitvec",
- "derive_more",
+ "derive_more 0.99.18",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -11454,7 +11474,7 @@ name = "precompile-utils"
 version = "0.1.0"
 source = "git+https://github.com/bifrost-io/frontier?branch=release-polkadot-stable2407#81ebdfa2d6b75e2ef85311ffda6a8f1fe56e3834"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "environmental",
  "evm",
  "fp-evm",
@@ -11575,7 +11595,7 @@ checksum = "a172e6cc603231f2cf004232eabcecccc0da53ba576ab286ef7baa0cfc7927ad"
 dependencies = [
  "coarsetime",
  "crossbeam-queue",
- "derive_more",
+ "derive_more 0.99.18",
  "futures 0.3.31",
  "futures-timer",
  "nanorand",
@@ -12112,7 +12132,7 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87413ebb313323d431e85d0afc5a68222aaed972843537cbfe5f061cf1b4bcab"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "fs-err",
  "static_init",
  "thiserror",
@@ -13806,7 +13826,7 @@ name = "sc-sysinfo"
 version = "37.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=stable2407#fe4e09d674c954238de06265123a74ac42075aba"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "futures 0.3.31",
  "libc",
  "log",
@@ -13957,7 +13977,7 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e98f3262c250d90e700bb802eb704e1f841e03331c2eb815e46516c4edbf5b27"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "parity-scale-codec",
  "scale-bits",
  "scale-type-resolver",
@@ -13966,13 +13986,13 @@ dependencies = [
 
 [[package]]
 name = "scale-info"
-version = "2.11.3"
+version = "2.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eca070c12893629e2cc820a9761bedf6ce1dcddc9852984d1dc734b8bd9bd024"
+checksum = "346a3b32eba2640d17a9cb5927056b08f3de90f65b72fe09402c2ad07d684d0b"
 dependencies = [
  "bitvec",
  "cfg-if",
- "derive_more",
+ "derive_more 1.0.0",
  "parity-scale-codec",
  "scale-info-derive",
  "serde",
@@ -13980,14 +14000,14 @@ dependencies = [
 
 [[package]]
 name = "scale-info-derive"
-version = "2.11.3"
+version = "2.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d35494501194174bda522a32605929eefc9ecf7e0a326c26db1fdd85881eb62"
+checksum = "c6630024bf739e2179b91fb424b28898baf819414262c5d376677dbff1fe7ebf"
 dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.90",
 ]
 
 [[package]]
@@ -14521,7 +14541,7 @@ dependencies = [
  "bs58 0.5.0",
  "chacha20",
  "crossbeam-queue",
- "derive_more",
+ "derive_more 0.99.18",
  "ed25519-zebra",
  "either",
  "event-listener 2.5.3",
@@ -14570,7 +14590,7 @@ dependencies = [
  "async-lock 2.8.0",
  "base64 0.21.2",
  "blake2-rfc",
- "derive_more",
+ "derive_more 0.99.18",
  "either",
  "event-listener 2.5.3",
  "fnv",

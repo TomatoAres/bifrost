@@ -316,7 +316,7 @@ paste                 = { version = "1.0.15" }
 primitive-types       = { version = "0.12.2", default-features = false }
 proc-macro2           = { version = "1.0.89" }
 quote                 = { version = "1.0.20" }
-scale-info            = { version = "2.11.3", default-features = false }
+scale-info            = { version = "2.11.6", default-features = false }
 serde                 = { version = "1.0.216", default-features = false }
 serde_json            = { version = "1.0.134", default-features = false }
 sha3                  = { version = "0.10.6", default-features = false }
