@@ -298,7 +298,6 @@ fn reset() {
 				RuntimeOrigin::signed(BOB),
 				pid,
 				charge_rewards,
-				false
 			));
 			assert_ok!(Farming::deposit(RuntimeOrigin::signed(ALICE), pid, 1));
 			assert_eq!(Tokens::free_balance(KSM, &ALICE), 3989);
@@ -351,7 +350,6 @@ fn init_gauge() -> (PoolId, BalanceOf<Runtime>) {
 		RuntimeOrigin::signed(BOB),
 		pid,
 		charge_rewards,
-		false
 	));
 	assert_ok!(BbBNC::set_config(
 		RuntimeOrigin::signed(ALICE),
@@ -394,7 +392,6 @@ fn init_no_gauge() -> (PoolId, BalanceOf<Runtime>) {
 		RuntimeOrigin::signed(BOB),
 		pid,
 		charge_rewards,
-		false
 	));
 	assert_ok!(Farming::deposit(RuntimeOrigin::signed(ALICE), pid, tokens));
 	(pid, tokens)
@@ -464,7 +461,6 @@ fn create_farming_pool() {
 				RuntimeOrigin::signed(BOB),
 				pid,
 				charge_rewards,
-				false
 			));
 			if let Some(pool_infos) = PoolInfos::<Runtime>::get(0) {
 				assert_eq!(pool_infos.total_shares, 0);
@@ -791,9 +787,37 @@ fn refresh_should_work() {
 			System::set_block_number(System::block_number() + 1000);
 
 			assert_ok!(BbBNC::create_lock_inner(
-				&CHARLIE,
+				&ALICE,
 				100_000_000_000,
 				(365 * 86400 - 7 * 86400) / 12
 			));
+
+			assert_eq!(
+				SharesAndWithdrawnRewards::<Runtime>::get(pid + GAUGE_BASE_ID, &CHARLIE),
+				None
+			);
+			assert_ok!(Farming::refresh_inner(&CHARLIE, pid));
+			assert_eq!(
+				SharesAndWithdrawnRewards::<Runtime>::get(pid + GAUGE_BASE_ID, &CHARLIE),
+				None
+			);
+			assert_eq!(
+				SharesAndWithdrawnRewards::<Runtime>::get(pid + GAUGE_BASE_ID, &ALICE)
+					.unwrap()
+					.share,
+				249252371904000
+			);
+			System::set_block_number(System::block_number() + 100);
+			assert_ok!(Farming::withdraw(
+				RuntimeOrigin::signed(ALICE),
+				pid,
+				Some(2000)
+			));
+			assert_ok!(Farming::withdraw_claim(RuntimeOrigin::signed(ALICE), pid));
+			assert_ok!(Farming::claim(RuntimeOrigin::signed(ALICE), pid));
+			assert_eq!(
+				SharesAndWithdrawnRewards::<Runtime>::get(pid + GAUGE_BASE_ID, &ALICE),
+				None
+			);
 		})
 }

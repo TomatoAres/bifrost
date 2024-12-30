@@ -19,11 +19,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use crate::pallet::*;
+use bifrost_asset_registry::{AssetMetadata, CurrencyIdMapping, TokenInfo};
 use bifrost_primitives::{
-	currency::{VGLMR, VMANTA, WETH},
-	traits::XcmDestWeightAndFeeHandler,
-	AssetHubChainId, Balance, BalanceCmp, CurrencyId, DerivativeIndex, OraclePriceProvider, Price,
-	TryConvertFrom, XcmOperationType, BNC, DOT, GLMR, MANTA, VBNC, VDOT,
+	traits::XcmDestWeightAndFeeHandler, AssetHubChainId, Balance, BalanceCmp, CurrencyId,
+	DerivativeIndex, OraclePriceProvider, Price, TryConvertFrom, XcmOperationType, BNC, VBNC,
 };
 use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
@@ -125,6 +124,8 @@ pub mod pallet {
 		type ParachainId: Get<ParaId>;
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+		// asset registry to get asset metadata
+		type AssetIdMaps: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 	}
 
 	#[pallet::hooks]
@@ -743,12 +744,14 @@ impl<T: Config> BalanceCmp<T::AccountId> for Pallet<T> {
 		let amount = amount.saturating_mul(adjust_precision);
 
 		// Adjust the balance based on currency type.
-		let balance_precision_offset = match *currency {
-			WETH | GLMR | VGLMR | MANTA | VMANTA => standard_precision.saturating_sub(18),
-			BNC | VBNC => standard_precision.saturating_sub(12),
-			DOT | VDOT => standard_precision.saturating_sub(10),
-			_ => return Err(Error::<T>::CurrencyNotSupport),
-		};
+		let decimals = currency
+			.decimals()
+			.or_else(|| {
+				T::AssetIdMaps::get_currency_metadata(*currency)
+					.map(|metadata| metadata.decimals.into())
+			})
+			.ok_or(Error::<T>::CurrencyNotSupport)?;
+		let balance_precision_offset = standard_precision.saturating_sub(decimals.into());
 
 		// Apply precision adjustment to balance.
 		balance = balance.saturating_mul(10u128.pow(balance_precision_offset));

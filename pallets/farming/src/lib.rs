@@ -167,8 +167,6 @@ pub mod pallet {
 			pid: PoolId,
 			/// Charged rewards.
 			rewards: Vec<(CurrencyIdOf<T>, BalanceOf<T>)>,
-			/// Returns true if the reward is for gauge pool, false otherwise.
-			if_gauge: bool,
 		},
 		/// The pool is deposited.
 		Deposited {
@@ -547,55 +545,34 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pid: PoolId,
 			rewards: Vec<(CurrencyIdOf<T>, BalanceOf<T>)>,
-			if_gauge: bool,
 		) -> DispatchResult {
 			let exchanger = ensure_signed(origin)?;
 
 			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 
-			match if_gauge {
-				true => {
-					let gauge_reward_issuer =
-						T::GaugeRewardIssuer::get().into_sub_account_truncating(pid);
-					rewards
-						.iter()
-						.try_for_each(|(reward_currency, reward)| -> DispatchResult {
-							T::MultiCurrency::transfer(
-								*reward_currency,
-								&exchanger,
-								&gauge_reward_issuer,
-								*reward,
-							)
-						})?;
-				}
-				false => {
-					ensure!(
-						pool_info.state == PoolState::UnCharged
-							|| pool_info.state == PoolState::Ongoing,
-						Error::<T>::InvalidPoolState
-					);
-					rewards
-						.iter()
-						.try_for_each(|(reward_currency, reward)| -> DispatchResult {
-							T::MultiCurrency::transfer(
-								*reward_currency,
-								&exchanger,
-								&pool_info.reward_issuer,
-								*reward,
-							)
-						})?;
-					if pool_info.state == PoolState::UnCharged {
-						pool_info.state = PoolState::Charged
-					}
-					PoolInfos::<T>::insert(&pid, pool_info);
-				}
-			};
+			ensure!(
+				pool_info.state == PoolState::UnCharged || pool_info.state == PoolState::Ongoing,
+				Error::<T>::InvalidPoolState
+			);
+			rewards
+				.iter()
+				.try_for_each(|(reward_currency, reward)| -> DispatchResult {
+					T::MultiCurrency::transfer(
+						*reward_currency,
+						&exchanger,
+						&pool_info.reward_issuer,
+						*reward,
+					)
+				})?;
+			if pool_info.state == PoolState::UnCharged {
+				pool_info.state = PoolState::Charged
+			}
+			PoolInfos::<T>::insert(&pid, pool_info);
 
 			Self::deposit_event(Event::Charged {
 				who: exchanger,
 				pid,
 				rewards,
-				if_gauge,
 			});
 			Ok(())
 		}
@@ -777,6 +754,7 @@ pub mod pallet {
 			Self::claim_rewards(&exchanger, pid)?;
 			Self::claim_rewards(&exchanger, pid + GAUGE_BASE_ID)?;
 			Self::process_withdraw_list(&exchanger, pid, &pool_info, true)?;
+			Self::refresh_inner(&exchanger, pid)?;
 
 			Self::deposit_event(Event::Claimed {
 				who: exchanger,
@@ -798,6 +776,7 @@ pub mod pallet {
 
 			let pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			Self::process_withdraw_list(&exchanger, pid, &pool_info, false)?;
+			Self::refresh_inner(&exchanger, pid)?;
 
 			Self::deposit_event(Event::WithdrawClaimed {
 				who: exchanger,
@@ -1192,29 +1171,40 @@ impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>, T::AccountId> for Pal
 	}
 
 	fn refresh_gauge_pool(exchanger: &T::AccountId) -> DispatchResult {
-		let pids = UserFarmingPool::<T>::get(&exchanger);
-		for pid in pids {
+		let mut pids = UserFarmingPool::<T>::get(&exchanger);
+		for pid in pids.clone() {
 			let gauge_pid = pid + GAUGE_BASE_ID;
-			let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
-				.ok_or(Error::<T>::ShareInfoNotExists)?;
-			if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
-				let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
-					.checked_mul(&share_info.share)
-					.ok_or(ArithmeticError::Overflow)?;
-				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
-				{
-					Self::update_gauge_share(
-						&exchanger,
-						gauge_pid,
-						gauge_new_value,
-						share_info.share,
-						&mut gauge_pool_info,
-					)?;
-				} else {
-					Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+			if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger) {
+				if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
+					let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+						.checked_mul(&share_info.share)
+						.ok_or(ArithmeticError::Overflow)?;
+					if let Some(share_info) =
+						SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
+					{
+						Self::update_gauge_share(
+							&exchanger,
+							gauge_pid,
+							gauge_new_value,
+							share_info.share,
+							&mut gauge_pool_info,
+						)?;
+					} else {
+						Self::add_share(
+							&exchanger,
+							gauge_pid,
+							&mut gauge_pool_info,
+							gauge_new_value,
+						);
+					}
 				}
+			} else {
+				// If `SharesAndWithdrawnRewards` returns `None`, remove the `pid` from `UserFarmingPool`.
+				pids.retain(|&x| x != pid);
+				SharesAndWithdrawnRewards::<T>::remove(gauge_pid, &exchanger);
 			}
 		}
+		UserFarmingPool::<T>::insert(&exchanger, pids);
 
 		Ok(())
 	}

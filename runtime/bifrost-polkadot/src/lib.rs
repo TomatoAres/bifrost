@@ -1000,6 +1000,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type OraclePriceProvider = Prices;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
+	type AssetIdMaps = AssetIdMaps<Runtime>;
 }
 
 parameter_types! {
@@ -2029,6 +2030,8 @@ mod benches {
 		[bifrost_slp_v2, SlpV2]
 		[bifrost_xcm_interface, XcmInterface]
 		[bifrost_farming, Farming]
+		[bifrost_clouds_convert, CloudsConvert]
+		[pallet_evm_accounts, EVMAccounts]
 	);
 }
 

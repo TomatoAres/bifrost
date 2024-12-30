@@ -61,6 +61,7 @@ sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
+sp-debug-derive = { workspace = true }
 sp-inherents = { workspace = true }
 sp-io = { workspace = true }
 sp-offchain = { workspace = true }
@@ -199,6 +200,7 @@ std = [
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
+	"sp-debug-derive/std",
 	"sp-inherents/std",
 	"sp-io/std",
 	"sp-offchain/std",
@@ -413,3 +415,7 @@ on-chain-release-build = ["sp-api/disable-logging", "metadata-hash"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []
+
+# By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled. 
+# This feature enables the detailed display of debug output.
+force-debug = ["sp-debug-derive/force-debug"]

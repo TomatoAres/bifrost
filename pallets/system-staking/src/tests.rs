@@ -496,7 +496,6 @@ fn init_farming_no_gauge() -> (PoolId, BalanceOf<Runtime>) {
 		RuntimeOrigin::signed(BOB),
 		pid,
 		charge_rewards,
-		false
 	));
 	assert_ok!(Farming::deposit(RuntimeOrigin::signed(ALICE), pid, tokens));
 	(pid, tokens)

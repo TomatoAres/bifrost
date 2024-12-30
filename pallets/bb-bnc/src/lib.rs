@@ -1428,6 +1428,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 		); // Withdraw old tokens first
 
 		Self::_deposit_for(who, new_position, value, real_unlock_time, _locked)?;
+		T::FarmingInfo::refresh_gauge_pool(who)?;
 		Self::deposit_event(Event::LockCreated {
 			who: who.to_owned(),
 			position: new_position,
@@ -1480,6 +1481,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 			real_unlock_time,
 			locked,
 		)?;
+		T::FarmingInfo::refresh_gauge_pool(who)?;
 		Self::deposit_event(Event::UnlockTimeIncreased {
 			who: who.to_owned(),
 			position,
@@ -1505,6 +1507,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 			T::BlockNumberProvider::current_block_number();
 		ensure!(_locked.end > current_block_number, Error::<T>::Expired); // Cannot add to expired/non-existent lock
 		Self::_deposit_for(who, position, value, Zero::zero(), _locked)?;
+		T::FarmingInfo::refresh_gauge_pool(who)?;
 		Self::deposit_event(Event::AmountIncreased {
 			who: who.to_owned(),
 			position,

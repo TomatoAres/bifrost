@@ -491,23 +491,30 @@ impl<T: Config> Pallet<T> {
 
 	pub fn refresh_inner(exchanger: &T::AccountId, pid: PoolId) -> DispatchResult {
 		let gauge_pid = pid + GAUGE_BASE_ID;
-		let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
-			.ok_or(Error::<T>::ShareInfoNotExists)?;
-		if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
-			let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
-				.checked_mul(&share_info.share)
-				.ok_or(ArithmeticError::Overflow)?;
-			if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger) {
-				Self::update_gauge_share(
-					&exchanger,
-					gauge_pid,
-					gauge_new_value,
-					share_info.share,
-					&mut gauge_pool_info,
-				)?;
-			} else {
-				Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+		if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger) {
+			if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
+				let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+					.checked_mul(&share_info.share)
+					.ok_or(ArithmeticError::Overflow)?;
+				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
+				{
+					Self::update_gauge_share(
+						&exchanger,
+						gauge_pid,
+						gauge_new_value,
+						share_info.share,
+						&mut gauge_pool_info,
+					)?;
+				} else {
+					Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+				}
 			}
+		} else {
+			// If `SharesAndWithdrawnRewards` returns `None`, remove the `pid` from `UserFarmingPool`.
+			UserFarmingPool::<T>::mutate(&exchanger, |pids| {
+				pids.retain(|&x| x != pid);
+			});
+			SharesAndWithdrawnRewards::<T>::remove(gauge_pid, &exchanger);
 		}
 
 		Ok(())

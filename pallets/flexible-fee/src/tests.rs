@@ -23,6 +23,8 @@ use crate::{
 	impls::on_charge_transaction::PaymentInfo, mock::*, BlockNumberFor, BoundedVec, Config,
 	DispatchError::BadOrigin, Error, UserDefaultFeeCurrency,
 };
+use bifrost_asset_registry::AssetMetadata;
+use bifrost_asset_registry::CurrencyMetadatas;
 use bifrost_primitives::{
 	AccountFeeCurrency, BalanceCmp, CurrencyId, TryConvertFrom, BNC, DOT, KSM, MANTA, VBNC, VDOT,
 	WETH,
@@ -64,6 +66,185 @@ fn post_info() -> PostDispatchInfo {
 		actual_weight: Some(Weight::default()),
 		pays_fee: Default::default(),
 	}
+}
+
+fn ini_meta_data() {
+	let metadata = AssetMetadata {
+		name: b"Polkadot DOT".to_vec(),
+		symbol: b"DOT".to_vec(),
+		decimals: 10,
+		minimal_balance: 1000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	assert_ok!(AssetRegistry::register_vtoken_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		0
+	));
+
+	assert_eq!(CurrencyMetadatas::<Test>::get(DOT), Some(metadata.clone()));
+
+	let metadata = AssetMetadata {
+		name: b"Moonbeam Native Token".to_vec(),
+		symbol: b"GLMR".to_vec(),
+		decimals: 18,
+		minimal_balance: 1000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Tether USD".to_vec(),
+		symbol: b"USDT".to_vec(),
+		decimals: 6,
+		minimal_balance: 1000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Astar".to_vec(),
+		symbol: b"ASTR".to_vec(),
+		decimals: 18,
+		minimal_balance: 10000000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Filecoin Network Token".to_vec(),
+		symbol: b"FIL".to_vec(),
+		decimals: 18,
+		minimal_balance: 1000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"USD Coin".to_vec(),
+		symbol: b"USDC".to_vec(),
+		decimals: 6,
+		minimal_balance: 1000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"interBTC".to_vec(),
+		symbol: b"IBTC".to_vec(),
+		decimals: 8,
+		minimal_balance: 100,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Interlay".to_vec(),
+		symbol: b"INTR".to_vec(),
+		decimals: 10,
+		minimal_balance: 10000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Manta Network".to_vec(),
+		symbol: b"MANTA".to_vec(),
+		decimals: 18,
+		minimal_balance: 1000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"bncs-20 inscription token BNCS".to_vec(),
+		symbol: b"BNCS".to_vec(),
+		decimals: 12,
+		minimal_balance: 10000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"PINK".to_vec(),
+		symbol: b"PINK".to_vec(),
+		decimals: 10,
+		minimal_balance: 100000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"DED".to_vec(),
+		symbol: b"DED".to_vec(),
+		decimals: 10,
+		minimal_balance: 1,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Pendulum".to_vec(),
+		symbol: b"PEN".to_vec(),
+		decimals: 12,
+		minimal_balance: 100000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Wrapped ETH".to_vec(),
+		symbol: b"WETH".to_vec(),
+		decimals: 18,
+		minimal_balance: 15000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	assert_eq!(CurrencyMetadatas::<Test>::get(WETH), Some(metadata.clone()));
 }
 
 fn basic_setup() {
@@ -426,6 +607,8 @@ fn get_currency_asset_id_should_work() {
 #[test]
 fn get_fee_currency_should_work_with_default_currency() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -446,6 +629,8 @@ fn get_fee_currency_should_work_with_default_currency() {
 #[test]
 fn get_fee_currency_should_work_with_default_currency_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -466,6 +651,8 @@ fn get_fee_currency_should_work_with_default_currency_poor() {
 #[test]
 fn get_fee_currency_should_work_with_weth() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 100u128.pow(12))); // BNC
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
@@ -480,6 +667,8 @@ fn get_fee_currency_should_work_with_weth() {
 #[test]
 fn get_fee_currency_should_work_with_weth_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 100u128.pow(12))); // BNC
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
@@ -504,6 +693,8 @@ fn get_fee_currency_should_work_with_weth_poor() {
 #[test]
 fn get_fee_currency_should_work_with_universal_fee_currency() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -534,6 +725,8 @@ fn get_fee_currency_should_work_with_universal_fee_currency() {
 #[test]
 fn get_fee_currency_should_work_with_universal_fee_currency_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 1u128.pow(12))); // BNC
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 1u128.pow(10))); // vDOT
@@ -558,6 +751,8 @@ fn get_fee_currency_should_work_with_universal_fee_currency_poor() {
 #[test]
 fn get_fee_currency_should_work_with_all_currency_poor() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
 		assert_ok!(FlexibleFee::set_user_default_fee_currency(
 			origin_signed_alice.clone(),
@@ -588,6 +783,8 @@ fn get_fee_currency_should_work_with_all_currency_poor() {
 #[test]
 fn cmp_with_precision_should_work_with_weth() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(WETH, &ALICE, 10u128.pow(18) - 1)); // ETH
 
 		let ordering =
@@ -599,6 +796,8 @@ fn cmp_with_precision_should_work_with_weth() {
 #[test]
 fn cmp_with_precision_should_work_with_dot() {
 	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 10u128.pow(11) + 1)); // DOT
 
 		let ordering =

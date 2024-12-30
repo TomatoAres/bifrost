@@ -20,18 +20,20 @@
 
 use super::*;
 use crate::{self as flexible_fee, mock_price::MockOraclePriceProvider};
+use bifrost_asset_registry::AssetIdMaps;
 use bifrost_currencies::BasicCurrencyAdapter;
 use bifrost_primitives::{
 	Balance, CurrencyId, EvmPermit, FlexibleFeePalletId, TokenSymbol, ZenlinkPalletId,
 };
 use cumulus_primitives_core::ParaId as Pid;
 use frame_support::{
-	derive_impl, parameter_types,
+	derive_impl, ord_parameter_types, parameter_types,
 	sp_runtime::{DispatchError, DispatchResult},
 	traits::{ConstU128, Get, Nothing},
 	weights::{ConstantMultiplier, IdentityFee},
 	PalletId,
 };
+use frame_system::EnsureSignedBy;
 use frame_system::{self, EnsureRoot};
 use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
@@ -74,10 +76,13 @@ pub(crate) const BALANCE_TRANSFER_CALL: <Test as frame_system::Config>::RuntimeC
 		value: 69,
 	});
 
+ord_parameter_types! {
+	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
+}
 impl bifrost_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type RegisterOrigin = EnsureRoot<AccountId>;
+	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
 }
 
@@ -190,6 +195,7 @@ impl crate::Config for Test {
 	type OraclePriceProvider = MockOraclePriceProvider;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
+	type AssetIdMaps = AssetIdMaps<Test>;
 }
 
 pub struct XcmDestWeightAndFee;

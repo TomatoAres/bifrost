@@ -232,11 +232,11 @@ sp-blockchain                              = { git = "https://github.com/parityt
 sp-consensus                               = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-consensus-aura                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-core                                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
+sp-debug-derive                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-genesis-builder                         = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-inherents                               = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-io                                      = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-keystore                                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
-sp-mmr-primitives                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-offchain                                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-runtime                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 sp-session                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
@@ -327,19 +327,19 @@ num-traits            = { version = "0.2.19", default-features = false }
 num_enum              = { version = "0.7.3", default-features = false }
 parity-scale-codec    = { version = "3.6.12", default-features = false }
 paste                 = { version = "1.0.15" }
-primitive-types       = { version = "0.12.1", default-features = false }
+primitive-types       = { version = "0.12.2", default-features = false }
 proc-macro2           = { version = "1.0.89" }
 quote                 = { version = "1.0.20" }
-scale-info            = { version = "2.11.3", default-features = false }
-serde                 = { version = "1.0.205", default-features = false }
-serde_json            = { version = "1.0.120", default-features = false }
+scale-info            = { version = "2.11.6", default-features = false }
+serde                 = { version = "1.0.216", default-features = false }
+serde_json            = { version = "1.0.134", default-features = false }
 sha3                  = { version = "0.10.6", default-features = false }
 similar-asserts       = { version = "1.6.0" }
 smallvec              = { version = "1.13.1" }
 static_assertions     = { version = "1.1.0" }
 strum                 = { version = "0.26.3", default-features = false, features = ["derive"] }
 strum_macros          = { version = "0.26.2" }
-syn                   = { version = "1.0.98", features = ["full", "fold", "extra-traits", "visit"] }
+syn                   = { version = "2.0.90", features = ["full", "fold", "extra-traits", "visit"] }
 tiny-keccak           = { version = "2.0", features = ["fips202"] }
 alloy-sol-macro = "0.7.7"
 alloy-sol-types = { version = "0.7.7", default-features = false }

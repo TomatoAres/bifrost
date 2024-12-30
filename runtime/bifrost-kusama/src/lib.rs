@@ -1133,6 +1133,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type OraclePriceProvider = Prices;
 	type InspectEvmAccounts = ();
 	type EvmPermit = bifrost_flexible_fee::impls::evm_permit::DisabledEvmPermitHandler<Runtime>;
+	type AssetIdMaps = AssetIdMaps<Runtime>;
 }
 
 parameter_types! {

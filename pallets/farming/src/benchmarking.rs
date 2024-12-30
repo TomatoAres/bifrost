@@ -94,7 +94,7 @@ mod benchmarks {
 		)];
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), 0, charge_rewards, false);
+		_(RawOrigin::Signed(caller.clone()), 0, charge_rewards);
 
 		Ok(())
 	}
@@ -131,7 +131,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), 0, token_amount);
@@ -169,8 +168,7 @@ mod benchmarks {
 		assert_ok!(Farming::<T>::charge(
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
-			charge_rewards,
-			false
+			charge_rewards
 		));
 		assert_ok!(Farming::<T>::deposit(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -215,7 +213,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		assert_ok!(Farming::<T>::deposit(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -264,7 +261,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		assert_ok!(Farming::<T>::deposit(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -310,7 +306,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		System::<T>::set_block_number(
 			System::<T>::block_number() + BlockNumberFor::<T>::from(10u32),
@@ -364,7 +359,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		System::<T>::set_block_number(
 			System::<T>::block_number() + BlockNumberFor::<T>::from(10u32),
@@ -472,7 +466,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		System::<T>::set_block_number(
 			System::<T>::block_number() + BlockNumberFor::<T>::from(10u32),
@@ -516,7 +509,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		assert_ok!(Farming::<T>::deposit(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -654,7 +646,6 @@ mod benchmarks {
 			RawOrigin::Signed(caller.clone()).into(),
 			0,
 			charge_rewards,
-			false
 		));
 		assert_ok!(Farming::<T>::deposit(
 			RawOrigin::Signed(caller.clone()).into(),
