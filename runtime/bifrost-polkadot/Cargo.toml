@@ -326,6 +326,8 @@ std = [
 	"bifrost-vtoken-minting-rpc-runtime-api/std",
 	"bifrost-parachain-staking/std",
 
+	"substrate-wasm-builder",
+
     "pallet-ismp/std",
     "pallet-ismp-runtime-api/std",
     "ismp-parachain/std",
