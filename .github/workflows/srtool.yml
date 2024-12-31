@@ -19,13 +19,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
+          fetch-depth: 1
+          submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Srtool build
         id: srtool_build
         uses: chevdor/srtool-actions@v0.8.0
         env:
           BUILD_OPTS: "--features on-chain-release-build"
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
         with:
           profile: production
           chain: ${{ matrix.chain }}
