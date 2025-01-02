@@ -165,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost"),
 	impl_name: create_runtime_str!("bifrost"),
 	authoring_version: 1,
-	spec_version: 16000,
+	spec_version: 16001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1764,6 +1764,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
 	type BlockNumberProvider = System;
+	type VtokenMintingInterface = VtokenMinting;
 }
 
 impl bifrost_vbnc_convert::Config for Runtime {
@@ -2026,7 +2027,6 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_channel_commission::migrations::v1::MigrateToV1<Runtime>,
 	);
 }
 

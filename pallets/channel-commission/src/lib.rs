@@ -24,6 +24,7 @@ extern crate alloc;
 use alloc::{vec, vec::Vec};
 use bifrost_primitives::{
 	CurrencyId, CurrencyIdExt, SlpHostingFeeProvider, VTokenMintRedeemProvider,
+	VtokenMintingInterface,
 };
 use frame_support::{pallet_prelude::*, PalletId};
 use frame_system::pallet_prelude::*;
@@ -88,26 +89,46 @@ pub mod pallet {
 		type NameLengthLimit: Get<u32>;
 		/// The current block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+		/// The interface to call VtokenMinting module functions.
+		type VtokenMintingInterface: VtokenMintingInterface<
+			AccountIdOf<Self>,
+			CurrencyId,
+			BalanceOf<Self>,
+		>;
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Overflow error, indicating that a mathematical operation exceeded the allowed numeric range.
 		Overflow,
+		/// Error indicating that the provided channel name exceeds the maximum allowed length.
 		ChannelNameTooLong,
+		/// Conversion error, indicating a failure during a type conversion operation.
 		ConversionError,
+		/// Error indicating that the specified channel does not exist in storage.
 		ChannelNotExist,
+		/// Transfer error, indicating that a fund transfer operation has failed.
 		TransferError,
+		/// Error indicating that the vToken is not configured for commission calculations.
 		VtokenNotConfiguredForCommission,
+		/// Invalid commission rate, indicating that the provided commission rate is out of range or malformed.
 		InvalidCommissionRate,
+		/// Error indicating that the commission token has already been set and cannot be reconfigured.
 		CommissionTokenAlreadySet,
+		/// Invalid vToken, indicating that the provided vToken is invalid or unrecognized.
 		InvalidVtoken,
 		/// Error indicating that no changes were made during a modification operation.
+		/// This means that a modification request was issued but did not result in any actual changes.
 		NoChangesMade,
-		/// Represents an error that occurs when a division operation encounters a divisor of zero.
+		/// Error indicating a division operation encountered a divisor of zero.
 		/// This is a critical error, as division by zero is undefined and cannot be performed.
 		DivisionByZero,
-		/// Error indicating that the removal operation was not completed successfully.
+		/// Error indicating that the removal operation was not successfully completed.
+		/// This means an attempt to remove a resource or record did not succeed.
 		RemovalNotComplete,
+		/// Error indicating a failure during token-to-vToken conversion via exchange rate calculation.
+		/// This can occur when the conversion formula encounters an unexpected condition or invalid input.
+		TokenToVtokenConversionFailed,
 	}
 
 	#[pallet::event]
@@ -1027,6 +1048,13 @@ impl<T: Config> SlpHostingFeeProvider<CurrencyId, BalanceOf<T>, AccountIdOf<T>> 
 			.to_vtoken()
 			.map_err(|_| Error::<T>::ConversionError)?;
 
+		let vtoken_amount = T::VtokenMintingInterface::get_v_currency_amount_by_currency_amount(
+			staking_token,
+			vtoken,
+			amount,
+		)
+		.map_err(|_| Error::<T>::TokenToVtokenConversionFailed)?;
+
 		// If the vtoken is configured for commission, record the hosting fee
 		if let Some(commission_token) = CommissionTokens::<T>::get(vtoken) {
 			PeriodTotalCommissions::<T>::mutate(
@@ -1034,7 +1062,7 @@ impl<T: Config> SlpHostingFeeProvider<CurrencyId, BalanceOf<T>, AccountIdOf<T>> 
 				|total_commission| -> Result<(), Error<T>> {
 					let sum_up_amount = total_commission
 						.1
-						.checked_add(&amount)
+						.checked_add(&vtoken_amount)
 						.ok_or(Error::<T>::Overflow)?;
 
 					total_commission.1 = sum_up_amount;
