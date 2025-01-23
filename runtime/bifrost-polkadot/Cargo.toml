@@ -174,6 +174,17 @@ bifrost-channel-commission = { workspace = true }
 bifrost-clouds-convert = { workspace = true }
 bifrost-vtoken-minting-rpc-runtime-api = { workspace = true }
 
+# Hyperbridge
+pallet-ismp = { workspace = true, features = ["unsigned"] }
+pallet-ismp-runtime-api = { workspace = true }
+ismp-parachain = { workspace = true  }
+ismp-parachain-runtime-api = { workspace = true  }
+sp-mmr-primitives = { workspace = true }
+ismp = { workspace = true }
+pallet-hyperbridge = { workspace = true }
+pallet-token-gateway = { workspace = true }
+anyhow = { workspace = true }
+
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
 
@@ -314,7 +325,17 @@ std = [
 	"bifrost-vtoken-minting-rpc-runtime-api/std",
 	"bifrost-parachain-staking/std",
 
-	"substrate-wasm-builder"
+	"substrate-wasm-builder",
+
+	"pallet-ismp/std",
+	"pallet-ismp-runtime-api/std",
+	"ismp-parachain/std",
+	"ismp-parachain-runtime-api/std",
+	"sp-mmr-primitives/std",
+	"ismp/std",
+	"pallet-hyperbridge/std",
+	"pallet-token-gateway/std",
+	"anyhow/std",
 ]
 with-tracing = ["frame-executive/with-tracing"]
 
@@ -436,6 +457,10 @@ try-runtime = [
 	"pallet-evm-chain-id/try-runtime",
 	"pallet-dynamic-fee/try-runtime",
 	"bifrost-parachain-staking/try-runtime",
+	"pallet-ismp/try-runtime",
+	"pallet-hyperbridge/try-runtime",
+	"pallet-token-gateway/try-runtime",
+	"ismp-parachain/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.
@@ -455,6 +480,6 @@ on-chain-release-build = ["sp-api/disable-logging", "metadata-hash"]
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []
 
-# By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled. 
+# By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled.
 # This feature enables the detailed display of debug output.
 force-debug = ["sp-debug-derive/force-debug"]

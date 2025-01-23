@@ -35,8 +35,8 @@ pub trait BbBNCInterface<AccountId, CurrencyId, Balance, BlockNumber> {
 		who: &AccountId,
 		value: Balance,
 		unlock_time: BlockNumber,
-	) -> DispatchResult; // Deposit `_value` BNC for `who` and lock until `_unlock_time`
-	fn increase_amount_inner(who: &AccountId, position: u128, value: Balance) -> DispatchResult; // Deposit `_value` additional BNC for `who` without modifying the unlock time
+	) -> DispatchResult; // Deposit `value` BNC for `who` and lock until `_unlock_time`
+	fn increase_amount_inner(who: &AccountId, position: u128, value: Balance) -> DispatchResult; // Deposit `value` additional BNC for `who` without modifying the unlock time
 	fn increase_unlock_time_inner(
 		who: &AccountId,
 		position: u128,
@@ -194,6 +194,7 @@ pub struct MarkupCoefficientInfo<BlockNumber> {
 	pub markup_coefficient: FixedU128,
 	pub hardcap: FixedU128,
 	pub update_block: BlockNumber,
+	pub rwi: FixedU128,
 }
 
 pub trait MarkupInfo<AccountId> {

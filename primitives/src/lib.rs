@@ -30,6 +30,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	FixedU128, MultiSignature, OpaqueExtrinsic, Permill,
 };
+use sp_std::vec::Vec;
 
 pub mod currency;
 pub use currency::*;
@@ -159,6 +160,14 @@ pub const SECONDS_PER_YEAR: Timestamp = 365 * 24 * 60 * 60;
 pub type DerivativeIndex = u16;
 
 pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
+
+#[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, TypeInfo)]
+pub struct AssetMetadata<Balance> {
+	pub name: Vec<u8>,
+	pub symbol: Vec<u8>,
+	pub decimals: u8,
+	pub minimal_balance: Balance,
+}
 
 // Pallet Id
 parameter_types! {

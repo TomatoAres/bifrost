@@ -38,6 +38,7 @@ pub const MOVR: CurrencyId = CurrencyId::Token(TokenSymbol::MOVR);
 pub const VMOVR: CurrencyId = CurrencyId::VToken(TokenSymbol::MOVR);
 pub const BNC: CurrencyId = CurrencyId::Native(TokenSymbol::BNC);
 pub const VBNC: CurrencyId = CurrencyId::VToken(TokenSymbol::BNC);
+pub const BNC_DECIMALS: u8 = 12;
 pub const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
 pub const VKSM: CurrencyId = CurrencyId::VToken(TokenSymbol::KSM);
 pub const VSKSM: CurrencyId = CurrencyId::VSToken(TokenSymbol::KSM);

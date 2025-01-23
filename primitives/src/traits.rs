@@ -21,8 +21,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::{
-	AssetIds, CurrencyId, DerivativeIndex, LeasePeriod, ParaId, PoolId, RedeemType, TokenId,
-	TokenSymbol, XcmOperationType,
+	AssetIds, AssetMetadata, Balance, CurrencyId, DerivativeIndex, LeasePeriod, ParaId, PoolId,
+	RedeemType, TokenId, TokenSymbol, XcmOperationType,
 };
 use frame_support::pallet_prelude::{DispatchResultWithPostInfo, Weight};
 use parity_scale_codec::{Decode, Encode, FullCodec};
@@ -169,7 +169,7 @@ pub trait CurrencyIdConversion<CurrencyId> {
 	) -> Result<CurrencyId, ()>;
 }
 
-pub trait CurrencyIdRegister<CurrencyId> {
+pub trait CurrencyIdRegister<CurrencyId, AssetMetadata> {
 	fn check_token_registered(token_symbol: TokenSymbol) -> bool;
 	fn check_vtoken_registered(token_symbol: TokenSymbol) -> bool;
 	fn check_vstoken_registered(token_symbol: TokenSymbol) -> bool;
@@ -184,9 +184,10 @@ pub trait CurrencyIdRegister<CurrencyId> {
 	fn check_vtoken2_registered(token_id: TokenId) -> bool;
 	fn register_vtoken2_metadata(token_id: TokenId) -> DispatchResult;
 	fn register_blp_metadata(pool_id: PoolId, decimals: u8) -> DispatchResult;
+	fn register_metadata(currency_id: CurrencyId, metadata: AssetMetadata) -> DispatchResult;
 }
 
-impl<CurrencyId> CurrencyIdRegister<CurrencyId> for () {
+impl<CurrencyId> CurrencyIdRegister<CurrencyId, AssetMetadata<Balance>> for () {
 	fn check_token_registered(_token_symbol: TokenSymbol) -> bool {
 		false
 	}
@@ -225,6 +226,12 @@ impl<CurrencyId> CurrencyIdRegister<CurrencyId> for () {
 	}
 
 	fn register_blp_metadata(_pool_id: PoolId, _decimals: u8) -> DispatchResult {
+		Ok(())
+	}
+	fn register_metadata(
+		_currency_id: CurrencyId,
+		_metadata: AssetMetadata<Balance>,
+	) -> DispatchResult {
 		Ok(())
 	}
 }
@@ -487,17 +494,15 @@ pub trait BalanceCmp<AccountId> {
 	/// - `account`: The account ID whose balance is to be compared.
 	/// - `currency`: The currency ID whose balance is to be compared.
 	/// - `amount`: The amount to compare against.
-	/// - `amount_precision`: The precision of the input amount.
 	///
 	/// # Returns
 	/// - `Ok(std::cmp::Ordering)`: The result of the comparison, indicating whether the balance is
 	///   less than, equal to, or greater than the input amount.
 	/// - `Err(Self::Error)`: An error if the comparison fails.
-	fn cmp_with_precision(
+	fn cmp_with_weth(
 		account: &AccountId,
 		currency: &CurrencyId,
 		amount: u128,
-		amount_precision: u32,
 	) -> Result<Ordering, Self::Error>;
 }
 

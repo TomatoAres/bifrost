@@ -506,3 +506,36 @@ pub const ACTIVE_MARKET_MOCK: Market<Balance> = {
 	market.state = MarketState::Active;
 	market
 };
+
+pub struct ExtBuilder {
+	balances: Vec<(AccountId, Balance)>,
+}
+
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self { balances: vec![] }
+	}
+}
+
+impl ExtBuilder {
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::<Test>::default()
+			.build_storage()
+			.unwrap();
+
+		pallet_balances::GenesisConfig::<Test> {
+			balances: self.balances.into_iter().collect::<Vec<_>>(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
+	ExtBuilder::default().build()
+}

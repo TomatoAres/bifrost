@@ -30,8 +30,9 @@ mod benchmarking;
 
 pub mod weights;
 
-use bb_bnc::{BbBNCInterface, BB_BNC_SYSTEM_POOL_ID};
-use bifrost_primitives::{currency::BNC, CurrencyId, CurrencyIdRegister, TryConvertFrom};
+use bifrost_primitives::{
+	currency::BNC, AssetMetadata, CurrencyId, CurrencyIdRegister, TryConvertFrom,
+};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
@@ -87,14 +88,7 @@ pub mod pallet {
 
 		type ParachainId: Get<ParaId>;
 
-		type CurrencyIdRegister: CurrencyIdRegister<CurrencyId>;
-
-		type BbBNC: BbBNCInterface<
-			AccountIdOf<Self>,
-			CurrencyIdOf<Self>,
-			BalanceOf<Self>,
-			BlockNumberFor<Self>,
-		>;
+		type CurrencyIdRegister: CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 
 		/// The current block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -453,11 +447,9 @@ pub mod pallet {
 				let destruction_amount = ratio * bnc_balance_before_burn;
 				T::MultiCurrency::withdraw(BNC, &buyback_address, destruction_amount)?;
 			}
-			T::BbBNC::notify_reward(
-				BB_BNC_SYSTEM_POOL_ID,
-				&Some(buyback_address.clone()),
-				vec![BNC],
-			)
+			let bnc_balance_after_burn = T::MultiCurrency::free_balance(BNC, &buyback_address);
+			let buyback_to = T::BuyBackAccount::get().into_sub_account_truncating(1);
+			T::MultiCurrency::transfer(BNC, &buyback_address, &buyback_to, bnc_balance_after_burn)
 		}
 
 		#[transactional]

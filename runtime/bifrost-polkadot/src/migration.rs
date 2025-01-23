@@ -463,3 +463,20 @@ pub mod genesis_evm_storage {
 		}
 	}
 }
+
+pub mod update_evm_min_gas_price {
+	use crate::{Runtime, Weight};
+	use frame_support::traits::OnRuntimeUpgrade;
+	use pallet_dynamic_fee::MinGasPrice;
+	use primitive_types::U256;
+
+	pub struct MigrateMinGasPrice;
+
+	impl OnRuntimeUpgrade for MigrateMinGasPrice {
+		fn on_runtime_upgrade() -> Weight {
+			let min_gas_fee: U256 = U256::from(83102775u64);
+			MinGasPrice::<Runtime>::put(min_gas_fee);
+			<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 2)
+		}
+	}
+}

@@ -19,10 +19,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use crate::pallet::*;
-use bifrost_asset_registry::{AssetMetadata, CurrencyIdMapping, TokenInfo};
+use bifrost_asset_registry::{AssetMetadata, CurrencyIdMapping};
 use bifrost_primitives::{
 	traits::XcmDestWeightAndFeeHandler, AssetHubChainId, Balance, BalanceCmp, CurrencyId,
-	DerivativeIndex, OraclePriceProvider, Price, TryConvertFrom, XcmOperationType, BNC, VBNC,
+	DerivativeIndex, OraclePriceProvider, Price, TryConvertFrom, XcmOperationType, BNC, VBNC, WETH,
 };
 use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
@@ -59,8 +59,7 @@ use zenlink_protocol::{AssetId, ExportZenlink};
 mod benchmarking;
 pub mod impls;
 pub mod migrations;
-mod mock;
-mod mock_price;
+mod mocks;
 mod tests;
 pub mod weights;
 
@@ -126,6 +125,9 @@ pub mod pallet {
 		type PalletId: Get<PalletId>;
 		// asset registry to get asset metadata
 		type AssetIdMaps: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
+		/// The `AllowVBNCAsFee` constant determines whether VBNC is allowed as a fee currency.
+		#[pallet::constant]
+		type AllowVBNCAsFee: Get<bool>;
 	}
 
 	#[pallet::hooks]
@@ -230,6 +232,8 @@ pub mod pallet {
 		EvmPermitCallExecutionError,
 		/// EVM permit call failed.
 		EvmPermitRunnerError,
+		/// Percentage calculation failed due to overflow.
+		PercentageCalculationFailed,
 	}
 
 	#[pallet::call]
@@ -247,8 +251,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			if let Some(fee_currency) = &currency_id {
-				// VBNC is not supported.
-				ensure!(fee_currency != &VBNC, Error::<T>::CurrencyNotSupport);
+				if !T::AllowVBNCAsFee::get() {
+					// VBNC is not supported.
+					ensure!(fee_currency != &VBNC, Error::<T>::CurrencyNotSupport);
+				}
 
 				UserDefaultFeeCurrency::<T>::insert(&who, fee_currency);
 			} else {
@@ -714,49 +720,30 @@ impl<T: Config> BalanceCmp<T::AccountId> for Pallet<T> {
 	/// - `currency`: The currency ID to be compared.
 	/// - `amount`: The amount to compare against the account's balance, with the precision
 	///   specified by `amount_precision`.
-	/// - `amount_precision`: The precision of the `amount` specified. If greater than 18, the
-	///   precision of the `currency` will be adjusted accordingly.
 	///
 	/// # Returns
 	/// - `Ok(std::cmp::Ordering)`: Returns the ordering result (`Less`, `Equal`, `Greater`) based
 	///   on the comparison between the adjusted balance and the adjusted amount.
 	/// - `Err(Error<T>)`: Returns an error if the currency is not supported.
-	fn cmp_with_precision(
+	fn cmp_with_weth(
 		account: &T::AccountId,
 		currency: &CurrencyId,
 		amount: u128,
-		amount_precision: u32,
 	) -> Result<Ordering, Error<T>> {
 		// Get the reducible balance for the specified account and currency.
-		let mut balance = T::MultiCurrency::reducible_balance(
+		let balance = T::MultiCurrency::reducible_balance(
 			*currency,
 			account,
 			Preservation::Preserve,
 			Fortitude::Polite,
 		);
 
-		// Define the standard precision as 18 decimal places.
-		let standard_precision: u32 = amount_precision.max(18);
+		let (fee_amount, _, _) =
+			T::OraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
+				&WETH, amount, &currency,
+			)
+			.ok_or(Error::<T>::ConversionError)?;
 
-		// Adjust the amount to the standard precision.
-		let precision_offset = standard_precision.saturating_sub(amount_precision);
-		let adjust_precision = 10u128.pow(precision_offset);
-		let amount = amount.saturating_mul(adjust_precision);
-
-		// Adjust the balance based on currency type.
-		let decimals = currency
-			.decimals()
-			.or_else(|| {
-				T::AssetIdMaps::get_currency_metadata(*currency)
-					.map(|metadata| metadata.decimals.into())
-			})
-			.ok_or(Error::<T>::CurrencyNotSupport)?;
-		let balance_precision_offset = standard_precision.saturating_sub(decimals.into());
-
-		// Apply precision adjustment to balance.
-		balance = balance.saturating_mul(10u128.pow(balance_precision_offset));
-
-		// Compare the adjusted balance with the input amount.
-		Ok(balance.cmp(&amount))
+		Ok(balance.cmp(&fee_amount))
 	}
 }

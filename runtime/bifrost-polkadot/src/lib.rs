@@ -38,8 +38,9 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
 	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC, DOT, VDOT,
+	TreasuryPalletId, BNC, BNC_DECIMALS, DOT, VDOT,
 };
+use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 pub use frame_support::{
 	construct_runtime, match_types, parameter_types,
@@ -57,6 +58,7 @@ pub use frame_support::{
 	PalletId, StorageValue,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
+use ismp::host::StateMachine;
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -138,6 +140,8 @@ pub use xcm_config::{BifrostTreasuryAccount, MultiCurrency};
 use xcm_executor::{traits::QueryHandler, XcmExecutor};
 
 pub mod governance;
+mod hyperbridge;
+
 use crate::xcm_config::XcmRouter;
 use bifrost_primitives::OraclePriceProvider;
 use frame_support::weights::WeightToFee as _;
@@ -145,6 +149,13 @@ use governance::{
 	custom_origins, CoreAdminOrCouncil, LiquidStaking, SALPAdmin, Spender, TechAdmin,
 	TechAdminOrCouncil,
 };
+use ismp::{
+	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
+	router::{Request, Response},
+};
+use pallet_ismp::offchain::Leaf;
+use pallet_ismp::offchain::Proof;
+use pallet_ismp::offchain::ProofKeys;
 use xcm::IntoVersion;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -188,7 +199,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_polkadot"),
 	impl_name: create_runtime_str!("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 16001,
+	spec_version: 16002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -244,6 +255,7 @@ parameter_types! {
 
 parameter_types! {
 	pub const NativeCurrencyId: CurrencyId = BNC;
+	pub const BncDecimals: u8 = BNC_DECIMALS;
 	pub const RelayCurrencyId: CurrencyId = DOT;
 	pub const RelayVCurrencyId: CurrencyId = VDOT;
 	pub SelfParaId: u32 = ParachainInfo::parachain_id().into();
@@ -968,6 +980,7 @@ impl bifrost_vesting::Config for Runtime {
 
 parameter_types! {
 	pub MaxFeeCurrencyOrderListLen: u32 = 50;
+	pub AllowVBNCAsFee: bool = true;
 }
 
 impl bifrost_flexible_fee::Config for Runtime {
@@ -989,6 +1002,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 	type AssetIdMaps = AssetIdMaps<Runtime>;
+	type AllowVBNCAsFee = AllowVBNCAsFee;
 }
 
 parameter_types! {
@@ -1542,7 +1556,7 @@ impl lend_market::Config for Runtime {
 	type OraclePriceProvider = Prices;
 	type ReserveOrigin = TechAdminOrCouncil;
 	type UpdateOrigin = TechAdminOrCouncil;
-	type WeightInfo = lend_market::weights::BifrostWeight<Runtime>;
+	type WeightInfo = weights::lend_market::BifrostWeight<Runtime>;
 	type UnixTime = Timestamp;
 	type Assets = Currencies;
 	type RewardAssetId = NativeCurrencyId;
@@ -1617,7 +1631,6 @@ impl bifrost_buy_back::Config for Runtime {
 	type LiquidityAccount = LiquidityAccount;
 	type ParachainId = ParachainInfo;
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
-	type BbBNC = BbBNC;
 	type BlockNumberProvider = System;
 }
 
@@ -1809,6 +1822,12 @@ construct_runtime! {
 		ZenlinkProtocol: zenlink_protocol = 80,
 		MerkleDistributor: merkle_distributor = 81,
 
+		// Hyperbridge
+		Ismp: pallet_ismp = 90,
+		IsmpParachain: ismp_parachain = 91,
+		Hyperbridge: pallet_hyperbridge = 92,
+		TokenGateway: pallet_token_gateway = 94,
+
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
 		Salp: bifrost_salp = 105,
@@ -1926,6 +1945,7 @@ pub mod migrations {
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
+		crate::migration::update_evm_min_gas_price::MigrateMinGasPrice,
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 	);
@@ -2067,7 +2087,7 @@ impl_runtime_apis! {
 		}
 	}
 
-impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
+	impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 		fn chain_id() -> u64 {
 			<Runtime as pallet_evm::Config>::ChainId::get()
 		}
@@ -2337,6 +2357,69 @@ impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 		}
 		fn account_id(evm_address: H160) -> AccountId {
 			EVMAccounts::account_id(evm_address)
+		}
+	}
+
+	impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
+		fn host_state_machine() -> StateMachine {
+			<Runtime as pallet_ismp::Config>::HostStateMachine::get()
+		}
+
+		fn challenge_period(state_machine_id: StateMachineId) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
+		}
+
+		/// Generate a proof for the provided leaf indices
+		fn generate_proof(
+			keys: ProofKeys
+		) -> Result<(Vec<Leaf>, Proof<<Block as BlockT>::Hash>), sp_mmr_primitives::Error> {
+			pallet_ismp::Pallet::<Runtime>::generate_proof(keys)
+		}
+
+		/// Fetch all ISMP events in the block, should only be called from runtime-api.
+		fn block_events() -> Vec<::ismp::events::Event> {
+			pallet_ismp::Pallet::<Runtime>::block_events()
+		}
+
+		/// Fetch all ISMP events and their extrinsic metadata, should only be called from runtime-api.
+		fn block_events_with_metadata() -> Vec<(::ismp::events::Event, Option<u32>)> {
+			pallet_ismp::Pallet::<Runtime>::block_events_with_metadata()
+		}
+
+		/// Return the scale encoded consensus state
+		fn consensus_state(id: ConsensusClientId) -> Option<Vec<u8>> {
+			pallet_ismp::Pallet::<Runtime>::consensus_states(id)
+		}
+
+		/// Return the timestamp this client was last updated in seconds
+		fn state_machine_update_time(height: StateMachineHeight) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::state_machine_update_time(height)
+		}
+
+		/// Return the latest height of the state machine
+		fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
+		}
+
+
+		/// Get actual requests
+		fn requests(commitments: Vec<H256>) -> Vec<Request> {
+			pallet_ismp::Pallet::<Runtime>::requests(commitments)
+		}
+
+		/// Get actual requests
+		fn responses(commitments: Vec<H256>) -> Vec<Response> {
+			pallet_ismp::Pallet::<Runtime>::responses(commitments)
+		}
+	}
+
+	impl ismp_parachain_runtime_api::IsmpParachainApi<Block> for Runtime {
+		fn para_ids() -> Vec<u32> {
+			IsmpParachain::para_ids()
+		}
+
+		fn current_relay_chain_state() -> RelayChainState {
+			IsmpParachain::current_relay_chain_state()
 		}
 	}
 

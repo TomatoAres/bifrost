@@ -20,8 +20,8 @@
 
 #![cfg(test)]
 use crate::{
-	impls::on_charge_transaction::PaymentInfo, mock::*, BlockNumberFor, BoundedVec, Config,
-	DispatchError::BadOrigin, Error, UserDefaultFeeCurrency,
+	impls::on_charge_transaction::PaymentInfo, mocks::kusama_mock::*, BlockNumberFor, BoundedVec,
+	Config, DispatchError::BadOrigin, Error, UserDefaultFeeCurrency,
 };
 use bifrost_asset_registry::AssetMetadata;
 use bifrost_asset_registry::CurrencyMetadatas;
@@ -627,6 +627,52 @@ fn get_fee_currency_should_work_with_default_currency() {
 }
 
 #[test]
+fn get_fee_currency_should_work_with_dot() {
+	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
+		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
+		assert_ok!(FlexibleFee::set_user_default_fee_currency(
+			origin_signed_alice.clone(),
+			Some(DOT)
+		));
+
+		assert_ok!(Currencies::deposit(
+			DOT,
+			&ALICE,
+			660u128 * 10u128.pow(10) + 1
+		));
+		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18)));
+
+		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
+		assert_eq!(currency, DOT);
+	});
+}
+
+#[test]
+fn get_fee_currency_should_work_with_dot_weth() {
+	new_test_ext().execute_with(|| {
+		ini_meta_data();
+
+		let origin_signed_alice = RuntimeOrigin::signed(ALICE);
+		assert_ok!(FlexibleFee::set_user_default_fee_currency(
+			origin_signed_alice.clone(),
+			Some(DOT)
+		));
+
+		assert_ok!(Currencies::deposit(
+			DOT,
+			&ALICE,
+			660u128 * 10u128.pow(10) - 1
+		));
+		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18)));
+
+		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
+		assert_eq!(currency, WETH);
+	});
+}
+
+#[test]
 fn get_fee_currency_should_work_with_default_currency_poor() {
 	new_test_ext().execute_with(|| {
 		ini_meta_data();
@@ -781,38 +827,39 @@ fn get_fee_currency_should_work_with_all_currency_poor() {
 }
 
 #[test]
-fn cmp_with_precision_should_work_with_weth() {
+fn cmp_with_weth_should_work_with_weth() {
 	new_test_ext().execute_with(|| {
 		ini_meta_data();
 
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 10u128.pow(18) - 1)); // ETH
+		assert_ok!(Currencies::deposit(WETH, &ALICE, 10u128.pow(18) - 10)); // ETH
 
-		let ordering =
-			FlexibleFee::cmp_with_precision(&ALICE, &WETH, 10u128.pow(18), 18u32).unwrap();
+		let ordering = FlexibleFee::cmp_with_weth(&ALICE, &WETH, 10u128.pow(18)).unwrap();
 		assert_eq!(ordering, Less);
 	});
 }
 
 #[test]
-fn cmp_with_precision_should_work_with_dot() {
+fn cmp_with_weth_should_work_with_dot() {
 	new_test_ext().execute_with(|| {
 		ini_meta_data();
 
-		assert_ok!(Currencies::deposit(DOT, &ALICE, 10u128.pow(11) + 1)); // DOT
+		assert_ok!(Currencies::deposit(
+			DOT,
+			&ALICE,
+			600u128 * 10u128.pow(10) + 10
+		)); // DOT
 
-		let ordering =
-			FlexibleFee::cmp_with_precision(&ALICE, &DOT, 10u128.pow(18), 18u32).unwrap();
+		let ordering = FlexibleFee::cmp_with_weth(&ALICE, &DOT, 10u128.pow(18)).unwrap();
 		assert_eq!(ordering, Greater);
 	});
 }
 
 #[test]
-fn cmp_with_precision_should_work_with_bnc() {
+fn cmp_with_weth_should_work_with_bnc() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Currencies::deposit(BNC, &ALICE, 11u128.pow(12))); // BNC
 
-		let ordering =
-			FlexibleFee::cmp_with_precision(&ALICE, &BNC, 10u128.pow(18), 18u32).unwrap();
+		let ordering = FlexibleFee::cmp_with_weth(&ALICE, &BNC, 10u128.pow(12)).unwrap();
 		assert_eq!(ordering, Greater);
 	});
 }
