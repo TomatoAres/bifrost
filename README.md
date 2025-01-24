@@ -32,6 +32,8 @@ Bifrost is a Web3 derivatives protocol that provides decentralized cross-chain l
 
 ## Get Build Help
 
+To see a list of all available make commands and their descriptions:
+
 ```sh
 make help
 ```
