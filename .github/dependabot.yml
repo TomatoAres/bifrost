@@ -12,6 +12,9 @@ updates:
       - dependency-name: "try-runtime-*"
       - dependency-name: "node-inspect"
       - dependency-name: "parachain-info"
+      - dependency-name: "polkadot-runtime-common"
+      - dependency-name: "polkadot-runtime-parachains"
+      - dependency-name: "xcm-emulator"
     schedule:
       interval: "daily"
   - package-ecosystem: "github-actions"
