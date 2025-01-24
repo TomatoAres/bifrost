@@ -1695,3 +1695,274 @@ fn refresh_should_work() {
 			assert_eq!(BbBNC::balance_of(&BOB, Some(System::block_number())), Ok(0));
 		});
 }
+
+#[test]
+fn complex_arithmetic_operations_should_not_overflow() {
+	// Test arithmetic overflow protection in various operations
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+
+			// Test maximum value scenarios
+			// Test with amount exceeding balance
+			assert_noop!(
+				BbBNC::create_lock_inner(
+					&BOB,
+					BalanceOf::<Runtime>::max_value(),
+					System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+				),
+				Error::<Runtime>::NotEnoughBalance
+			);
+
+			// Create a valid lock first
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+			));
+
+			// Test overflow in increase_amount
+			assert_noop!(
+				BbBNC::increase_amount(
+					RuntimeOrigin::signed(BOB),
+					POSITIONID0,
+					BalanceOf::<Runtime>::max_value()
+				),
+				ArithmeticError::Overflow
+			);
+
+			// Test overflow in markup calculations
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::saturating_from_integer(1),
+				FixedU128::saturating_from_integer(1),
+			));
+
+			assert_noop!(
+				BbBNC::deposit_markup(
+					RuntimeOrigin::signed(BOB),
+					VBNC,
+					BalanceOf::<Runtime>::max_value()
+				),
+				ArithmeticError::Overflow
+			);
+		});
+}
+
+#[test]
+fn multiple_positions_with_complex_rewards_should_work() {
+	// Test successful creation and management of multiple positions with rewards
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+
+			// Create first position with longer lock time
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+			));
+
+			// Create second position with shorter lock time
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				5_000_000_000_000,
+				System::block_number() + (2 * 365 * 86400 - 5 * 86400) / 12,
+			));
+			// Add markup to affect rewards
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(100_000_000_000_000_000),
+				FixedU128::saturating_from_integer(1),
+			));
+			assert_eq!(
+				BbBNC::balance_of_position_current_block(POSITIONID0),
+				Ok(9972575751740)
+			);
+			assert_eq!(
+				BbBNC::balance_of_position_current_block(POSITIONID1),
+				Ok(2493136560680)
+			);
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				VBNC,
+				10_000_000_000_000
+			));
+			assert_eq!(
+				BbBNC::balance_of_position_current_block(POSITIONID0),
+				Ok(10973163833200)
+			);
+			// Setup rewards
+			let rewards = vec![KSM];
+			assert_ok!(BbBNC::notify_rewards(
+				RuntimeOrigin::root(),
+				ALICE,
+				Some(7 * 86400 / 12),
+				rewards
+			));
+
+			// Advance time and check rewards
+			System::set_block_number(System::block_number() + 7 * 86400 / 12);
+			assert_ok!(BbBNC::get_rewards(RuntimeOrigin::signed(BOB)));
+
+			// Verify total balance considers both positions and markup
+			assert_eq!(
+				BbBNC::balance_of(&BOB, Some(System::block_number())),
+				Ok(13637316013800) // Combined balance of both positions with markup
+			);
+
+			// Verify individual position balances
+			assert_eq!(
+				BbBNC::balance_of_position_current_block(POSITIONID0),
+				Ok(10920408137200)
+			);
+			assert_eq!(
+				BbBNC::balance_of_position_current_block(POSITIONID1),
+				Ok(2716907876600)
+			);
+		});
+}
+
+#[test]
+fn multiple_positions_with_complex_rewards_should_not_work() {
+	// Test failure cases for multiple positions with rewards
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+
+			// Test exceeding max positions
+			let positions: Vec<u128> = (0..10).collect();
+			UserPositions::<Runtime>::set(BOB, BoundedVec::try_from(positions).unwrap());
+			assert_noop!(
+				BbBNC::create_lock_inner(
+					&BOB,
+					10_000_000_000_000,
+					System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+				),
+				Error::<Runtime>::ExceedsMaxPositions
+			);
+
+			// Reset positions for next tests
+			UserPositions::<Runtime>::remove(&BOB);
+
+			// Create first position
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * 86400 - 5 * 86400) / 12,
+			));
+
+			// Test invalid markup coefficient
+			assert_noop!(
+				BbBNC::deposit_markup(RuntimeOrigin::signed(BOB), VBNC, 10_000_000_000_000),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			// Test rewards with non-existent position
+			let rewards = vec![KSM];
+			assert_ok!(BbBNC::notify_rewards(
+				RuntimeOrigin::root(),
+				ALICE,
+				Some(7 * 86400 / 12),
+				rewards
+			));
+
+			// Test rewards with non-existent position
+			assert_ok!(BbBNC::get_rewards_inner(
+				BB_BNC_SYSTEM_POOL_ID,
+				&CHARLIE,
+				None
+			));
+		});
+}
+
+#[test]
+fn unlock_time_edge_cases_should_work() {
+	// Test boundary conditions for unlock time validation
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+
+			// Test minimum unlock time boundary
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (7 * 86400 / 12) - 1,
+			));
+
+			// Test maximum unlock time boundary
+			assert_noop!(
+				BbBNC::create_lock_inner(&BOB, 10_000_000_000_000, u32::MAX.into(),),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			// Test valid lock at minimum boundary
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + 7 * 86400 / 12,
+			));
+
+			// Test valid lock at maximum boundary
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + MaxBlock::get(),
+			));
+
+			// Test increase_unlock_time edge cases
+			assert_noop!(
+				BbBNC::increase_unlock_time(
+					RuntimeOrigin::signed(BOB),
+					POSITIONID0,
+					System::block_number() + MaxBlock::get() + 1,
+				),
+				Error::<Runtime>::ArgumentsError
+			);
+
+			// Test redeem_unlock at exact expiry
+			System::set_block_number(System::block_number() + 30 * 86400 / 12);
+			assert_noop!(
+				BbBNC::redeem_unlock(RuntimeOrigin::signed(BOB), POSITIONID0),
+				Error::<Runtime>::Expired
+			);
+		});
+}
