@@ -14,6 +14,7 @@ updates:
       - dependency-name: "xcm-*"
       - dependency-name: "node-inspect"
       - dependency-name: "parachain-info"
+      - dependency-name: "parachains-common"
     schedule:
       interval: "daily"
   - package-ecosystem: "github-actions"
