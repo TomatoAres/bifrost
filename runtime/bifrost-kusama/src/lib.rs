@@ -1113,6 +1113,7 @@ impl bifrost_vesting::Config for Runtime {
 
 parameter_types! {
 	pub MaxFeeCurrencyOrderListLen: u32 = 50;
+	pub AllowVBNCAsFee: bool = false;
 }
 
 impl bifrost_flexible_fee::Config for Runtime {
@@ -1134,6 +1135,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type InspectEvmAccounts = ();
 	type EvmPermit = bifrost_flexible_fee::impls::evm_permit::DisabledEvmPermitHandler<Runtime>;
 	type AssetIdMaps = AssetIdMaps<Runtime>;
+	type AllowVBNCAsFee = AllowVBNCAsFee;
 }
 
 parameter_types! {
@@ -1712,7 +1714,7 @@ impl lend_market::Config for Runtime {
 	type OraclePriceProvider = Prices;
 	type ReserveOrigin = TechAdminOrCouncil;
 	type UpdateOrigin = TechAdminOrCouncil;
-	type WeightInfo = lend_market::weights::BifrostWeight<Runtime>;
+	type WeightInfo = weights::lend_market::BifrostWeight<Runtime>;
 	type UnixTime = Timestamp;
 	type Assets = Currencies;
 	type RewardAssetId = NativeCurrencyId;
@@ -2064,6 +2066,7 @@ mod benches {
 		[bifrost_vbnc_convert, VBNCConvert]
 		[bifrost_xcm_interface, XcmInterface]
 		// [bifrost_channel_commission, ChannelCommission]
+		[bifrost_vesting, Vesting]
 	);
 }
 

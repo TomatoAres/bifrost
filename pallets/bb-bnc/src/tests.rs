@@ -28,6 +28,7 @@ use frame_support::{assert_noop, assert_ok};
 
 const POSITIONID0: u128 = 0;
 const POSITIONID1: u128 = 1;
+const RWI: FixedU128 = FixedU128::from_inner(100_000_000_000_000_000);
 
 #[test]
 fn create_lock_should_work() {
@@ -660,12 +661,14 @@ fn deposit_markup_before_lock_should_work() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
 				VBNC,
 				10_000_000_000_000
 			));
+			assert_eq!(TotalLock::<Runtime>::get(VBNC), 10_000_000_000_000);
 			assert_ok!(BbBNC::create_lock_inner(
 				&BOB,
 				10_000_000_000_000,
@@ -716,6 +719,7 @@ fn deposit_markup_before_lock_should_not_work() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 
 			assert_noop!(
@@ -765,6 +769,7 @@ fn deposit_markup_before_lock_should_work2() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -842,6 +847,7 @@ fn deposit_markup_after_lock_should_work2() {
 				MOVR,
 				FixedU128::from_inner(500_000_000_000_000_000), // 0.5
 				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(500_000_000_000_000_000),
 			));
 			assert_eq!(
 				UserPointHistory::<Runtime>::get(POSITIONID0, U256::from(1)),
@@ -939,6 +945,7 @@ fn deposit_markup_after_lock_should_not_work2() {
 				MOVR,
 				FixedU128::from_inner(500_000_000_000_000_000), // 0.5
 				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(500_000_000_000_000_000),
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1009,11 +1016,17 @@ fn deposit_markup_after_lock_should_work() {
 				10_000_000_000_000,
 				System::block_number() + 365 * 86400 / 12,
 			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&ALICE,
+				10_000_000_000_000,
+				System::block_number() + 365 * 86400 / 12,
+			));
 			assert_ok!(BbBNC::set_markup_coefficient(
 				RuntimeOrigin::root(),
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(100_000_000_000_000_000),
 			));
 
 			assert_eq!(
@@ -1030,6 +1043,13 @@ fn deposit_markup_after_lock_should_work() {
 				VBNC,
 				10_000_000_000_000
 			));
+			assert_eq!(TotalLock::<Runtime>::get(VBNC), 10_000_000_000_000);
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(ALICE),
+				VBNC,
+				10_000_000_000_000
+			));
+			assert_eq!(TotalLock::<Runtime>::get(VBNC), 20_000_000_000_000);
 			assert_eq!(
 				UserPointHistory::<Runtime>::get(POSITIONID0, U256::from(2)),
 				Point {
@@ -1046,6 +1066,26 @@ fn deposit_markup_after_lock_should_work() {
 			assert_eq!(
 				BbBNC::balance_of(&BOB, Some(System::block_number())),
 				Ok(2796030953200)
+			);
+			assert_eq!(
+				BbBNC::balance_of(&ALICE, Some(System::block_number())),
+				Ok(2668976276500)
+			);
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
+				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(50_000_000_000_000_000), // 0.05
+			));
+			assert_ok!(BbBNC::refresh_inner(VBNC));
+			assert_eq!(
+				BbBNC::balance_of(&BOB, Some(System::block_number())),
+				Ok(2605450273740)
+			);
+			assert_eq!(
+				BbBNC::balance_of(&ALICE, Some(System::block_number())),
+				Ok(2605450273740)
 			);
 		});
 }
@@ -1074,6 +1114,7 @@ fn withdraw_markup_after_lock_should_work() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1129,6 +1170,7 @@ fn redeem_unlock_should_work() {
 				VKSM,
 				FixedU128::from_inner(FixedU128::DIV / 10), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1207,6 +1249,7 @@ fn withdraw_markup_after_lock_should_work3() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1289,6 +1332,7 @@ fn withdraw_markup_after_lock_should_not_work() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1372,6 +1416,7 @@ fn redeem_unlock_after_360_days_should_work() {
 				VKSM,
 				FixedU128::from_inner(FixedU128::DIV / 10), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1441,6 +1486,7 @@ fn redeem_unlock_after_360_days_should_not_work() {
 				VKSM,
 				FixedU128::from_inner(FixedU128::DIV / 10), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1485,6 +1531,7 @@ fn redeem_unlock_after_360_days_should_work2() {
 				VKSM,
 				FixedU128::from_inner(FixedU128::DIV / 10), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1579,6 +1626,7 @@ fn refresh_should_work() {
 				VBNC,
 				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 			assert_ok!(BbBNC::deposit_markup(
 				RuntimeOrigin::signed(BOB),
@@ -1596,6 +1644,7 @@ fn refresh_should_work() {
 				VBNC,
 				FixedU128::from_inner(200_000_000_000_000_000), // 0.2
 				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(200_000_000_000_000_000)
 			));
 			assert_eq!(
 				UserPointHistory::<Runtime>::get(POSITIONID0, U256::one()),

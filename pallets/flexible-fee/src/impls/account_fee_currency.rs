@@ -60,8 +60,13 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 			hopeless_currency = currency;
 		}
 
+		// Add a 10% buffer to account for potential inaccuracies in fee estimation.
+		let fee = fee
+			.checked_mul(110)
+			.and_then(|v| v.checked_div(100))
+			.ok_or(Error::<T>::PercentageCalculationFailed)?;
 		for maybe_currency in currency_list.iter() {
-			let comp_res = Self::cmp_with_precision(account, maybe_currency, fee, 18)?;
+			let comp_res = Self::cmp_with_weth(account, maybe_currency, fee)?;
 
 			match comp_res {
 				Ordering::Less => {

@@ -55,7 +55,7 @@ mod benchmarks {
 	}
 	impl_benchmark_test_suite!(
 		Pallet,
-		crate::mock::new_test_ext_benchmark(),
-		crate::mock::Test
+		crate::mocks::kusama_mock::new_test_ext_benchmark(),
+		crate::mocks::kusama_mock::Test
 	);
 }

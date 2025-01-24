@@ -177,7 +177,6 @@ impl bifrost_buy_back::Config for Runtime {
 	type LiquidityAccount = LiquidityAccount;
 	type ParachainId = ParaInfo;
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
-	type BbBNC = BbBNC;
 	type BlockNumberProvider = System;
 }
 

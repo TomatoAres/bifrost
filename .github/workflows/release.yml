@@ -12,6 +12,8 @@ on:
 jobs:
   srtool:
     uses: ./.github/workflows/srtool.yml
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   release:
     name: Create Release
     needs: srtool
@@ -27,16 +29,16 @@ jobs:
           target: wasm32-unknown-unknown
           toolchain: 1.81.0
 
-      - name: Download kusama strool result
+      - name: Download kusama srtool result
         uses: actions/download-artifact@v4
         with:
-          name: bifrost-kusama-runtime
+          name: bifrost-kusama-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
 
-      - name: Download polkadot strool result
+      - name: Download polkadot srtool result
         uses: actions/download-artifact@v4
         with:
-          name: bifrost-polkadot-runtime
+          name: bifrost-polkadot-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
 
       - name: Build bifrost
@@ -46,8 +48,8 @@ jobs:
           make production-release
           mkdir -p ${{ github.workspace }}/artifacts
           mv ${{ github.workspace }}/target/production/bifrost ${{ github.workspace }}/artifacts/
-          mv ${{ github.workspace }}/artifacts/runtime/bifrost-kusama/target/srtool/production/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm ${{ github.workspace }}/artifacts/
-          mv ${{ github.workspace }}/artifacts/runtime/bifrost-polkadot/target/srtool/production/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm ${{ github.workspace }}/artifacts/
+
+          ls -a ${{ github.workspace }}/artifacts
           pushd ${{ github.workspace }}/artifacts
           sha256sum bifrost | tee bifrost.sha256
           shasum -c bifrost.sha256
@@ -67,12 +69,12 @@ jobs:
           Low: This is a low priority release and you may upgrade at your convenience." >> ${{ github.workspace }}-CHANGELOG.txt
           echo "## Bifrost Kusama Runtime" >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
-          subwasm info ${{ github.workspace }}/artifacts/bifrost_kusama_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
+          subwasm info ${{ github.workspace }}/artifacts/bifrost-kusama_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
           echo ' ' >> ${{ github.workspace }}-CHANGELOG.txt
           echo "## Bifrost Polkadot Runtime" >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
-          subwasm info ${{ github.workspace }}/artifacts/bifrost_polkadot_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
+          subwasm info ${{ github.workspace }}/artifacts/bifrost-polkadot_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
 
       - name: Create Release
@@ -87,8 +89,8 @@ jobs:
           files: |
             ${{ github.workspace }}/artifacts/bifrost
             ${{ github.workspace }}/artifacts/bifrost.sha256
-            ${{ github.workspace }}/artifacts/bifrost_kusama_runtime.compact.compressed.wasm
-            ${{ github.workspace }}/artifacts/bifrost_polkadot_runtime.compact.compressed.wasm
+            ${{ github.workspace }}/artifacts/bifrost-kusama_runtime.compact.compressed.wasm
+            ${{ github.workspace }}/artifacts/bifrost-polkadot_runtime.compact.compressed.wasm
 
       - uses: 8398a7/action-slack@v3
         if: always()
@@ -96,4 +98,4 @@ jobs:
           status: ${{ job.status }}
           fields: repo,author,eventName,workflow,ref,commit
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

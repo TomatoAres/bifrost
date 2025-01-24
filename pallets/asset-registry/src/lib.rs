@@ -23,7 +23,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use bifrost_primitives::{
-	AssetIds, CurrencyId,
+	AssetIds, AssetMetadata, CurrencyId,
 	CurrencyId::{Native, Token, Token2},
 	CurrencyIdConversion, CurrencyIdMapping, CurrencyIdRegister, ForeignAssetId, LeasePeriod,
 	ParaId, PoolId, TokenId, TokenInfo, TokenSymbol,
@@ -36,10 +36,10 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::pallet_prelude::*;
-use scale_info::{prelude::string::String, TypeInfo};
+use scale_info::prelude::string::String;
 use sp_runtime::{
 	traits::{One, UniqueSaturatedFrom},
-	ArithmeticError, RuntimeDebug,
+	ArithmeticError,
 };
 use sp_std::{boxed::Box, vec::Vec};
 use xcm::{
@@ -61,14 +61,6 @@ pub use weights::WeightInfo;
 /// Type alias for currency balance.
 pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-#[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, TypeInfo)]
-pub struct AssetMetadata<Balance> {
-	pub name: Vec<u8>,
-	pub symbol: Vec<u8>,
-	pub decimals: u8,
-	pub minimal_balance: Balance,
-}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -545,7 +537,7 @@ impl<T: Config> CurrencyIdConversion<CurrencyId> for AssetIdMaps<T> {
 	}
 }
 
-impl<T: Config> CurrencyIdRegister<CurrencyId> for AssetIdMaps<T> {
+impl<T: Config> CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<T>>> for AssetIdMaps<T> {
 	fn check_token_registered(token_symbol: TokenSymbol) -> bool {
 		CurrencyMetadatas::<T>::get(CurrencyId::Token(token_symbol)).is_some()
 	}
@@ -624,5 +616,12 @@ impl<T: Config> CurrencyIdRegister<CurrencyId> for AssetIdMaps<T> {
 				minimal_balance: BalanceOf::<T>::unique_saturated_from(1_000_000u128),
 			},
 		)
+	}
+
+	fn register_metadata(
+		currency_id: CurrencyId,
+		metadata: AssetMetadata<BalanceOf<T>>,
+	) -> DispatchResult {
+		Pallet::<T>::do_register_metadata(currency_id, &metadata)
 	}
 }

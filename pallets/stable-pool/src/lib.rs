@@ -31,7 +31,7 @@ pub use weights::*;
 pub mod traits;
 
 use bifrost_primitives::{
-	CurrencyId, CurrencyIdConversion, CurrencyIdExt, CurrencyIdRegister, TimeUnit,
+	AssetMetadata, CurrencyId, CurrencyIdConversion, CurrencyIdExt, CurrencyIdRegister, TimeUnit,
 	VtokenMintingOperator,
 };
 pub use bifrost_stable_asset::{
@@ -99,7 +99,7 @@ pub mod pallet {
 		/// Type for converting between different currency IDs.
 		type CurrencyIdConversion: CurrencyIdConversion<AssetIdOf<Self>>;
 		/// Type for registering currency IDs.
-		type CurrencyIdRegister: CurrencyIdRegister<AssetIdOf<Self>>;
+		type CurrencyIdRegister: CurrencyIdRegister<AssetIdOf<Self>, AssetMetadata<Self::Balance>>;
 	}
 
 	#[pallet::error]

@@ -18,8 +18,8 @@
 
 #![cfg(test)]
 
-use super::*;
-use crate::{self as flexible_fee, mock_price::MockOraclePriceProvider};
+use crate::*;
+use crate::{self as flexible_fee, mocks::mock_price::MockOraclePriceProvider};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_currencies::BasicCurrencyAdapter;
 use bifrost_primitives::{
@@ -36,7 +36,6 @@ use frame_support::{
 use frame_system::EnsureSignedBy;
 use frame_system::{self, EnsureRoot};
 use orml_traits::MultiCurrency;
-use pallet_balances::Call as BalancesCall;
 use sp_runtime::{
 	traits::{AccountIdConversion, IdentityLookup, UniqueSaturatedInto},
 	AccountId32, BuildStorage, SaturatedConversion,
@@ -69,12 +68,6 @@ frame_support::construct_runtime!(
 		EVMAccounts: pallet_evm_accounts,
 	}
 );
-
-pub(crate) const BALANCE_TRANSFER_CALL: <Test as frame_system::Config>::RuntimeCall =
-	RuntimeCall::Balances(BalancesCall::transfer_allow_death {
-		dest: ALICE,
-		value: 69,
-	});
 
 ord_parameter_types! {
 	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
@@ -175,6 +168,7 @@ impl pallet_evm_accounts::Config for Test {
 parameter_types! {
 	pub const TreasuryAccount: AccountId32 = TREASURY_ACCOUNT;
 	pub const MaxFeeCurrencyOrderListLen: u32 = 50;
+	pub AllowVBNCAsFee: bool = true;
 }
 
 impl crate::Config for Test {
@@ -196,6 +190,7 @@ impl crate::Config for Test {
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type AssetIdMaps = AssetIdMaps<Test>;
+	type AllowVBNCAsFee = AllowVBNCAsFee;
 }
 
 pub struct XcmDestWeightAndFee;
@@ -337,13 +332,12 @@ parameter_types! {
 impl BalanceCmp<AccountId> for Test {
 	type Error = Error<Test>;
 
-	fn cmp_with_precision(
+	fn cmp_with_weth(
 		account: &AccountId,
 		currency: &CurrencyId,
 		amount: u128,
-		amount_precision: u32,
 	) -> Result<Ordering, Self::Error> {
-		Pallet::<Test>::cmp_with_precision(account, currency, amount, amount_precision)
+		Pallet::<Test>::cmp_with_weth(account, currency, amount)
 	}
 }
 
@@ -456,17 +450,4 @@ impl EvmPermit for PermitDispatchHandler {
 	}
 
 	fn on_dispatch_permit_error() {}
-}
-
-pub struct ExtBuilder;
-
-impl ExtBuilder {
-	pub fn build(self) -> sp_io::TestExternalities {
-		new_test_ext()
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-pub fn new_test_ext_benchmark() -> sp_io::TestExternalities {
-	ExtBuilder.build()
 }

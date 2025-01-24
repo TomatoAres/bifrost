@@ -345,6 +345,7 @@ mod benchmarks {
 			CurrencyId::VToken(TokenSymbol::BNC),
 			10_000.into(),
 			10_000_000_000_000.into(),
+			1_000.into(),
 		);
 
 		Ok(())
@@ -391,7 +392,8 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			CurrencyId::VToken(TokenSymbol::BNC),
 			1_000.into(),
-			10_000_000_000_000.into()
+			10_000_000_000_000.into(),
+			1_000.into(),
 		));
 
 		<frame_system::Pallet<T>>::set_block_number((2 * 365 * 86400 / 12u32).into());
@@ -446,7 +448,8 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			CurrencyId::VToken(TokenSymbol::BNC),
 			1_000.into(),
-			10_000_000_000_000.into()
+			10_000_000_000_000.into(),
+			1_000.into(),
 		));
 
 		assert_ok!(BbBNC::<T>::deposit_markup(
@@ -507,7 +510,8 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			CurrencyId::VToken(TokenSymbol::BNC),
 			1_000.into(),
-			10_000_000_000_000.into()
+			10_000_000_000_000.into(),
+			1_000.into(),
 		));
 
 		assert_ok!(BbBNC::<T>::deposit_markup(
@@ -565,7 +569,8 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			CurrencyId::VToken(TokenSymbol::BNC),
 			1_000.into(),
-			10_000_000_000_000.into()
+			10_000_000_000_000.into(),
+			1_000.into(),
 		));
 
 		assert_ok!(BbBNC::<T>::deposit_markup(
