@@ -331,7 +331,7 @@ scale-info            = { version = "2.11.6", default-features = false }
 serde                 = { version = "1.0.217", default-features = false }
 serde_json            = { version = "1.0.137", default-features = false }
 sha3                  = { version = "0.10.6", default-features = false }
-similar-asserts       = { version = "1.6.0" }
+similar-asserts       = { version = "1.6.1" }
 smallvec              = { version = "1.13.1" }
 static_assertions     = { version = "1.1.0" }
 strum                 = { version = "0.26.3", default-features = false, features = ["derive"] }
