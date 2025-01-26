@@ -1746,6 +1746,7 @@ fn complex_arithmetic_operations_should_not_overflow() {
 				VBNC,
 				FixedU128::saturating_from_integer(1),
 				FixedU128::saturating_from_integer(1),
+				RWI,
 			));
 
 			assert_noop!(
@@ -1792,8 +1793,9 @@ fn multiple_positions_with_complex_rewards_should_work() {
 			assert_ok!(BbBNC::set_markup_coefficient(
 				RuntimeOrigin::root(),
 				VBNC,
-				FixedU128::from_inner(100_000_000_000_000_000),
-				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(100_000_000_000_000_000), // Set markup coefficient to 0.1
+				FixedU128::saturating_from_integer(1),          // Keep hardcap at 1
+				FixedU128::from_inner(100_000_000_000_000_000), // Set RWI to 0.1 to match expected test values
 			));
 			assert_eq!(
 				BbBNC::balance_of_position_current_block(POSITIONID0),
