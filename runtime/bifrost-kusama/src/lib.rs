@@ -1385,7 +1385,7 @@ impl bifrost_farming::Config for Runtime {
 }
 
 parameter_types! {
-	pub const BlocksPerRound: u32 = prod_or_fast!(1500, 50);
+	pub const BlocksPerRound: u32 = prod_or_fast!(3000, 50);
 	pub const MaxTokenLen: u32 = 500;
 	pub const MaxFarmingPoolIdLen: u32 = 100;
 }
@@ -2029,6 +2029,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
 	);
 }
 

@@ -19,6 +19,7 @@
 pub mod types;
 pub mod weights;
 pub use weights::WeightInfo;
+pub mod migration;
 
 use bifrost_primitives::{CurrencyId, FarmingInfo, PoolId, VtokenMintingInterface};
 pub use frame_support::weights::Weight;
@@ -321,7 +322,7 @@ pub mod pallet {
 			let mut round = if let Some(round) = <Round<T>>::get() {
 				round
 			} else {
-				// BlocksPerRound == 1500 , 5 hours
+				// BlocksPerRound == 3000 , 5 hours
 				RoundInfo::new(0u32, 0u32.into(), T::BlocksPerRound::get())
 			};
 
