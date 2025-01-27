@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         chain: ["bifrost-kusama", "bifrost-polkadot"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: "📥 Checkout"
         uses: actions/checkout@v4
