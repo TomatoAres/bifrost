@@ -38,6 +38,7 @@ pallet-identity = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-membership = { workspace = true }
 pallet-message-queue = { workspace = true }
+pallet-migrations  = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-proxy = { workspace = true }
@@ -175,6 +176,7 @@ std = [
 	"pallet-identity/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
+	"pallet-migrations/std",
 	"pallet-multisig/std",
 	"pallet-preimage/std",
 	"pallet-proxy/std",
@@ -342,6 +344,7 @@ try-runtime = [
 	"pallet-collective/try-runtime",
 	"pallet-conviction-voting/try-runtime",
 	"pallet-membership/try-runtime",
+	"pallet-migrations/try-runtime",
 	"cumulus-pallet-xcmp-queue/try-runtime",
 	"pallet-xcm/try-runtime",
 	"cumulus-pallet-xcm/try-runtime",

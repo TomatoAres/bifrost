@@ -100,6 +100,7 @@ use constants::currency::*;
 use cumulus_primitives_core::AggregateMessageOrigin;
 use fp_evm::FeeCalculator;
 use fp_rpc::TransactionStatus;
+use frame_support::migrations::{FailedMigrationHandler, FailedMigrationHandling};
 use frame_support::{
 	dispatch::DispatchClass,
 	genesis_builder_helper::{build_state, get_preset},
@@ -299,7 +300,7 @@ impl frame_system::Config for Runtime {
 	type MaxConsumers = ConstU32<16>;
 	type RuntimeTask = ();
 	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = ();
+	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
@@ -788,7 +789,7 @@ impl bifrost_vesting::Config for Runtime {
 	type WeightInfo = weights::bifrost_vesting::BifrostWeight<Runtime>;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	const MAX_VESTING_SCHEDULES: u32 = 28;
-	type BlockNumberProvider = System;
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 }
 
 // Bifrost modules start
@@ -1474,6 +1475,39 @@ impl bifrost_slp_v2::Config for Runtime {
 	type MaxValidators = ConstU32<256>;
 }
 
+parameter_types! {
+	pub MbmServiceWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
+}
+
+/// Unfreeze chain on failed migration and continue with extrinsic execution.
+/// Migration must be tested and make sure it doesn't fail. If it happens, we don't have other
+/// choices but unfreeze chain and continue with extrinsic execution.
+pub struct UnfreezeChainOnFailedMigration;
+impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
+	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
+		log::error!(target: "mbm", "Migration failed at cursor: {migration:?}");
+		FailedMigrationHandling::ForceUnstuck
+	}
+}
+
+impl pallet_migrations::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = bifrost_vesting::migrations::v2::LazyMigration<
+		Runtime,
+		weights::bifrost_vesting::BifrostWeight<Runtime>,
+	>;
+	// Benchmarks need mocked migrations to guarantee that they succeed.
+	#[cfg(feature = "runtime-benchmarks")]
+	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
+	type CursorMaxLen = ConstU32<65_536>;
+	type IdentifierMaxLen = ConstU32<256>;
+	type MigrationStatusHandler = ();
+	type FailedMigrationHandler = UnfreezeChainOnFailedMigration;
+	type MaxServiceWeight = MbmServiceWeight;
+	type WeightInfo = pallet_migrations::weights::SubstrateWeight<Runtime>;
+}
+
 // Below is the implementation of tokens manipulation functions other than native token.
 pub struct LocalAssetAdaptor<Local>(PhantomData<Local>);
 
@@ -1577,6 +1611,7 @@ construct_runtime! {
 		ParachainSystem: cumulus_pallet_parachain_system = 5,
 		ParachainInfo: parachain_info = 6,
 		TxPause: pallet_tx_pause = 7,
+		MultiBlockMigrations: pallet_migrations = 8,
 
 		// Monetary stuff
 		Balances: pallet_balances = 10,

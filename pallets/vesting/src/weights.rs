@@ -61,6 +61,7 @@ pub trait WeightInfo {
 	fn force_vested_transfer(l: u32, s: u32, ) -> Weight;
 	fn not_unlocking_merge_schedules(l: u32, s: u32, ) -> Weight;
 	fn unlocking_merge_schedules(l: u32, s: u32, ) -> Weight;
+	fn step(x: u32, ) -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -256,5 +257,19 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(70_861, 0).saturating_mul(s.into()))
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	/// Storage: `Vesting::Vesting` (r:2 w:1)
+	/// Proof: `Vesting::Vesting` (`max_values`: None, `max_size`: Some(1057), added: 3532, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 28]`.
+	fn step(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `316 + x * (36 ±0)`
+		//  Estimated: `8054`
+		// Minimum execution time: 13_079_000 picoseconds.
+		Weight::from_parts(13_513_131, 8054)
+			// Standard Error: 723
+			.saturating_add(Weight::from_parts(102_389, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
