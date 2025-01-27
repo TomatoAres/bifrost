@@ -93,9 +93,7 @@ pub use bifrost_primitives::{
 	RpcContributionStatus, Shortfall, TimeUnit, TokenSymbol, DOT_TOKEN_ID, GLMR_TOKEN_ID,
 };
 use bifrost_runtime_common::{
-	constants::time::*, dollar, micro, milli, AuraId, CouncilCollective,
-	EnsureRootOrAllTechnicalCommittee, MoreThanHalfCouncil, SlowAdjustingFeeUpdate,
-	TechnicalCollective,
+	constants::time::*, dollar, micro, milli, AuraId, SlowAdjustingFeeUpdate,
 };
 use bifrost_slp::QueryId;
 use constants::currency::*;
@@ -112,7 +110,7 @@ use frame_support::{
 		Currency, EitherOf, EitherOfDiverse, Get, InsideBoth, LinearStoragePrice, OnFinalize,
 	},
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use hex_literal::hex;
 use pallet_ethereum::Transaction;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -131,7 +129,6 @@ use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, IdentityLookup, PostDispatchInfoOf, Verify},
 	transaction_validity::TransactionValidityError,
 };
-use static_assertions::const_assert;
 use xcm::{
 	v3::MultiLocation, v4::prelude::*, VersionedAssetId, VersionedAssets, VersionedLocation,
 	VersionedXcm,
@@ -146,8 +143,7 @@ use crate::xcm_config::XcmRouter;
 use bifrost_primitives::OraclePriceProvider;
 use frame_support::weights::WeightToFee as _;
 use governance::{
-	custom_origins, CoreAdminOrCouncil, LiquidStaking, SALPAdmin, Spender, TechAdmin,
-	TechAdminOrCouncil,
+	custom_origins, CoreAdminOrRoot, LiquidStaking, SALPAdmin, Spender, TechAdmin, TechAdminOrRoot,
 };
 use ismp::{
 	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
@@ -386,11 +382,6 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				// Specifically omitting Indices `transfer`, `force_transfer`
 				// Specifically omitting the entire Balances pallet
 				RuntimeCall::Session(..) |
-				RuntimeCall::Democracy(..) |
-				RuntimeCall::Council(..) |
-				RuntimeCall::TechnicalCommittee(..) |
-				RuntimeCall::PhragmenElection(..) |
-				RuntimeCall::TechnicalMembership(..) |
 				RuntimeCall::Treasury(..) |
 				RuntimeCall::Vesting(bifrost_vesting::Call::vest{..}) |
 				RuntimeCall::Vesting(bifrost_vesting::Call::vest_other{..}) |
@@ -406,15 +397,9 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 					RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..)
 				)
 			}
-			ProxyType::Governance => matches!(
-				c,
-				RuntimeCall::Democracy(..)
-					| RuntimeCall::Council(..)
-					| RuntimeCall::TechnicalCommittee(..)
-					| RuntimeCall::PhragmenElection(..)
-					| RuntimeCall::Treasury(..)
-					| RuntimeCall::Utility(..)
-			),
+			ProxyType::Governance => {
+				matches!(c, RuntimeCall::Treasury(..) | RuntimeCall::Utility(..))
+			}
 			ProxyType::CancelProxy => {
 				matches!(
 					c,
@@ -534,8 +519,8 @@ impl pallet_identity::Config for Runtime {
 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
-	type ForceOrigin = MoreThanHalfCouncil;
-	type RegistrarOrigin = MoreThanHalfCouncil;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 	type ByteDeposit = ByteDeposit;
 	type OffchainSignature = Signature;
@@ -590,175 +575,6 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
-	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 100;
-}
-
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxMembers = CouncilMaxMembers;
-	type MaxProposals = CouncilMaxProposals;
-	type MotionDuration = CouncilMotionDuration;
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
-	type MaxProposalWeight = MaxProposalWeight;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
-}
-
-parameter_types! {
-	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 100;
-	pub const TechnicalMaxMembers: u32 = 100;
-	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
-}
-
-impl pallet_collective::Config<TechnicalCollective> for Runtime {
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxMembers = TechnicalMaxMembers;
-	type MaxProposals = TechnicalMaxProposals;
-	type MotionDuration = TechnicalMotionDuration;
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
-	type MaxProposalWeight = MaxProposalWeight;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
-}
-
-impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
-	type AddOrigin = MoreThanHalfCouncil;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxMembers = CouncilMaxMembers;
-	type MembershipChanged = Council;
-	type MembershipInitialized = Council;
-	type PrimeOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type ResetOrigin = MoreThanHalfCouncil;
-	type SwapOrigin = MoreThanHalfCouncil;
-	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
-}
-
-impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
-	type AddOrigin = MoreThanHalfCouncil;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxMembers = TechnicalMaxMembers;
-	type MembershipChanged = TechnicalCommittee;
-	type MembershipInitialized = TechnicalCommittee;
-	type PrimeOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type ResetOrigin = MoreThanHalfCouncil;
-	type SwapOrigin = MoreThanHalfCouncil;
-	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
-}
-
-parameter_types! {
-	pub const CandidacyBond: Balance = 10_000 * DOLLARS;
-	// 1 storage item created, key size is 32 bytes, value size is 16+16.
-	pub const VotingBondBase: Balance = deposit(1, 64);
-	// additional data per vote is 32 bytes (account id).
-	pub const VotingBondFactor: Balance = deposit(0, 32);
-	/// Daily council elections
-	pub const TermDuration: BlockNumber = 7 * DAYS;
-	pub const DesiredMembers: u32 = 3;
-	pub const DesiredRunnersUp: u32 = 20;
-	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
-	pub const MaxVoters: u32 = 512;
-	 pub const MaxVotesPerVoter: u32 = 16;
-	pub const MaxCandidates: u32 = 64;
-}
-
-// Make sure that there are no more than MaxMembers members elected via phragmen.
-const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
-
-impl pallet_elections_phragmen::Config for Runtime {
-	type CandidacyBond = CandidacyBond;
-	type ChangeMembers = Council;
-	type Currency = Balances;
-	type CurrencyToVote = sp_staking::currency_to_vote::U128CurrencyToVote;
-	type DesiredMembers = DesiredMembers;
-	type DesiredRunnersUp = DesiredRunnersUp;
-	type RuntimeEvent = RuntimeEvent;
-	type InitializeMembers = Council;
-	type KickedMember = Treasury;
-	type LoserCandidate = Treasury;
-	type PalletId = PhragmenElectionPalletId;
-	type TermDuration = TermDuration;
-	type VotingBondBase = VotingBondBase;
-	type VotingBondFactor = VotingBondFactor;
-	type MaxCandidates = MaxCandidates;
-	type MaxVoters = MaxVoters;
-	type MaxVotesPerVoter = MaxVotesPerVoter;
-	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
-}
-
-parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
-	pub const VotingPeriod: BlockNumber = 28 * DAYS;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 100 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 100;
-	pub const MaxProposals: u32 = 100;
-}
-
-impl pallet_democracy::Config for Runtime {
-	type BlacklistOrigin = EnsureRoot<AccountId>;
-	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
-	// Root must agree.
-	type CancelProposalOrigin = EitherOfDiverse<
-		EnsureRoot<AccountId>,
-		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
-	>;
-	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin =
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
-	type CooloffPeriod = CooloffPeriod;
-	type Currency = Balances;
-	type EnactmentPeriod = EnactmentPeriod;
-	type RuntimeEvent = RuntimeEvent;
-	/// A unanimous council can have the next scheduled referendum be a straight default-carries
-	/// (NTB) vote.
-	type ExternalDefaultOrigin =
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
-	/// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin =
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 4>;
-	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin =
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin =
-		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
-	type FastTrackVotingPeriod = FastTrackVotingPeriod;
-	type InstantAllowed = InstantAllowed;
-	type InstantOrigin =
-		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
-	type LaunchPeriod = LaunchPeriod;
-	type MaxProposals = MaxProposals;
-	type MaxVotes = MaxVotes;
-	type MinimumDeposit = MinimumDeposit;
-	type PalletsOrigin = OriginCaller;
-	type Scheduler = Scheduler;
-	type Slash = Treasury;
-	// Any single technical committee member may veto a coming council proposal, however they can
-	// only do it once and it lasts only for the cool-off period.
-	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
-	type VoteLockingPeriod = EnactmentPeriod; // Same as EnactmentPeriod
-	type VotingPeriod = VotingPeriod;
-	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
-	type Preimages = Preimage;
-	type MaxDeposits = ConstU32<100>;
-	type MaxBlacklisted = ConstU32<100>;
-	type SubmitOrigin = EnsureSigned<AccountId>;
-}
-
-parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
 	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
@@ -787,7 +603,7 @@ impl pallet_treasury::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type PalletId = TreasuryPalletId;
-	type RejectOrigin = MoreThanHalfCouncil;
+	type RejectOrigin = EnsureRoot<AccountId>;
 	type SpendFunds = ();
 	type SpendPeriod = SpendPeriod;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
@@ -817,8 +633,8 @@ impl Contains<pallet_tx_pause::RuntimeCallNameOf<Runtime>> for TxPauseWhiteliste
 impl pallet_tx_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
-	type PauseOrigin = TechAdminOrCouncil;
-	type UnpauseOrigin = TechAdminOrCouncil;
+	type PauseOrigin = TechAdminOrRoot;
+	type UnpauseOrigin = TechAdminOrRoot;
 	type WhitelistedCalls = TxPauseWhitelistedCalls;
 	type MaxNameLen = ConstU32<256>;
 	type WeightInfo = pallet_tx_pause::weights::SubstrateWeight<Runtime>;
@@ -898,8 +714,7 @@ parameter_types! {
 impl bifrost_parachain_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type MonetaryGovernanceOrigin =
-		EitherOfDiverse<MoreThanHalfCouncil, EnsureRootOrAllTechnicalCommittee>;
+	type MonetaryGovernanceOrigin = EitherOfDiverse<EnsureRoot<AccountId>, EnsureRoot<AccountId>>;
 	type MinBlocksPerRound = MinBlocksPerRound;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
@@ -991,7 +806,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 	type MaxFeeCurrencyOrderListLen = MaxFeeCurrencyOrderListLen;
 	type WeightInfo = weights::bifrost_flexible_fee::BifrostWeight<Runtime>;
 	type ParachainId = ParachainInfo;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type XcmWeightAndFeeHandler = XcmInterface;
 	type MinAssetHubExecutionFee = ConstU128<{ 20 * CENTS }>;
 	type MinRelaychainExecutionFee = ConstU128<{ 20 * CENTS }>;
@@ -1122,7 +937,7 @@ impl bifrost_salp::Config for Runtime {
 	type SlotLength = SlotLength;
 	type VSBondValidPeriod = VSBondValidPeriod;
 	type WeightInfo = weights::bifrost_salp::BifrostWeight<Runtime>;
-	type EnsureConfirmAsGovernance = EitherOfDiverse<TechAdminOrCouncil, SALPAdmin>;
+	type EnsureConfirmAsGovernance = EitherOfDiverse<TechAdminOrRoot, SALPAdmin>;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type BuybackPalletId = BuybackPalletId;
 	type CurrencyIdConversion = AssetIdMaps<Runtime>;
@@ -1134,7 +949,7 @@ impl bifrost_salp::Config for Runtime {
 impl bifrost_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type RegisterOrigin = EitherOfDiverse<MoreThanHalfCouncil, TechAdmin>;
+	type RegisterOrigin = EitherOfDiverse<EnsureRoot<AccountId>, TechAdmin>;
 	type WeightInfo = weights::bifrost_asset_registry::BifrostWeight<Runtime>;
 }
 
@@ -1184,7 +999,7 @@ impl bifrost_slp::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = EitherOfDiverse<TechAdminOrCouncil, LiquidStaking>;
+	type ControlOrigin = EitherOfDiverse<TechAdminOrRoot, LiquidStaking>;
 	type WeightInfo = weights::bifrost_slp::BifrostWeight<Runtime>;
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
@@ -1212,7 +1027,7 @@ impl bifrost_vstoken_conversion::Config for Runtime {
 	type MultiCurrency = Currencies;
 	type RelayCurrencyId = RelayCurrencyId;
 	type TreasuryAccount = BifrostTreasuryAccount;
-	type ControlOrigin = CoreAdminOrCouncil;
+	type ControlOrigin = CoreAdminOrRoot;
 	type VsbondAccount = BifrostVsbondAccount;
 	type CurrencyIdConversion = AssetIdMaps<Runtime>;
 	type WeightInfo = weights::bifrost_vstoken_conversion::BifrostWeight<Runtime>;
@@ -1226,7 +1041,7 @@ impl bifrost_farming::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type CurrencyId = CurrencyId;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type Keeper = FarmingKeeperPalletId;
 	type RewardIssuer = FarmingRewardIssuerPalletId;
@@ -1249,7 +1064,7 @@ parameter_types! {
 impl bifrost_system_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type EnsureConfirmAsGovernance = CoreAdminOrCouncil;
+	type EnsureConfirmAsGovernance = CoreAdminOrRoot;
 	type WeightInfo = weights::bifrost_system_staking::BifrostWeight<Runtime>;
 	type FarmingInfo = Farming;
 	type VtokenMintingInterface = VtokenMinting;
@@ -1264,7 +1079,7 @@ impl bifrost_system_staking::Config for Runtime {
 impl bifrost_fee_share::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = CoreAdminOrCouncil;
+	type ControlOrigin = CoreAdminOrRoot;
 	type WeightInfo = weights::bifrost_fee_share::BifrostWeight<Runtime>;
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = Prices;
@@ -1274,7 +1089,7 @@ impl bifrost_fee_share::Config for Runtime {
 impl bifrost_cross_in_out::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type EntrancePalletId = SlpEntrancePalletId;
 	type WeightInfo = weights::bifrost_cross_in_out::BifrostWeight<Runtime>;
 	type MaxLengthLimit = MaxLengthLimit;
@@ -1283,7 +1098,7 @@ impl bifrost_cross_in_out::Config for Runtime {
 impl bifrost_slpx::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type MultiCurrency = Currencies;
 	type VtokenMintingInterface = VtokenMinting;
 	type XcmTransfer = XTokens;
@@ -1316,14 +1131,14 @@ impl bifrost_stable_asset::Config for Runtime {
 	type PoolAssetLimit = ConstU32<5>;
 	type SwapExactOverAmount = ConstU128<100>;
 	type WeightInfo = ();
-	type ListingOrigin = TechAdminOrCouncil;
+	type ListingOrigin = TechAdminOrRoot;
 	type EnsurePoolAssetId = EnsurePoolAssetId;
 	type BlockNumberProvider = System;
 }
 
 impl bifrost_stable_pool::Config for Runtime {
 	type WeightInfo = weights::bifrost_stable_pool::BifrostWeight<Runtime>;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type CurrencyId = CurrencyId;
 	type MultiCurrency = Currencies;
 	type StableAsset = StableAsset;
@@ -1349,7 +1164,7 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = CoreAdminOrCouncil;
+	type ControlOrigin = CoreAdminOrRoot;
 	type ResponseOrigin = EnsureResponse<Everything>;
 	type XcmDestWeightAndFee = XcmInterface;
 	type DerivativeAccount = DerivativeAccountProvider<Runtime, DerivativeAccountTokenFilter>;
@@ -1428,7 +1243,7 @@ parameter_types! {
 impl bifrost_vtoken_minting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
 	type MaximumUnlockIdOfTimeUnit = MaximumUnlockIdOfTimeUnit;
 	type EntranceAccount = SlpEntrancePalletId;
@@ -1462,7 +1277,7 @@ parameter_types! {
 impl bb_bnc::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type TokenType = BbBNCTokenType;
 	type IncentivePalletId = IncentivePalletId;
 	type BuyBackAccount = BuyBackAccount;
@@ -1512,7 +1327,7 @@ impl orml_oracle::Config<BifrostDataProvider> for Runtime {
 	type WeightInfo = weights::orml_oracle::WeightInfo<Runtime>;
 	type Members = OracleMembership;
 	type MaxFeedValues = ConstU32<100>;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 }
 
 pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
@@ -1542,8 +1357,8 @@ impl DataFeeder<CurrencyId, TimeStampedPrice, AccountId> for AggregatedDataProvi
 impl pallet_prices::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Source = AggregatedDataProvider;
-	type FeederOrigin = TechAdminOrCouncil;
-	type UpdateOrigin = TechAdminOrCouncil;
+	type FeederOrigin = TechAdminOrRoot;
+	type UpdateOrigin = TechAdminOrRoot;
 	type RelayCurrency = RelayCurrencyId;
 	type CurrencyIdConvert = AssetIdMaps<Runtime>;
 	type Assets = Currencies;
@@ -1554,8 +1369,8 @@ impl lend_market::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = LendMarketPalletId;
 	type OraclePriceProvider = Prices;
-	type ReserveOrigin = TechAdminOrCouncil;
-	type UpdateOrigin = TechAdminOrCouncil;
+	type ReserveOrigin = TechAdminOrRoot;
+	type UpdateOrigin = TechAdminOrRoot;
 	type WeightInfo = weights::lend_market::BifrostWeight<Runtime>;
 	type UnixTime = Timestamp;
 	type Assets = Currencies;
@@ -1570,15 +1385,15 @@ parameter_types! {
 }
 
 impl pallet_membership::Config<pallet_membership::Instance3> for Runtime {
-	type AddOrigin = CoreAdminOrCouncil;
+	type AddOrigin = CoreAdminOrRoot;
 	type RuntimeEvent = RuntimeEvent;
 	type MaxMembers = OracleMaxMembers;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-	type PrimeOrigin = CoreAdminOrCouncil;
-	type RemoveOrigin = CoreAdminOrCouncil;
-	type ResetOrigin = CoreAdminOrCouncil;
-	type SwapOrigin = CoreAdminOrCouncil;
+	type PrimeOrigin = CoreAdminOrRoot;
+	type RemoveOrigin = CoreAdminOrRoot;
+	type ResetOrigin = CoreAdminOrRoot;
+	type SwapOrigin = CoreAdminOrRoot;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1601,7 +1416,7 @@ parameter_types! {
 impl bifrost_channel_commission::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = EitherOfDiverse<CoreAdminOrCouncil, LiquidStaking>;
+	type ControlOrigin = EitherOfDiverse<CoreAdminOrRoot, LiquidStaking>;
 	type CommissionPalletId = CommissionPalletId;
 	type BifrostCommissionReceiver = BifrostCommissionReceiver;
 	type WeightInfo = weights::bifrost_channel_commission::BifrostWeight<Runtime>;
@@ -1623,7 +1438,7 @@ impl bifrost_clouds_convert::Config for Runtime {
 impl bifrost_buy_back::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type WeightInfo = weights::bifrost_buy_back::BifrostWeight<Runtime>;
 	type DexOperator = ZenlinkProtocol;
 	type TreasuryAccount = BifrostTreasuryAccount;
@@ -1641,7 +1456,7 @@ impl bifrost_slp_v2::Config for Runtime {
 	type ResponseOrigin = EnsureResponse<Everything>;
 	type WeightInfo = weights::bifrost_slp_v2::BifrostWeight<Runtime>;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type XcmTransfer = XTokens;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -1775,12 +1590,6 @@ construct_runtime! {
 		ParachainStaking: bifrost_parachain_staking = 25,
 
 		// Governance stuff
-		Democracy: pallet_democracy = 30,
-		Council: pallet_collective::<Instance1> = 31,
-		TechnicalCommittee: pallet_collective::<Instance2> = 32,
-		PhragmenElection: pallet_elections_phragmen = 33,
-		CouncilMembership: pallet_membership::<Instance1> = 34,
-		TechnicalMembership: pallet_membership::<Instance2> = 35,
 		ConvictionVoting: pallet_conviction_voting = 36,
 		Referenda: pallet_referenda = 37,
 		Origins: custom_origins = 38,

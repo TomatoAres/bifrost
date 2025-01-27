@@ -482,7 +482,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type SovereignOrigin = MoreThanHalfCouncil;
+	type SovereignOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -491,7 +491,7 @@ parameter_types! {
 
 impl bifrost_xcm_interface::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type UpdateOrigin = TechAdminOrCouncil;
+	type UpdateOrigin = TechAdminOrRoot;
 	type MultiCurrency = Currencies;
 	type AccountIdToLocation = AccountIdToLocation;
 	type ParachainId = ParachainInfo;
