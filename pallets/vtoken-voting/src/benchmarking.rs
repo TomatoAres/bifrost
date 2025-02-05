@@ -423,6 +423,25 @@ mod benchmarks {
 		Ok(())
 	}
 
+	#[benchmark]
+	pub fn update_referendum_vote_status() -> Result<(), BenchmarkError> {
+		let origin =
+			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
+		let vtoken = VKSM;
+		let poll_index = 0u32;
+		let status = ReferendumVoteStatus::Approved;
+
+		#[extrinsic_call]
+		_(
+			origin as <T as frame_system::Config>::RuntimeOrigin,
+			vtoken,
+			poll_index,
+			status,
+		);
+
+		Ok(())
+	}
+
 	// This line generates test cases for benchmarking, and could be run by:
 	//   `cargo test -p pallet-example-basic --all-features`, you will see one line per case:
 	//   `test benchmarking::bench_sort_vector ... ok`

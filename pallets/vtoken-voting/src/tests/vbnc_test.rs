@@ -94,7 +94,7 @@ fn basic_voting_works() {
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -123,7 +123,7 @@ fn voting_balance_gets_locked() {
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -226,7 +226,7 @@ fn unsuccessful_conviction_vote_balance_can_be_unlocked() {
 				poll_index,
 				UnvoteScope::Any
 			));
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -384,7 +384,7 @@ fn successful_conviction_vote_balance_stays_locked_for_correct_time() {
 				));
 			}
 			for i in 1..=5 {
-				assert_ok!(VtokenVoting::update_lock(&i, vtoken));
+				assert_ok!(VtokenVoting::update_lock(&i, vtoken, poll_index));
 				assert_eq!(usable_balance(vtoken, &i), 10 * i as u128);
 			}
 		});

@@ -34,7 +34,9 @@ pub mod migration;
 pub mod traits;
 pub mod weights;
 
-pub use crate::vote::{AccountVote, PollStatus, ReferendumInfo, ReferendumStatus, VoteRole};
+pub use crate::vote::{
+	AccountVote, PollStatus, ReferendumInfo, ReferendumStatus, ReferendumVoteStatus, VoteRole,
+};
 use crate::{
 	agents::{BifrostAgent, RelaychainAgent},
 	traits::VotingAgent,
@@ -180,7 +182,6 @@ pub mod pallet {
 			token_vote: AccountVote<BalanceOf<T>>,
 			delegator_vote: AccountVote<BalanceOf<T>>,
 		},
-
 		/// A user's vote has been unlocked, allowing them to retrieve their tokens.
 		///
 		/// - `who`: The account whose tokens are unlocked.
@@ -191,7 +192,6 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			poll_index: PollIndex,
 		},
-
 		/// A delegator's vote has been removed.
 		///
 		/// - `who`: The account that dispatched remove_delegator_vote.
@@ -202,7 +202,6 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			derivative_index: DerivativeIndex,
 		},
-
 		/// A delegator has been added.
 		///
 		/// - `vtoken`: The token associated with the delegator.
@@ -211,7 +210,6 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			derivative_index: DerivativeIndex,
 		},
-
 		/// A new referendum information has been created.
 		///
 		/// - `vtoken`: The token associated with the referendum.
@@ -222,7 +220,6 @@ pub mod pallet {
 			poll_index: PollIndex,
 			info: ReferendumInfoOf<T>,
 		},
-
 		/// Referendum information has been updated.
 		///
 		/// - `vtoken`: The token associated with the referendum.
@@ -233,7 +230,6 @@ pub mod pallet {
 			poll_index: PollIndex,
 			info: ReferendumInfoOf<T>,
 		},
-
 		/// The vote locking period has been set.
 		///
 		/// - `vtoken`: The token for which the locking period is being set.
@@ -242,7 +238,6 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			locking_period: BlockNumberFor<T>,
 		},
-
 		/// The undeciding timeout period has been set.
 		///
 		/// - `vtoken`: The token associated with the timeout.
@@ -251,7 +246,6 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			undeciding_timeout: BlockNumberFor<T>,
 		},
-
 		/// A referendum has been killed (cancelled or ended).
 		///
 		/// - `vtoken`: The token associated with the referendum.
@@ -260,7 +254,6 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			poll_index: PollIndex,
 		},
-
 		/// A notification about the result of a vote has been sent.
 		///
 		/// - `vtoken`: The token associated with the poll.
@@ -271,7 +264,6 @@ pub mod pallet {
 			poll_index: PollIndex,
 			success: bool,
 		},
-
 		/// A notification about the removal of a delegator's vote has been sent.
 		///
 		/// - `vtoken`: The token associated with the poll.
@@ -293,7 +285,6 @@ pub mod pallet {
 			query_id: QueryId,
 			response: Response,
 		},
-
 		/// The vote cap ratio has been set.
 		///
 		/// - `vtoken`: The token associated with the cap.
@@ -301,6 +292,12 @@ pub mod pallet {
 		VoteCapRatioSet {
 			vtoken: CurrencyIdOf<T>,
 			vote_cap_ratio: Perbill,
+		},
+		/// A referendum's status was updated.
+		ReferendumStatusUpdated {
+			currency_id: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+			new_status: ReferendumVoteStatus,
 		},
 	}
 
@@ -471,6 +468,17 @@ pub mod pallet {
 			NMapKey<Twox64Concat, PollIndex>,
 		),
 		DerivativeIndex,
+	>;
+
+	#[pallet::storage]
+	pub type ReferendumVoteStatusStore<T: Config> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		CurrencyIdOf<T>,
+		Twox64Concat,
+		PollIndex,
+		ReferendumVoteStatus,
+		ValueQuery,
 	>;
 
 	#[pallet::genesis_config]
@@ -648,7 +656,7 @@ pub mod pallet {
 			Self::ensure_no_pending_vote(vtoken, poll_index)?;
 
 			Self::try_remove_vote(&who, vtoken, poll_index, UnvoteScope::OnlyExpired)?;
-			Self::update_lock(&who, vtoken)?;
+			Self::update_lock(&who, vtoken, poll_index)?;
 
 			Self::deposit_event(Event::<T>::Unlocked {
 				who,
@@ -906,6 +914,31 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Updates the status of a referendum vote.
+		///
+		/// Emits an `ReferendumStatusUpdated` event if successful.
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_referendum_vote_status())]
+		pub fn update_referendum_vote_status(
+			origin: OriginFor<T>,
+			vtoken: CurrencyIdOf<T>,
+			#[pallet::compact] poll_index: PollIndex,
+			new_status: ReferendumVoteStatus,
+		) -> DispatchResult {
+			T::ControlOrigin::ensure_origin(origin)?;
+			Self::ensure_vtoken(&vtoken)?;
+
+			// Update the referendum status in storage
+			ReferendumVoteStatusStore::<T>::insert(vtoken, poll_index, new_status.clone());
+			Self::deposit_event(Event::<T>::ReferendumStatusUpdated {
+				currency_id: vtoken,
+				poll_index,
+				new_status,
+			});
+
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -928,7 +961,7 @@ pub mod pallet {
 				// rollback vote
 				let _ = PendingDelegatorVotes::<T>::clear(u32::MAX, None);
 				Self::try_remove_vote(&who, vtoken, poll_index, UnvoteScope::Any)?;
-				Self::update_lock(&who, vtoken)?;
+				Self::update_lock(&who, vtoken, poll_index)?;
 				if let Some((old_vote, vtoken_balance)) = maybe_old_vote {
 					Self::try_vote(&who, vtoken, poll_index, old_vote, vtoken_balance)?;
 				}
@@ -1282,14 +1315,19 @@ pub mod pallet {
 
 		/// Rejig the lock on an account. It will never get more stringent (since that would
 		/// indicate a security hole) but may be reduced from what they are currently.
-		pub(crate) fn update_lock(who: &AccountIdOf<T>, vtoken: CurrencyIdOf<T>) -> DispatchResult {
+		pub(crate) fn update_lock(
+			who: &AccountIdOf<T>,
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+		) -> DispatchResult {
 			let current_block = Self::get_agent_block_number(&vtoken)?;
 			let lock_needed = VotingForV2::<T>::mutate(vtoken, who, |voting| {
 				voting.rejig(current_block);
 				voting.locked_balance()
 			});
 
-			if lock_needed.is_zero() {
+			let can_unlock_early = Self::ensure_early_unlock(who, vtoken, poll_index)?;
+			if lock_needed.is_zero() || can_unlock_early {
 				ClassLocksFor::<T>::mutate(who, |locks| {
 					locks.retain(|x| x.0 != vtoken);
 				});
@@ -1620,6 +1658,39 @@ pub mod pallet {
 				});
 			}
 			ReferendumTimeoutV2::<T>::remove(vtoken, time_out_block_number);
+		}
+
+		/// This function checks whether the user's tokens can be unlocked early based on their vote status
+		/// and the referendum result. It returns `true` if the user's vote is opposite to the referendum result,
+		/// indicating that early unlock is allowed.
+		fn ensure_early_unlock(
+			who: &AccountIdOf<T>,
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+		) -> Result<bool, Error<T>> {
+			let vote_status = ReferendumVoteStatusStore::<T>::get(vtoken, poll_index);
+			let voting = VotingForV2::<T>::get(vtoken, who);
+
+			if let Voting::Casting(Casting { ref votes, .. }) = voting {
+				let i = match votes.binary_search_by_key(&poll_index, |i| i.0) {
+					Ok(i) => i,
+					Err(_) => return Ok(false),
+				};
+
+				// If the user has voted, continue processing
+				if let Some(vote) = votes.get(i) {
+					let is_aye = vote.1.is_aye_dominant();
+
+					// Check if the user's vote direction is opposite to the referendum result
+					return match (is_aye, vote_status) {
+						(true, ReferendumVoteStatus::Rejected) => Ok(true), // Voted Aye but the referendum was rejected
+						(false, ReferendumVoteStatus::Approved) => Ok(true), // Voted Nay but the referendum was approved
+						_ => Ok(false),                                      // No early unlock allowed in other cases
+					};
+				}
+			}
+
+			Ok(false)
 		}
 	}
 }
