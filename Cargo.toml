@@ -304,7 +304,7 @@ xcm-simulator                                 = { git = "https://github.com/pari
 slices                = "0.2.0"
 derive_more           = "1.0.0"
 libsecp256k1          = { version = "0.7", default-features = false }
-async-trait           = { version = "0.1.83" }
+async-trait           = { version = "0.1.86" }
 bstringify            = { version = "0.1.2" }
 clap                  = { version = "4.5.27" }
 env_logger            = { version = "0.10.2" }
@@ -335,7 +335,7 @@ smallvec              = { version = "1.13.1" }
 static_assertions     = { version = "1.1.0" }
 strum                 = { version = "0.26.3", default-features = false, features = ["derive"] }
 strum_macros          = { version = "0.26.2" }
-syn                   = { version = "2.0.90", features = ["full", "fold", "extra-traits", "visit"] }
+syn                   = { version = "2.0.98", features = ["full", "fold", "extra-traits", "visit"] }
 tiny-keccak           = { version = "2.0", features = ["fips202"] }
 alloy-sol-macro       = "0.7.7"
 alloy-sol-types       = { version = "0.7.7", default-features = false }
