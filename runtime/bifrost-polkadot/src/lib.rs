@@ -1782,6 +1782,15 @@ parameter_types! {
 	pub const CollatorSelectionName: &'static str = "CollatorSelection";
 }
 
+parameter_types! {
+	pub const DemocracyStr: &'static str = "Democracy";
+	pub const CouncilStr: &'static str = "Council";
+	pub const TechnicalCommitteeStr: &'static str = "TechnicalCommittee";
+	pub const PhragmenElectionStr: &'static str = "PhragmenElection";
+	pub const CouncilMembershipStr: &'static str = "CouncilMembership";
+	pub const TechnicalMembershipStr: &'static str = "TechnicalMembership";
+}
+
 /// The runtime migrations per release.
 pub mod migrations {
 	#[allow(unused_imports)]
@@ -1793,6 +1802,12 @@ pub mod migrations {
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
 		bifrost_fee_share::migration::FeeShareOnRuntimeUpgrade<Runtime>,
+		frame_support::migrations::RemovePallet<DemocracyStr, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<CouncilStr, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<TechnicalCommitteeStr, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<PhragmenElectionStr, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<CouncilMembershipStr, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<TechnicalMembershipStr, RocksDbWeight>,
 	);
 }
 
