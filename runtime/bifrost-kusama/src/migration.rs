@@ -792,3 +792,48 @@ pub mod vsbond_auction {
 		}
 	}
 }
+
+pub mod update_referenda_referendum_info {
+	use crate::{Runtime, Weight};
+	use frame_support::traits::OnRuntimeUpgrade;
+	use pallet_referenda::{ReferendumIndex, ReferendumInfoFor, ReferendumInfoOf};
+
+	pub struct MigrateReferendumInfoFor;
+
+	impl OnRuntimeUpgrade for MigrateReferendumInfoFor {
+		fn on_runtime_upgrade() -> Weight {
+			let current_block_number = frame_system::Pallet::<Runtime>::block_number();
+			let mut weight: Weight = Weight::zero();
+
+			// Translate the storage and update accordingly
+			ReferendumInfoFor::<Runtime>::translate::<ReferendumInfoOf<Runtime, ()>, _>(
+				|_: ReferendumIndex, value: ReferendumInfoOf<Runtime, ()>| {
+					weight += <Runtime as frame_system::Config>::DbWeight::get().reads(1);
+
+					if let ReferendumInfoOf::<Runtime, ()>::Ongoing(mut status) = value {
+						// Check if there's an alarm and update the block numbers
+						if let Some((mut block, (mut end_schedule_block, value))) = status.alarm {
+							block = block
+								.saturating_sub(current_block_number)
+								.saturating_add(block);
+							end_schedule_block = end_schedule_block
+								.saturating_sub(current_block_number)
+								.saturating_add(end_schedule_block);
+
+							// Update the status with the new block numbers
+							status.alarm = Some((block, (end_schedule_block, value)));
+						}
+
+						// Wrap the updated status back into the ReferendumInfo enum
+						Some(ReferendumInfoOf::<Runtime, ()>::Ongoing(status))
+					} else {
+						// If the status isn't Ongoing, return it unchanged
+						Some(value)
+					}
+				},
+			);
+
+			weight + <Runtime as frame_system::Config>::DbWeight::get().writes(1)
+		}
+	}
+}

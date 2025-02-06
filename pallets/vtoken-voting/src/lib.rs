@@ -98,7 +98,7 @@ pub mod pallet {
 	use frame_support::traits::CallerTrait;
 
 	/// The current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -449,7 +449,7 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	pub type ReferendumTimeoutV2<T: Config> = StorageDoubleMap<
+	pub type ReferendumTimeoutV3<T: Config> = StorageDoubleMap<
 		_,
 		Twox64Concat,
 		CurrencyIdOf<T>,
@@ -510,10 +510,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(
-			bifrost_current_block_number: BlockNumberFor<T>,
-			remaining_weight: Weight,
-		) -> Weight {
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			let bifrost_current_block_number = T::LocalBlockNumberProvider::current_block_number();
 			let db_weight = T::DbWeight::get();
 			let mut used_weight = db_weight.reads(3);
 			if remaining_weight.any_lt(used_weight)
@@ -524,9 +522,9 @@ pub mod pallet {
 			let relay_current_block_number =
 				T::RelaychainBlockNumberProvider::current_block_number();
 
-			for (vtoken, time_out_block_number) in ReferendumTimeoutV2::<T>::iter_keys() {
+			for (vtoken, time_out_block_number) in ReferendumTimeoutV3::<T>::iter_keys() {
 				let referendum_timeout_list =
-					ReferendumTimeoutV2::<T>::get(vtoken, time_out_block_number);
+					ReferendumTimeoutV3::<T>::get(vtoken, time_out_block_number);
 				let len = referendum_timeout_list.len() as u64;
 				let temp_weight = db_weight.reads_writes(len, len) + db_weight.writes(1);
 				if remaining_weight.any_lt(used_weight + temp_weight) {
@@ -989,7 +987,7 @@ pub mod pallet {
 							if let ReferendumInfo::Ongoing(status) = info {
 								let current_block_number = Self::get_agent_block_number(&vtoken)?;
 								status.submitted = Some(current_block_number);
-								ReferendumTimeoutV2::<T>::mutate(
+								ReferendumTimeoutV3::<T>::mutate(
 									vtoken,
 									current_block_number.saturating_add(
 										UndecidingTimeout::<T>::get(vtoken)
@@ -1117,7 +1115,7 @@ pub mod pallet {
 			extra_fee: BalanceOf<T>,
 			f: impl FnOnce(QueryId) -> (),
 		) -> DispatchResult {
-			let now = frame_system::Pallet::<T>::block_number();
+			let now = T::LocalBlockNumberProvider::current_block_number();
 			let timeout = now.saturating_add(T::QueryTimeout::get());
 			let notify_runtime_call = <T as Config>::RuntimeCall::from(notify_call);
 			let notify_call_weight = notify_runtime_call.get_dispatch_info().weight;
@@ -1657,7 +1655,7 @@ pub mod pallet {
 					None => {}
 				});
 			}
-			ReferendumTimeoutV2::<T>::remove(vtoken, time_out_block_number);
+			ReferendumTimeoutV3::<T>::remove(vtoken, time_out_block_number);
 		}
 
 		/// This function checks whether the user's tokens can be unlocked early based on their vote status

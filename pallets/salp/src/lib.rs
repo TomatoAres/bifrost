@@ -101,6 +101,7 @@ pub mod pallet {
 		currency::TransferAll, MultiCurrency, MultiLockableCurrency, MultiReservableCurrency,
 	};
 	use sp_arithmetic::Percent;
+	use sp_runtime::traits::BlockNumberProvider;
 	use sp_std::{convert::TryInto, prelude::*};
 
 	#[pallet::config]
@@ -169,6 +170,8 @@ pub mod pallet {
 		type StablePool: StablePoolHandler<Balance = BalanceOf<Self>, AccountId = Self::AccountId>;
 
 		type VtokenMinting: VtokenMintingInterface<Self::AccountId, CurrencyId, BalanceOf<Self>>;
+		/// The current block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -597,7 +600,7 @@ pub mod pallet {
 				RedeemPool::<T>::get() >= value,
 				Error::<T>::NotEnoughBalanceInRedeemPool
 			);
-			let cur_block = <frame_system::Pallet<T>>::block_number();
+			let cur_block = T::BlockNumberProvider::current_block_number();
 			let expired = Self::is_expired(cur_block, fund.last_slot)?;
 			ensure!(!expired, Error::<T>::VSBondExpired);
 			T::MultiCurrency::ensure_can_withdraw(vs_token, &who, value)
@@ -770,9 +773,12 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			let current_block = T::BlockNumberProvider::current_block_number();
 			// Release x% KSM/DOT from redeem-pool to bancor-pool per cycle
-			if n != Zero::zero() && (n % T::ReleaseCycle::get()) == Zero::zero() {
+			if current_block != Zero::zero()
+				&& (current_block % T::ReleaseCycle::get()) == Zero::zero()
+			{
 				if let Ok(rp_balance) = TryInto::<u128>::try_into(RedeemPool::<T>::get()) {
 					// Calculate the release amount
 					let release_amount = T::ReleaseRatio::get() * rp_balance;

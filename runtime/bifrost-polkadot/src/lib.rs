@@ -674,8 +674,8 @@ impl parachain_info::Config for Runtime {}
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 parameter_types! {
-	/// Minimum round length is 2 minutes (10 * 12 second block times)
-	pub const MinBlocksPerRound: u32 = 10;
+	/// Minimum round length is 2 minutes
+	pub const MinBlocksPerRound: u32 = 2 * MINUTES;
 	/// Rounds before the collator leaving the candidates request can be executed
 	pub const LeaveCandidatesDelay: u32 = 84;
 	/// Rounds before the candidate bond increase/decrease can be executed
@@ -945,6 +945,7 @@ impl bifrost_salp::Config for Runtime {
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
 	type StablePool = StablePool;
 	type VtokenMinting = VtokenMinting;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_asset_registry::Config for Runtime {
@@ -1150,7 +1151,7 @@ impl bifrost_stable_pool::Config for Runtime {
 
 parameter_types! {
 	pub const QueryTimeout: BlockNumber = 100;
-	pub const ReferendumCheckInterval: BlockNumber = 300;
+	pub const ReferendumCheckInterval: BlockNumber = 1 * HOURS;
 }
 
 pub struct DerivativeAccountTokenFilter;
@@ -1795,6 +1796,7 @@ parameter_types! {
 pub mod migrations {
 	#[allow(unused_imports)]
 	use super::*;
+	use crate::migration::update_referenda_referendum_info;
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
@@ -1802,6 +1804,9 @@ pub mod migrations {
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
 		bifrost_fee_share::migration::FeeShareOnRuntimeUpgrade<Runtime>,
+		bifrost_parachain_staking::migrations::v1::MigrateToV1<Runtime>,
+		bifrost_vtoken_voting::migration::v5::MigrateToV5<Runtime>,
+		update_referenda_referendum_info::MigrateReferendumInfoFor,
 		frame_support::migrations::RemovePallet<DemocracyStr, RocksDbWeight>,
 		frame_support::migrations::RemovePallet<CouncilStr, RocksDbWeight>,
 		frame_support::migrations::RemovePallet<TechnicalCommitteeStr, RocksDbWeight>,

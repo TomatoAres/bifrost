@@ -1465,7 +1465,7 @@ fn on_idle_works() {
 			let mut actual_count = 0;
 			for poll_index in 0..50 {
 				let relay_block_number = poll_index as BlockNumber;
-				if ReferendumTimeoutV2::<Runtime>::get(
+				if ReferendumTimeoutV3::<Runtime>::get(
 					vtoken,
 					relay_block_number + UndecidingTimeout::<Runtime>::get(vtoken).unwrap(),
 				)

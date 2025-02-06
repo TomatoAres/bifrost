@@ -673,8 +673,8 @@ impl parachain_info::Config for Runtime {}
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 parameter_types! {
-	/// Minimum round length is 2 minutes (10 * 12 second block times)
-	pub const MinBlocksPerRound: u32 = 10;
+	/// Minimum round length is 2 minutes
+	pub const MinBlocksPerRound: u32 = 2 * MINUTES;
 	/// Rounds before the collator leaving the candidates request can be executed
 	pub const LeaveCandidatesDelay: u32 = 84;
 	/// Rounds before the candidate bond increase/decrease can be executed
@@ -944,6 +944,7 @@ impl bifrost_salp::Config for Runtime {
 	type CurrencyIdRegister = AssetIdMaps<Runtime>;
 	type StablePool = StablePool;
 	type VtokenMinting = VtokenMinting;
+	type BlockNumberProvider = System;
 }
 
 impl bifrost_asset_registry::Config for Runtime {
@@ -1149,7 +1150,7 @@ impl bifrost_stable_pool::Config for Runtime {
 
 parameter_types! {
 	pub const QueryTimeout: BlockNumber = 100;
-	pub const ReferendumCheckInterval: BlockNumber = 300;
+	pub const ReferendumCheckInterval: BlockNumber = 1 * HOURS;
 }
 
 pub struct DerivativeAccountTokenFilter;
