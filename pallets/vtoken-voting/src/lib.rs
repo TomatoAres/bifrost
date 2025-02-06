@@ -1683,7 +1683,9 @@ pub mod pallet {
 					return match (is_aye, vote_status) {
 						(true, ReferendumVoteStatus::Rejected) => Ok(true), // Voted Aye but the referendum was rejected
 						(false, ReferendumVoteStatus::Approved) => Ok(true), // Voted Nay but the referendum was approved
-						_ => Ok(false),                                      // No early unlock allowed in other cases
+						(_, ReferendumVoteStatus::Ongoing) => Ok(false), // No early unlock allowed in Ongoing cases
+						(_, ReferendumVoteStatus::None) => Ok(true),     // Early unlock allowed in None cases
+						_ => Ok(false),                                  // No early unlock allowed in other cases
 					};
 				}
 			}

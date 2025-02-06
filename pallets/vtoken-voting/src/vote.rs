@@ -736,14 +736,14 @@ pub enum ReferendumVoteStatus {
 	Approved,
 	/// The referendum proposal was rejected.
 	Rejected,
-	/// The referendum proposal timed out without a decision.
-	TimedOut,
-	/// No result is currently available for the referendum proposal.
-	NoResult,
+	/// The referendum proposal was Cancelled/TimeOut/Killed.
+	None,
+	/// Ongoing is currently available for the referendum proposal.
+	Ongoing,
 }
 
 impl Default for ReferendumVoteStatus {
 	fn default() -> Self {
-		ReferendumVoteStatus::NoResult
+		ReferendumVoteStatus::Ongoing
 	}
 }

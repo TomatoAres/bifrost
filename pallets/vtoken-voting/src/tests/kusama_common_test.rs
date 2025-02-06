@@ -1890,6 +1890,46 @@ fn early_unlock_works() {
 }
 
 #[test]
+fn early_unlock_works_with_none_status() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let poll_index = 3;
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index,
+				aye(2, 5)
+			));
+			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+				who: ALICE,
+				vtoken,
+				poll_index,
+				token_vote: aye(4, 5),
+				delegator_vote: aye(200, 0),
+			}));
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				0,
+				response_success()
+			));
+
+			assert_ok!(VtokenVoting::update_referendum_vote_status(
+				RuntimeOrigin::root(),
+				vtoken,
+				poll_index,
+				ReferendumVoteStatus::None,
+			));
+
+			assert_eq!(usable_balance(vtoken, &ALICE), 8);
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
+			assert_eq!(usable_balance(vtoken, &ALICE), 10);
+		});
+	}
+}
+
+#[test]
 fn early_unlock_fails() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
@@ -1939,7 +1979,7 @@ fn update_referendum_vote_status_works() {
 				RuntimeOrigin::root(),
 				vtoken,
 				poll_index,
-				ReferendumVoteStatus::NoResult,
+				ReferendumVoteStatus::Ongoing,
 			));
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -1978,7 +2018,7 @@ fn update_referendum_vote_status_without_vote_should_fail() {
 				RuntimeOrigin::root(),
 				WETH,
 				poll_index,
-				ReferendumVoteStatus::NoResult,
+				ReferendumVoteStatus::Ongoing,
 			),
 			Error::<Runtime>::VTokenNotSupport
 		);
@@ -1996,7 +2036,7 @@ fn update_referendum_vote_status_with_origin_signed_should_fail() {
 					RuntimeOrigin::signed(ALICE),
 					vtoken,
 					poll_index,
-					ReferendumVoteStatus::NoResult,
+					ReferendumVoteStatus::Ongoing,
 				),
 				DispatchError::BadOrigin
 			);
