@@ -270,6 +270,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 			RuntimeOrigin::signed(ALICE),
 			KSM,
 			100,
+			100,
 			Some(subaccount_0_location)
 		));
 

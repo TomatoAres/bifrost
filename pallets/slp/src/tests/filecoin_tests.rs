@@ -431,6 +431,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_should_work() {
 				RuntimeOrigin::signed(ALICE),
 				FIL,
 				100,
+				100,
 				Some(location)
 			),
 			Error::<Runtime>::TuneExchangeRateLimitNotSet
@@ -479,6 +480,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_should_work() {
 		assert_ok!(Slp::charge_host_fee_and_tune_vtoken_exchange_rate(
 			RuntimeOrigin::signed(ALICE),
 			FIL,
+			100,
 			100,
 			Some(location)
 		));

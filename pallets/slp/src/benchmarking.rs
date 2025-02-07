@@ -801,6 +801,7 @@ mod benchmarks {
 			origin as <T as frame_system::Config>::RuntimeOrigin,
 			KSM,
 			10u32.into(),
+			10u32.into(),
 			Some(DELEGATOR1),
 		);
 

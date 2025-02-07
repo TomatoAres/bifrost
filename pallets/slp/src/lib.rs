@@ -1254,14 +1254,16 @@ pub mod pallet {
 		pub fn charge_host_fee_and_tune_vtoken_exchange_rate(
 			origin: OriginFor<T>,
 			currency_id: CurrencyId,
-			#[pallet::compact] value: BalanceOf<T>,
+			#[pallet::compact] pool_value: BalanceOf<T>,
+			#[pallet::compact] delegator_value: BalanceOf<T>,
 			who: Option<MultiLocation>,
 		) -> DispatchResult {
 			// Ensure origin
 			Self::ensure_authorized(origin, currency_id)?;
 
 			// Ensure the value is valid.
-			ensure!(value > Zero::zero(), Error::<T>::AmountZero);
+			ensure!(pool_value > Zero::zero(), Error::<T>::AmountZero);
+			ensure!(delegator_value > Zero::zero(), Error::<T>::AmountZero);
 
 			// Ensure the value is valid.
 			let (limit_num, max_permill) = CurrencyTuneExchangeRateLimit::<T>::get(currency_id)
@@ -1270,7 +1272,14 @@ pub mod pallet {
 			let pool_token = T::VtokenMinting::get_token_pool(currency_id);
 			// Calculate max increase allowed.
 			let max_to_increase = max_permill.mul_floor(pool_token);
-			ensure!(value <= max_to_increase, Error::<T>::GreaterThanMaximum);
+			ensure!(
+				pool_value <= max_to_increase,
+				Error::<T>::GreaterThanMaximum
+			);
+			ensure!(
+				delegator_value <= max_to_increase,
+				Error::<T>::GreaterThanMaximum
+			);
 
 			// Ensure this tune is within limit.
 			// Get current TimeUnit.
@@ -1299,7 +1308,7 @@ pub mod pallet {
 			// Get charged fee value
 			let (fee_permill, beneficiary) =
 				HostingFees::<T>::get(currency_id).ok_or(Error::<T>::InvalidHostingFee)?;
-			let fee_to_charge = fee_permill.mul_floor(value);
+			let fee_to_charge = fee_permill.mul_floor(pool_value);
 
 			// Should first charge fee, and then tune exchange rate. Otherwise, the rate will be
 			// wrong.
@@ -1315,7 +1324,8 @@ pub mod pallet {
 			// Tune the new exchange rate.
 			staking_agent.tune_vtoken_exchange_rate(
 				&who,
-				value,
+				pool_value,
+				delegator_value,
 				// Dummy value for vtoken amount
 				Zero::zero(),
 				currency_id,
@@ -1333,7 +1343,7 @@ pub mod pallet {
 			});
 			Pallet::<T>::deposit_event(Event::PoolTokenIncreased {
 				currency_id,
-				amount: value,
+				amount: pool_value,
 			});
 			Ok(())
 		}

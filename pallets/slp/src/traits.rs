@@ -175,7 +175,8 @@ pub trait StakingAgent<
 	fn tune_vtoken_exchange_rate(
 		&self,
 		who: &Option<MultiLocation>,
-		token_amount: Balance,
+		pool_value: Balance,
+		delegator_value: Balance,
 		vtoken_amount: Balance,
 		currency_id: CurrencyId,
 	) -> Result<(), Error>;

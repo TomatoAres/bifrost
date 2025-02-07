@@ -447,7 +447,8 @@ impl<T: Config>
 	fn tune_vtoken_exchange_rate(
 		&self,
 		who: &Option<MultiLocation>,
-		token_amount: BalanceOf<T>,
+		pool_value: BalanceOf<T>,
+		_delegator_value: BalanceOf<T>,
 		_vtoken_amount: BalanceOf<T>,
 		currency_id: CurrencyId,
 	) -> Result<(), Error<T>> {
@@ -469,14 +470,14 @@ impl<T: Config>
 			Error::<T>::DelegatorAlreadyTuned
 		);
 
-		ensure!(!token_amount.is_zero(), Error::<T>::AmountZero);
+		ensure!(!pool_value.is_zero(), Error::<T>::AmountZero);
 
 		// issue the increased interest amount to the entrance account
 		// Get charged fee value
 		let (fee_permill, _beneficiary) =
 			HostingFees::<T>::get(currency_id).ok_or(Error::<T>::InvalidHostingFee)?;
-		let fee_to_charge = fee_permill.mul_floor(token_amount);
-		let amount_to_increase = token_amount
+		let fee_to_charge = fee_permill.mul_floor(pool_value);
+		let amount_to_increase = pool_value
 			.checked_sub(&fee_to_charge)
 			.ok_or(Error::<T>::UnderFlow)?;
 

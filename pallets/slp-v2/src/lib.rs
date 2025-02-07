@@ -282,8 +282,10 @@ pub mod pallet {
 			protocol_fee_currency_id: CurrencyId,
 			/// The amount of the fee charged to the protocol
 			protocol_fee: Balance,
-			/// Amount of exchange rates updated
-			amount: Balance,
+			/// Amount of pool value updated
+			pool_value: Balance,
+			/// Amount of delegator value updated
+			delegator_value: Balance,
 		},
 		/// Transfer the staking token to remote chain.
 		TransferTo {
@@ -656,7 +658,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			staking_protocol: StakingProtocol,
 			delegator: Delegator<T::AccountId>,
-			amount: Balance,
+			pool_value: Balance,
+			delegator_value: Balance,
 		) -> DispatchResultWithPostInfo {
 			Self::ensure_governance_or_operator(origin, staking_protocol)?;
 			let currency_id = staking_protocol.info().currency_id;
@@ -683,12 +686,16 @@ pub mod pallet {
 			let pool_token_amount = T::VtokenMinting::get_token_pool(currency_id);
 			let max_amount = max_update_permill.mul_floor(pool_token_amount);
 			ensure!(
-				amount <= max_amount || max_amount == 0,
+				pool_value <= max_amount || max_amount == 0,
+				Error::<T>::UpdateTokenExchangeRateAmountTooLarge
+			);
+			ensure!(
+				delegator_value <= max_amount || max_amount == 0,
 				Error::<T>::UpdateTokenExchangeRateAmountTooLarge
 			);
 
 			// Charge the protocol fee.
-			let mut protocol_fee = protocol_fee_rate.mul_floor(amount);
+			let mut protocol_fee = protocol_fee_rate.mul_floor(pool_value);
 			let protocol_fee_currency_id = T::CurrencyIdConversion::convert_to_vtoken(currency_id)
 				.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
 			if protocol_fee != 0 {
@@ -706,7 +713,7 @@ pub mod pallet {
 			}
 
 			// Update the token exchange rate.
-			T::VtokenMinting::increase_token_pool(currency_id, amount)
+			T::VtokenMinting::increase_token_pool(currency_id, pool_value)
 				.map_err(|_| Error::<T>::IncreaseTokenPoolFailed)?;
 			LedgerByStakingProtocolAndDelegator::<T>::mutate(
 				staking_protocol,
@@ -714,7 +721,7 @@ pub mod pallet {
 				|ledger| match ledger {
 					#[cfg(feature = "polkadot")]
 					Some(Ledger::AstarDappStaking(astar_dapp_staking_ledger)) => {
-						astar_dapp_staking_ledger.add_lock_amount(amount);
+						astar_dapp_staking_ledger.add_lock_amount(delegator_value);
 						Ok(())
 					}
 					_ => Err(Error::<T>::LedgerNotFound),
@@ -731,7 +738,8 @@ pub mod pallet {
 				delegator,
 				protocol_fee_currency_id,
 				protocol_fee,
-				amount,
+				pool_value,
+				delegator_value,
 			});
 			Ok(().into())
 		}

@@ -1590,14 +1590,15 @@ impl<T: Config>
 	fn tune_vtoken_exchange_rate(
 		&self,
 		_who: &Option<MultiLocation>,
-		token_amount: BalanceOf<T>,
+		pool_value: BalanceOf<T>,
+		_delegator_value: BalanceOf<T>,
 		_vtoken_amount: BalanceOf<T>,
 		currency_id: CurrencyId,
 	) -> Result<(), Error<T>> {
-		ensure!(!token_amount.is_zero(), Error::<T>::AmountZero);
+		ensure!(!pool_value.is_zero(), Error::<T>::AmountZero);
 
 		// Tune the vtoken exchange rate.
-		T::VtokenMinting::increase_token_pool(currency_id, token_amount)
+		T::VtokenMinting::increase_token_pool(currency_id, pool_value)
 			.map_err(|_| Error::<T>::IncreaseTokenPoolError)?;
 
 		Ok(())

@@ -942,6 +942,7 @@ fn update_token_exchange_rate_should_work() {
 			RuntimeOrigin::root(),
 			staking_protocol,
 			delegator.clone(),
+			amount,
 			amount
 		));
 		// The protocol_fee is 888.644046532367789159 VASTR.
@@ -957,7 +958,8 @@ fn update_token_exchange_rate_should_work() {
 			delegator: delegator.clone(),
 			protocol_fee_currency_id: VASTR,
 			protocol_fee,
-			amount,
+			pool_value: amount,
+			delegator_value: amount,
 		});
 		let vtoken_total_issuance = vtoken_total_issuance + protocol_fee;
 		let token_pool = token_pool + amount;
@@ -975,6 +977,7 @@ fn update_token_exchange_rate_should_work() {
 			RuntimeOrigin::root(),
 			staking_protocol,
 			delegator.clone(),
+			amount,
 			amount
 		));
 
@@ -991,7 +994,8 @@ fn update_token_exchange_rate_should_work() {
 			delegator: delegator.clone(),
 			protocol_fee_currency_id: VASTR,
 			protocol_fee: protocol_fee_1,
-			amount,
+			pool_value: amount,
+			delegator_value: amount,
 		});
 		let vtoken_total_issuance = vtoken_total_issuance + protocol_fee_1;
 		let token_pool = token_pool + amount;
@@ -1033,7 +1037,8 @@ fn update_token_exchange_rate_limt_error() {
 				RuntimeOrigin::root(),
 				staking_protocol,
 				delegator.clone(),
-				amount
+				amount,
+				0
 			),
 			SlpV2Error::<Test>::UpdateIntervalTooShort
 		);
@@ -1046,7 +1051,8 @@ fn update_token_exchange_rate_limt_error() {
 				RuntimeOrigin::root(),
 				staking_protocol,
 				delegator.clone(),
-				amount
+				amount,
+				0
 			),
 			SlpV2Error::<Test>::UpdateTokenExchangeRateAmountTooLarge
 		);

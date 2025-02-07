@@ -748,7 +748,8 @@ impl<T: Config>
 	fn tune_vtoken_exchange_rate(
 		&self,
 		who: &Option<MultiLocation>,
-		token_amount: BalanceOf<T>,
+		pool_value: BalanceOf<T>,
+		_delegator_value: BalanceOf<T>,
 		_vtoken_amount: BalanceOf<T>,
 		currency_id: CurrencyId,
 	) -> Result<(), Error<T>> {
@@ -764,11 +765,7 @@ impl<T: Config>
 			Err(Error::<T>::DelegatorNotExist)?;
 		}
 
-		Pallet::<T>::tune_vtoken_exchange_rate_without_update_ledger(
-			who,
-			token_amount,
-			currency_id,
-		)?;
+		Pallet::<T>::tune_vtoken_exchange_rate_without_update_ledger(who, pool_value, currency_id)?;
 
 		Ok(())
 	}

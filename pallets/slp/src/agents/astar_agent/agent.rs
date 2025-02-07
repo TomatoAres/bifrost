@@ -552,17 +552,14 @@ impl<T: Config>
 	fn tune_vtoken_exchange_rate(
 		&self,
 		who: &Option<MultiLocation>,
-		token_amount: BalanceOf<T>,
+		pool_value: BalanceOf<T>,
+		delegator_value: BalanceOf<T>,
 		_vtoken_amount: BalanceOf<T>,
 		currency_id: CurrencyId,
 	) -> Result<(), Error<T>> {
 		let who = who.as_ref().ok_or(Error::<T>::DelegatorNotExist)?;
 
-		Pallet::<T>::tune_vtoken_exchange_rate_without_update_ledger(
-			who,
-			token_amount,
-			currency_id,
-		)?;
+		Pallet::<T>::tune_vtoken_exchange_rate_without_update_ledger(who, pool_value, currency_id)?;
 
 		// update delegator ledger
 		DelegatorLedgers::<T>::mutate(currency_id, who, |old_ledger| -> Result<(), Error<T>> {
@@ -570,12 +567,12 @@ impl<T: Config>
 				// Increase both the active and total amount.
 				old_sub_ledger.active = old_sub_ledger
 					.active
-					.checked_add(&token_amount)
+					.checked_add(&delegator_value)
 					.ok_or(Error::<T>::OverFlow)?;
 
 				old_sub_ledger.total = old_sub_ledger
 					.total
-					.checked_add(&token_amount)
+					.checked_add(&delegator_value)
 					.ok_or(Error::<T>::OverFlow)?;
 				Ok(())
 			} else {
