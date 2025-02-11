@@ -18,13 +18,13 @@
 
 use crate::chain_spec::{get_account_id_from_seed, get_from_seed, RelayExtensions};
 use bifrost_kusama_runtime::{
-	constants::currency::DOLLARS, AccountId, Balance, BalancesConfig, BlockNumber, InflationInfo,
-	Range, SS58Prefix, VestingConfig,
+	AccountId, Balance, BalancesConfig, BlockNumber, InflationInfo, Range, SS58Prefix,
+	VestingConfig,
 };
 use bifrost_primitives::{
 	BifrostKusamaChainId, CurrencyId, CurrencyId::*, TokenInfo, TokenSymbol::*,
 };
-use bifrost_runtime_common::{constants::time::HOURS, AuraId};
+use bifrost_runtime_common::{constants::currency::DOLLARS, constants::time::HOURS, AuraId};
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking::{account, whitelisted_caller};
 use hex_literal::hex;

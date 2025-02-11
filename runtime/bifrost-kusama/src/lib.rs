@@ -91,7 +91,9 @@ pub use bifrost_primitives::{
 	Shortfall, TimeUnit, TokenSymbol,
 };
 pub use bifrost_runtime_common::{
-	cent, constants::time::*, dollar, micro, milli, millicent, AuraId, SlowAdjustingFeeUpdate,
+	cent,
+	constants::{currency::*, time::*},
+	dollar, micro, milli, millicent, AuraId, SlowAdjustingFeeUpdate,
 };
 use bifrost_slp::QueryId;
 use constants::currency::*;

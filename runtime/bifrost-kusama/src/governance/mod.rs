@@ -20,6 +20,7 @@ pub mod referenda;
 
 use super::*;
 pub use bifrost_runtime_common::dollar;
+pub use bifrost_runtime_common::{cent, constants::currency::*, milli};
 pub mod fellowship;
 mod origins;
 pub use origins::{

@@ -18,16 +18,17 @@
 
 use crate::chain_spec::{get_account_id_from_seed, get_from_seed, RelayExtensions};
 use bifrost_parachain_staking::{InflationInfo, Range};
-use bifrost_polkadot_runtime::{
-	constants::currency::DOLLARS, AccountId, Balance, BlockNumber, SS58Prefix,
-};
+use bifrost_polkadot_runtime::{AccountId, Balance, BlockNumber, SS58Prefix};
 use bifrost_primitives::{
 	currency::{BNCS, DED, IBTC, INTR, PEN, PINK, USDC, WETH},
 	BifrostPolkadotChainId, CurrencyId,
 	CurrencyId::*,
 	TokenInfo, TokenSymbol, ASTR, BNC, DOT, DOT_TOKEN_ID, DOT_U, FIL, GLMR, MANTA,
 };
-use bifrost_runtime_common::{constants::time::HOURS, AuraId};
+use bifrost_runtime_common::{
+	constants::{currency::DOLLARS, time::HOURS},
+	AuraId,
+};
 use cumulus_primitives_core::ParaId;
 use fp_evm::GenesisAccount;
 use frame_benchmarking::{account, whitelisted_caller};

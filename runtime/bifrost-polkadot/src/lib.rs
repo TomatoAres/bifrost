@@ -93,7 +93,8 @@ pub use bifrost_primitives::{
 	RpcContributionStatus, Shortfall, TimeUnit, TokenSymbol, DOT_TOKEN_ID, GLMR_TOKEN_ID,
 };
 use bifrost_runtime_common::{
-	constants::time::*, dollar, micro, milli, AuraId, SlowAdjustingFeeUpdate,
+	constants::{currency::*, time::*},
+	dollar, micro, milli, AuraId, SlowAdjustingFeeUpdate,
 };
 use bifrost_slp::QueryId;
 use constants::currency::*;

@@ -21,7 +21,8 @@ pub use custom_origins::*;
 
 #[frame_support::pallet]
 pub mod custom_origins {
-	use crate::{Balance, BNCS};
+	use crate::Balance;
+	use bifrost_runtime_common::constants::currency::BNCS;
 	use frame_support::pallet_prelude::*;
 	use strum_macros::EnumString;
 
