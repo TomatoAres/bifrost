@@ -110,8 +110,6 @@ pub fn bifrost_polkadot_genesis(
 	vestings: Vec<(AccountId, BlockNumber, BlockNumber, Balance)>,
 	id: ParaId,
 	tokens: Vec<(AccountId, CurrencyId, Balance)>,
-	council_membership: Vec<AccountId>,
-	technical_committee_membership: Vec<AccountId>,
 	salp_multisig_key: AccountId,
 	asset_registry: (
 		Vec<(CurrencyId, Balance, Option<(String, String, u8)>)>,
@@ -125,14 +123,8 @@ pub fn bifrost_polkadot_genesis(
 		"balances": {
 			"balances": balances
 		},
-		"councilMembership": {
-			"members": council_membership
-		},
 		"oracleMembership": {
 			"members": oracle_membership
-		},
-		"technicalCommittee": {
-			"members": technical_committee_membership
 		},
 		"parachainInfo": {
 			"parachainId": id
@@ -214,8 +206,6 @@ pub fn local_testnet_config() -> ChainSpec {
 			]
 		})
 		.collect();
-	let council_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
-	let technical_committee_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
 	let oracle_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
 	let salp_multisig: AccountId =
 		hex!["49daa32c7287890f38b7e1a8cd2961723d36d20baa0bf3b82e0c4bdda93b1c0a"].into();
@@ -360,8 +350,6 @@ pub fn local_testnet_config() -> ChainSpec {
 		vec![],
 		BifrostPolkadotChainId::get().into(),
 		tokens,
-		council_membership,
-		technical_committee_membership,
 		salp_multisig,
 		(currency, vcurrency, vec![]),
 		oracle_membership,
@@ -397,8 +385,6 @@ pub fn dev_config() -> ChainSpec {
 			]
 		})
 		.collect();
-	let council_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
-	let technical_committee_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
 	let oracle_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
 	let salp_multisig: AccountId =
 		hex!["49daa32c7287890f38b7e1a8cd2961723d36d20baa0bf3b82e0c4bdda93b1c0a"].into();
@@ -543,8 +529,6 @@ pub fn dev_config() -> ChainSpec {
 		vec![],
 		BifrostPolkadotChainId::get().into(),
 		tokens,
-		council_membership,
-		technical_committee_membership,
 		salp_multisig,
 		(currency, vcurrency, vec![]),
 		oracle_membership,
@@ -587,7 +571,7 @@ pub fn paseo_config() -> ChainSpec {
 		),
 	];
 
-	let endowed_accounts: Vec<AccountId> = vec![
+	let balances = vec![
 		// dDWnEWnx3GUgfugXh9mZtgj4CvJdmd8naYkWYCZGxjfb1Cz
 		hex!["420398e0150cd9d417fb8fd4027b75bd42717262e6eac97c55f2f8f84e8ffb3f"].into(),
 		// e2s2dTSWe9kHebF2FCbPGbXftDT7fY5AMDfib3j86zSi3v7
@@ -599,7 +583,7 @@ pub fn paseo_config() -> ChainSpec {
 		// c9eHvgbxTFzijvY3AnAKiRTHhi2hzS5SLCPzCkb4jP79MLu
 		hex!["12d3ab675d6503279133898efe246a63fdc8be685cc3f7bce079aac064108a7a"].into(),
 	];
-	let balances = endowed_accounts
+	let balances = balances
 		.iter()
 		.cloned()
 		.map(|x| (x, ENDOWMENT()))
@@ -608,14 +592,6 @@ pub fn paseo_config() -> ChainSpec {
 	let salp_multisig: AccountId =
 		hex!["e4da05f08e89bf6c43260d96f26fffcfc7deae5b465da08669a9d008e64c2c63"].into();
 
-	let council_membership = vec![
-		// dDWnEWnx3GUgfugXh9mZtgj4CvJdmd8naYkWYCZGxjfb1Cz
-		hex!["420398e0150cd9d417fb8fd4027b75bd42717262e6eac97c55f2f8f84e8ffb3f"].into(),
-	];
-	let technical_committee_membership = vec![
-		// dDWnEWnx3GUgfugXh9mZtgj4CvJdmd8naYkWYCZGxjfb1Cz
-		hex!["420398e0150cd9d417fb8fd4027b75bd42717262e6eac97c55f2f8f84e8ffb3f"].into(),
-	];
 	let oracle_membership = vec![
 		// dDWnEWnx3GUgfugXh9mZtgj4CvJdmd8naYkWYCZGxjfb1Cz
 		hex!["420398e0150cd9d417fb8fd4027b75bd42717262e6eac97c55f2f8f84e8ffb3f"].into(),
@@ -639,8 +615,6 @@ pub fn paseo_config() -> ChainSpec {
 		vec![],
 		BifrostPolkadotChainId::get().into(),
 		vec![],
-		council_membership,
-		technical_committee_membership,
 		salp_multisig,
 		(vec![], vec![], vec![]),
 		oracle_membership,
@@ -650,6 +624,7 @@ pub fn paseo_config() -> ChainSpec {
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.build()
 }
+
 pub fn chainspec_config() -> ChainSpec {
 	let invulnerables: Vec<(AccountId, AuraId, Balance)> = vec![
 		(
@@ -702,8 +677,6 @@ pub fn chainspec_config() -> ChainSpec {
 		vec![],
 		vec![],
 		BifrostPolkadotChainId::get().into(),
-		vec![],
-		vec![],
 		vec![],
 		salp_multisig,
 		(vec![], vec![], vec![]),
