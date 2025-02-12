@@ -120,8 +120,6 @@ pub fn bifrost_genesis(
 	balances: Vec<(AccountId, Balance)>,
 	vestings: Vec<(AccountId, BlockNumber, BlockNumber, Balance)>,
 	id: ParaId,
-	council_membership: Vec<AccountId>,
-	technical_committee_membership: Vec<AccountId>,
 	salp_multisig_key: AccountId,
 	asset_registry: (
 		Vec<(CurrencyId, Balance, Option<(String, String, u8)>)>,
@@ -134,14 +132,8 @@ pub fn bifrost_genesis(
 		"balances": {
 			"balances": balances
 		},
-		"councilMembership": {
-			"members": council_membership
-		},
 		"oracleMembership": {
 			"members": oracle_membership
-		},
-		"technicalCommittee": {
-			"members": technical_committee_membership
 		},
 		"parachainInfo": {
 			"parachainId": id
@@ -212,8 +204,6 @@ pub fn local_testnet_config() -> ChainSpec {
 		.map(|x| (x, 0u32, 100u32, ENDOWMENT() / 4))
 		.collect();
 
-	let council_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
-	let technical_committee_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
 	let oracle_membership = vec![get_account_id_from_seed::<sr25519::Public>("Alice")];
 	let salp_multisig: AccountId =
 		hex!["49daa32c7287890f38b7e1a8cd2961723d36d20baa0bf3b82e0c4bdda93b1c0a"].into();
@@ -259,8 +249,6 @@ pub fn local_testnet_config() -> ChainSpec {
 		balances,
 		vestings,
 		BifrostKusamaChainId::get().into(),
-		council_membership,
-		technical_committee_membership,
 		salp_multisig,
 		(currency, vcurrency, vsbond),
 		oracle_membership,
@@ -368,8 +356,6 @@ pub fn chainspec_config() -> ChainSpec {
 			.flat_map(|vc| vc.vesting)
 			.collect(),
 		BifrostKusamaChainId::get().into(),
-		vec![], // council membership
-		vec![], // technical committee membership
 		salp_multisig,
 		(vec![], vec![], vec![]),
 		vec![],
