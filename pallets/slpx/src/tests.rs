@@ -493,3 +493,56 @@ fn test_hook() {
 		println!("{}", Currencies::free_balance(VDOT, &BOB));
 	})
 }
+
+#[test]
+fn test_abi_encode() {
+	new_test_ext().execute_with(|| {
+		let expect_hex_string = "000000000000000000000000000000000000000000000000000000000000500400000000000000000000000000000000000000000000000000000000000007d00000000000000000000000000000000000000000000000000000000000000bb8";
+		let expect_address = H160::from_slice(&hex!["0000000000000000000000000000000000005004"]);
+		let expect_toke_pool = 2000u128;
+		let expect_vtoken_supply = 3000u128;
+		let data = ethabi::encode(&[
+			ethabi::Token::Address(expect_address),
+			ethabi::Token::Uint(U256::from(expect_toke_pool)),
+			ethabi::Token::Uint(U256::from(expect_vtoken_supply)),
+		]);
+		assert_eq!(expect_hex_string, hex::encode(data));
+	})
+}
+
+#[test]
+fn test_set_hyperbridge_oracle_config() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Slpx::set_hyperbridge_oracle(
+			RuntimeOrigin::root(),
+			1,
+			H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
+			60,
+			ALICE,
+			5u32.into(),
+			5u32.into(),
+			BoundedVec::try_from(vec![(
+				BNC,
+				H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
+			)])
+			.unwrap()
+		));
+
+		assert_eq!(
+			HyperBridgeOracleConfig::<Test>::get(1).unwrap(),
+			OracleConfig {
+				to: H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
+				timeout: 60,
+				payer: ALICE,
+				fee: 5u32.into(),
+				period: 5u32.into(),
+				last_block: 0u32.into(),
+				tokens: BoundedVec::try_from(vec![(
+					BNC,
+					H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
+				)])
+				.unwrap(),
+			}
+		);
+	})
+}

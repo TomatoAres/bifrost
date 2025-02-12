@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::pallet;
+use bifrost_primitives::CurrencyId;
 use ethereum::TransactionAction;
 use orml_traits::MultiCurrency;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -145,4 +146,23 @@ pub struct Order<AccountId, CurrencyId, Balance, BlockNumber> {
 	pub remark: BoundedVec<u8, ConstU32<32>>,
 	pub target_chain: TargetChain<AccountId>,
 	pub channel_id: u32,
+}
+
+/// HyperBridge Oracle Config
+#[derive(Encode, Decode, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct OracleConfig<AccountId, Balance, BlockNumber> {
+	/// Destination chain contract address
+	pub to: H160,
+	/// Time out
+	pub timeout: u64,
+	/// The AccountId of the sender
+	pub payer: AccountId,
+	/// The fee paid by the sender
+	pub fee: Balance,
+	/// Wait for the period to call XCM once
+	pub period: BlockNumber,
+	/// Block number of the last call
+	pub last_block: BlockNumber,
+	/// Token list
+	pub tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
 }

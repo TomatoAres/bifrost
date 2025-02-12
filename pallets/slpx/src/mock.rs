@@ -19,10 +19,8 @@
 
 use crate as slpx;
 use bifrost_asset_registry::AssetIdMaps;
-pub use bifrost_primitives::{
-	CurrencyId, CurrencyIdMapping, MockXcmExecutor, SlpxOperator, TokenSymbol, BNC, KSM,
-};
-use bifrost_primitives::{MockXcmTransfer, MoonbeamChainId, SlpOperator};
+pub use bifrost_primitives::{CurrencyId, MockXcmExecutor, SlpxOperator, TokenSymbol, BNC, KSM};
+use bifrost_primitives::{MockXcmTransfer, MoonbeamChainId};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	construct_runtime, derive_impl, ord_parameter_types,
@@ -33,15 +31,15 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use hex_literal::hex;
+use ismp::host::StateMachine;
+use ismp::module::IsmpModule;
+use ismp::router::IsmpRouter;
 use orml_traits::parameter_type_with_key;
-use sp_runtime::{
-	traits::{Convert, IdentityLookup},
-	AccountId32, BuildStorage,
-};
+use sp_core::ConstU64;
+use sp_runtime::{traits::IdentityLookup, AccountId32, BuildStorage};
 use sp_std::vec;
 pub use xcm::latest::prelude::*;
 use xcm::{latest::Location, opaque::latest::Junction::Parachain};
-use xcm_builder::FrameTransactionalProcessor;
 pub use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds};
 
 pub type Balance = u128;
@@ -65,12 +63,21 @@ construct_runtime!(
 	Slpx: slpx,
 	PolkadotXcm: pallet_xcm,
 	ParachainInfo: parachain_info,
+	Ismp: pallet_ismp,
+	Timestamp: pallet_timestamp,
   }
 );
 
 // Pallet system configuration
 parameter_types! {
   pub const BlockHashCount: u32 = 250;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<1>;
+	type WeightInfo = ();
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
@@ -163,14 +170,6 @@ impl SlpxOperator<Balance> for SlpxInterface {
 	}
 }
 
-pub struct MockSlp;
-
-impl<CurrencyId> SlpOperator<CurrencyId> for MockSlp {
-	fn all_delegation_requests_occupied(_: CurrencyId) -> bool {
-		false
-	}
-}
-
 impl bifrost_vtoken_minting::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
@@ -201,39 +200,6 @@ parameter_types! {
 	pub UniversalLocation: InteriorLocation = Parachain(2001).into();
 }
 
-pub struct XcmConfig;
-impl xcm_executor::Config for XcmConfig {
-	type AssetClaims = ();
-	type AssetTransactor = ();
-	type AssetTrap = ();
-	type Barrier = ();
-	type RuntimeCall = RuntimeCall;
-	type IsReserve = ();
-	type IsTeleporter = ();
-	type UniversalLocation = UniversalLocation;
-	type OriginConverter = ();
-	type ResponseHandler = ();
-	type SubscriptionService = ();
-	type Trader = ();
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type XcmSender = ();
-	type PalletInstancesInfo = AllPalletsWithSystem;
-	type MaxAssetsIntoHolding = ConstU32<64>;
-	type FeeManager = ();
-	type MessageExporter = ();
-	type UniversalAliases = Nothing;
-	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = Everything;
-	type AssetLocker = ();
-	type Aliasers = Nothing;
-	type AssetExchanger = ();
-	type TransactionalProcessor = FrameTransactionalProcessor;
-	type HrmpNewChannelOpenRequestHandler = ();
-	type HrmpChannelAcceptedHandler = ();
-	type HrmpChannelClosingHandler = ();
-	type XcmRecorder = ();
-}
-
 parameter_type_with_key! {
 	pub ParachainMinFee: |_location: Location| -> Option<u128> {
 		None
@@ -244,19 +210,6 @@ parameter_types! {
 	pub SelfRelativeLocation: Location = Location::here();
 	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
-}
-
-pub struct CurrencyIdConvert<T>(sp_std::marker::PhantomData<T>);
-impl<T: Get<ParaId>> Convert<CurrencyId, Option<Location>> for CurrencyIdConvert<T> {
-	fn convert(id: CurrencyId) -> Option<Location> {
-		AssetIdMaps::<Test>::get_location(&id)
-	}
-}
-
-impl<T: Get<ParaId>> Convert<Location, Option<CurrencyId>> for CurrencyIdConvert<T> {
-	fn convert(location: Location) -> Option<CurrencyId> {
-		AssetIdMaps::<Test>::get_currency_id(&location)
-	}
 }
 
 impl parachain_info::Config for Test {}
@@ -306,6 +259,44 @@ impl pallet_xcm::Config for Test {
 	type RemoteLockConsumerIdentifier = ();
 }
 
+parameter_types! {
+	// The hyperbridge parachain on Polkadot
+	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
+	 // The host state machine of this pallet, your state machine id goes here
+	pub const HostStateMachine: StateMachine = StateMachine::Kusama(2030); // polkadot
+}
+
+#[derive(Default)]
+pub struct Router;
+
+impl IsmpRouter for Router {
+	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
+		match id.as_slice() {
+			_ => Err(ismp::Error::ModuleNotFound(id))?,
+		}
+	}
+}
+
+impl pallet_ismp::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	// Modify the consensus client's permissions, for example, TechAdmin
+	type AdminOrigin = EnsureRoot<AccountId>;
+	// The state machine identifier of the chain -- parachain id
+	type HostStateMachine = HostStateMachine;
+	type TimestampProvider = Timestamp;
+	// The router provides the implementation for the IsmpModule as the module id.
+	type Router = Router;
+	type Balance = Balance;
+	// The token used to collect fees, only stablecoins are supported
+	type Currency = Balances;
+	// Co-processor
+	type Coprocessor = Coprocessor;
+	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
+	type ConsensusClients = ();
+	type WeightProvider = ();
+	type OffchainDB = ();
+}
+
 impl slpx::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -320,6 +311,8 @@ impl slpx::Config for Test {
 	type WeightInfo = ();
 	type MaxOrderSize = ConstU32<500>;
 	type BlockNumberProvider = System;
+	#[cfg(feature = "polkadot")]
+	type IsmpHost = Ismp;
 }
 
 // Build genesis storage according to the mock runtime.

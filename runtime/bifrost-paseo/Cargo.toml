@@ -152,7 +152,7 @@ bifrost-salp = { workspace = true }
 bifrost-salp-rpc-runtime-api = { workspace = true }
 bifrost-slp = { workspace = true }
 bifrost-slp-v2 = { workspace = true, features = ["polkadot"] }
-bifrost-slpx = { workspace = true }
+bifrost-slpx = { workspace = true,  features = ["polkadot"]}
 bifrost-stable-pool = { workspace = true }
 bifrost-stable-pool-rpc-runtime-api = { workspace = true }
 bifrost-system-staking = { workspace = true }

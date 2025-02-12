@@ -137,7 +137,10 @@ use governance::{
 pub mod xcm_config;
 use bifrost_primitives::{MoonriverChainId, OraclePriceProvider};
 use bifrost_runtime_common::currency_converter::CurrencyIdConvert;
+use ismp::dispatcher::FeeMetadata;
+use ismp::dispatcher::IsmpDispatcher;
 use pallet_xcm::{EnsureResponse, QueryStatus};
+use sp_core::H256;
 use sp_runtime::traits::{IdentityLookup, Verify};
 use xcm::{
 	v3::MultiLocation, v4::prelude::*, IntoVersion, VersionedAssetId, VersionedAssets,
@@ -1411,6 +1414,27 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type BlockNumberProvider = System;
 }
 
+#[derive(Default)]
+pub struct MockIsmpHost;
+impl ismp::dispatcher::IsmpDispatcher for MockIsmpHost {
+	type Account = AccountId;
+	type Balance = Balance;
+	fn dispatch_request(
+		&self,
+		_: ismp::dispatcher::DispatchRequest,
+		_: FeeMetadata<<Self as IsmpDispatcher>::Account, <Self as IsmpDispatcher>::Balance>,
+	) -> Result<H256, anyhow::Error> {
+		unreachable!()
+	}
+	fn dispatch_response(
+		&self,
+		_: ismp::router::PostResponse,
+		_: FeeMetadata<<Self as IsmpDispatcher>::Account, <Self as IsmpDispatcher>::Balance>,
+	) -> Result<H256, anyhow::Error> {
+		unreachable!()
+	}
+}
+
 impl bifrost_slpx::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1425,6 +1449,7 @@ impl bifrost_slpx::Config for Runtime {
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
 	type BlockNumberProvider = System;
+	type IsmpHost = MockIsmpHost;
 }
 
 pub struct EnsurePoolAssetId;

@@ -147,6 +147,8 @@ leverage-staking = { workspace = true }
 bifrost-channel-commission = { workspace = true }
 bifrost-vtoken-minting-rpc-runtime-api = { workspace = true }
 bifrost-vbnc-convert = { workspace = true }
+ismp = { workspace = true }
+anyhow = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -274,6 +276,7 @@ std = [
 	"bifrost-xcm-interface/std",
 	"bifrost-channel-commission/std",
 	"bifrost-vbnc-convert/std",
+	"ismp/std",
 
 	"substrate-wasm-builder"
 ]

@@ -19,8 +19,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use crate::types::{
 	AccountIdOf, BalanceOf, CurrencyIdOf, EthereumCallConfiguration, EthereumXcmCall,
-	EthereumXcmTransaction, EthereumXcmTransactionV2, MoonbeamCall, Order, OrderCaller, OrderType,
-	SupportChain, TargetChain, EVM_FUNCTION_SELECTOR, MAX_GAS_LIMIT,
+	EthereumXcmTransaction, EthereumXcmTransactionV2, MoonbeamCall, OracleConfig, Order,
+	OrderCaller, OrderType, SupportChain, TargetChain, EVM_FUNCTION_SELECTOR, MAX_GAS_LIMIT,
 };
 use bifrost_asset_registry::AssetMetadata;
 use bifrost_primitives::{
@@ -37,14 +37,21 @@ use frame_support::{
 	pallet_prelude::ConstU32,
 	sp_runtime::SaturatedConversion,
 	traits::Get,
-	transactional,
+	transactional, PalletId,
 };
 use frame_system::{
 	ensure_signed,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
+use ismp::dispatcher::IsmpDispatcher;
+#[cfg(feature = "polkadot")]
+use ismp::{
+	dispatcher::{DispatchPost, DispatchRequest, FeeMetadata},
+	host::StateMachine,
+};
 use orml_traits::{MultiCurrency, XcmTransfer};
 pub use pallet::*;
+use pallet_ismp::ModuleId;
 use parity_scale_codec::{Decode, Encode};
 use polkadot_parachain_primitives::primitives::{Id, Sibling};
 use sp_core::{Hasher, H160, U256};
@@ -74,10 +81,12 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+/// [`PalletId`] where protocol fees will be collected
+pub const PALLET_ID: ModuleId = ModuleId::Pallet(PalletId(*b"bif-slpx"));
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::Order;
 	use frame_support::{
 		pallet_prelude::{ValueQuery, *},
 		weights::WeightMeter,
@@ -115,6 +124,9 @@ pub mod pallet {
 		type XcmSender: SendXcm;
 		/// Convert Location to `T::CurrencyId`.
 		type CurrencyIdConvert: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
+		/// Ismp message disptacher
+		type IsmpHost: IsmpDispatcher<Account = AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ Default;
 		/// TreasuryAccount
 		#[pallet::constant]
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
@@ -218,6 +230,16 @@ pub mod pallet {
 		XcmOracleFailed { error: DispatchError },
 		/// Withdraw xcm fee
 		InsufficientAssets,
+		/// Set HyperBridge Oracle Config
+		SetHyperBridgeOracleConfig {
+			chain_id: u32,
+			to: H160,
+			timeout: u64,
+			payer: AccountIdOf<T>,
+			fee: BalanceOf<T>,
+			period: BlockNumberFor<T>,
+			tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
+		},
 	}
 
 	#[pallet::error]
@@ -304,6 +326,16 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type DelayBlock<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
+	/// HyperBridge Oracle Config
+	#[pallet::storage]
+	pub type HyperBridgeOracleConfig<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		OracleConfig<AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>,
+		OptionQuery,
+	>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_idle(_: BlockNumberFor<T>, limit: Weight) -> Weight {
@@ -329,6 +361,11 @@ pub mod pallet {
 
 			if !is_handle_xcm_oracle {
 				let _ = Self::handle_order_queue(current_block_number, &mut weight);
+			};
+
+			#[cfg(feature = "polkadot")]
+			if !is_handle_xcm_oracle {
+				let _ = Self::handle_hyperbridge_oracle(current_block_number, &mut weight);
 			}
 			weight
 		}
@@ -781,6 +818,51 @@ pub mod pallet {
 		// 	};
 		// 	Ok(().into())
 		// }
+
+		// Set Hyperbridge oracle configuration
+		/// Parameters:
+		/// - `chain_id`: The chain id of destination chain
+		/// - `to`: The address of destination contract
+		/// - `timeout`: The timeout of the oracle
+		/// - `payer`: The payer of the oracle
+		/// - `fee`: The fee of the oracle
+		/// - `tokens`: The tokens of the oracle
+		#[pallet::call_index(15)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
+		pub fn set_hyperbridge_oracle(
+			origin: OriginFor<T>,
+			chain_id: u32,
+			to: H160,
+			timeout: u64,
+			payer: T::AccountId,
+			fee: BalanceOf<T>,
+			period: BlockNumberFor<T>,
+			tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
+		) -> DispatchResultWithPostInfo {
+			T::ControlOrigin::ensure_origin(origin)?;
+			HyperBridgeOracleConfig::<T>::insert(
+				chain_id,
+				OracleConfig {
+					to,
+					timeout,
+					payer: payer.clone(),
+					fee,
+					period,
+					last_block: Default::default(),
+					tokens: tokens.clone(),
+				},
+			);
+			Self::deposit_event(Event::SetHyperBridgeOracleConfig {
+				chain_id,
+				to,
+				timeout,
+				payer,
+				fee,
+				period,
+				tokens,
+			});
+			Ok(().into())
+		}
 	}
 }
 
@@ -1330,6 +1412,79 @@ impl<T: Config> Pallet<T> {
 			*weight = weight.saturating_add(T::DbWeight::get().reads_writes(2, 0));
 			return Ok(());
 		}
+	}
+
+	#[cfg(feature = "polkadot")]
+	#[transactional]
+	pub fn handle_hyperbridge_oracle(
+		current_block_number: BlockNumberFor<T>,
+		weight: &mut Weight,
+	) -> DispatchResult {
+		let dispatcher = T::IsmpHost::default();
+		for (
+			dest,
+			OracleConfig {
+				to,
+				timeout,
+				payer,
+				fee,
+				period,
+				last_block,
+				tokens,
+			},
+		) in HyperBridgeOracleConfig::<T>::iter()
+		{
+			if last_block + period < current_block_number {
+				for (currency, token) in tokens.clone() {
+					let staking_currency_amount =
+						T::VtokenMintingInterface::get_token_pool(currency);
+					let v_currency_id = currency
+						.to_vtoken()
+						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+
+					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
+					let uint256_token_amount =
+						U256::from(staking_currency_amount.saturated_into::<u128>());
+					let uint256_vtoken_amount =
+						U256::from(v_currency_total_supply.saturated_into::<u128>());
+
+					let body = ethabi::encode(&[
+						ethabi::Token::Address(token),
+						ethabi::Token::Uint(uint256_token_amount),
+						ethabi::Token::Uint(uint256_vtoken_amount),
+					]);
+					dispatcher
+						.dispatch_request(
+							DispatchRequest::Post(DispatchPost {
+								dest: StateMachine::Evm(dest),
+								from: PALLET_ID.to_bytes(),
+								to: to.0.to_vec(),
+								timeout,
+								body: body.to_vec(),
+							}),
+							FeeMetadata {
+								payer: payer.clone(),
+								fee,
+							},
+						)
+						.map_err(|_| Error::<T>::Unsupported)?;
+					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
+				}
+			}
+			HyperBridgeOracleConfig::<T>::insert(
+				dest,
+				OracleConfig {
+					to,
+					timeout,
+					payer,
+					fee,
+					tokens,
+					period,
+					last_block: current_block_number,
+				},
+			);
+		}
+		return Ok(());
 	}
 }
 

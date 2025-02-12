@@ -41,6 +41,9 @@ xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 polkadot-primitives = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-ismp = { workspace = true, default-features = false }
+ismp = { workspace = true, default-features = false }
+anyhow = { workspace = true }
 
 [dev-dependencies]
 hex = { workspace = true }
@@ -50,10 +53,11 @@ bifrost-vtoken-minting = { workspace = true }
 bifrost-slp = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 bifrost-currencies = { workspace = true }
-xcm-simulator  = { workspace = true }
 bifrost-runtime-common = { workspace = true }
 pallet-collective = { workspace = true }
 parachain-info = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-ismp = { workspace = true, default-features = false, features = [ "testing", "unsigned" ] }
 
 
 [features]
@@ -85,6 +89,9 @@ std = [
 	"xcm-builder/std",
 	"polkadot-primitives/std",
 	"pallet-staking/std",
+	"pallet-ismp/std",
+	"ismp/std",
+	"anyhow/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -96,4 +103,4 @@ runtime-benchmarks = [
 	"pallet-staking/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
-with-bifrost-polkadot-runtime = []
+polkadot = []

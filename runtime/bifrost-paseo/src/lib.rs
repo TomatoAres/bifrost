@@ -1111,6 +1111,7 @@ impl bifrost_slpx::Config for Runtime {
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
 	type BlockNumberProvider = System;
+	type IsmpHost = Ismp;
 }
 
 pub struct EnsurePoolAssetId;
