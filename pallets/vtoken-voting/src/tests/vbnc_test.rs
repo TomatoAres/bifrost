@@ -23,9 +23,11 @@ use frame_support::{
 	assert_noop, assert_ok,
 	traits::{
 		fungibles::Inspect,
+		schedule::DispatchTime,
 		tokens::{Fortitude::Polite, Preservation::Expendable},
 	},
 };
+use pallet_referenda::Deposit;
 
 const TOKENS: &[CurrencyId] = if cfg!(feature = "polkadot") {
 	&[VBNC]
@@ -985,6 +987,264 @@ fn allocate_delegator_votes_works() {
 					vote
 				);
 			}
+		});
+	}
+}
+
+#[test]
+fn vbnc_auto_update_referenda_status() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			// #1: submit
+			assert_ok!(Referenda::submit(
+				RuntimeOrigin::signed(1),
+				Box::new(RawOrigin::Root.into()),
+				set_balance_proposal_bounded(1),
+				DispatchTime::At(20),
+			));
+			run_to(20);
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				aye(2, 1)
+			));
+
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: Some(20),
+					tally: TallyOf::<Runtime>::from_parts(4, 0, 4),
+				}))
+			);
+
+			run_to(21);
+			// #11: Timed out - ended.
+			assert_eq!(
+				pallet_referenda::ReferendumInfoFor::<Runtime>::get(0),
+				Some(pallet_referenda::ReferendumInfo::TimedOut(
+					21,
+					Some(Deposit { who: 1, amount: 2 }),
+					None
+				))
+			);
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				10
+			));
+
+			run_to(50);
+
+			assert_ok!(VtokenVoting::remove_delegator_vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				0,
+				0,
+			));
+
+			run_to(60);
+
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0
+			));
+
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Completed(21))
+			);
+		});
+	}
+}
+
+#[test]
+fn vbnc_auto_update_referenda_status_with_remove_delegator_vote() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			// #1: submit
+			assert_ok!(Referenda::submit(
+				RuntimeOrigin::signed(1),
+				Box::new(RawOrigin::Root.into()),
+				set_balance_proposal_bounded(1),
+				DispatchTime::At(20),
+			));
+			run_to(20);
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				aye(2, 1)
+			));
+
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: Some(20),
+					tally: TallyOf::<Runtime>::from_parts(4, 0, 4),
+				}))
+			);
+
+			run_to(21);
+			// #11: Timed out - ended.
+			assert_eq!(
+				pallet_referenda::ReferendumInfoFor::<Runtime>::get(0),
+				Some(pallet_referenda::ReferendumInfo::TimedOut(
+					21,
+					Some(Deposit { who: 1, amount: 2 }),
+					None
+				))
+			);
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				10
+			));
+
+			run_to(50);
+
+			assert_ok!(VtokenVoting::remove_delegator_vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				0,
+				0,
+			));
+
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Completed(21))
+			);
+		});
+	}
+}
+
+#[test]
+fn vbnc_auto_update_referenda_status_with_unlock() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			// #1: submit
+			assert_ok!(Referenda::submit(
+				RuntimeOrigin::signed(1),
+				Box::new(RawOrigin::Root.into()),
+				set_balance_proposal_bounded(1),
+				DispatchTime::At(20),
+			));
+			run_to(20);
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				aye(2, 1)
+			));
+
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: Some(20),
+					tally: TallyOf::<Runtime>::from_parts(4, 0, 4),
+				}))
+			);
+
+			run_to(21);
+			// #11: Timed out - ended.
+			assert_eq!(
+				pallet_referenda::ReferendumInfoFor::<Runtime>::get(0),
+				Some(pallet_referenda::ReferendumInfo::TimedOut(
+					21,
+					Some(Deposit { who: 1, amount: 2 }),
+					None
+				))
+			);
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				10
+			));
+
+			run_to(50);
+
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0
+			));
+
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Completed(21))
+			);
+		});
+	}
+}
+
+#[test]
+fn vbnc_auto_update_referenda_status_with_unlock_can_early_unlock() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			// #1: submit
+			assert_ok!(Referenda::submit(
+				RuntimeOrigin::signed(1),
+				Box::new(RawOrigin::Root.into()),
+				set_balance_proposal_bounded(1),
+				DispatchTime::At(20),
+			));
+			run_to(20);
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0,
+				aye(2, 1)
+			));
+
+			assert_eq!(usable_balance(vtoken, &ALICE), 8);
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: Some(20),
+					tally: TallyOf::<Runtime>::from_parts(4, 0, 4),
+				}))
+			);
+
+			run_to(21);
+			// #11: Timed out - ended.
+			assert_eq!(
+				pallet_referenda::ReferendumInfoFor::<Runtime>::get(0),
+				Some(pallet_referenda::ReferendumInfo::TimedOut(
+					21,
+					Some(Deposit { who: 1, amount: 2 }),
+					None
+				))
+			);
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				10
+			));
+
+			run_to(50);
+
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				0
+			));
+
+			assert_eq!(usable_balance(vtoken, &ALICE), 10);
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
+				Some(ReferendumInfo::Completed(21))
+			);
 		});
 	}
 }

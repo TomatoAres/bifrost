@@ -747,3 +747,14 @@ impl Default for ReferendumVoteStatus {
 		ReferendumVoteStatus::Ongoing
 	}
 }
+
+impl ReferendumVoteStatus {
+	pub(crate) fn is_over(&self) -> bool {
+		match self {
+			ReferendumVoteStatus::Approved => true,
+			ReferendumVoteStatus::Rejected => true,
+			ReferendumVoteStatus::None => true,
+			ReferendumVoteStatus::Ongoing => false,
+		}
+	}
+}

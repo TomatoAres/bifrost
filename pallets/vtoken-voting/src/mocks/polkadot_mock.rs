@@ -27,14 +27,20 @@ use bifrost_primitives::{
 };
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	derive_impl, ord_parameter_types,
-	pallet_prelude::{DispatchError, Weight},
+	assert_ok, derive_impl, ord_parameter_types,
+	pallet_prelude::{Decode, DispatchError, Encode, MaxEncodedLen, TypeInfo, Weight},
 	parameter_types,
-	traits::{ConstU64, Everything, Get, Nothing, PollStatus, Polling, VoteTally},
+	traits::{
+		schedule::DispatchTime, ConstU64, EqualPrivilegeOnly, Everything, Get, Nothing,
+		OnInitialize, OriginTrait, PollStatus, Polling, StorePreimage, VoteTally,
+	},
 	weights::RuntimeDbWeight,
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSignedBy};
 use pallet_conviction_voting::{Tally, TallyOf};
+use pallet_referenda::{
+	impl_tracksinfo_get, BoundedCallOf, Curve, ReferendumIndex, TrackInfo, TracksInfo,
+};
 use pallet_xcm::EnsureResponse;
 use sp_runtime::{
 	traits::{BlockNumberProvider, ConstU32, IdentityLookup},
@@ -66,6 +72,9 @@ frame_support::construct_runtime!(
 		PolkadotXcm: pallet_xcm,
 		VtokenVoting: vtoken_voting,
 		ConvictionVoting: pallet_conviction_voting = 36,
+		Referenda: pallet_referenda,
+		Scheduler: pallet_scheduler,
+		Preimage: pallet_preimage,
 	}
 );
 
@@ -450,6 +459,247 @@ impl vtoken_voting::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
 	type RelayVCurrency = RelayVCurrencyId;
+}
+
+impl pallet_preimage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type Consideration = ();
+}
+
+parameter_types! {
+	pub MaxWeight: Weight = Weight::from_parts(2_000_000_000_000, u64::MAX);
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type MaximumWeight = MaxWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type MaxScheduledPerBlock = ConstU32<100>;
+	type WeightInfo = ();
+	type OriginPrivilegeCmp = EqualPrivilegeOnly;
+	type Preimages = Preimage;
+}
+
+parameter_types! {
+	pub static AlarmInterval: u64 = 1;
+}
+ord_parameter_types! {
+	pub const One: u64 = 1;
+	pub const Two: u64 = 2;
+	pub const Three: u64 = 3;
+	pub const Four: u64 = 4;
+	pub const Five: u64 = 5;
+	pub const Six: u64 = 6;
+}
+
+pub struct TestTracksInfo;
+impl TracksInfo<u128, u64> for TestTracksInfo {
+	type Id = u8;
+	type RuntimeOrigin = <RuntimeOrigin as OriginTrait>::PalletsOrigin;
+	fn tracks() -> &'static [(Self::Id, TrackInfo<u128, u64>)] {
+		static DATA: [(u8, TrackInfo<u128, u64>); 3] = [
+			(
+				0u8,
+				TrackInfo {
+					name: "root",
+					max_deciding: 1,
+					decision_deposit: 10,
+					prepare_period: 4,
+					decision_period: 4,
+					confirm_period: 2,
+					min_enactment_period: 4,
+					min_approval: Curve::LinearDecreasing {
+						length: Perbill::from_percent(100),
+						floor: Perbill::from_percent(50),
+						ceil: Perbill::from_percent(100),
+					},
+					min_support: Curve::LinearDecreasing {
+						length: Perbill::from_percent(100),
+						floor: Perbill::from_percent(0),
+						ceil: Perbill::from_percent(100),
+					},
+				},
+			),
+			(
+				1u8,
+				TrackInfo {
+					name: "none",
+					max_deciding: 3,
+					decision_deposit: 1,
+					prepare_period: 2,
+					decision_period: 2,
+					confirm_period: 1,
+					min_enactment_period: 2,
+					min_approval: Curve::LinearDecreasing {
+						length: Perbill::from_percent(100),
+						floor: Perbill::from_percent(95),
+						ceil: Perbill::from_percent(100),
+					},
+					min_support: Curve::LinearDecreasing {
+						length: Perbill::from_percent(100),
+						floor: Perbill::from_percent(90),
+						ceil: Perbill::from_percent(100),
+					},
+				},
+			),
+			(
+				2u8,
+				TrackInfo {
+					name: "none",
+					max_deciding: 3,
+					decision_deposit: 1,
+					prepare_period: 2,
+					decision_period: 2,
+					confirm_period: 1,
+					min_enactment_period: 0,
+					min_approval: Curve::LinearDecreasing {
+						length: Perbill::from_percent(100),
+						floor: Perbill::from_percent(95),
+						ceil: Perbill::from_percent(100),
+					},
+					min_support: Curve::LinearDecreasing {
+						length: Perbill::from_percent(100),
+						floor: Perbill::from_percent(90),
+						ceil: Perbill::from_percent(100),
+					},
+				},
+			),
+		];
+		&DATA[..]
+	}
+	fn track_for(id: &Self::RuntimeOrigin) -> Result<Self::Id, ()> {
+		if let Ok(system_origin) = frame_system::RawOrigin::try_from(id.clone()) {
+			match system_origin {
+				frame_system::RawOrigin::Root => Ok(0),
+				frame_system::RawOrigin::None => Ok(1),
+				frame_system::RawOrigin::Signed(1) => Ok(2),
+				_ => Err(()),
+			}
+		} else {
+			Err(())
+		}
+	}
+}
+impl_tracksinfo_get!(TestTracksInfo, u128, u64);
+
+parameter_types! {
+	pub const SubmissionDeposit: Balance = 2;
+}
+
+impl pallet_referenda::Config for Runtime {
+	type WeightInfo = ();
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type Scheduler = Scheduler;
+	type Currency = pallet_balances::Pallet<Self>;
+	type SubmitOrigin = frame_system::EnsureSigned<u64>;
+	type CancelOrigin = EnsureSignedBy<Four, u64>;
+	type KillOrigin = EnsureRoot<u64>;
+	type Slash = ();
+	type Votes = u32;
+	type Tally = TestTally;
+	type SubmissionDeposit = SubmissionDeposit;
+	type MaxQueued = ConstU32<3>;
+	type UndecidingTimeout = ConstU64<20>;
+	type AlarmInterval = AlarmInterval;
+	type Tracks = TestTracksInfo;
+	type Preimages = Preimage;
+}
+
+#[derive(Encode, Debug, Decode, TypeInfo, Eq, PartialEq, Clone, MaxEncodedLen)]
+pub struct TestTally {
+	pub ayes: u32,
+	pub nays: u32,
+}
+
+impl<Class> VoteTally<u32, Class> for TestTally {
+	fn new(_: Class) -> Self {
+		Self { ayes: 0, nays: 0 }
+	}
+
+	fn ayes(&self, _: Class) -> u32 {
+		self.ayes
+	}
+
+	fn support(&self, _: Class) -> Perbill {
+		Perbill::from_percent(self.ayes)
+	}
+
+	fn approval(&self, _: Class) -> Perbill {
+		if self.ayes + self.nays > 0 {
+			Perbill::from_rational(self.ayes, self.ayes + self.nays)
+		} else {
+			Perbill::zero()
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn unanimity(_: Class) -> Self {
+		Self { ayes: 100, nays: 0 }
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn rejection(_: Class) -> Self {
+		Self { ayes: 0, nays: 100 }
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn from_requirements(support: Perbill, approval: Perbill, _: Class) -> Self {
+		let ayes = support.mul_ceil(100u32);
+		let nays = ((ayes as u64) * 1_000_000_000u64 / approval.deconstruct() as u64) as u32 - ayes;
+		Self { ayes, nays }
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup(_: Class, _: Perbill) {}
+}
+
+pub fn set_balance_proposal_bounded(value: u128) -> BoundedCallOf<Runtime, ()> {
+	let c = RuntimeCall::Balances(pallet_balances::Call::force_set_balance {
+		who: 42,
+		new_free: value,
+	});
+	<Preimage as StorePreimage>::bound(c).unwrap()
+}
+
+#[allow(dead_code)]
+pub fn propose_set_balance(who: u64, value: u128, delay: u64) -> sp_runtime::DispatchResult {
+	Referenda::submit(
+		RuntimeOrigin::signed(who),
+		Box::new(frame_system::RawOrigin::Root.into()),
+		set_balance_proposal_bounded(value),
+		DispatchTime::After(delay),
+	)
+}
+
+pub fn next_block() {
+	System::set_block_number(System::block_number() + 1);
+	Scheduler::on_initialize(System::block_number());
+}
+
+pub fn run_to(n: u64) {
+	while System::block_number() < n {
+		next_block();
+	}
+}
+
+#[allow(dead_code)]
+pub fn begin_referendum() -> ReferendumIndex {
+	System::set_block_number(0);
+	assert_ok!(propose_set_balance(1, 2, 1));
+	run_to(2);
+	0
+}
+
+#[allow(dead_code)]
+pub fn tally(r: ReferendumIndex) -> TestTally {
+	Referenda::ensure_ongoing(r).unwrap().tally
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

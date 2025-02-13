@@ -105,7 +105,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_xcm::Config {
+	pub trait Config: frame_system::Config + pallet_xcm::Config + pallet_referenda::Config {
 		type RuntimeEvent: IsType<<Self as frame_system::Config>::RuntimeEvent> + From<Event<Self>>;
 
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
@@ -534,22 +534,22 @@ pub mod pallet {
 
 				let relay_vtoken = T::RelayVCurrency::get();
 				if vtoken == VBNC {
-					if bifrost_current_block_number >= time_out_block_number {
-						Self::over_referendum(
-							VBNC,
-							time_out_block_number,
-							bifrost_current_block_number,
-							referendum_timeout_list,
+					for poll_index in referendum_timeout_list.iter() {
+						Self::auto_sync_native_referendum_state(
+							*poll_index,
+							Some(time_out_block_number),
 						);
 					}
 				} else if vtoken == relay_vtoken {
 					if relay_current_block_number >= time_out_block_number {
-						Self::over_referendum(
-							relay_vtoken,
-							time_out_block_number,
-							relay_current_block_number,
-							referendum_timeout_list,
-						);
+						for poll_index in referendum_timeout_list.iter() {
+							Self::over_referendum_info_for(
+								vtoken,
+								*poll_index,
+								relay_current_block_number,
+							);
+						}
+						ReferendumTimeoutV3::<T>::remove(vtoken, time_out_block_number);
 					}
 				} else {
 					log::error!("The current token: {:?} is not supported.", vtoken);
@@ -648,6 +648,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
+
+			if vtoken == VBNC {
+				Self::auto_sync_native_referendum_state(poll_index, None);
+			}
+
 			Self::ensure_referendum_completed(vtoken, poll_index)
 				.or(Self::ensure_referendum_killed(vtoken, poll_index))
 				.map_err(|_| Error::<T>::NoPermissionYet)?;
@@ -683,6 +688,10 @@ pub mod pallet {
 				DelegatorVotes::<T>::get(vtoken, poll_index).len() > 0,
 				Error::<T>::NoData
 			);
+
+			if vtoken == VBNC {
+				Self::auto_sync_native_referendum_state(poll_index, None);
+			}
 			Self::ensure_referendum_expired(vtoken, poll_index)?;
 
 			let voting_agent = Self::get_voting_agent(&vtoken)?;
@@ -926,6 +935,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
+
+			if new_status.is_over() {
+				let current_block_number = Self::get_agent_block_number(&vtoken)?;
+				Self::over_referendum_info_for(vtoken, poll_index, current_block_number);
+			}
 
 			// Update the referendum status in storage
 			ReferendumVoteStatusStore::<T>::insert(vtoken, poll_index, new_status.clone());
@@ -1639,23 +1653,19 @@ pub mod pallet {
 			}
 		}
 
-		fn over_referendum(
+		fn over_referendum_info_for(
 			vtoken: CurrencyId,
-			time_out_block_number: BlockNumberFor<T>,
+			poll_index: PollIndex,
 			current_block_number: BlockNumberFor<T>,
-			referendum_timeout_list: BoundedVec<PollIndex, ConstU32<256>>,
 		) {
-			for poll_index in referendum_timeout_list.iter() {
-				ReferendumInfoFor::<T>::mutate(vtoken, poll_index, |maybe_info| match maybe_info {
-					Some(info) => {
-						if let ReferendumInfo::Ongoing(_) = info {
-							*info = ReferendumInfo::Completed(current_block_number);
-						}
+			ReferendumInfoFor::<T>::mutate(vtoken, poll_index, |maybe_info| match maybe_info {
+				Some(info) => {
+					if let ReferendumInfo::Ongoing(_) = info {
+						*info = ReferendumInfo::Completed(current_block_number);
 					}
-					None => {}
-				});
-			}
-			ReferendumTimeoutV3::<T>::remove(vtoken, time_out_block_number);
+				}
+				None => {}
+			});
 		}
 
 		/// This function checks whether the user's tokens can be unlocked early based on their vote status
@@ -1666,7 +1676,16 @@ pub mod pallet {
 			vtoken: CurrencyIdOf<T>,
 			poll_index: PollIndex,
 		) -> Result<bool, Error<T>> {
-			let vote_status = ReferendumVoteStatusStore::<T>::get(vtoken, poll_index);
+			let vote_status = match vtoken {
+				VBNC => {
+					let (status, _) = Self::native_referendum_vote_status(poll_index);
+					if status.is_over() {
+						ReferendumVoteStatusStore::<T>::insert(VBNC, poll_index, status.clone());
+					}
+					status
+				}
+				_ => ReferendumVoteStatusStore::<T>::get(vtoken, poll_index),
+			};
 			let voting = VotingForV2::<T>::get(vtoken, who);
 
 			if let Voting::Casting(Casting { ref votes, .. }) = voting {
@@ -1691,6 +1710,78 @@ pub mod pallet {
 			}
 
 			Ok(false)
+		}
+
+		fn native_referendum_vote_status(
+			poll_index: PollIndex,
+		) -> (ReferendumVoteStatus, Option<BlockNumberFor<T>>) {
+			match pallet_referenda::ReferendumInfoFor::<T>::get(poll_index) {
+				Some(info) => match info {
+					pallet_referenda::ReferendumInfo::Approved(block, ..) => {
+						(ReferendumVoteStatus::Approved, Some(block))
+					}
+					pallet_referenda::ReferendumInfo::Rejected(block, ..) => {
+						(ReferendumVoteStatus::Rejected, Some(block))
+					}
+					pallet_referenda::ReferendumInfo::Cancelled(block, ..)
+					| pallet_referenda::ReferendumInfo::TimedOut(block, ..)
+					| pallet_referenda::ReferendumInfo::Killed(block, ..) => {
+						(ReferendumVoteStatus::None, Some(block))
+					}
+					pallet_referenda::ReferendumInfo::Ongoing(..) => {
+						(ReferendumVoteStatus::Ongoing, None)
+					}
+				},
+				None => (ReferendumVoteStatus::Ongoing, None),
+			}
+		}
+
+		fn remove_referendum_timeout_item(
+			currency_id: CurrencyIdOf<T>,
+			block_number: BlockNumberFor<T>,
+			poll_index_to_remove: PollIndex,
+		) {
+			// Retrieve the BoundedVec<PollIndex> for the given `currency_id` and `block_number`
+			let mut poll_indexs = ReferendumTimeoutV3::<T>::get(currency_id, block_number);
+
+			// Find and remove the specified `poll_index_to_remove`
+			if let Some(index) = poll_indexs
+				.iter()
+				.position(|&poll| poll == poll_index_to_remove)
+			{
+				// Remove the corresponding PollIndex
+				poll_indexs.remove(index);
+
+				// If the `polls` vector is empty after removal, delete the storage entry
+				if poll_indexs.is_empty() {
+					ReferendumTimeoutV3::<T>::remove(currency_id, block_number);
+				} else {
+					// Update the storage with the modified `polls`
+					ReferendumTimeoutV3::<T>::insert(currency_id, block_number, poll_indexs);
+				}
+			}
+		}
+
+		fn auto_sync_native_referendum_state(
+			poll_index: PollIndex,
+			time_out_block_number: Option<BlockNumberFor<T>>,
+		) {
+			let storage_status = ReferendumVoteStatusStore::<T>::get(VBNC, poll_index);
+			if !storage_status.is_over() {
+				let (status, block_number) = Self::native_referendum_vote_status(poll_index);
+				if status.is_over() {
+					let end_block = block_number
+						.unwrap_or_else(|| T::LocalBlockNumberProvider::current_block_number());
+
+					Self::over_referendum_info_for(VBNC, poll_index, end_block);
+
+					ReferendumVoteStatusStore::<T>::insert(VBNC, poll_index, status.clone());
+
+					if let Some(value) = time_out_block_number {
+						Self::remove_referendum_timeout_item(VBNC, value, poll_index);
+					}
+				}
+			}
 		}
 	}
 }
