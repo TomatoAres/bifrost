@@ -546,3 +546,24 @@ fn test_set_hyperbridge_oracle_config() {
 		);
 	})
 }
+
+#[test]
+fn test_set_hydration_oracle_config() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Slpx::set_hydration_oracle(
+			RuntimeOrigin::root(),
+			1,
+			BoundedVec::try_from(vec![(BNC, Location::here(), Location::here())]).unwrap(),
+		));
+
+		assert_eq!(
+			HydrationOracle::<Test>::get().unwrap(),
+			HydrationOracleConfig {
+				period: 1u32.into(),
+				last_block: 0u32.into(),
+				tokens: BoundedVec::try_from(vec![(BNC, Location::here(), Location::here())])
+					.unwrap(),
+			}
+		);
+	})
+}

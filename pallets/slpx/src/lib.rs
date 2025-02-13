@@ -19,8 +19,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use crate::types::{
 	AccountIdOf, BalanceOf, CurrencyIdOf, EthereumCallConfiguration, EthereumXcmCall,
-	EthereumXcmTransaction, EthereumXcmTransactionV2, MoonbeamCall, OracleConfig, Order,
-	OrderCaller, OrderType, SupportChain, TargetChain, EVM_FUNCTION_SELECTOR, MAX_GAS_LIMIT,
+	EthereumXcmTransaction, EthereumXcmTransactionV2, HydrationOracleConfig, MoonbeamCall,
+	OracleConfig, Order, OrderCaller, OrderType, SupportChain, TargetChain, EVM_FUNCTION_SELECTOR,
+	MAX_GAS_LIMIT,
+};
+#[cfg(feature = "polkadot")]
+use crate::types::{
+	HYDRATION_CALL_FEE, HYDRATION_CALL_WEIGHT, HYDRATION_EMA_ORACLE_CALL_INDEX,
+	HYDRATION_EMA_ORACLE_PALLET_INDEX,
 };
 use bifrost_asset_registry::AssetMetadata;
 use bifrost_primitives::{
@@ -63,6 +69,8 @@ use sp_runtime::{
 };
 use sp_std::{vec, vec::Vec};
 use xcm::v4::{prelude::*, Location};
+#[cfg(feature = "polkadot")]
+use xcm::{DoubleEncoded, VersionedLocation};
 use xcm_builder::{DescribeAllTerminal, DescribeFamily, HashedDescription};
 use xcm_executor::traits::ConvertLocation;
 
@@ -240,6 +248,11 @@ pub mod pallet {
 			period: BlockNumberFor<T>,
 			tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
 		},
+		/// Set Hydration Oracle Config
+		SetHydrationOracleConfig {
+			period: BlockNumberFor<T>,
+			tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
+		},
 	}
 
 	#[pallet::error]
@@ -336,6 +349,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Hydration chain oracle configuration
+	#[pallet::storage]
+	pub type HydrationOracle<T: Config> =
+		StorageValue<_, HydrationOracleConfig<BlockNumberFor<T>>, OptionQuery>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_idle(_: BlockNumberFor<T>, limit: Weight) -> Weight {
@@ -366,6 +384,11 @@ pub mod pallet {
 			#[cfg(feature = "polkadot")]
 			if !is_handle_xcm_oracle {
 				let _ = Self::handle_hyperbridge_oracle(current_block_number, &mut weight);
+			}
+
+			#[cfg(feature = "polkadot")]
+			if !is_handle_xcm_oracle {
+				let _ = Self::handle_hydration_oracle(current_block_number, &mut weight);
 			}
 			weight
 		}
@@ -861,6 +884,31 @@ pub mod pallet {
 				period,
 				tokens,
 			});
+			Ok(().into())
+		}
+
+		/// Set Hydration Oracle Config
+		/// Parameters:
+		/// - `period`: The period of Sending Xcm
+		/// - `tokens`: The tokens of the oracle
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
+		pub fn set_hydration_oracle(
+			origin: OriginFor<T>,
+			period: BlockNumberFor<T>,
+			tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
+		) -> DispatchResultWithPostInfo {
+			T::ControlOrigin::ensure_origin(origin)?;
+			if tokens.is_empty() {
+				HydrationOracle::<T>::set(None);
+			} else {
+				HydrationOracle::<T>::put(HydrationOracleConfig {
+					period,
+					last_block: Default::default(),
+					tokens: tokens.clone(),
+				});
+			}
+			Self::deposit_event(Event::SetHydrationOracleConfig { period, tokens });
 			Ok(().into())
 		}
 	}
@@ -1483,6 +1531,77 @@ impl<T: Config> Pallet<T> {
 					last_block: current_block_number,
 				},
 			);
+		}
+		return Ok(());
+	}
+
+	#[cfg(feature = "polkadot")]
+	#[transactional]
+	pub fn handle_hydration_oracle(
+		current_block_number: BlockNumberFor<T>,
+		weight: &mut Weight,
+	) -> DispatchResult {
+		if let Some(HydrationOracleConfig {
+			period,
+			last_block,
+			tokens,
+		}) = HydrationOracle::<T>::get()
+		{
+			if last_block + period < current_block_number {
+				for (currency, location_a, location_b) in tokens.clone() {
+					let refund_location = Location::new(
+						0,
+						[AccountId32 {
+							network: None,
+							id: Sibling::from(2030).into_account_truncating(),
+						}],
+					);
+					let fee_location = Location::here();
+					let asset = Asset {
+						id: AssetId(fee_location),
+						fun: Fungible(HYDRATION_CALL_FEE),
+					};
+					let assets: Assets = Assets::from(asset.clone());
+					let require_weight_at_most = HYDRATION_CALL_WEIGHT;
+					let staking_currency_amount =
+						T::VtokenMintingInterface::get_token_pool(currency);
+					let v_currency_id = currency
+						.to_vtoken()
+						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+
+					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
+					let mut call_data = HYDRATION_EMA_ORACLE_PALLET_INDEX.encode();
+					call_data.extend(HYDRATION_EMA_ORACLE_CALL_INDEX.encode());
+					call_data.extend(VersionedLocation::V4(location_a).encode());
+					call_data.extend(VersionedLocation::V4(location_b).encode());
+					call_data.extend(
+						(
+							staking_currency_amount.saturated_into::<u128>(),
+							v_currency_total_supply.saturated_into::<u128>(),
+						)
+							.encode(),
+					);
+					let call: DoubleEncoded<()> = call_data.into();
+					let xcm_message = Xcm::builder()
+						.withdraw_asset(assets)
+						.buy_execution(asset, WeightLimit::Unlimited)
+						.transact(OriginKind::SovereignAccount, require_weight_at_most, call)
+						.refund_surplus()
+						.deposit_asset(AssetFilter::Wild(WildAsset::All), refund_location)
+						.build();
+					let dest_location = Location::new(1, [Parachain(HydrationChainId::get())]);
+					let (ticket, _price) =
+						T::XcmSender::validate(&mut Some(dest_location), &mut Some(xcm_message))
+							.map_err(|_| Error::<T>::ErrorValidating)?;
+					T::XcmSender::deliver(ticket).map_err(|_| Error::<T>::ErrorDelivering)?;
+					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
+				}
+			}
+			HydrationOracle::<T>::put(HydrationOracleConfig {
+				period,
+				last_block: current_block_number,
+				tokens,
+			});
 		}
 		return Ok(());
 	}
