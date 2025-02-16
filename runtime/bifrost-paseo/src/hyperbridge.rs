@@ -119,4 +119,5 @@ impl pallet_token_gateway::Config for Runtime {
 	type Decimals = BncDecimals;
 	type ControlOrigin = TechAdminOrRoot;
 	type CurrencyIdConvert = AssetIdMaps<Runtime>;
+	type EvmToSubstrate = ();
 }
