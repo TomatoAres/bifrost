@@ -150,6 +150,8 @@ pub mod pallet {
 			from: T::AccountId,
 			/// beneficiary account on destination
 			to: H256,
+			/// asset id on destination
+			asset_id: AssetId<T>,
 			/// Amount transferred
 			amount: <<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
 			/// Destination chain
@@ -317,6 +319,7 @@ pub mod pallet {
 				from: who,
 				to: params.recepient,
 				dest: params.destination,
+				asset_id: params.asset_id,
 				amount: params.amount,
 				commitment,
 			});
