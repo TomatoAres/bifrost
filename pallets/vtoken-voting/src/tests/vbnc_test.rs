@@ -1033,10 +1033,8 @@ fn vbnc_auto_update_referenda_status() {
 			assert_ok!(VtokenVoting::set_vote_locking_period(
 				RuntimeOrigin::root(),
 				vtoken,
-				10
+				1000
 			));
-
-			run_to(50);
 
 			assert_ok!(VtokenVoting::remove_delegator_vote(
 				RuntimeOrigin::signed(ALICE),
@@ -1045,8 +1043,6 @@ fn vbnc_auto_update_referenda_status() {
 				0,
 				0,
 			));
-
-			run_to(60);
 
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
@@ -1100,14 +1096,6 @@ fn vbnc_auto_update_referenda_status_with_remove_delegator_vote() {
 					None
 				))
 			);
-
-			assert_ok!(VtokenVoting::set_vote_locking_period(
-				RuntimeOrigin::root(),
-				vtoken,
-				10
-			));
-
-			run_to(50);
 
 			assert_ok!(VtokenVoting::remove_delegator_vote(
 				RuntimeOrigin::signed(ALICE),
@@ -1167,10 +1155,8 @@ fn vbnc_auto_update_referenda_status_with_unlock() {
 			assert_ok!(VtokenVoting::set_vote_locking_period(
 				RuntimeOrigin::root(),
 				vtoken,
-				10
+				1000
 			));
-
-			run_to(50);
 
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
@@ -1229,10 +1215,8 @@ fn vbnc_auto_update_referenda_status_with_unlock_can_early_unlock() {
 			assert_ok!(VtokenVoting::set_vote_locking_period(
 				RuntimeOrigin::root(),
 				vtoken,
-				10
+				1000
 			));
-
-			run_to(50);
 
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),

@@ -1297,21 +1297,25 @@ pub mod pallet {
 							Ok(())
 						}
 						PollStatus::Completed(end, approved) => {
-							if let Some((lock_periods, _)) = v.1.locked_if(approved) {
-								let unlock_at = end.saturating_add(
-									VoteLockingPeriod::<T>::get(vtoken)
-										.ok_or(Error::<T>::NoData)?
-										.saturating_mul(lock_periods.into()),
-								);
-
-								let now = Self::get_agent_block_number(&vtoken)?;
-								if now < unlock_at {
-									ensure!(
-										matches!(scope, UnvoteScope::Any),
-										Error::<T>::NoPermissionYet
+							let can_unlock_early =
+								Self::ensure_early_unlock(who, vtoken, poll_index)?;
+							if !can_unlock_early {
+								if let Some((lock_periods, _)) = v.1.locked_if(approved) {
+									let unlock_at = end.saturating_add(
+										VoteLockingPeriod::<T>::get(vtoken)
+											.ok_or(Error::<T>::NoData)?
+											.saturating_mul(lock_periods.into()),
 									);
-									// v.3 is the actual locked vtoken balance
-									prior.accumulate(unlock_at, v.3)
+
+									let now = Self::get_agent_block_number(&vtoken)?;
+									if now < unlock_at {
+										ensure!(
+											matches!(scope, UnvoteScope::Any),
+											Error::<T>::NoPermissionYet
+										);
+										// v.3 is the actual locked vtoken balance
+										prior.accumulate(unlock_at, v.3)
+									}
 								}
 							}
 							Ok(())
