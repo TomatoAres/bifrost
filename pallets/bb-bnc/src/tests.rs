@@ -578,6 +578,10 @@ fn create_lock_to_withdraw() {
 				BbBNC::balance_of_at(&BOB, System::block_number() - 10),
 				Ok(0)
 			);
+			assert_eq!(
+				BbBNC::balance_of_at(&BOB, System::block_number() + 10),
+				Ok(12705429756920)
+			);
 			assert_eq!(BbBNC::balance_of_at(&BOB, 0), Ok(0));
 			assert_eq!(
 				BbBNC::balance_of(&BOB, Some(System::block_number() - 10)),
@@ -918,6 +922,54 @@ fn deposit_markup_after_lock_should_work2() {
 				BbBNC::balance_of(&BOB, Some(System::block_number())),
 				Ok(5082152342660)
 			);
+		});
+}
+
+#[test]
+fn deposit_markup_a_large_number_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * 86400 / 12)
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + 365 * 86400 / 12,
+			));
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				MOVR,
+				FixedU128::from_inner(500),
+				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(500),
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&ALICE,
+				10_000_000_000_000,
+				System::block_number() + 365 * 86400 / 12,
+			));
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(ALICE),
+				MOVR,
+				1_000_000_000_000_000_000_000_000
+			));
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				MOVR,
+				1_000_000_000_000_000_000_000_000_000
+			));
+			assert_eq!(BbBNC::balance_of(&ALICE, None), Ok(2541203052380));
+			assert_eq!(BbBNC::balance_of(&BOB, None), Ok(2668129512440));
+			assert_ok!(BbBNC::refresh_inner(MOVR));
+			assert_eq!(BbBNC::balance_of(&BOB, None), Ok(2668129512440));
 		});
 }
 

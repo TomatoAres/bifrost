@@ -64,6 +64,9 @@ const BB_LOCK_ID: LockIdentifier = *b"bbbnclck";
 const MARKUP_LOCK_ID: LockIdentifier = *b"bbbncmkp";
 pub const BB_BNC_SYSTEM_POOL_ID: PoolId = u32::MAX;
 pub type PositionId = u128;
+/// precision for fixed point number
+const PRECISION: u128 = 1_000_000_000_000_000_000;
+
 #[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, Default)]
 pub struct BbConfig<Balance, BlockNumber> {
 	/// Minimum number of TokenType that users can lock
@@ -936,10 +939,6 @@ pub mod pallet {
 			position: PositionId,
 			block: BlockNumberFor<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			let current_block_number: BlockNumberFor<T> =
-				T::BlockNumberProvider::current_block_number();
-			ensure!(block <= current_block_number, Error::<T>::Expired);
-
 			// Binary search
 			let mut _min = U256::zero();
 			let mut _max = UserPointEpoch::<T>::get(position);
@@ -1071,13 +1070,18 @@ pub mod pallet {
 				});
 			locked_token.amount = locked_token.amount.saturating_add(value);
 
-			let ri = FixedU128::checked_from_integer(locked_token.amount)
-				.and_then(|x| {
-					x.checked_div(&FixedU128::checked_from_integer(TotalLock::<T>::get(
-						currency_id,
-					))?)
-				})
-				.ok_or(ArithmeticError::Overflow)?;
+			let ri: FixedU128 = FixedU128::from_inner(
+				U256::from(PRECISION)
+					.checked_mul(U256::from(locked_token.amount.saturated_into::<u128>()))
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div(U256::from(
+						TotalLock::<T>::get(currency_id).saturated_into::<u128>(),
+					))
+					.map(|x| u128::try_from(x))
+					.ok_or(ArithmeticError::Overflow)?
+					.map_err(|_| ArithmeticError::Overflow)?
+					.unique_saturated_into(),
+			);
 
 			let ni = locked_token.amount;
 			let ti = T::MultiCurrency::total_issuance(currency_id);
@@ -1086,10 +1090,18 @@ pub mod pallet {
 				.rwi
 				.checked_mul(&ri)
 				.ok_or(ArithmeticError::Overflow)?;
-			let right = FixedU128::checked_from_integer(ni)
-				.and_then(|x| x.checked_mul(&wi))
-				.and_then(|x| x.checked_div(&FixedU128::checked_from_integer(ti)?))
-				.ok_or(ArithmeticError::Overflow)?;
+			let right: FixedU128 = FixedU128::from_inner(
+				U256::from(PRECISION)
+					.checked_mul(U256::from(ni.saturated_into::<u128>()))
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div(U256::from(ti))
+					.map(|x| u128::try_from(x))
+					.ok_or(ArithmeticError::Overflow)?
+					.map_err(|_| ArithmeticError::Overflow)?
+					.unique_saturated_into(),
+			)
+			.checked_mul(&wi)
+			.ok_or(ArithmeticError::Overflow)?;
 			let b = left.checked_add(&right).ok_or(ArithmeticError::Overflow)?;
 
 			let new_markup_coefficient = markup_coefficient.hardcap.min(b);
@@ -1203,13 +1215,18 @@ pub mod pallet {
 					let mut user_markup_info =
 						UserMarkupInfos::<T>::get(&who).ok_or(Error::<T>::LockNotExist)?;
 
-					let ri = FixedU128::checked_from_integer(locked_token.amount)
-						.and_then(|x| {
-							x.checked_div(&FixedU128::checked_from_integer(TotalLock::<T>::get(
-								currency_id,
-							))?)
-						})
-						.ok_or(ArithmeticError::Overflow)?;
+					let ri: FixedU128 = FixedU128::from_inner(
+						U256::from(PRECISION)
+							.checked_mul(U256::from(locked_token.amount.saturated_into::<u128>()))
+							.ok_or(ArithmeticError::Overflow)?
+							.checked_div(U256::from(
+								TotalLock::<T>::get(currency_id).saturated_into::<u128>(),
+							))
+							.map(|x| u128::try_from(x))
+							.ok_or(ArithmeticError::Overflow)?
+							.map_err(|_| ArithmeticError::Overflow)?
+							.unique_saturated_into(),
+					);
 
 					let ni = locked_token.amount;
 					let ti = T::MultiCurrency::total_issuance(currency_id);
@@ -1219,10 +1236,18 @@ pub mod pallet {
 						.rwi
 						.checked_mul(&ri)
 						.ok_or(ArithmeticError::Overflow)?;
-					let right = FixedU128::checked_from_integer(ni)
-						.and_then(|x| x.checked_mul(&wi))
-						.and_then(|x| x.checked_div(&FixedU128::checked_from_integer(ti)?))
-						.ok_or(ArithmeticError::Overflow)?;
+					let right: FixedU128 = FixedU128::from_inner(
+						U256::from(PRECISION)
+							.checked_mul(U256::from(ni.saturated_into::<u128>()))
+							.ok_or(ArithmeticError::Overflow)?
+							.checked_div(U256::from(ti))
+							.map(|x| u128::try_from(x))
+							.ok_or(ArithmeticError::Overflow)?
+							.map_err(|_| ArithmeticError::Overflow)?
+							.unique_saturated_into(),
+					)
+					.checked_mul(&wi)
+					.ok_or(ArithmeticError::Overflow)?;
 					let b = left.checked_add(&right).ok_or(ArithmeticError::Overflow)?;
 
 					let new_markup_coefficient = markup_coefficient.hardcap.min(b);
