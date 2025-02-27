@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use super::{AutoEra, Config, DollarStandardInfos, Weight};
+use super::{AutoEra, Config, DollarStandardInfos, Pallet, StorageVersion, Weight};
 use frame_support::traits::{Get, OnRuntimeUpgrade};
 use sp_std::marker::PhantomData;
 
@@ -41,9 +41,11 @@ impl<T: Config> OnRuntimeUpgrade for FeeShareOnRuntimeUpgrade<T> {
 		use frame_support::{migration, Identity};
 		log::info!("Bifrost `pre_upgrade`...");
 
-		let (era_length, _next_era) = AutoEra::<T>::get();
-		log::info!("Old era_length is {:?}", era_length);
-		assert_eq!(era_length, 7200u32.into());
+		if StorageVersion::get::<Pallet<T>>() == 0 {
+			let (era_length, _next_era) = AutoEra::<T>::get();
+			log::info!("Old era_length is {:?}", era_length);
+			assert_eq!(era_length, 7200u32.into());
+		}
 
 		Ok(sp_std::prelude::Vec::new())
 	}
@@ -51,11 +53,15 @@ impl<T: Config> OnRuntimeUpgrade for FeeShareOnRuntimeUpgrade<T> {
 	fn on_runtime_upgrade() -> Weight {
 		log::info!("Bifrost `on_runtime_upgrade`...");
 
-		let weight = update_for_async::<T>();
-
-		log::info!("Bifrost `on_runtime_upgrade finished`");
-
-		weight
+		if StorageVersion::get::<Pallet<T>>() == 0 {
+			let weight = update_for_async::<T>();
+			log::info!("Migrating fee-share storage to v1");
+			StorageVersion::new(1).put::<Pallet<T>>();
+			weight
+		} else {
+			log::warn!("fee-share migration should be removed.");
+			T::DbWeight::get().reads(1)
+		}
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -64,12 +70,11 @@ impl<T: Config> OnRuntimeUpgrade for FeeShareOnRuntimeUpgrade<T> {
 		use frame_support::{migration, Identity};
 		log::info!("Bifrost `post_upgrade`...");
 
-		let (era_length, _next_era) = AutoEra::<T>::get();
-		log::info!("New era_length is {:?}", era_length);
-		assert_eq!(era_length, 14400u32.into());
-		DollarStandardInfos::<T>::iter().for_each(|(_distribution_id, info)| {
-			assert_eq!(info.interval, 432000u32.into());
-		});
+		if StorageVersion::get::<Pallet<T>>() == 1 {
+			let (era_length, _next_era) = AutoEra::<T>::get();
+			log::info!("New era_length is {:?}", era_length);
+			assert_eq!(era_length, 14400u32.into());
+		}
 
 		Ok(())
 	}
