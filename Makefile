@@ -139,6 +139,7 @@ try-kusama-runtime-upgrade:build-try-runtime
 		--runtime \
 			target/release/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
+		--disable-idempotency-checks \
 		live \
 		--uri wss://hk.bifrost-rpc.liebi.com:443/ws 
 
@@ -148,6 +149,7 @@ try-polkadot-runtime-upgrade:build-try-runtime
 		--runtime \
 		target/release/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
+		--disable-idempotency-checks \
 		live \
 		--uri wss://hk.p.bifrost-rpc.liebi.com:443/ws
 
@@ -161,6 +163,7 @@ try-polkadot-runtime-upgrade-snap:build-try-runtime
 		--runtime \
 			target/release/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
+		--disable-idempotency-checks \
 		--checks=all \
 		snap -p bifrost_polkadot@latest.snap
 
@@ -174,6 +177,7 @@ try-kusama-runtime-upgrade-snap:build-try-runtime
 		--runtime \
 			target/release/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
+		--disable-idempotency-checks \
 		--checks=all \
 		snap -p bifrost@latest.snap
 
