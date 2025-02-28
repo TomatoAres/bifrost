@@ -79,3 +79,38 @@ impl<T: Config> OnRuntimeUpgrade for FeeShareOnRuntimeUpgrade<T> {
 		Ok(())
 	}
 }
+
+pub struct BifrostKusamaFeeShareOnRuntimeUpgrade<T>(PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for BifrostKusamaFeeShareOnRuntimeUpgrade<T> {
+	fn on_runtime_upgrade() -> Weight {
+		log::info!("Bifrost `on_runtime_upgrade`...");
+
+		if StorageVersion::get::<Pallet<T>>() == 0 {
+			log::info!("Migrating fee-share storage to v1");
+			StorageVersion::new(1).put::<Pallet<T>>();
+			T::DbWeight::get().reads(1) + T::DbWeight::get().writes(1)
+		} else {
+			log::warn!("fee-share StorageVersion should be 0.");
+			T::DbWeight::get().reads(1)
+		}
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<sp_std::prelude::Vec<u8>, sp_runtime::DispatchError> {
+		log::info!(
+			"fee-share before migration: version: {:?}",
+			StorageVersion::get::<Pallet<T>>(),
+		);
+
+		Ok(sp_std::prelude::Vec::new())
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(_: sp_std::prelude::Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+		log::info!(
+			"fee-share after migration: version: {:?}",
+			StorageVersion::get::<Pallet<T>>(),
+		);
+		Ok(())
+	}
+}

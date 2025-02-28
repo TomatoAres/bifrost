@@ -1916,6 +1916,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_fee_share::migration::BifrostKusamaFeeShareOnRuntimeUpgrade<Runtime>,
 		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
 		bifrost_parachain_staking::migrations::v1::MigrateToV1<Runtime>,
 		bifrost_vtoken_voting::migration::v5::MigrateToV5<Runtime>,
