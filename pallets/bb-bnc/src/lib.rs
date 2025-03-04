@@ -1047,7 +1047,7 @@ pub mod pallet {
 			currency_id: CurrencyIdOf<T>,
 			value: BalanceOf<T>,
 		) -> DispatchResult {
-			let markup_coefficient =
+			let mut markup_coefficient =
 				MarkupCoefficient::<T>::get(currency_id).ok_or(Error::<T>::ArgumentsError)?; // Ensure it is the correct token type.
 			ensure!(!value.is_zero(), Error::<T>::ArgumentsError);
 
@@ -1132,6 +1132,8 @@ pub mod pallet {
 					)
 				},
 			)?;
+			markup_coefficient.update_block = current_block_number;
+			MarkupCoefficient::<T>::insert(currency_id, markup_coefficient);
 
 			// Locked cannot be updated because it is markup, not a lock vBNC
 			Self::deposit_event(Event::MarkupDeposited {
@@ -1146,10 +1148,20 @@ pub mod pallet {
 			who: &AccountIdOf<T>,
 			currency_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
-			ensure!(
-				MarkupCoefficient::<T>::contains_key(currency_id),
-				Error::<T>::ArgumentsError
-			); // Ensure it is the correct token type.
+			MarkupCoefficient::<T>::mutate_exists(
+				currency_id,
+				|maybe_coefficient_info| -> DispatchResult {
+					let coefficient_info = maybe_coefficient_info
+						.as_mut()
+						.ok_or(Error::<T>::ArgumentsError)?;
+
+					let current_block_number: BlockNumberFor<T> =
+						T::BlockNumberProvider::current_block_number();
+					coefficient_info.update_block = current_block_number;
+
+					Ok(())
+				},
+			)?;
 
 			let mut user_markup_info = UserMarkupInfos::<T>::get(&who).unwrap_or_default();
 
