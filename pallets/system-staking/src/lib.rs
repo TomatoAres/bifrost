@@ -112,7 +112,7 @@ pub mod pallet {
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]

@@ -1736,13 +1736,13 @@ impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
 
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	#[cfg(not(feature = "runtime-benchmarks"))]
+	#[cfg(not(any(feature = "try-runtime", feature = "runtime-benchmarks")))]
 	type Migrations = bifrost_vesting::migrations::v2::LazyMigration<
 		Runtime,
 		weights::bifrost_vesting::BifrostWeight<Runtime>,
 	>;
 	// Benchmarks need mocked migrations to guarantee that they succeed.
-	#[cfg(feature = "runtime-benchmarks")]
+	#[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
 	type CursorMaxLen = ConstU32<65_536>;
 	type IdentifierMaxLen = ConstU32<256>;
@@ -1916,6 +1916,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_fee_share::migration::BifrostKusamaFeeShareOnRuntimeUpgrade<Runtime>,
 		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
 		bifrost_parachain_staking::migrations::v1::MigrateToV1<Runtime>,
 		bifrost_vtoken_voting::migration::v5::MigrateToV5<Runtime>,

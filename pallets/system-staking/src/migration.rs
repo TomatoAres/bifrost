@@ -18,8 +18,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use super::{Config, Round, Weight};
-use frame_support::traits::{Get, OnRuntimeUpgrade};
+use super::{Config, Pallet, Round, Weight};
+use frame_support::{
+	pallet_prelude::StorageVersion,
+	traits::{Get, OnRuntimeUpgrade},
+};
 use sp_std::marker::PhantomData;
 
 pub fn update_for_async<T: Config>() -> Weight {
@@ -39,9 +42,11 @@ impl<T: Config> OnRuntimeUpgrade for SystemStakingOnRuntimeUpgrade<T> {
 		use frame_support::{migration, Identity};
 		log::info!("Bifrost `pre_upgrade`...");
 
-		if let Some(round) = <Round<T>>::get() {
-			log::info!("Old round is {:?}", round);
-			assert_eq!(round.length, 1500u32);
+		if StorageVersion::get::<Pallet<T>>() == 1 {
+			if let Some(round) = <Round<T>>::get() {
+				log::info!("Old round is {:?}", round);
+				assert_eq!(round.length, 1500u32);
+			}
 		}
 
 		Ok(sp_std::prelude::Vec::new())
@@ -50,11 +55,15 @@ impl<T: Config> OnRuntimeUpgrade for SystemStakingOnRuntimeUpgrade<T> {
 	fn on_runtime_upgrade() -> Weight {
 		log::info!("Bifrost `on_runtime_upgrade`...");
 
-		let weight = update_for_async::<T>();
-
-		log::info!("Bifrost `on_runtime_upgrade finished`");
-
-		weight
+		if StorageVersion::get::<Pallet<T>>() == 1 {
+			let weight = update_for_async::<T>();
+			log::info!("Migrating system-staking storage to v2");
+			StorageVersion::new(2).put::<Pallet<T>>();
+			weight
+		} else {
+			log::warn!("system-staking migration should be removed.");
+			T::DbWeight::get().reads(1)
+		}
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -63,9 +72,11 @@ impl<T: Config> OnRuntimeUpgrade for SystemStakingOnRuntimeUpgrade<T> {
 		use frame_support::{migration, Identity};
 		log::info!("Bifrost `post_upgrade`...");
 
-		if let Some(round) = <Round<T>>::get() {
-			log::info!("New round is {:?}", round);
-			assert_eq!(round.length, 3000u32);
+		if StorageVersion::get::<Pallet<T>>() == 2 {
+			if let Some(round) = <Round<T>>::get() {
+				log::info!("New round is {:?}", round);
+				assert_eq!(round.length, 3000u32);
+			}
 		}
 
 		Ok(())
