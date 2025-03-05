@@ -1782,6 +1782,17 @@ pub mod migrations {
 		frame_support::migrations::RemovePallet<PhragmenElectionStr, RocksDbWeight>,
 		frame_support::migrations::RemovePallet<CouncilMembershipStr, RocksDbWeight>,
 		frame_support::migrations::RemovePallet<TechnicalMembershipStr, RocksDbWeight>,
+		bifrost_parachain_staking::migrations::v1::MigrateToV1<Runtime>,
+		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
+		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
+		pallet_identity::migration::versioned::V0ToV1<Runtime, 1000u64>,
+		bifrost_system_staking::migrations::v1::MigrateToV1<Runtime>,
+		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
+		bifrost_fee_share::migration::FeeShareOnRuntimeUpgrade<Runtime>,
+		bifrost_slpx::migration::v1::MigrateToV1<Runtime>,
+		bifrost_slpx::migration::v2::MigrateToV2<Runtime>,
+		bifrost_vtoken_voting::migration::v4::MigrateToV4<Runtime, RelayCurrencyId>,
+		bifrost_vtoken_voting::migration::v5::MigrateToV5<Runtime>,
 	);
 }
 
