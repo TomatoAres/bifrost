@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::governance::TechAdminOrCouncil;
+use crate::governance::TechAdminOrRoot;
 use crate::{Balances, Ismp, IsmpParachain, NativeCurrencyId, Runtime, RuntimeEvent, Timestamp};
 use crate::{BncDecimals, Currencies};
 use crate::{TokenGateway, Treasury};
@@ -44,7 +44,7 @@ parameter_types! {
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
-	type AdminOrigin = TechAdminOrCouncil;
+	type AdminOrigin = TechAdminOrRoot;
 	// The state machine identifier of the chain -- parachain id
 	type HostStateMachine = HostStateMachine;
 	type TimestampProvider = Timestamp;
@@ -117,6 +117,6 @@ impl pallet_token_gateway::Config for Runtime {
 	type AssetIdFactory = ();
 	// The precision of the native asset
 	type Decimals = BncDecimals;
-	type ControlOrigin = TechAdminOrCouncil;
+	type ControlOrigin = TechAdminOrRoot;
 	type CurrencyIdConvert = AssetIdMaps<Runtime>;
 }

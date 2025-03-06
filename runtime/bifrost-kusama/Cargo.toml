@@ -34,12 +34,11 @@ pallet-balances = { workspace = true }
 pallet-bounties = { workspace = true }
 pallet-collective = { workspace = true }
 pallet-conviction-voting = { workspace = true }
-pallet-democracy = { workspace = true }
-pallet-elections-phragmen = { workspace = true }
 pallet-identity = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-membership = { workspace = true }
 pallet-message-queue = { workspace = true }
+pallet-migrations  = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-proxy = { workspace = true }
@@ -148,6 +147,8 @@ leverage-staking = { workspace = true }
 bifrost-channel-commission = { workspace = true }
 bifrost-vtoken-minting-rpc-runtime-api = { workspace = true }
 bifrost-vbnc-convert = { workspace = true }
+ismp = { workspace = true }
+anyhow = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -174,11 +175,10 @@ std = [
 	"pallet-bounties/std",
 	"pallet-collective/std",
 	"pallet-conviction-voting/std",
-	"pallet-democracy/std",
-	"pallet-elections-phragmen/std",
 	"pallet-identity/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
+	"pallet-migrations/std",
 	"pallet-multisig/std",
 	"pallet-preimage/std",
 	"pallet-proxy/std",
@@ -276,6 +276,7 @@ std = [
 	"bifrost-xcm-interface/std",
 	"bifrost-channel-commission/std",
 	"bifrost-vbnc-convert/std",
+	"ismp/std",
 
 	"substrate-wasm-builder"
 ]
@@ -302,7 +303,6 @@ runtime-benchmarks = [
 	"bifrost-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"pallet-tips/runtime-benchmarks",
-	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-whitelist/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
@@ -344,11 +344,10 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"cumulus-pallet-aura-ext/try-runtime",
 	"bifrost-parachain-staking/try-runtime",
-	"pallet-democracy/try-runtime",
 	"pallet-collective/try-runtime",
 	"pallet-conviction-voting/try-runtime",
-	"pallet-elections-phragmen/try-runtime",
 	"pallet-membership/try-runtime",
+	"pallet-migrations/try-runtime",
 	"cumulus-pallet-xcmp-queue/try-runtime",
 	"pallet-xcm/try-runtime",
 	"cumulus-pallet-xcm/try-runtime",

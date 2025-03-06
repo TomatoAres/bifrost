@@ -196,12 +196,11 @@ pallet-balances                            = { git = "https://github.com/parityt
 pallet-bounties                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-collective                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-conviction-voting                   = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
-pallet-democracy                           = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
-pallet-elections-phragmen                  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-identity                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-indices                             = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-membership                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-message-queue                       = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
+pallet-migrations                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-multisig                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-preimage                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
 pallet-proxy                               = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2407", default-features = false }
@@ -307,7 +306,7 @@ derive_more           = "1.0.0"
 libsecp256k1          = { version = "0.7", default-features = false }
 async-trait           = { version = "0.1.86" }
 bstringify            = { version = "0.1.2" }
-clap                  = { version = "4.5.27" }
+clap                  = { version = "4.5.28" }
 env_logger            = { version = "0.10.2" }
 ethabi                = { version = "18.0.0", default-features = false }
 ethereum              = { version = "0.15.0", default-features = false, features = ["with-codec"] }

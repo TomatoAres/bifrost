@@ -225,7 +225,7 @@ mod benchmarks {
 			None
 		));
 		#[extrinsic_call]
-		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, 1000);
+		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, 1000, 0);
 		Ok(())
 	}
 

@@ -1,0 +1,88 @@
+// This file is part of Bifrost.
+
+// Copyright (C) Liebi Technologies PTE. LTD.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+use super::{Config, Pallet, Round, Weight};
+use frame_support::{
+	pallet_prelude::StorageVersion,
+	traits::{Get, OnRuntimeUpgrade},
+};
+#[cfg(feature = "try-runtime")]
+use parity_scale_codec::{Decode, Encode};
+use sp_std::marker::PhantomData;
+
+pub fn update_for_async<T: Config>() -> Weight {
+	if let Some(mut round) = <Round<T>>::get() {
+		round.length = round.length * 2;
+		<Round<T>>::put(round);
+	}
+
+	T::DbWeight::get().reads(1) + T::DbWeight::get().writes(1)
+}
+
+pub struct SystemStakingOnRuntimeUpgrade<T>(PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for SystemStakingOnRuntimeUpgrade<T> {
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<sp_std::prelude::Vec<u8>, sp_runtime::DispatchError> {
+		#[allow(unused_imports)]
+		use frame_support::{migration, Identity};
+		log::info!("Bifrost `pre_upgrade`...");
+
+		let mut old_round = 0u32;
+		if StorageVersion::get::<Pallet<T>>() == 1 {
+			if let Some(round) = <Round<T>>::get() {
+				log::info!("Old round is {:?}", round);
+				old_round = round.length;
+			}
+		}
+
+		Ok(old_round.encode())
+	}
+
+	fn on_runtime_upgrade() -> Weight {
+		log::info!("Bifrost `on_runtime_upgrade`...");
+
+		if StorageVersion::get::<Pallet<T>>() == 1 {
+			let weight = update_for_async::<T>();
+			log::info!("Migrating system-staking storage to v2");
+			StorageVersion::new(2).put::<Pallet<T>>();
+			weight
+		} else {
+			log::warn!("system-staking migration should be removed.");
+			T::DbWeight::get().reads(1)
+		}
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(round_len: sp_std::prelude::Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+		#[allow(unused_imports)]
+		use frame_support::{migration, Identity};
+		log::info!("Bifrost `post_upgrade`...");
+
+		if StorageVersion::get::<Pallet<T>>() == 2 {
+			if let Some(round) = <Round<T>>::get() {
+				log::info!("New round is {:?}", round);
+				let old_round: u32 = Decode::decode(&mut round_len.as_slice()).unwrap();
+				assert_eq!(round.length, old_round * 2);
+			}
+		}
+
+		Ok(())
+	}
+}

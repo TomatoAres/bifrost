@@ -1099,6 +1099,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 			RuntimeOrigin::signed(ALICE),
 			BNC,
 			1000,
+			1000,
 			Some(subaccount_0_location)
 		));
 

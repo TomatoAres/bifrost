@@ -25,7 +25,7 @@ use primitive_types::U256;
 pub use crate::evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated};
 use crate::{
 	evm::runner::{FeeAssetBalanceInCurrency, WrapRunner},
-	governance::TechAdminOrCouncil,
+	governance::TechAdminOrRoot,
 	Aura, ConstU32, DynamicFee, EVMChainId, Runtime, RuntimeEvent, Timestamp, Weight, EVM,
 	MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO, WEIGHT_REF_TIME_PER_SECOND,
 };
@@ -139,7 +139,7 @@ impl pallet_evm_accounts::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
-	type ControllerOrigin = TechAdminOrCouncil;
+	type ControllerOrigin = TechAdminOrRoot;
 	type WeightInfo = ();
 }
 

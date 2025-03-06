@@ -583,3 +583,47 @@ impl<T: Config> OnRuntimeUpgrade for RemoveDelegatorReserveToLockAndCollatorRese
 		Ok(())
 	}
 }
+
+pub mod v1 {
+	use super::*;
+	use crate::{Config, Pallet};
+	use frame_support::{pallet_prelude::StorageVersion, traits::OnRuntimeUpgrade};
+
+	pub struct MigrateToV1<T>(sp_std::marker::PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
+		fn on_runtime_upgrade() -> Weight {
+			if StorageVersion::get::<Pallet<T>>() < 1 {
+				log::info!("Migrating parachain-staking storage to v1");
+
+				Round::<T>::mutate(|round_info| {
+					round_info.length = round_info.length.saturating_mul(2);
+				});
+
+				StorageVersion::new(1).put::<Pallet<T>>();
+				Weight::from(T::DbWeight::get().reads_writes(1, 1))
+			} else {
+				log::warn!("parachain-staking migration should be removed.");
+				T::DbWeight::get().reads(1)
+			}
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
+			log::info!(
+				"parachain-staking before migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>(),
+			);
+
+			Ok(Vec::new())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+			log::info!(
+				"parachain-staking after migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>(),
+			);
+			Ok(())
+		}
+	}
+}

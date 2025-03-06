@@ -239,6 +239,17 @@ pub mod v4 {
 	use frame_support::{pallet_prelude::StorageVersion, traits::OnRuntimeUpgrade};
 	use sp_runtime::traits::Get;
 
+	#[storage_alias]
+	pub type ReferendumTimeoutV2<T: Config> = StorageDoubleMap<
+		Pallet<T>,
+		Twox64Concat,
+		CurrencyIdOf<T>,
+		Twox64Concat,
+		BlockNumberFor<T>,
+		BoundedVec<PollIndex, ConstU32<256>>,
+		ValueQuery,
+	>;
+
 	pub struct MigrateToV4<T, C>(
 		sp_std::marker::PhantomData<T>,
 		sp_std::marker::PhantomData<C>,
@@ -313,7 +324,7 @@ pub fn migrate_to_v4<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
 			pool_index_vec.try_push(poll_index).unwrap();
 		}
 		// Insert into the new storage
-		ReferendumTimeoutV2::<T>::insert(vtoken, block_number, pool_index_vec);
+		v4::ReferendumTimeoutV2::<T>::insert(vtoken, block_number, pool_index_vec);
 		weight += T::DbWeight::get().reads_writes(0, 1);
 	});
 
@@ -329,6 +340,79 @@ pub fn migrate_to_v4<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
 			UndecidingTimeout::<T>::insert(currency_id, BlockNumberFor::<T>::from(100800u32));
 			weight += T::DbWeight::get().writes(1);
 		}
+	});
+
+	weight
+}
+
+pub mod v5 {
+	use super::*;
+	use crate::{Config, Pallet};
+	use cumulus_primitives_core::Weight;
+	use frame_support::{pallet_prelude::StorageVersion, traits::OnRuntimeUpgrade};
+
+	pub struct MigrateToV5<T>(sp_std::marker::PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
+		fn on_runtime_upgrade() -> Weight {
+			if StorageVersion::get::<Pallet<T>>() == 4 {
+				let weight_consumed = migrate_to_v5::<T>();
+				log::info!("Migrating vtoken-voting storage to v5");
+				StorageVersion::new(5).put::<Pallet<T>>();
+				weight_consumed
+			} else {
+				log::warn!("vtoken-voting migration should be removed.");
+				T::DbWeight::get().reads(1)
+			}
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
+			log::info!(
+				"vtoken-voting before migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>(),
+			);
+
+			Ok(Vec::new())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+			log::info!(
+				"vtoken-voting after migration: version: {:?}",
+				StorageVersion::get::<Pallet<T>>(),
+			);
+
+			Ok(())
+		}
+	}
+}
+
+pub fn migrate_to_v5<T: Config>() -> Weight {
+	let mut weight: Weight = Weight::zero();
+	let current_block_number = T::LocalBlockNumberProvider::current_block_number();
+
+	VoteLockingPeriod::<T>::iter().for_each(|(currency_id, _)| {
+		if currency_id == VBNC {
+			VoteLockingPeriod::<T>::insert(currency_id, BlockNumberFor::<T>::from(14400u32));
+			weight += T::DbWeight::get().writes(1);
+		}
+	});
+
+	UndecidingTimeout::<T>::iter().for_each(|(currency_id, _)| {
+		if currency_id == VBNC {
+			UndecidingTimeout::<T>::insert(currency_id, BlockNumberFor::<T>::from(201600u32));
+			weight += T::DbWeight::get().writes(1);
+		}
+	});
+
+	v4::ReferendumTimeoutV2::<T>::iter().for_each(|(currency_id, block_number, value)| {
+		let new_block_number = if currency_id == VBNC {
+			block_number.saturating_sub(current_block_number) + block_number
+		} else {
+			block_number
+		};
+		ReferendumTimeoutV3::<T>::insert(currency_id, new_block_number, value);
+		weight += T::DbWeight::get().reads_writes(1, 1);
 	});
 
 	weight

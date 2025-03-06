@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::pallet;
+use bifrost_primitives::CurrencyId;
 use ethereum::TransactionAction;
 use orml_traits::MultiCurrency;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -25,6 +26,7 @@ use sp_core::{H160, H256, U256};
 use sp_runtime::{traits::ConstU32, BoundedVec, RuntimeDebug};
 use sp_std::vec::Vec;
 use xcm::prelude::Weight;
+use xcm::v4::Location;
 
 /// Max. allowed size of 65_536 bytes.
 pub const MAX_ETHEREUM_XCM_INPUT_SIZE: u32 = 2u32.pow(16);
@@ -34,6 +36,12 @@ pub const MAX_GAS_LIMIT: u32 = 720_000;
 
 /// EVM function selector: setTokenAmount(bytes2,uint256,uint256)
 pub const EVM_FUNCTION_SELECTOR: [u8; 4] = [154, 65, 185, 36];
+
+/// Hydration EMA Oracle pallet index and call index
+pub const HYDRATION_EMA_ORACLE_PALLET_INDEX: u8 = 202;
+pub const HYDRATION_EMA_ORACLE_CALL_INDEX: u8 = 2;
+pub const HYDRATION_CALL_FEE: u128 = 2_000_000_000_000;
+pub const HYDRATION_CALL_WEIGHT: Weight = Weight::from_parts(10_000_000_000, 30_000);
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type CurrencyIdOf<T> = <<T as pallet::Config>::MultiCurrency as MultiCurrency<
@@ -145,4 +153,34 @@ pub struct Order<AccountId, CurrencyId, Balance, BlockNumber> {
 	pub remark: BoundedVec<u8, ConstU32<32>>,
 	pub target_chain: TargetChain<AccountId>,
 	pub channel_id: u32,
+}
+
+/// HyperBridge Oracle Config
+#[derive(Encode, Decode, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct OracleConfig<AccountId, Balance, BlockNumber> {
+	/// Destination chain contract address
+	pub to: H160,
+	/// Time out
+	pub timeout: u64,
+	/// The AccountId of the sender
+	pub payer: AccountId,
+	/// The fee paid by the sender
+	pub fee: Balance,
+	/// Wait for the period to call XCM once
+	pub period: BlockNumber,
+	/// Block number of the last call
+	pub last_block: BlockNumber,
+	/// Token list
+	pub tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
+}
+
+/// HyperBridge Oracle Config
+#[derive(Encode, Decode, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct HydrationOracleConfig<BlockNumber> {
+	/// Wait for the period to call XCM once
+	pub period: BlockNumber,
+	/// Block number of the last call
+	pub last_block: BlockNumber,
+	/// Token list
+	pub tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
 }

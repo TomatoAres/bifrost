@@ -18,10 +18,23 @@
 
 //! A set of constant values used for all runtimes in common.
 
+pub mod currency {
+	use bifrost_primitives::Balance;
+
+	pub const BNCS: Balance = 1_000_000_000_000;
+	pub const DOLLARS: Balance = BNCS;
+	pub const CENTS: Balance = DOLLARS / 100; // assume this is worth about a cent.
+	pub const RELAY_CENTS: Balance = DOLLARS / 10_000;
+	pub const MILLICENTS: Balance = CENTS / 1_000;
+	pub const MILLIBNC: Balance = 1_000_000_000;
+	pub const MICROBNC: Balance = 1_000_000;
+	pub const XCM_WEIGHT: u64 = 1_000_000_000;
+}
+
 /// Time.
 pub mod time {
 	use bifrost_primitives::{BlockNumber, Moment};
-	pub const MILLISECS_PER_BLOCK: Moment = 12000;
+	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
@@ -44,7 +57,7 @@ pub mod time {
 
 	/// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
 	/// relay chain.
-	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = 1;
+	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = 3;
 	/// How many parachain blocks are processed by the relay chain per parent. Limits the number of
 	/// blocks authored per slot.
 	pub const BLOCK_PROCESSING_VELOCITY: u32 = 1;

@@ -18,13 +18,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 use bifrost_asset_registry::{AssetIdMaps, Config};
-use bifrost_primitives::{
-	AccountId, Balance, BlockNumber, CurrencyId, CurrencyIdMapping, TokenInfo,
-};
-use frame_support::{
-	parameter_types, sp_runtime::traits::BlockNumberProvider, traits::EitherOfDiverse,
-};
-use frame_system::EnsureRoot;
+use bifrost_primitives::{Balance, BlockNumber, CurrencyId, CurrencyIdMapping, TokenInfo};
+use frame_support::{parameter_types, sp_runtime::traits::BlockNumberProvider};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::{traits::Bounded, FixedPointNumber, Perquintill};
@@ -72,21 +67,6 @@ pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
 	AdjustmentVariable,
 	MinimumMultiplier,
 	MaximumMultiplier,
->;
-
-pub type CouncilCollective = pallet_collective::Instance1;
-
-pub type TechnicalCollective = pallet_collective::Instance2;
-
-pub type MoreThanHalfCouncil = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
->;
-
-// Technical Committee Council
-pub type EnsureRootOrAllTechnicalCommittee = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 >;
 
 pub fn dollar<T: Config>(currency_id: CurrencyId) -> Balance {

@@ -30,12 +30,6 @@ pub use origins::{
 mod tracks;
 pub use tracks::TracksInfo;
 
-pub type CoreAdminOrCouncil = EitherOfDiverse<
-	CoreAdmin,
-	EitherOfDiverse<MoreThanHalfCouncil, EnsureRootOrAllTechnicalCommittee>,
->;
+pub type CoreAdminOrRoot = EitherOfDiverse<CoreAdmin, EnsureRoot<AccountId>>;
 
-pub type TechAdminOrCouncil = EitherOfDiverse<
-	TechAdmin,
-	EitherOfDiverse<MoreThanHalfCouncil, EnsureRootOrAllTechnicalCommittee>,
->;
+pub type TechAdminOrRoot = EitherOfDiverse<TechAdmin, EnsureRoot<AccountId>>;

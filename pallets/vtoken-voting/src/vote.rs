@@ -204,7 +204,7 @@ pub enum AccountVote<Balance> {
 	},
 }
 
-impl<Balance: Saturating> AccountVote<Balance> {
+impl<Balance: Saturating + PartialOrd> AccountVote<Balance> {
 	pub fn new_standard(vote: Vote, balance: Balance) -> Self {
 		AccountVote::Standard { vote, balance }
 	}
@@ -245,6 +245,19 @@ impl<Balance: Saturating> AccountVote<Balance> {
 		match self {
 			AccountVote::Standard { vote, .. } => Some(vote.aye),
 			_ => None,
+		}
+	}
+
+	/// Determines whether the vote is primarily in favor (aye).
+	/// Returns `true` if the majority of votes are for aye, otherwise `false`.
+	pub fn is_aye_dominant(self) -> bool {
+		match self {
+			// For `Standard`, check if the vote is aye.
+			AccountVote::Standard { vote, .. } => vote.aye,
+			// For `Split`, safely compare aye and nay.
+			AccountVote::Split { aye, nay } => aye > nay,
+			// For `SplitAbstain`, safely compare aye and nay, ignoring abstain.
+			AccountVote::SplitAbstain { aye, nay, .. } => aye > nay,
 		}
 	}
 
@@ -712,6 +725,36 @@ impl<
 				self.ayes = self.ayes.saturating_sub(delegations.votes);
 			}
 			false => self.nays = self.nays.saturating_sub(delegations.votes),
+		}
+	}
+}
+
+/// Represents the voting result for a referendum proposal in vToken.
+#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum ReferendumVoteStatus {
+	/// The referendum proposal was approved.
+	Approved,
+	/// The referendum proposal was rejected.
+	Rejected,
+	/// The referendum proposal was Cancelled/TimeOut/Killed.
+	None,
+	/// Ongoing is currently available for the referendum proposal.
+	Ongoing,
+}
+
+impl Default for ReferendumVoteStatus {
+	fn default() -> Self {
+		ReferendumVoteStatus::Ongoing
+	}
+}
+
+impl ReferendumVoteStatus {
+	pub(crate) fn is_over(&self) -> bool {
+		match self {
+			ReferendumVoteStatus::Approved => true,
+			ReferendumVoteStatus::Rejected => true,
+			ReferendumVoteStatus::None => true,
+			ReferendumVoteStatus::Ongoing => false,
 		}
 	}
 }

@@ -20,6 +20,7 @@ pub mod referenda;
 
 use super::*;
 pub use bifrost_runtime_common::dollar;
+pub use bifrost_runtime_common::{cent, constants::currency::*, milli};
 pub mod fellowship;
 mod origins;
 pub use origins::{
@@ -30,12 +31,6 @@ pub use origins::{
 mod tracks;
 pub use tracks::TracksInfo;
 
-pub type CoreAdminOrCouncil = EitherOfDiverse<
-	CoreAdmin,
-	EitherOfDiverse<MoreThanHalfCouncil, EnsureRootOrAllTechnicalCommittee>,
->;
+pub type CoreAdminOrRoot = EitherOfDiverse<CoreAdmin, EnsureRoot<AccountId>>;
 
-pub type TechAdminOrCouncil = EitherOfDiverse<
-	TechAdmin,
-	EitherOfDiverse<MoreThanHalfCouncil, EnsureRootOrAllTechnicalCommittee>,
->;
+pub type TechAdminOrRoot = EitherOfDiverse<TechAdmin, EnsureRoot<AccountId>>;
