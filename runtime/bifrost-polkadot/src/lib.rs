@@ -197,7 +197,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_polkadot"),
 	impl_name: create_runtime_str!("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 17000,
+	spec_version: 18000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1781,40 +1781,15 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
-parameter_types! {
-	pub const CollatorSelectionName: &'static str = "CollatorSelection";
-}
-
-parameter_types! {
-	pub const DemocracyStr: &'static str = "Democracy";
-	pub const CouncilStr: &'static str = "Council";
-	pub const TechnicalCommitteeStr: &'static str = "TechnicalCommittee";
-	pub const PhragmenElectionStr: &'static str = "PhragmenElection";
-	pub const CouncilMembershipStr: &'static str = "CouncilMembership";
-	pub const TechnicalMembershipStr: &'static str = "TechnicalMembership";
-}
-
 /// The runtime migrations per release.
 pub mod migrations {
 	#[allow(unused_imports)]
 	use super::*;
-	use crate::migration::update_referenda_referendum_info;
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_system_staking::migration::SystemStakingOnRuntimeUpgrade<Runtime>,
-		bifrost_fee_share::migration::FeeShareOnRuntimeUpgrade<Runtime>,
-		bifrost_parachain_staking::migrations::v1::MigrateToV1<Runtime>,
-		bifrost_vtoken_voting::migration::v5::MigrateToV5<Runtime>,
-		update_referenda_referendum_info::MigrateReferendumInfoFor,
-		frame_support::migrations::RemovePallet<DemocracyStr, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<CouncilStr, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<TechnicalCommitteeStr, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<PhragmenElectionStr, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<CouncilMembershipStr, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<TechnicalMembershipStr, RocksDbWeight>,
 	);
 }
 
