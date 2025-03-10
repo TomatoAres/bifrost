@@ -22,8 +22,9 @@ use crate::{Balances, Ismp, IsmpParachain, NativeCurrencyId, Runtime, RuntimeEve
 use crate::{BncDecimals, Currencies};
 use crate::{TokenGateway, Treasury};
 use bifrost_asset_registry::AssetIdMaps;
-use bifrost_primitives::{AccountId, Balance};
+use bifrost_primitives::{AccountId, Balance, CurrencyId, DOT_U};
 use frame_support::parameter_types;
+use frame_support::traits::fungible::ItemOf;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use sp_core::Get;
 use sp_std::boxed::Box;
@@ -42,6 +43,10 @@ parameter_types! {
 	pub const HostStateMachine: StateMachine = StateMachine::Kusama(2030); // polkadot
 }
 
+parameter_types! {
+	pub const StableCoin: CurrencyId = DOT_U;
+}
+
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
@@ -53,7 +58,7 @@ impl pallet_ismp::Config for Runtime {
 	type Router = Router;
 	type Balance = Balance;
 	// The token used to collect fees, only stablecoins are supported
-	type Currency = Balances;
+	type Currency = ItemOf<orml_tokens::Pallet<Runtime>, StableCoin, AccountId>;
 	// Co-processor
 	type Coprocessor = Coprocessor;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
