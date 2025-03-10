@@ -240,7 +240,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			let dispatcher = <T as Config>::Dispatcher::default();
-			let asset_id = SupportedAssets::<T>::get(params.asset_id.clone())
+			let asset_id = SupportedAssets::<T>::get(params.asset_id)
 				.ok_or_else(|| Error::<T>::UnregisteredAsset)?;
 			let decimals = if params.asset_id == T::NativeAssetId::get() {
 				// Custody funds in pallet
@@ -252,10 +252,10 @@ pub mod pallet {
 				)?;
 				T::Decimals::get()
 			} else {
-				let is_native = NativeAssets::<T>::get(params.asset_id.clone());
+				let is_native = NativeAssets::<T>::get(params.asset_id);
 				if is_native {
 					<T as Config>::Assets::transfer(
-						params.asset_id.clone(),
+						params.asset_id,
 						&who,
 						&Self::pallet_account(),
 						params.amount.into(),
@@ -264,7 +264,7 @@ pub mod pallet {
 				} else {
 					// Assets that do not originate from this chain are burned
 					<T as Config>::Assets::burn_from(
-						params.asset_id.clone(),
+						params.asset_id,
 						&who,
 						params.amount.into(),
 						Preservation::Expendable,
@@ -404,9 +404,9 @@ pub mod pallet {
 			// If the local asset id already exists we do not change it's metadata we only store
 			// the mapping to its token gateway asset id
 
-			SupportedAssets::<T>::insert(asset.local_id.clone(), asset_id.clone());
-			NativeAssets::<T>::insert(asset.local_id.clone(), native);
-			LocalAssets::<T>::insert(asset_id, asset.local_id.clone());
+			SupportedAssets::<T>::insert(asset.local_id, asset_id);
+			NativeAssets::<T>::insert(asset.local_id, native);
+			LocalAssets::<T>::insert(asset_id, asset.local_id);
 			// All ERC6160 assets use 18 decimals
 			Decimals::<T>::insert(asset.local_id, 18);
 
@@ -555,7 +555,7 @@ where
 				)
 				.into()
 		};
-		let erc_decimals = Decimals::<T>::get(local_asset_id.clone())
+		let erc_decimals = Decimals::<T>::get(local_asset_id)
 			.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
 		let amount = convert_to_balance(
 			U256::from_big_endian(&body.amount.to_be_bytes::<32>()),
@@ -588,7 +588,7 @@ where
 			})?;
 		} else {
 			// Assets that do not originate from this chain are minted
-			let is_native = NativeAssets::<T>::get(local_asset_id.clone());
+			let is_native = NativeAssets::<T>::get(local_asset_id);
 			if is_native {
 				<T as Config>::Assets::transfer(
 					local_asset_id,
@@ -723,7 +723,7 @@ where
 						)
 						.into()
 				};
-				let erc_decimals = Decimals::<T>::get(local_asset_id.clone())
+				let erc_decimals = Decimals::<T>::get(local_asset_id)
 					.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
 				let amount = convert_to_balance(
 					U256::from_big_endian(&body.amount.to_be_bytes::<32>()),
@@ -756,7 +756,7 @@ where
 					})?;
 				} else {
 					// Assets that do not originate from this chain are minted
-					let is_native = NativeAssets::<T>::get(local_asset_id.clone());
+					let is_native = NativeAssets::<T>::get(local_asset_id);
 					if is_native {
 						<T as Config>::Assets::transfer(
 							local_asset_id,
