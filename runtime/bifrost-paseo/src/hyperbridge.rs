@@ -17,8 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::governance::TechAdminOrRoot;
-use crate::{Balances, Ismp, IsmpParachain, NativeCurrencyId, Runtime, RuntimeEvent, Timestamp};
-use crate::{BncDecimals, Currencies};
+use crate::Currencies;
+use crate::{Balances, Ismp, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
 use crate::{TokenGateway, Treasury};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{AccountId, Balance};
@@ -104,19 +104,10 @@ impl pallet_token_gateway::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Configured as Pallet Ismp
 	type Dispatcher = Ismp;
-	// Configured as Pallet Assets
-	type Assets = Currencies;
 	// Configured as Pallet balances
-	type NativeCurrency = Balances;
+	type MultiCurrency = Currencies;
 	// AssetAdmin account
 	type AssetAdmin = AssetAdmin;
-	// The Native asset Id
-	type NativeAssetId = NativeCurrencyId;
-	// A type that provides a function for creating unique asset ids
-	// A concrete implementation for your specific runtime is required
-	type AssetIdFactory = ();
-	// The precision of the native asset
-	type Decimals = BncDecimals;
 	type ControlOrigin = TechAdminOrRoot;
 	type CurrencyIdConvert = AssetIdMaps<Runtime>;
 	type EvmToSubstrate = ();

@@ -20,60 +20,40 @@ extern crate alloc;
 
 pub mod impls;
 pub mod types;
-use crate::impls::{convert_to_balance, convert_to_erc20};
+use alloc::collections::BTreeMap;
+use alloc::{string::ToString, vec, vec::Vec};
 use alloy_sol_types::SolValue;
-use anyhow::anyhow;
-use frame_support::{
-	ensure,
-	pallet_prelude::Weight,
-	traits::{
-		fungibles::{self, Mutate},
-		tokens::{fungible::Mutate as FungibleMutate, Fortitude, Precision, Preservation},
-		Currency, ExistenceRequirement,
-	},
-};
-
+use bifrost_primitives::{AssetMetadata, CurrencyId, CurrencyIdMapping, TokenInfo};
+use codec::Encode;
+use frame_support::PalletId;
+use frame_support::{pallet_prelude::Weight, traits::tokens::fungible::Mutate as FungibleMutate};
+use frame_support::{pallet_prelude::*, traits::tokens::Preservation};
+use frame_system::ensure_signed;
+use frame_system::pallet_prelude::*;
 use ismp::{
-	events::Meta,
-	router::{PostRequest, Request, Response, Timeout},
+	dispatcher::{DispatchPost, DispatchRequest, FeeMetadata, IsmpDispatcher},
+	host::StateMachine,
 };
-
+use orml_traits::MultiCurrency;
+pub use pallet::*;
+use pallet_hyperbridge::PALLET_HYPERBRIDGE;
+use pallet_hyperbridge::{SubstrateHostParams, VersionedHostParams};
+use primitive_types::{H160, H256};
 use sp_core::{Get, U256};
+use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::Zero;
+use sp_runtime::{DispatchError, SaturatedConversion};
 use token_gateway_primitives::{token_gateway_id, token_governor_id};
+use token_gateway_primitives::{GatewayAssetUpdate, RemoteERC6160AssetRegistration};
 pub use types::*;
 
-use alloc::{string::ToString, vec, vec::Vec};
-use bifrost_primitives::{
-	AssetMetadata as AssetMetadataBifrost, CurrencyId, CurrencyIdMapping, TokenInfo,
-};
-use codec::{Decode, Encode};
-use frame_support::dispatch::RawOrigin;
-use ismp::module::IsmpModule;
-use primitive_types::{H160, H256};
-use sp_runtime::traits::Dispatchable;
-use sp_runtime::MultiSignature;
-// Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
+type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+	<T as frame_system::Config>::AccountId,
+>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use alloc::collections::BTreeMap;
-	use pallet_hyperbridge::PALLET_HYPERBRIDGE;
-	use sp_runtime::traits::AccountIdConversion;
-
 	use super::*;
-	use frame_support::{
-		pallet_prelude::*,
-		traits::{tokens::Preservation, Currency, ExistenceRequirement},
-	};
-	use frame_system::pallet_prelude::*;
-	use ismp::{
-		dispatcher::{DispatchPost, DispatchRequest, FeeMetadata, IsmpDispatcher},
-		host::StateMachine,
-	};
-	use pallet_hyperbridge::{SubstrateHostParams, VersionedHostParams};
-	use sp_runtime::traits::Zero;
-	use token_gateway_primitives::{GatewayAssetUpdate, RemoteERC6160AssetRegistration};
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -88,34 +68,20 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The [`IsmpDispatcher`] for dispatching cross-chain requests
-		type Dispatcher: IsmpDispatcher<Account = Self::AccountId, Balance = Self::Balance>;
+		type Dispatcher: IsmpDispatcher<Account = Self::AccountId, Balance = BalanceOf<Self>>;
 
-		/// A currency implementation for interacting with the native asset
-		type NativeCurrency: Currency<Self::AccountId>;
+		/// Currency operations handler
+		type MultiCurrency: MultiCurrency<Self::AccountId, CurrencyId = CurrencyId>;
 
 		/// A funded account that would be set as asset admin and also make payments for asset
 		/// creation
 		type AssetAdmin: Get<Self::AccountId>;
 
-		/// Fungible asset implementation
-		type Assets: fungibles::Mutate<Self::AccountId, AssetId = CurrencyId>
-			+ fungibles::Inspect<Self::AccountId, AssetId = CurrencyId>;
-
-		/// The native asset ID
-		type NativeAssetId: Get<AssetId<Self>>;
-
-		/// A trait that can be used to create new asset Ids
-		type AssetIdFactory: CreateAssetId<AssetId<Self>>;
-
-		/// The decimals of the native currency
-		#[pallet::constant]
-		type Decimals: Get<u8>;
-
 		/// Origin type that will be used to enforce permissions.
 		type ControlOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Convert Location to `T::CurrencyId`.
-		type CurrencyIdConvert: CurrencyIdMapping<CurrencyId, AssetMetadataBifrost<Self::Balance>>;
+		type CurrencyIdConvert: CurrencyIdMapping<CurrencyId, AssetMetadata<Self::Balance>>;
 
 		/// A trait that converts an evm address to a substrate account
 		type EvmToSubstrate: EvmToSubstrate<Self>;
@@ -125,21 +91,21 @@ pub mod pallet {
 	/// A map of the local asset id to the token gateway asset id
 	#[pallet::storage]
 	pub type SupportedAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetId<T>, H256, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, CurrencyId, H256, OptionQuery>;
 
 	/// Assets that originate from this chain
 	#[pallet::storage]
 	pub type NativeAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetId<T>, bool, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, CurrencyId, bool, ValueQuery>;
 
 	/// Assets supported by this instance of token gateway
 	/// A map of the token gateway asset id to the local asset id
 	#[pallet::storage]
-	pub type LocalAssets<T: Config> = StorageMap<_, Identity, H256, AssetId<T>, OptionQuery>;
+	pub type LocalAssets<T: Config> = StorageMap<_, Identity, H256, CurrencyId, OptionQuery>;
 
 	/// The decimals used by the EVM counterpart of this asset
 	#[pallet::storage]
-	pub type Decimals<T: Config> = StorageMap<_, Blake2_128Concat, AssetId<T>, u8, OptionQuery>;
+	pub type Decimals<T: Config> = StorageMap<_, Blake2_128Concat, CurrencyId, u8, OptionQuery>;
 
 	/// The token gateway adresses on different chains
 	#[pallet::storage]
@@ -157,9 +123,9 @@ pub mod pallet {
 			/// beneficiary account on destination
 			to: H256,
 			/// asset id on destination
-			asset_id: AssetId<T>,
+			asset_id: CurrencyId,
 			/// Amount transferred
-			amount: <<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
+			amount: BalanceOf<T>,
 			/// Destination chain
 			dest: StateMachine,
 			/// Request commitment
@@ -171,7 +137,7 @@ pub mod pallet {
 			/// beneficiary account on relaychain
 			beneficiary: T::AccountId,
 			/// Amount transferred
-			amount: <<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
+			amount: BalanceOf<T>,
 			/// Destination chain
 			source: StateMachine,
 		},
@@ -181,7 +147,7 @@ pub mod pallet {
 			/// beneficiary account on relaychain
 			beneficiary: T::AccountId,
 			/// Amount transferred
-			amount: <<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
+			amount: BalanceOf<T>,
 			/// Destination chain
 			source: StateMachine,
 		},
@@ -215,144 +181,29 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<T as frame_system::Config>::AccountId: From<[u8; 32]>,
-		u128: From<<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance>,
-		<T as pallet_ismp::Config>::Balance:
-			From<<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance>,
-		<<T as Config>::Assets as fungibles::Inspect<T::AccountId>>::Balance:
-			From<<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance>,
-		<<T as Config>::Assets as fungibles::Inspect<T::AccountId>>::Balance: From<u128>,
-		[u8; 32]: From<<T as frame_system::Config>::AccountId>,
-	{
+	impl<T: Config> Pallet<T> {
 		/// Teleports a registered asset
 		/// locks the asset and dispatches a request to token gateway on the destination
 		#[pallet::call_index(0)]
 		#[pallet::weight(weight())]
 		pub fn teleport(
 			origin: OriginFor<T>,
-			params: TeleportParams<
-				AssetId<T>,
-				<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
-			>,
+			params: TeleportParams<CurrencyId, BalanceOf<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			let dispatcher = <T as Config>::Dispatcher::default();
-			let asset_id = SupportedAssets::<T>::get(params.asset_id.clone())
-				.ok_or_else(|| Error::<T>::UnregisteredAsset)?;
-			let decimals = if params.asset_id == T::NativeAssetId::get() {
-				// Custody funds in pallet
-				<T as Config>::NativeCurrency::transfer(
-					&who,
-					&Self::pallet_account(),
-					params.amount,
-					ExistenceRequirement::AllowDeath,
-				)?;
-				T::Decimals::get()
-			} else {
-				let is_native = NativeAssets::<T>::get(params.asset_id.clone());
-				if is_native {
-					<T as Config>::Assets::transfer(
-						params.asset_id.clone(),
-						&who,
-						&Self::pallet_account(),
-						params.amount.into(),
-						Preservation::Expendable,
-					)?;
-				} else {
-					// Assets that do not originate from this chain are burned
-					<T as Config>::Assets::burn_from(
-						params.asset_id.clone(),
-						&who,
-						params.amount.into(),
-						Preservation::Expendable,
-						Precision::Exact,
-						Fortitude::Polite,
-					)?;
-				}
-				params
-					.asset_id
-					.decimals()
-					.unwrap_or(
-						T::CurrencyIdConvert::get_currency_metadata(params.asset_id)
-							.map_or(12, |metatata| metatata.decimals.into()),
-					)
-					.into()
-			};
-
-			let to = params.recepient.0;
-			let from: [u8; 32] = who.clone().into();
-			let erc_decimals = Decimals::<T>::get(params.asset_id)
-				.ok_or_else(|| Error::<T>::AssetDecimalsNotFound)?;
-
-			let body = match params.call_data {
-				Some(data) => {
-					let body = BodyWithCall {
-						amount: {
-							let amount: u128 = params.amount.into();
-							let mut bytes = [0u8; 32];
-							convert_to_erc20(amount, erc_decimals, decimals)
-								.to_big_endian(&mut bytes);
-							alloy_primitives::U256::from_be_bytes(bytes)
-						},
-						asset_id: asset_id.0.into(),
-						redeem: params.redeem,
-						from: from.into(),
-						to: to.into(),
-						data: data.into(),
-					};
-					// Prefix with the handleIncomingAsset enum variant
-					let mut encoded = vec![0];
-					encoded.extend_from_slice(&BodyWithCall::abi_encode(&body));
-					encoded
-				}
-				None => {
-					let body = Body {
-						amount: {
-							let amount: u128 = params.amount.into();
-							let mut bytes = [0u8; 32];
-							convert_to_erc20(amount, erc_decimals, decimals)
-								.to_big_endian(&mut bytes);
-							alloy_primitives::U256::from_be_bytes(bytes)
-						},
-						asset_id: asset_id.0.into(),
-						redeem: params.redeem,
-						from: from.into(),
-						to: to.into(),
-					};
-					// Prefix with the handleIncomingAsset enum variant
-					let mut encoded = vec![0];
-					encoded.extend_from_slice(&Body::abi_encode(&body));
-					encoded
-				}
-			};
-
-			let dispatch_post = DispatchPost {
-				dest: params.destination,
-				from: token_gateway_id().0.to_vec(),
-				to: params.token_gateway,
-				timeout: params.timeout,
-				body,
-			};
-
-			let metadata = FeeMetadata {
-				payer: who.clone(),
-				fee: params.relayer_fee.into(),
-			};
-			let commitment = dispatcher
-				.dispatch_request(DispatchRequest::Post(dispatch_post), metadata)
-				.map_err(|_| Error::<T>::AssetTeleportError)?;
-
-			Self::deposit_event(Event::<T>::AssetTeleported {
-				from: who,
-				to: params.recepient,
-				dest: params.destination,
-				asset_id: params.asset_id,
-				amount: params.amount,
-				commitment,
-			});
+			Self::do_teleport(
+				params.asset_id,
+				who.clone(),
+				params.recepient,
+				params.destination,
+				params.amount,
+				params.timeout,
+				params.call_data,
+				FeeMetadata {
+					payer: who,
+					fee: params.relayer_fee,
+				},
+			)?;
 			Ok(())
 		}
 
@@ -379,7 +230,7 @@ pub mod pallet {
 		#[pallet::weight(weight())]
 		pub fn create_erc6160_asset(
 			origin: OriginFor<T>,
-			asset: AssetRegistration<AssetId<T>>,
+			asset: AssetRegistration<CurrencyId>,
 			native: bool,
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
@@ -493,332 +344,200 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> IsmpModule for Pallet<T>
-where
-	<T as frame_system::Config>::AccountId: From<[u8; 32]>,
-	<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance: From<u128>,
-	<<T as Config>::Assets as fungibles::Inspect<T::AccountId>>::Balance: From<u128>,
-{
-	fn on_accept(
-		&self,
-		PostRequest {
-			body,
-			from,
-			source,
-			dest,
-			nonce,
-			..
-		}: PostRequest,
-	) -> Result<(), anyhow::Error> {
-		ensure!(
-			from == TokenGatewayAddresses::<T>::get(source)
-				.unwrap_or_default()
-				.to_vec() || from == token_gateway_id().0.to_vec(),
-			ismp::error::Error::ModuleDispatchError {
-				msg: "Token Gateway: Unknown source contract address".to_string(),
-				meta: Meta {
-					source,
-					dest,
-					nonce
-				},
-			}
+impl<T: Config> Pallet<T> {
+	pub fn pallet_account() -> T::AccountId {
+		let mut inner = [0u8; 8];
+		inner.copy_from_slice(&token_gateway_id().0[0..8]);
+		PalletId(inner).into_account_truncating()
+	}
+
+	pub fn is_token_gateway(id: &[u8]) -> bool {
+		id == &token_gateway_id().0
+	}
+
+	pub fn do_teleport(
+		currency_id: CurrencyId,
+		sender: T::AccountId,
+		recepient: H256,
+		dest: StateMachine,
+		amount: BalanceOf<T>,
+		timeout: u64,
+		data: Option<Vec<u8>>,
+		fee_metadata: FeeMetadata<T::AccountId, BalanceOf<T>>,
+	) -> Result<H256, DispatchError> {
+		let dispatcher = <T as Config>::Dispatcher::default();
+		let asset_id =
+			SupportedAssets::<T>::get(currency_id).ok_or_else(|| Error::<T>::UnregisteredAsset)?;
+
+		let decimals = currency_id.decimals().unwrap_or(
+			T::CurrencyIdConvert::get_currency_metadata(currency_id)
+				.map_or(12, |metadata| metadata.decimals.into()),
 		);
 
-		let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
-			body.into()
-		} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
-			body.into()
+		let is_native = NativeAssets::<T>::get(currency_id);
+		let redeem = !is_native;
+		if is_native {
+			T::MultiCurrency::transfer(currency_id, &sender, &Self::pallet_account(), amount)?;
 		} else {
-			Err(anyhow!("Token Gateway: Failed to decode request body"))?
-		};
-
-		let local_asset_id =
-			LocalAssets::<T>::get(H256::from(body.asset_id.0)).ok_or_else(|| {
-				ismp::error::Error::ModuleDispatchError {
-					msg: "Token Gateway: Unknown asset".to_string(),
-					meta: Meta {
-						source,
-						dest,
-						nonce,
-					},
-				}
-			})?;
-
-		let decimals = if local_asset_id == T::NativeAssetId::get() {
-			T::Decimals::get()
-		} else {
-			local_asset_id
-				.decimals()
-				.unwrap_or(
-					T::CurrencyIdConvert::get_currency_metadata(local_asset_id)
-						.map_or(12, |metatata| metatata.decimals.into()),
-				)
-				.into()
-		};
-		let erc_decimals = Decimals::<T>::get(local_asset_id.clone())
-			.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
-		let amount = convert_to_balance(
-			U256::from_big_endian(&body.amount.to_be_bytes::<32>()),
-			erc_decimals,
-			decimals,
-		)
-		.map_err(|_| ismp::error::Error::ModuleDispatchError {
-			msg: "Token Gateway: Trying to withdraw Invalid amount".to_string(),
-			meta: Meta {
-				source,
-				dest,
-				nonce,
-			},
-		})?;
-		let beneficiary: T::AccountId = body.to.0.into();
-		if local_asset_id == T::NativeAssetId::get() {
-			<T as Config>::NativeCurrency::transfer(
-				&Pallet::<T>::pallet_account(),
-				&beneficiary,
-				amount.into(),
-				ExistenceRequirement::AllowDeath,
-			)
-			.map_err(|_| ismp::error::Error::ModuleDispatchError {
-				msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-				meta: Meta {
-					source,
-					dest,
-					nonce,
-				},
-			})?;
-		} else {
-			// Assets that do not originate from this chain are minted
-			let is_native = NativeAssets::<T>::get(local_asset_id.clone());
-			if is_native {
-				<T as Config>::Assets::transfer(
-					local_asset_id,
-					&Pallet::<T>::pallet_account(),
-					&beneficiary,
-					amount.into(),
-					Preservation::Expendable,
-				)
-				.map_err(|_| ismp::error::Error::ModuleDispatchError {
-					msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-					meta: Meta {
-						source,
-						dest,
-						nonce,
-					},
-				})?;
-			} else {
-				<T as Config>::Assets::mint_into(local_asset_id, &beneficiary, amount.into())
-					.map_err(|_| ismp::error::Error::ModuleDispatchError {
-						msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-						meta: Meta {
-							source,
-							dest,
-							nonce,
-						},
-					})?;
-			}
+			// Assets that do not originate from this chain are burned
+			T::MultiCurrency::withdraw(currency_id, &sender, amount)?;
 		}
 
-		if let Some(call_data) = body.data {
-			let substrate_data = SubstrateCalldata::decode(&mut &call_data.0[..])
-				.map_err(|_| anyhow!("Failed to decode substrate_data"))?;
-			// Verify signature against encoded runtime call
-			let nonce = frame_system::Pallet::<T>::account_nonce(beneficiary.clone());
-			let payload = (nonce, substrate_data.runtime_call.clone()).encode();
-			let message = sp_io::hashing::keccak_256(&payload);
-			let multi_signature = MultiSignature::decode(&mut &*substrate_data.signature)
-				.map_err(|_| anyhow!("Failed to decode multi_signature"))?;
-			match multi_signature {
-				MultiSignature::Ed25519(sig) => {
-					let pub_key = body.to.0.as_slice().try_into().map_err(|_| {
-						anyhow!("Failed to decode beneficiary as Ed25519 public key")
-					})?;
-					if !sp_io::crypto::ed25519_verify(&sig, message.as_ref(), &pub_key) {
-						Err(anyhow!(
-							"Failed to verify ed25519 signature before dispatching token gateway call"
-						))?
-					}
-				}
-				MultiSignature::Sr25519(sig) => {
-					let pub_key = body.to.0.as_slice().try_into().map_err(|_| {
-						anyhow!("Failed to decode beneficiary as Sr25519 public key")
-					})?;
-					if !sp_io::crypto::sr25519_verify(&sig, message.as_ref(), &pub_key) {
-						Err(anyhow!(
-							"Failed to verify sr25519 signature before dispatching token gateway call"
-						))?
-					}
-				}
-				MultiSignature::Ecdsa(sig) => {
-					let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig.0, &message)
-						.map_err(|_| {
-							anyhow!("Failed to recover ecdsa public key from signature")
-						})?;
-					let eth_address =
-						H160::from_slice(&sp_io::hashing::keccak_256(&pub_key[..])[12..]);
-					let substrate_account = T::EvmToSubstrate::convert(eth_address);
-					if substrate_account != beneficiary {
-						Err(anyhow!(
-							"Failed to verify signature before dispatching token gateway call"
-						))?
-					}
-				}
-			}
-			let runtime_call = <<T as frame_system::Config>::RuntimeCall as codec::Decode>::decode(
-				&mut &*substrate_data.runtime_call,
-			)
-			.map_err(|_| anyhow!("Failed to decode runtime_call"))?;
-			runtime_call
-				.dispatch(RawOrigin::Signed(beneficiary.clone()).into())
-				.map_err(|e| anyhow!("Call dispatch executed with error {:?}", e.error))?;
-			// Increase account nonce to ensure the call cannot be replayed
-			frame_system::Pallet::<T>::inc_account_nonce(beneficiary.clone());
-		}
+		let to = recepient.0;
+		let from: [u8; 32] = sender.encode().try_into().unwrap();
+		let erc_decimals =
+			Decimals::<T>::get(currency_id).ok_or_else(|| Error::<T>::AssetDecimalsNotFound)?;
 
-		Self::deposit_event(Event::<T>::AssetReceived {
-			beneficiary,
-			amount: amount.into(),
-			source,
+		let body = match data {
+			Some(data) => {
+				let body = BodyWithCall {
+					amount: {
+						let amount: u128 = amount.saturated_into::<u128>();
+						let mut bytes = [0u8; 32];
+						convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
+						alloy_primitives::U256::from_be_bytes(bytes)
+					},
+					asset_id: asset_id.0.into(),
+					redeem,
+					from: from.into(),
+					to: to.into(),
+					data: data.into(),
+				};
+				// Prefix with the handleIncomingAsset enum variant
+				let mut encoded = vec![0];
+				encoded.extend_from_slice(&BodyWithCall::abi_encode(&body));
+				encoded
+			}
+			None => {
+				let body = Body {
+					amount: {
+						let amount: u128 = amount.saturated_into::<u128>();
+						let mut bytes = [0u8; 32];
+						convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
+						alloy_primitives::U256::from_be_bytes(bytes)
+					},
+					asset_id: asset_id.0.into(),
+					redeem,
+					from: from.into(),
+					to: to.into(),
+				};
+				// Prefix with the handleIncomingAsset enum variant
+				let mut encoded = vec![0];
+				encoded.extend_from_slice(&Body::abi_encode(&body));
+				encoded
+			}
+		};
+
+		let token_gateway_address =
+			TokenGatewayAddresses::<T>::get(dest).ok_or_else(|| Error::<T>::UnregisteredAsset)?;
+
+		let dispatch_post = DispatchPost {
+			dest,
+			from: token_gateway_id().0.to_vec(),
+			to: token_gateway_address,
+			timeout,
+			body,
+		};
+
+		let commitment = dispatcher
+			.dispatch_request(DispatchRequest::Post(dispatch_post), fee_metadata)
+			.map_err(|_| Error::<T>::AssetTeleportError)?;
+
+		Self::deposit_event(Event::<T>::AssetTeleported {
+			from: sender,
+			to: recepient,
+			dest,
+			asset_id: currency_id,
+			amount,
+			commitment,
 		});
-		Ok(())
+		Ok(commitment)
 	}
+}
 
-	fn on_response(&self, _response: Response) -> Result<(), anyhow::Error> {
-		Err(anyhow!("Module does not accept responses".to_string()))
-	}
+/// Converts an ERC20 U256 to a u128
+pub fn convert_to_balance(
+	value: U256,
+	erc_decimals: u8,
+	final_decimals: u8,
+) -> Result<u128, anyhow::Error> {
+	let dec_str = (value
+		/ U256::from(10u128.pow(erc_decimals.saturating_sub(final_decimals) as u32)))
+	.to_string();
+	dec_str.parse().map_err(|e| anyhow::anyhow!("{e:?}"))
+}
 
-	fn on_timeout(&self, request: Timeout) -> Result<(), anyhow::Error> {
-		match request {
-			Timeout::Request(Request::Post(PostRequest {
-				body,
-				source,
-				dest,
-				nonce,
-				..
-			})) => {
-				let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
-					body.into()
-				} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
-					body.into()
-				} else {
-					Err(anyhow!("Token Gateway: Failed to decode request body"))?
-				};
-				let beneficiary = body.from.0.into();
-				let local_asset_id = LocalAssets::<T>::get(H256::from(body.asset_id.0))
-					.ok_or_else(|| ismp::error::Error::ModuleDispatchError {
-						msg: "Token Gateway: Unknown asset".to_string(),
-						meta: Meta {
-							source,
-							dest,
-							nonce,
-						},
-					})?;
-				let decimals = if local_asset_id == T::NativeAssetId::get() {
-					T::Decimals::get()
-				} else {
-					local_asset_id
-						.decimals()
-						.unwrap_or(
-							T::CurrencyIdConvert::get_currency_metadata(local_asset_id)
-								.map_or(12, |metatata| metatata.decimals.into()),
-						)
-						.into()
-				};
-				let erc_decimals = Decimals::<T>::get(local_asset_id.clone())
-					.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
-				let amount = convert_to_balance(
-					U256::from_big_endian(&body.amount.to_be_bytes::<32>()),
-					erc_decimals,
-					decimals,
-				)
-				.map_err(|_| ismp::error::Error::ModuleDispatchError {
-					msg: "Token Gateway: Trying to withdraw Invalid amount".to_string(),
-					meta: Meta {
-						source,
-						dest,
-						nonce,
-					},
-				})?;
+/// Converts a u128 to an Erc20 denomination
+pub fn convert_to_erc20(value: u128, erc_decimals: u8, decimals: u8) -> U256 {
+	U256::from(value) * U256::from(10u128.pow(erc_decimals.saturating_sub(decimals) as u32))
+}
 
-				if local_asset_id == T::NativeAssetId::get() {
-					<T as Config>::NativeCurrency::transfer(
-						&Pallet::<T>::pallet_account(),
-						&beneficiary,
-						amount.into(),
-						ExistenceRequirement::AllowDeath,
-					)
-					.map_err(|_| ismp::error::Error::ModuleDispatchError {
-						msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-						meta: Meta {
-							source,
-							dest,
-							nonce,
-						},
-					})?;
-				} else {
-					// Assets that do not originate from this chain are minted
-					let is_native = NativeAssets::<T>::get(local_asset_id.clone());
-					if is_native {
-						<T as Config>::Assets::transfer(
-							local_asset_id,
-							&Pallet::<T>::pallet_account(),
-							&beneficiary,
-							amount.into(),
-							Preservation::Expendable,
-						)
-						.map_err(|_| ismp::error::Error::ModuleDispatchError {
-							msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-							meta: Meta {
-								source,
-								dest,
-								nonce,
-							},
-						})?;
-					} else {
-						<T as Config>::Assets::mint_into(
-							local_asset_id,
-							&beneficiary,
-							amount.into(),
-						)
-						.map_err(|_| ismp::error::Error::ModuleDispatchError {
-							msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-							meta: Meta {
-								source,
-								dest,
-								nonce,
-							},
-						})?;
-					}
-				}
-
-				Pallet::<T>::deposit_event(Event::<T>::AssetRefunded {
-					beneficiary,
-					amount: amount.into(),
-					source: dest,
-				});
-			}
-			Timeout::Request(Request::Get(get)) => Err(ismp::error::Error::ModuleDispatchError {
-				msg: "Tried to timeout unsupported request type".to_string(),
-				meta: Meta {
-					source: get.source,
-					dest: get.dest,
-					nonce: get.nonce,
-				},
-			})?,
-
-			Timeout::Response(response) => Err(ismp::error::Error::ModuleDispatchError {
-				msg: "Tried to timeout unsupported request type".to_string(),
-				meta: Meta {
-					source: response.source_chain(),
-					dest: response.dest_chain(),
-					nonce: response.nonce(),
-				},
-			})?,
-		}
-		Ok(())
-	}
+pub fn h160_to_h256(h160: H160) -> H256 {
+	let mut result = [0u8; 32];
+	result[12..32].copy_from_slice(h160.as_bytes());
+	H256::from(result)
 }
 
 /// Static weights because benchmarks suck, and we'll be getting PolkaVM soon anyways
 fn weight() -> Weight {
 	Weight::from_parts(300_000_000, 0)
+}
+
+#[cfg(test)]
+mod tests {
+	use sp_core::U256;
+	use sp_runtime::Permill;
+	use std::ops::Mul;
+
+	use super::{convert_to_balance, convert_to_erc20};
+
+	#[test]
+	fn test_per_mill() {
+		let per_mill = Permill::from_parts(1_000);
+
+		println!("{}", per_mill.mul(20_000_000u128));
+	}
+
+	#[test]
+	fn balance_conversions() {
+		let supposedly_small_u256 = U256::from_dec_str("1000000000000000000").unwrap();
+		// convert erc20 value to dot value
+		let converted_balance = convert_to_balance(supposedly_small_u256, 18, 10).unwrap();
+		println!("{}", converted_balance);
+
+		let dot = 10_000_000_000u128;
+
+		assert_eq!(converted_balance, dot);
+
+		// Convert 1 dot to erc20
+
+		let dot = 10_000_000_000u128;
+		let erc_20_val = convert_to_erc20(dot, 18, 10);
+		assert_eq!(
+			erc_20_val,
+			U256::from_dec_str("1000000000000000000").unwrap()
+		);
+
+		// Convert 6 decimal ERC 20
+		let supposedly_small_u256 = U256::from_dec_str("1000000000000000000").unwrap();
+		// convert erc20 value to 18 decimal value
+		let converted_balance = convert_to_balance(supposedly_small_u256, 6, 18).unwrap();
+		println!("{}", converted_balance);
+	}
+
+	#[test]
+	fn max_value_check() {
+		let max = U256::MAX;
+
+		let converted_balance = convert_to_balance(max, 18, 10);
+		assert!(converted_balance.is_err())
+	}
+
+	#[test]
+	fn min_value_check() {
+		let min = U256::from(1u128);
+
+		let converted_balance = convert_to_balance(min, 18, 10).unwrap();
+		assert_eq!(converted_balance, 0);
+	}
 }
