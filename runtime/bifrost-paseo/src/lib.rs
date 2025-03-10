@@ -131,8 +131,8 @@ use sp_runtime::{
 	transaction_validity::TransactionValidityError,
 };
 use xcm::{
-	v3::MultiLocation, v4::prelude::*, VersionedAssetId, VersionedAssets, VersionedLocation,
-	VersionedXcm,
+	v3::MultiLocation, v4::prelude::*, Version as XcmVersion, VersionedAssetId, VersionedAssets,
+	VersionedLocation, VersionedXcm,
 };
 pub use xcm_config::{BifrostTreasuryAccount, MultiCurrency};
 use xcm_executor::{traits::QueryHandler, XcmExecutor};
@@ -150,9 +150,6 @@ use ismp::{
 	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
 	router::{Request, Response},
 };
-use pallet_ismp::offchain::Leaf;
-use pallet_ismp::offchain::Proof;
-use pallet_ismp::offchain::ProofKeys;
 use xcm::IntoVersion;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -2182,13 +2179,6 @@ impl_runtime_apis! {
 			pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
 		}
 
-		/// Generate a proof for the provided leaf indices
-		fn generate_proof(
-			keys: ProofKeys
-		) -> Result<(Vec<Leaf>, Proof<<Block as BlockT>::Hash>), sp_mmr_primitives::Error> {
-			pallet_ismp::Pallet::<Runtime>::generate_proof(keys)
-		}
-
 		/// Fetch all ISMP events in the block, should only be called from runtime-api.
 		fn block_events() -> Vec<::ismp::events::Event> {
 			pallet_ismp::Pallet::<Runtime>::block_events()
@@ -2349,8 +2339,8 @@ impl_runtime_apis! {
 	}
 
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
-		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call)
+		fn dry_run_call(origin: OriginCaller, call: RuntimeCall, result_xcms_version: XcmVersion) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call, result_xcms_version)
 		}
 
 		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {

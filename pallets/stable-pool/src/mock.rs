@@ -293,14 +293,6 @@ impl bifrost_vtoken_minting::Config for Test {
 	type BlockNumberProvider = System;
 }
 
-pub struct Slp;
-// Functions to be called by other pallets.
-impl SlpOperator<CurrencyId> for Slp {
-	fn all_delegation_requests_occupied(_currency_id: CurrencyId) -> bool {
-		true
-	}
-}
-
 impl pallet_xcm::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type ExecuteXcmOrigin = xcm_builder::EnsureXcmOrigin<RuntimeOrigin, ()>;

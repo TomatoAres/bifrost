@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::governance::TechAdminOrRoot;
+use crate::weights::ismp_parachain as ismp_parachain_weight;
 use crate::{Balances, Ismp, IsmpParachain, NativeCurrencyId, Runtime, RuntimeEvent, Timestamp};
 use crate::{BncDecimals, Currencies};
 use crate::{TokenGateway, Treasury};
@@ -65,6 +66,8 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
+	// type WeightInfo = weights::ismp_parachain::WeightInfo<Runtime>;
+	type WeightInfo = ismp_parachain_weight::WeightInfo<Runtime>;
 }
 
 #[derive(Default)]

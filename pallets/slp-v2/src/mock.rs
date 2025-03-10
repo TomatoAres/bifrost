@@ -21,7 +21,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::DOT, Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount,
 	BlockNumber, CommissionPalletId, CurrencyId, IncentivePoolAccount, MockXcmRouter,
-	MockXcmTransfer, SlpOperator, SlpxOperator, BNC,
+	MockXcmTransfer, SlpxOperator, BNC,
 };
 use frame_support::{
 	derive_impl,
@@ -220,13 +220,6 @@ pub struct SlpxInterface;
 impl SlpxOperator<Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
-	}
-}
-
-pub struct MockSlp;
-impl SlpOperator<CurrencyId> for MockSlp {
-	fn all_delegation_requests_occupied(_currency_id: CurrencyId) -> bool {
-		true
 	}
 }
 
