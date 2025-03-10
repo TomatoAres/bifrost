@@ -29,6 +29,7 @@ use bifrost_primitives::{
 	OraclePriceProvider,
 };
 use core::ops::Mul;
+use fp_evm::AccountProvider;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::{
 	tokens::{Fortitude, Preservation},
@@ -97,7 +98,7 @@ where
 	T: Config,
 	R: Runner<T>,
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
-	B: AccountFeeCurrencyBalanceInCurrency<T::AccountId, Output = (Balance, Weight)>,
+	B: AccountFeeCurrencyBalanceInCurrency<pallet_evm::AccountIdOf<T>, Output = (Balance, Weight)>,
 {
 	type Error = R::Error;
 
@@ -120,7 +121,7 @@ where
 
 		let evm_currency = WethAssetId::get();
 		let account_id = T::AddressMapping::into_account_id(source);
-		let account_nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
+		let account_nonce = T::AccountProvider::account_nonce(&account_id);
 
 		let (balance, b_weight) = match B::get_balance_in_currency(
 			evm_currency,

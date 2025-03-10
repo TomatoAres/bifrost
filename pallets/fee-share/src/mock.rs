@@ -298,13 +298,6 @@ impl OraclePriceProvider for MockOraclePriceProvider {
 	}
 }
 
-pub struct ParaInfo;
-impl Get<ParaId> for ParaInfo {
-	fn get() -> ParaId {
-		ParaId::from(2001)
-	}
-}
-
 pub struct ParachainId;
 impl Get<ParaId> for ParachainId {
 	fn get() -> ParaId {

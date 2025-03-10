@@ -50,6 +50,7 @@ where
 	R::Nonce: Into<U256>,
 	AccountId: From<R::AccountId>,
 	R::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
+	R::AddressMapping: pallet_evm::AddressMapping<R::AccountId>,
 {
 	fn validate_permit(
 		source: H160,

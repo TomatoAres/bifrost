@@ -58,7 +58,7 @@ fn check_vesting_status() {
 			assert_eq!(user2_free_balance, BOB_INIT_BALANCE); // Account 2 has free balance
 			assert_eq!(user3_free_balance, CHAR_INIT_BALANCE); // Account 3 has free balance
 
-			let s = Balances::locks(ALICE).to_vec()[0].amount;
+			let s = Balances::locks(&ALICE).to_vec()[0].amount;
 			println!("{:?}", s);
 			println!("{:?}", b"vesting ");
 
@@ -208,9 +208,9 @@ fn do_vest_should_work() {
 			assert_eq!(System::block_number(), 5);
 
 			//check alice
-			let alice_locked_1 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_1 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_ok!(Vesting::vest(RawOrigin::Signed(ALICE).into()));
-			let alice_locked_2 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_2 = Balances::locks(&ALICE).to_vec()[0].amount;
 
 			assert_eq!(alice_locked_1 - 5 * ALICE_PER_BLOCK, alice_locked_2);
 
@@ -225,10 +225,10 @@ fn do_vest_should_work() {
 				Vesting::vesting_balance(&ALICE),
 				Some(ALICE_INIT_LOCKED - 5 * ALICE_PER_BLOCK + 10000 - 3 * 1000)
 			);
-			let alice_locked_3 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_3 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_eq!(alice_locked_2 + 10000 - 3 * 1000, alice_locked_3);
 			assert_ok!(Vesting::vest(RawOrigin::Signed(ALICE).into()));
-			let alice_locked_4 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_4 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_eq!(alice_locked_3, alice_locked_4);
 		})
 }
@@ -258,9 +258,9 @@ fn do_vest_with_cliff_should_work() {
 			assert_eq!(System::block_number(), 5);
 
 			//check alice
-			let alice_locked_1 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_1 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_ok!(Vesting::vest(RawOrigin::Signed(ALICE).into()));
-			let alice_locked_2 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_2 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_eq!(alice_locked_1 - 5 * ALICE_PER_BLOCK, alice_locked_2);
 		})
 }
@@ -279,9 +279,9 @@ fn do_vest_with_start_at_should_work() {
 			assert_eq!(System::block_number(), 5);
 
 			//check alice
-			let alice_locked_1 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_1 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_ok!(Vesting::vest(RawOrigin::Signed(ALICE).into()));
-			let alice_locked_2 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_2 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_eq!(alice_locked_1 - 2 * ALICE_PER_BLOCK, alice_locked_2);
 
 			//set start_at to 3
@@ -291,9 +291,9 @@ fn do_vest_with_start_at_should_work() {
 			System::set_block_number(10);
 			assert_eq!(System::block_number(), 10);
 			//check alice
-			let alice_locked_3 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_3 = Balances::locks(&ALICE).to_vec()[0].amount;
 			assert_ok!(Vesting::vest(RawOrigin::Signed(ALICE).into()));
-			let alice_locked_4 = Balances::locks(ALICE).to_vec()[0].amount;
+			let alice_locked_4 = Balances::locks(&ALICE).to_vec()[0].amount;
 
 			//check current locked = 5 * alice_pre_block , before vest 2 * alice_pre_block , now vest 3
 			// * alice_pre_block
@@ -315,7 +315,7 @@ fn set_vesting_per_block_should_work() {
 			assert_eq!(System::block_number(), 5);
 
 			//check bob
-			let alice_locked_1 = Balances::locks(BOB).to_vec()[0].amount;
+			let alice_locked_1 = Balances::locks(&BOB).to_vec()[0].amount;
 			assert_eq!(alice_locked_1, BOB_INIT_LOCKED);
 
 			//set vesting_per_block to 100
@@ -337,7 +337,7 @@ fn set_vesting_per_block_should_work() {
 			System::set_block_number(15);
 			assert_eq!(System::block_number(), 15);
 
-			let bob_locked_1 = Balances::locks(BOB).to_vec()[0].amount;
+			let bob_locked_1 = Balances::locks(&BOB).to_vec()[0].amount;
 
 			//set vesting_per_block to 10
 			assert_ok!(Vesting::set_vesting_per_block(
@@ -355,7 +355,7 @@ fn set_vesting_per_block_should_work() {
 				vesting::<Test>::get(&BOB).unwrap().to_vec(),
 				vec![user_vesting_schedule_2]
 			);
-			let bob_locked_2 = Balances::locks(BOB).to_vec()[0].amount;
+			let bob_locked_2 = Balances::locks(&BOB).to_vec()[0].amount;
 			assert_eq!(bob_locked_1 - 5 * 100, bob_locked_2);
 		})
 }
@@ -374,7 +374,7 @@ fn set_vesting_per_block_with_start_at_should_work() {
 			assert_eq!(System::block_number(), 5);
 
 			//check bob
-			let alice_locked_1 = Balances::locks(BOB).to_vec()[0].amount;
+			let alice_locked_1 = Balances::locks(&BOB).to_vec()[0].amount;
 			assert_eq!(alice_locked_1, BOB_INIT_LOCKED);
 
 			//set vesting_per_block to 100
@@ -396,7 +396,7 @@ fn set_vesting_per_block_with_start_at_should_work() {
 			System::set_block_number(15);
 			assert_eq!(System::block_number(), 15);
 
-			let bob_locked_1 = Balances::locks(BOB).to_vec()[0].amount;
+			let bob_locked_1 = Balances::locks(&BOB).to_vec()[0].amount;
 
 			//set vesting_per_block to 10
 			assert_ok!(Vesting::set_vesting_per_block(
@@ -414,7 +414,7 @@ fn set_vesting_per_block_with_start_at_should_work() {
 				vesting::<Test>::get(&BOB).unwrap().to_vec(),
 				vec![user_vesting_schedule_2]
 			);
-			let bob_locked_2 = Balances::locks(BOB).to_vec()[0].amount;
+			let bob_locked_2 = Balances::locks(&BOB).to_vec()[0].amount;
 			assert_eq!(bob_locked_1 - 3 * 100, bob_locked_2);
 		})
 }
@@ -456,7 +456,7 @@ fn repeatedly_set_vesting_per_block_should_work() {
 			assert_eq!(System::block_number(), 5);
 
 			//check bob
-			let alice_locked_1 = Balances::locks(BOB).to_vec()[0].amount;
+			let alice_locked_1 = Balances::locks(&BOB).to_vec()[0].amount;
 			assert_eq!(alice_locked_1, 40000);
 
 			//error OutOfBounds
@@ -487,7 +487,7 @@ fn repeatedly_set_vesting_per_block_should_work() {
 			System::set_block_number(15);
 			assert_eq!(System::block_number(), 15);
 
-			let bob_locked_1 = Balances::locks(BOB).to_vec()[0].amount;
+			let bob_locked_1 = Balances::locks(&BOB).to_vec()[0].amount;
 
 			//set vesting_per_block to 10
 			assert_ok!(Vesting::set_vesting_per_block(
@@ -510,7 +510,7 @@ fn repeatedly_set_vesting_per_block_should_work() {
 				]
 			);
 
-			let bob_locked_2 = Balances::locks(BOB).to_vec()[0].amount;
+			let bob_locked_2 = Balances::locks(&BOB).to_vec()[0].amount;
 			assert_eq!(bob_locked_1 - 3 * 1000 - 100, bob_locked_2);
 		})
 }
@@ -570,7 +570,7 @@ fn merge_schedules_has_not_started_should_work() {
 				vesting::<Test>::get(&BOB).unwrap().to_vec(),
 				vec![VestingInfo::new(BOB_INIT_LOCKED * 2, 2000, 12)]
 			);
-			assert_eq!(40000, Balances::locks(BOB).to_vec()[0].amount);
+			assert_eq!(40000, Balances::locks(&BOB).to_vec()[0].amount);
 		})
 }
 
@@ -614,7 +614,7 @@ fn merge_ongoing_schedules_should_work() {
 				vesting::<Test>::get(&BOB).unwrap().to_vec(),
 				vec![VestingInfo::new(BOB_INIT_LOCKED, 1000, 40)]
 			);
-			assert_eq!(12000, Balances::locks(BOB).to_vec()[0].amount);
+			assert_eq!(12000, Balances::locks(&BOB).to_vec()[0].amount);
 		})
 }
 
@@ -652,7 +652,7 @@ fn merge_finished_schedules_should_work() {
 			));
 
 			assert_eq!(vesting::<Test>::get(&BOB), None);
-			assert_eq!(0, Balances::locks(BOB).to_vec().len());
+			assert_eq!(0, Balances::locks(&BOB).to_vec().len());
 		})
 }
 

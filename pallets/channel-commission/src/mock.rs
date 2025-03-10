@@ -23,8 +23,7 @@ use crate as bifrost_channel_commission;
 use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::OnInitialize;
 use bifrost_primitives::{
 	currency::{ASG, BNC, KSM},
-	CommissionPalletId, CurrencyId, MockXcmTransfer, MoonbeamChainId, RedeemType,
-	VTokenSupplyProvider, VtokenMintingInterface,
+	CommissionPalletId, CurrencyId, RedeemType, VtokenMintingInterface,
 };
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::{
