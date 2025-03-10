@@ -388,10 +388,10 @@ fn movr() {
 				VMOVR,
 				10000000000000000000
 			));
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(MOVR), TimeUnit::Round(2));
 			assert_eq!(
 				OngoingTimeUnit::<Runtime>::get(MOVR),
@@ -504,10 +504,10 @@ fn eth() {
 				V_WETH,
 				10000000000000000000
 			));
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(WETH), TimeUnit::Round(2));
 			assert_eq!(
 				OngoingTimeUnit::<Runtime>::get(WETH),
@@ -572,11 +572,11 @@ fn hook() {
 				1
 			));
 			assert_eq!(UnlockDuration::<Runtime>::get(KSM), Some(TimeUnit::Era(1)));
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(KSM), TimeUnit::Era(4));
 			assert_ok!(VtokenMinting::increase_token_pool(KSM, 1000));
 			assert_ok!(VtokenMinting::mint(
@@ -606,9 +606,9 @@ fn hook() {
 			));
 			let (entrance_account, _exit_account) = VtokenMinting::get_entrance_and_exit_accounts();
 			assert_eq!(Tokens::free_balance(KSM, &entrance_account), 300);
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(KSM), TimeUnit::Era(4));
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(KSM, 0), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(KSM, 1), None);
 			assert_eq!(
@@ -626,9 +626,9 @@ fn hook() {
 				KSM,
 				TimeUnit::Era(5)
 			));
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(0);
-			VtokenMinting::on_initialize(1);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(0, Weight::MAX);
+			VtokenMinting::on_idle(1, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(KSM), TimeUnit::Era(6));
 			assert_eq!(UnlockingTotal::<Runtime>::get(KSM), 0);
 			assert_ok!(VtokenMinting::mint(
@@ -639,7 +639,7 @@ fn hook() {
 				None
 			));
 			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
-			VtokenMinting::on_initialize(0);
+			VtokenMinting::on_idle(0, Weight::MAX);
 			assert_eq!(
 				TokenUnlockLedger::<Runtime>::get(KSM, 2),
 				Some((BOB, 100, TimeUnit::Era(6), RedeemType::Native))
@@ -763,11 +763,11 @@ fn fast_redeem_for_fil() {
 				UnlockDuration::<Runtime>::get(FIL),
 				Some(TimeUnit::Kblock(1))
 			);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(FIL), TimeUnit::Kblock(4));
 			assert_ok!(VtokenMinting::increase_token_pool(FIL, 1000));
 			assert_ok!(VtokenMinting::mint(
@@ -797,9 +797,9 @@ fn fast_redeem_for_fil() {
 			));
 			let (entrance_account, _exit_account) = VtokenMinting::get_entrance_and_exit_accounts();
 			assert_eq!(Tokens::free_balance(FIL, &entrance_account), 300);
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(FIL), TimeUnit::Kblock(4));
-			VtokenMinting::on_initialize(100);
+			VtokenMinting::on_idle(100, Weight::MAX);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(FIL, 0), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(FIL, 1), None);
 			assert_eq!(
@@ -817,9 +817,9 @@ fn fast_redeem_for_fil() {
 				FIL,
 				TimeUnit::Kblock(5)
 			));
-			VtokenMinting::on_initialize(100);
-			VtokenMinting::on_initialize(0);
-			VtokenMinting::on_initialize(1);
+			VtokenMinting::on_idle(100, Weight::MAX);
+			VtokenMinting::on_idle(0, Weight::MAX);
+			VtokenMinting::on_idle(1, Weight::MAX);
 			assert_eq!(MinTimeUnit::<Runtime>::get(FIL), TimeUnit::Kblock(6));
 			assert_eq!(UnlockingTotal::<Runtime>::get(FIL), 0);
 			assert_ok!(VtokenMinting::mint(
@@ -830,7 +830,7 @@ fn fast_redeem_for_fil() {
 				None
 			));
 			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VFIL, 200));
-			VtokenMinting::on_initialize(0);
+			VtokenMinting::on_idle(0, Weight::MAX);
 			assert_eq!(
 				TokenUnlockLedger::<Runtime>::get(FIL, 2),
 				Some((BOB, 100, TimeUnit::Kblock(6), RedeemType::Native))

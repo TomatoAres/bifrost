@@ -27,6 +27,7 @@ use bifrost_primitives::{
 	VTokenSupplyProvider, VtokenMintingInterface,
 };
 use frame_support::dispatch::DispatchResultWithPostInfo;
+use frame_support::pallet_prelude::{Hooks, Weight};
 use frame_support::{
 	derive_impl, ord_parameter_types, parameter_types, traits::Nothing, BoundedVec, PalletId,
 };
@@ -275,6 +276,6 @@ impl ExtBuilder {
 pub(crate) fn run_to_block(n: u64) {
 	while System::block_number() < n {
 		System::set_block_number(System::block_number() + 1);
-		ChannelCommission::on_initialize(System::block_number());
+		ChannelCommission::on_idle(System::block_number(), Weight::MAX);
 	}
 }
