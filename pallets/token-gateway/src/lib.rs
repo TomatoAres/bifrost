@@ -255,9 +255,9 @@ pub mod pallet {
 			// If the local asset id already exists we do not change it's metadata we only store
 			// the mapping to its token gateway asset id
 
-			SupportedAssets::<T>::insert(asset.local_id.clone(), asset_id.clone());
-			NativeAssets::<T>::insert(asset.local_id.clone(), native);
-			LocalAssets::<T>::insert(asset_id, asset.local_id.clone());
+			SupportedAssets::<T>::insert(asset.local_id, asset_id);
+			NativeAssets::<T>::insert(asset.local_id, native);
+			LocalAssets::<T>::insert(asset_id, asset.local_id);
 			// All ERC6160 assets use 18 decimals
 			Decimals::<T>::insert(asset.local_id, 18);
 

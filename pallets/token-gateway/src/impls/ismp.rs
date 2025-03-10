@@ -218,7 +218,7 @@ where
 					T::CurrencyIdConvert::get_currency_metadata(local_asset_id)
 						.map_or(12, |metatata| metatata.decimals),
 				);
-				let erc_decimals = Decimals::<T>::get(local_asset_id.clone())
+				let erc_decimals = Decimals::<T>::get(local_asset_id)
 					.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
 				let amount = convert_to_balance(
 					U256::from_big_endian(&body.amount.to_be_bytes::<32>()),
