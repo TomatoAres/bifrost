@@ -1577,7 +1577,6 @@ where
 
 // zenlink runtime end
 
-use pallet_state_trie_migration::MigrationLimits;
 parameter_types! {
 	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
 	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
