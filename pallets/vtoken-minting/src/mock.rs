@@ -291,8 +291,8 @@ pub fn run_to_block(n: BlockNumber) {
 		VtokenMinting::on_finalize(System::block_number());
 		System::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
-		System::on_initialize(System::block_number());
-		VtokenMinting::on_initialize(System::block_number());
+		System::on_idle(System::block_number(), Weight::MAX);
+		VtokenMinting::on_idle(System::block_number(), Weight::MAX);
 	}
 }
 

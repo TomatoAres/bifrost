@@ -492,7 +492,11 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			if remaining_weight.any_lt(T::DbWeight::get().reads_writes(12, 6)) {
+				return Weight::zero();
+			}
+
 			for currency in OngoingTimeUnit::<T>::iter_keys() {
 				let result = Self::handle_ledger_by_currency(currency);
 				match result {

@@ -999,7 +999,7 @@ fn register_a_new_channel_and_mint_should_update_shares_and_get_claimable_tokens
 }
 
 #[test]
-fn on_initialize_hook_should_work() {
+fn on_idle_hook_should_work() {
 	ExtBuilder::default()
 		.one_hundred_for_alice_n_bob()
 		.build()
@@ -1061,7 +1061,7 @@ fn on_initialize_hook_should_work() {
 
 			// set block number to 100
 			System::set_block_number(100);
-			ChannelCommission::on_initialize(100);
+			ChannelCommission::on_idle(100, Weight::MAX);
 			// set_clearing_environment already been called in block 100
 			// check whether the clearing environment is set correctly for block 100
 			assert_eq!(
@@ -1078,7 +1078,7 @@ fn on_initialize_hook_should_work() {
 			let channel_b_vtoken_share_before = ChannelVtokenShares::<Runtime>::get(1, VKSM);
 
 			System::set_block_number(101);
-			ChannelCommission::on_initialize(101);
+			ChannelCommission::on_idle(101, Weight::MAX);
 
 			let channel_a_commission = 4;
 			// check channel A claimable KSM amount after being cleared
@@ -1103,7 +1103,7 @@ fn on_initialize_hook_should_work() {
 			);
 
 			System::set_block_number(102);
-			ChannelCommission::on_initialize(102);
+			ChannelCommission::on_idle(102, Weight::MAX);
 
 			let channel_b_commission = 2;
 			// check channel B claimable KSM amount after being cleared
@@ -1131,7 +1131,7 @@ fn on_initialize_hook_should_work() {
 			assert_eq!(bifrost_account_balance_before, 0);
 
 			System::set_block_number(103);
-			ChannelCommission::on_initialize(103);
+			ChannelCommission::on_idle(103, Weight::MAX);
 
 			// cleared commissions should be none
 			assert_eq!(PeriodClearedCommissions::<Runtime>::get(KSM), 0);
