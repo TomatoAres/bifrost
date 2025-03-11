@@ -437,6 +437,7 @@ try-runtime = [
     "pallet-treasury/try-runtime",
     "pallet-utility/try-runtime",
     "pallet-whitelist/try-runtime",
+    "pallet-state-trie-migration/try-runtime",
     "parachain-info/try-runtime",
     "zenlink-protocol/try-runtime",
     "fp-self-contained/try-runtime",

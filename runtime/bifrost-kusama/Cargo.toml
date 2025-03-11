@@ -368,6 +368,7 @@ try-runtime = [
 	"pallet-tx-pause/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-whitelist/try-runtime",
+	"pallet-state-trie-migration/try-runtime",
 	"orml-xtokens/try-runtime",
 	"orml-tokens/try-runtime",
 	"bifrost-currencies/try-runtime",
