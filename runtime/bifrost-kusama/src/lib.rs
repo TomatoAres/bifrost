@@ -112,7 +112,7 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use hex_literal::hex;
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 use pallet_identity::legacy::IdentityInfo;
@@ -172,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -1752,6 +1752,29 @@ impl pallet_migrations::Config for Runtime {
 	type WeightInfo = pallet_migrations::weights::SubstrateWeight<Runtime>;
 }
 
+use pallet_state_trie_migration::MigrationLimits;
+parameter_types! {
+	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
+	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
+}
+
+impl pallet_state_trie_migration::Config for Runtime {
+	// type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type SignedDepositPerItem = MigrationSignedDepositPerItem;
+	type SignedDepositBase = MigrationSignedDepositBase;
+	// An origin that can control the whole pallet: should be Root, or a part of your council.
+	type ControlOrigin = EnsureRoot<AccountId>;
+	// Warning: this is not advised, as it might allow the chain to be temporarily DOS-ed. Preferably, if the chain's governance/maintenance team is planning on using a specific account for the migration, put it here to make sure only that account can trigger the signed migrations.
+	type SignedFilter = EnsureSigned<AccountId>;
+	// Replace this with weight based on your runtime.
+	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type MaxKeyLen = ConstU32<256>;
+}
+
 construct_runtime! {
 	pub enum Runtime {
 		// Basic stuff
@@ -1837,6 +1860,7 @@ construct_runtime! {
 		LeverageStaking: leverage_staking = 135,
 		ChannelCommission: bifrost_channel_commission = 136,
 		VBNCConvert: bifrost_vbnc_convert = 140,
+		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1965,6 +1989,7 @@ mod benches {
 		[bifrost_xcm_interface, XcmInterface]
 		// [bifrost_channel_commission, ChannelCommission]
 		[bifrost_vesting, Vesting]
+		[pallet_state_trie_migration, StateTrieMigration]
 	);
 }
 

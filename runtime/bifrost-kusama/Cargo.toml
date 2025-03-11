@@ -55,6 +55,7 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-whitelist = { workspace = true }
+pallet-state-trie-migration = { workspace = true }
 sp-api = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -194,6 +195,7 @@ std = [
 	"pallet-treasury/std",
 	"pallet-utility/std",
 	"pallet-whitelist/std",
+	"pallet-state-trie-migration/std",
 	"sp-api/std",
 	"sp-genesis-builder/std",
 	"sp-arithmetic/std",
@@ -326,6 +328,7 @@ runtime-benchmarks = [
 	"leverage-staking/runtime-benchmarks",
 	"bifrost-channel-commission/runtime-benchmarks",
 	"bifrost-vbnc-convert/runtime-benchmarks",
+	"pallet-state-trie-migration/runtime-benchmarks",
 ]
 
 try-runtime = [
