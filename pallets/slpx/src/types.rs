@@ -41,7 +41,7 @@ pub const EVM_FUNCTION_SELECTOR: [u8; 4] = [154, 65, 185, 36];
 pub const HYDRATION_EMA_ORACLE_PALLET_INDEX: u8 = 202;
 pub const HYDRATION_EMA_ORACLE_CALL_INDEX: u8 = 2;
 pub const HYDRATION_CALL_FEE: u128 = 2_000_000_000_000;
-pub const HYDRATION_CALL_WEIGHT: Weight = Weight::from_parts(10_000_000_000, 30_000);
+pub const HYDRATION_CALL_WEIGHT: Weight = Weight::from_parts(10_000_000_000, 300_000);
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type CurrencyIdOf<T> = <<T as pallet::Config>::MultiCurrency as MultiCurrency<
@@ -181,6 +181,10 @@ pub struct HydrationOracleConfig<BlockNumber> {
 	pub period: BlockNumber,
 	/// Block number of the last call
 	pub last_block: BlockNumber,
+	/// Call weight
+	pub weight: Weight,
+	/// Call fee
+	pub fee: u128,
 	/// Token list
 	pub tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
 }

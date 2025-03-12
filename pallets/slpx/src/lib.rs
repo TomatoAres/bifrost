@@ -24,10 +24,7 @@ use crate::types::{
 	MAX_GAS_LIMIT,
 };
 #[cfg(feature = "polkadot")]
-use crate::types::{
-	HYDRATION_CALL_FEE, HYDRATION_CALL_WEIGHT, HYDRATION_EMA_ORACLE_CALL_INDEX,
-	HYDRATION_EMA_ORACLE_PALLET_INDEX,
-};
+use crate::types::{HYDRATION_EMA_ORACLE_CALL_INDEX, HYDRATION_EMA_ORACLE_PALLET_INDEX};
 use bifrost_asset_registry::AssetMetadata;
 use bifrost_primitives::{
 	currency::{BNC, MOVR, VFIL},
@@ -387,9 +384,8 @@ pub mod pallet {
 			}
 
 			#[cfg(feature = "polkadot")]
-			if !is_handle_xcm_oracle {
-				let _ = Self::handle_hydration_oracle(current_block_number, &mut weight);
-			}
+			let _ = Self::handle_hydration_oracle(current_block_number, &mut weight);
+
 			weight
 		}
 	}
@@ -896,6 +892,8 @@ pub mod pallet {
 		pub fn set_hydration_oracle(
 			origin: OriginFor<T>,
 			period: BlockNumberFor<T>,
+			weight: Weight,
+			fee: Balance,
 			tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
 		) -> DispatchResultWithPostInfo {
 			T::ControlOrigin::ensure_origin(origin)?;
@@ -905,6 +903,8 @@ pub mod pallet {
 				HydrationOracle::<T>::put(HydrationOracleConfig {
 					period,
 					last_block: Default::default(),
+					weight,
+					fee,
 					tokens: tokens.clone(),
 				});
 			}
@@ -1539,11 +1539,13 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn handle_hydration_oracle(
 		current_block_number: BlockNumberFor<T>,
-		weight: &mut Weight,
+		consumed_weight: &mut Weight,
 	) -> DispatchResult {
 		if let Some(HydrationOracleConfig {
 			period,
 			last_block,
+			weight,
+			fee,
 			tokens,
 		}) = HydrationOracle::<T>::get()
 		{
@@ -1556,13 +1558,13 @@ impl<T: Config> Pallet<T> {
 							id: Sibling::from(2030).into_account_truncating(),
 						}],
 					);
-					let fee_location = Location::here();
+					let fee_location = Location::new(0, [GeneralIndex(0)]);
 					let asset = Asset {
 						id: AssetId(fee_location),
-						fun: Fungible(HYDRATION_CALL_FEE),
+						fun: Fungible(fee),
 					};
 					let assets: Assets = Assets::from(asset.clone());
-					let require_weight_at_most = HYDRATION_CALL_WEIGHT;
+					let require_weight_at_most = weight;
 					let staking_currency_amount =
 						T::VtokenMintingInterface::get_token_pool(currency);
 					let v_currency_id = currency
@@ -1570,6 +1572,11 @@ impl<T: Config> Pallet<T> {
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
+					log::debug!(
+						"staking_currency_amount: {:?}, v_currency_total_supply: {:?}",
+						staking_currency_amount,
+						v_currency_total_supply
+					);
 					let mut call_data = HYDRATION_EMA_ORACLE_PALLET_INDEX.encode();
 					call_data.extend(HYDRATION_EMA_ORACLE_CALL_INDEX.encode());
 					call_data.extend(VersionedLocation::V4(location_a).encode());
@@ -1594,14 +1601,17 @@ impl<T: Config> Pallet<T> {
 						T::XcmSender::validate(&mut Some(dest_location), &mut Some(xcm_message))
 							.map_err(|_| Error::<T>::ErrorValidating)?;
 					T::XcmSender::deliver(ticket).map_err(|_| Error::<T>::ErrorDelivering)?;
-					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
+					*consumed_weight =
+						consumed_weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
 				}
+				HydrationOracle::<T>::put(HydrationOracleConfig {
+					period,
+					last_block: current_block_number,
+					weight,
+					fee,
+					tokens,
+				});
 			}
-			HydrationOracle::<T>::put(HydrationOracleConfig {
-				period,
-				last_block: current_block_number,
-				tokens,
-			});
 		}
 		return Ok(());
 	}

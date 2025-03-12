@@ -553,6 +553,8 @@ fn test_set_hydration_oracle_config() {
 		assert_ok!(Slpx::set_hydration_oracle(
 			RuntimeOrigin::root(),
 			1,
+			Weight::default(),
+			10u128,
 			BoundedVec::try_from(vec![(BNC, Location::here(), Location::here())]).unwrap(),
 		));
 
@@ -561,6 +563,8 @@ fn test_set_hydration_oracle_config() {
 			HydrationOracleConfig {
 				period: 1u32.into(),
 				last_block: 0u32.into(),
+				weight: Weight::default(),
+				fee: 10u128,
 				tokens: BoundedVec::try_from(vec![(BNC, Location::here(), Location::here())])
 					.unwrap(),
 			}
