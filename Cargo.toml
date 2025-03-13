@@ -307,7 +307,7 @@ derive_more           = "1.0.0"
 libsecp256k1          = { version = "0.7", default-features = false }
 async-trait           = { version = "0.1.86" }
 bstringify            = { version = "0.1.2" }
-clap                  = { version = "4.5.28" }
+clap                  = { version = "4.5.31" }
 env_logger            = { version = "0.10.2" }
 ethabi                = { version = "18.0.0", default-features = false }
 ethereum              = { version = "0.15.0", default-features = false, features = ["with-codec"] }
@@ -332,7 +332,7 @@ serde                 = { version = "1.0.217", default-features = false }
 serde_json            = { version = "1.0.138", default-features = false }
 sha3                  = { version = "0.10.6", default-features = false }
 similar-asserts       = { version = "1.6.1" }
-smallvec              = { version = "1.13.1" }
+smallvec              = { version = "1.14.0" }
 static_assertions     = { version = "1.1.0" }
 strum                 = { version = "0.26.3", default-features = false, features = ["derive"] }
 strum_macros          = { version = "0.26.2" }
