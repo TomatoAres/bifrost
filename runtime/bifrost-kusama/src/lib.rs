@@ -112,7 +112,7 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use hex_literal::hex;
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 use pallet_identity::legacy::IdentityInfo;
@@ -1756,18 +1756,34 @@ parameter_types! {
 	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
 	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
 	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
+	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
+	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
+}
+
+use frame_support::traits::SortedMembers;
+pub struct MigControllerMembers;
+impl SortedMembers<AccountId> for MigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![MigController::get()]
+	}
+}
+
+pub struct RootMigControllerMembers;
+impl SortedMembers<AccountId> for RootMigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![RootMigController::get()]
+	}
 }
 
 impl pallet_state_trie_migration::Config for Runtime {
-	// type Event = Event;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type SignedDepositPerItem = MigrationSignedDepositPerItem;
 	type SignedDepositBase = MigrationSignedDepositBase;
 	// An origin that can control the whole pallet: should be Root, or a part of your council.
-	type ControlOrigin = EnsureRoot<AccountId>;
-	// Warning: this is not advised, as it might allow the chain to be temporarily DOS-ed. Preferably, if the chain's governance/maintenance team is planning on using a specific account for the migration, put it here to make sure only that account can trigger the signed migrations.
-	type SignedFilter = EnsureSigned<AccountId>;
+	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
+	// specific account for the migration, can trigger the signed migrations.
+	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
 	// Replace this with weight based on your runtime.
 	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
 	type RuntimeHoldReason = RuntimeHoldReason;
