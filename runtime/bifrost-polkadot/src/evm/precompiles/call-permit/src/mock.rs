@@ -138,6 +138,7 @@ impl pallet_evm::Config for Runtime {
 	type SuicideQuickClearLimit = ConstU32<0>;
 	type Timestamp = Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
+	type AccountProvider = pallet_evm::FrameSystemAccountProvider<Self>;
 }
 
 parameter_types! {

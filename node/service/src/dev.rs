@@ -65,8 +65,13 @@ where
 	let mut task_manager = params.task_manager;
 
 	let transaction_pool = params.transaction_pool.clone();
-	let net_config =
-		sc_network::config::FullNetworkConfiguration::<_, _, Net>::new(&parachain_config.network);
+	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, Net>::new(
+		&parachain_config.network,
+		parachain_config
+			.prometheus_config
+			.as_ref()
+			.map(|cfg| cfg.registry.clone()),
+	);
 	let metrics = Net::register_notification_metrics(
 		parachain_config
 			.prometheus_config
@@ -83,7 +88,7 @@ where
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue: params.import_queue,
 			block_announce_validator_builder: None,
-			warp_sync_params: None,
+			warp_sync_config: None,
 			block_relay: None,
 			metrics,
 		})?;
@@ -219,11 +224,10 @@ where
 		let storage_override = storage_override.clone();
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 
-		Box::new(move |deny_unsafe, subscription_task_executor| {
+		Box::new(move |subscription_task_executor| {
 			let deps = crate::rpc::FullDepsPolkadot {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
-				deny_unsafe,
 				command_sink: Some(command_sink.clone()),
 				backend: backend.clone(),
 			};

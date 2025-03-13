@@ -20,7 +20,7 @@ pub use super::*;
 use crate as leverage_staking;
 use bifrost_asset_registry::AssetIdMaps;
 pub use bifrost_primitives::{
-	currency::*, Balance, CurrencyId, CurrencyIdMapping, SlpOperator, SlpxOperator, TokenSymbol,
+	currency::*, Balance, CurrencyId, CurrencyIdMapping, SlpxOperator, TokenSymbol,
 };
 use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, IncentivePoolAccount, LendMarketPalletId, Moment,
@@ -313,14 +313,6 @@ impl bifrost_vtoken_minting::Config for Test {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
-}
-
-pub struct Slp;
-// Functions to be called by other pallets.
-impl SlpOperator<CurrencyId> for Slp {
-	fn all_delegation_requests_occupied(_currency_id: CurrencyId) -> bool {
-		true
-	}
 }
 
 parameter_types! {

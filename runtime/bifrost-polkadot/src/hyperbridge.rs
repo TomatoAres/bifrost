@@ -17,12 +17,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::governance::TechAdminOrRoot;
+use crate::weights::ismp_parachain as ismp_parachain_weight;
 use crate::{Balances, Ismp, IsmpParachain, NativeCurrencyId, Runtime, RuntimeEvent, Timestamp};
 use crate::{BncDecimals, Currencies};
 use crate::{TokenGateway, Treasury};
 use bifrost_asset_registry::AssetIdMaps;
-use bifrost_primitives::{AccountId, Balance};
+use bifrost_primitives::{AccountId, Balance, CurrencyId, DOT_U};
 use frame_support::parameter_types;
+use frame_support::traits::tokens::fungible::ItemOf;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use sp_core::Get;
 use sp_std::boxed::Box;
@@ -41,6 +43,9 @@ parameter_types! {
 	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2030); // polkadot
 }
 
+parameter_types! {
+	pub const StableCoin: CurrencyId = DOT_U;
+}
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
@@ -52,7 +57,7 @@ impl pallet_ismp::Config for Runtime {
 	type Router = Router;
 	type Balance = Balance;
 	// The token used to collect fees, only stablecoins are supported
-	type Currency = Balances;
+	type Currency = ItemOf<orml_tokens::Pallet<Runtime>, StableCoin, AccountId>;
 	// Co-processor
 	type Coprocessor = Coprocessor;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
@@ -65,6 +70,8 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
+	// type WeightInfo = weights::ismp_parachain::WeightInfo<Runtime>;
+	type WeightInfo = ismp_parachain_weight::WeightInfo<Runtime>;
 }
 
 #[derive(Default)]
@@ -112,4 +119,5 @@ impl pallet_token_gateway::Config for Runtime {
 	type Decimals = BncDecimals;
 	type ControlOrigin = TechAdminOrRoot;
 	type CurrencyIdConvert = AssetIdMaps<Runtime>;
+	type EvmToSubstrate = ();
 }

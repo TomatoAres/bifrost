@@ -570,51 +570,6 @@ parameter_types! {
 	pub UniversalLocation: xcm::v4::InteriorLocation = xcm::v4::Junction::Parachain(2001).into();
 }
 
-pub struct Barrier;
-impl ShouldExecute for Barrier {
-	fn should_execute<Call>(
-		_origin: &xcm::v4::Location,
-		_message: &mut [xcm::v4::Instruction<Call>],
-		_max_weight: Weight,
-		_weight_credit: &mut Properties,
-	) -> Result<(), ProcessMessageError> {
-		Ok(())
-	}
-}
-
-pub struct XcmConfig;
-impl xcm_executor::Config for XcmConfig {
-	type AssetClaims = PolkadotXcm;
-	type AssetTransactor = ();
-	type AssetTrap = PolkadotXcm;
-	type Barrier = Barrier;
-	type RuntimeCall = RuntimeCall;
-	type IsReserve = ();
-	type IsTeleporter = ();
-	type UniversalLocation = UniversalLocation;
-	type OriginConverter = ();
-	type ResponseHandler = PolkadotXcm;
-	type SubscriptionService = PolkadotXcm;
-	type Trader = ();
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type XcmSender = MockXcmRouter;
-	type PalletInstancesInfo = AllPalletsWithSystem;
-	type MaxAssetsIntoHolding = ConstU32<64>;
-	type FeeManager = ();
-	type MessageExporter = ();
-	type UniversalAliases = Nothing;
-	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = Everything;
-	type AssetLocker = ();
-	type AssetExchanger = ();
-	type Aliasers = Nothing;
-	type TransactionalProcessor = FrameTransactionalProcessor;
-	type HrmpNewChannelOpenRequestHandler = ();
-	type HrmpChannelAcceptedHandler = ();
-	type HrmpChannelClosingHandler = ();
-	type XcmRecorder = ();
-}
-
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
 	pub ReachableDest: Option<Location> = Some(Parent.into());

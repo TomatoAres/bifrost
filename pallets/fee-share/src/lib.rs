@@ -213,7 +213,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(_: BlockNumberFor<T>, _remaining_weight: Weight) -> Weight {
+		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			let current_block_number = T::BlockNumberProvider::current_block_number();
 			DollarStandardInfos::<T>::iter().for_each(|(distribution_id, mut info)| {
 				if current_block_number.eq(&info.target_block) {

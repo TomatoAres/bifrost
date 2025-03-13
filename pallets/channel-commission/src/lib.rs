@@ -325,7 +325,11 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			if remaining_weight.any_lt(T::DbWeight::get().reads_writes(12, 6)) {
+				return Weight::zero();
+			}
+
 			let channel_count: u32 = ChannelNextId::<T>::get().into();
 			let current_block_number = T::BlockNumberProvider::current_block_number();
 

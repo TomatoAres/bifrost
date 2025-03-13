@@ -22,7 +22,7 @@ use frame_support::{
 	derive_impl,
 	dispatch::DispatchResult,
 	parameter_types,
-	traits::{ConstU128, ConstU32, Currency, EnsureOrigin, Nothing, OnUnbalanced},
+	traits::{ConstU128, ConstU32, EnsureOrigin, Nothing},
 };
 use frame_system::RawOrigin;
 use orml_traits::MultiCurrency;
@@ -254,12 +254,6 @@ impl MultiCurrency<AccountId> for TestAssets {
 		todo!()
 	}
 }
-
-pub struct EmptyUnbalanceHandler;
-
-type Imbalance = <pallet_balances::Pallet<Test> as Currency<AccountId>>::NegativeImbalance;
-
-impl OnUnbalanced<Imbalance> for EmptyUnbalanceHandler {}
 
 pub struct EnsureStableAsset;
 impl EnsureOrigin<RuntimeOrigin> for EnsureStableAsset {

@@ -43,12 +43,15 @@ use token_gateway_primitives::{token_gateway_id, token_governor_id};
 pub use types::*;
 
 use alloc::{string::ToString, vec, vec::Vec};
-use ismp::module::IsmpModule;
-use primitive_types::H256;
-
 use bifrost_primitives::{
 	AssetMetadata as AssetMetadataBifrost, CurrencyId, CurrencyIdMapping, TokenInfo,
 };
+use codec::{Decode, Encode};
+use frame_support::dispatch::RawOrigin;
+use ismp::module::IsmpModule;
+use primitive_types::{H160, H256};
+use sp_runtime::traits::Dispatchable;
+use sp_runtime::MultiSignature;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -113,6 +116,9 @@ pub mod pallet {
 
 		/// Convert Location to `T::CurrencyId`.
 		type CurrencyIdConvert: CurrencyIdMapping<CurrencyId, AssetMetadataBifrost<Self::Balance>>;
+
+		/// A trait that converts an evm address to a substrate account
+		type EvmToSubstrate: EvmToSubstrate<Self>;
 	}
 
 	/// Assets supported by this instance of token gateway
@@ -281,17 +287,46 @@ pub mod pallet {
 			let erc_decimals = Decimals::<T>::get(params.asset_id)
 				.ok_or_else(|| Error::<T>::AssetDecimalsNotFound)?;
 
-			let body = Body {
-				amount: {
-					let amount: u128 = params.amount.into();
-					let mut bytes = [0u8; 32];
-					convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
-					alloy_primitives::U256::from_be_bytes(bytes)
-				},
-				asset_id: asset_id.0.into(),
-				redeem: params.redeem,
-				from: from.into(),
-				to: to.into(),
+			let body = match params.call_data {
+				Some(data) => {
+					let body = BodyWithCall {
+						amount: {
+							let amount: u128 = params.amount.into();
+							let mut bytes = [0u8; 32];
+							convert_to_erc20(amount, erc_decimals, decimals)
+								.to_big_endian(&mut bytes);
+							alloy_primitives::U256::from_be_bytes(bytes)
+						},
+						asset_id: asset_id.0.into(),
+						redeem: params.redeem,
+						from: from.into(),
+						to: to.into(),
+						data: data.into(),
+					};
+					// Prefix with the handleIncomingAsset enum variant
+					let mut encoded = vec![0];
+					encoded.extend_from_slice(&BodyWithCall::abi_encode(&body));
+					encoded
+				}
+				None => {
+					let body = Body {
+						amount: {
+							let amount: u128 = params.amount.into();
+							let mut bytes = [0u8; 32];
+							convert_to_erc20(amount, erc_decimals, decimals)
+								.to_big_endian(&mut bytes);
+							alloy_primitives::U256::from_be_bytes(bytes)
+						},
+						asset_id: asset_id.0.into(),
+						redeem: params.redeem,
+						from: from.into(),
+						to: to.into(),
+					};
+					// Prefix with the handleIncomingAsset enum variant
+					let mut encoded = vec![0];
+					encoded.extend_from_slice(&Body::abi_encode(&body));
+					encoded
+				}
 			};
 
 			let dispatch_post = DispatchPost {
@@ -299,12 +334,7 @@ pub mod pallet {
 				from: token_gateway_id().0.to_vec(),
 				to: params.token_gateway,
 				timeout: params.timeout,
-				body: {
-					// Prefix with the handleIncomingAsset enum variant
-					let mut encoded = vec![0];
-					encoded.extend_from_slice(&Body::abi_encode(&body));
-					encoded
-				},
+				body,
 			};
 
 			let metadata = FeeMetadata {
@@ -494,16 +524,13 @@ where
 			}
 		);
 
-		let body = Body::abi_decode(&mut &body[1..], true).map_err(|_| {
-			ismp::error::Error::ModuleDispatchError {
-				msg: "Token Gateway: Failed to decode request body".to_string(),
-				meta: Meta {
-					source,
-					dest,
-					nonce,
-				},
-			}
-		})?;
+		let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
+			body.into()
+		} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
+			body.into()
+		} else {
+			Err(anyhow!("Token Gateway: Failed to decode request body"))?
+		};
 
 		let local_asset_id =
 			LocalAssets::<T>::get(H256::from(body.asset_id.0)).ok_or_else(|| {
@@ -591,6 +618,62 @@ where
 			}
 		}
 
+		if let Some(call_data) = body.data {
+			let substrate_data = SubstrateCalldata::decode(&mut &call_data.0[..])
+				.map_err(|_| anyhow!("Failed to decode substrate_data"))?;
+			// Verify signature against encoded runtime call
+			let nonce = frame_system::Pallet::<T>::account_nonce(beneficiary.clone());
+			let payload = (nonce, substrate_data.runtime_call.clone()).encode();
+			let message = sp_io::hashing::keccak_256(&payload);
+			let multi_signature = MultiSignature::decode(&mut &*substrate_data.signature)
+				.map_err(|_| anyhow!("Failed to decode multi_signature"))?;
+			match multi_signature {
+				MultiSignature::Ed25519(sig) => {
+					let pub_key = body.to.0.as_slice().try_into().map_err(|_| {
+						anyhow!("Failed to decode beneficiary as Ed25519 public key")
+					})?;
+					if !sp_io::crypto::ed25519_verify(&sig, message.as_ref(), &pub_key) {
+						Err(anyhow!(
+							"Failed to verify ed25519 signature before dispatching token gateway call"
+						))?
+					}
+				}
+				MultiSignature::Sr25519(sig) => {
+					let pub_key = body.to.0.as_slice().try_into().map_err(|_| {
+						anyhow!("Failed to decode beneficiary as Sr25519 public key")
+					})?;
+					if !sp_io::crypto::sr25519_verify(&sig, message.as_ref(), &pub_key) {
+						Err(anyhow!(
+							"Failed to verify sr25519 signature before dispatching token gateway call"
+						))?
+					}
+				}
+				MultiSignature::Ecdsa(sig) => {
+					let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig.0, &message)
+						.map_err(|_| {
+							anyhow!("Failed to recover ecdsa public key from signature")
+						})?;
+					let eth_address =
+						H160::from_slice(&sp_io::hashing::keccak_256(&pub_key[..])[12..]);
+					let substrate_account = T::EvmToSubstrate::convert(eth_address);
+					if substrate_account != beneficiary {
+						Err(anyhow!(
+							"Failed to verify signature before dispatching token gateway call"
+						))?
+					}
+				}
+			}
+			let runtime_call = <<T as frame_system::Config>::RuntimeCall as codec::Decode>::decode(
+				&mut &*substrate_data.runtime_call,
+			)
+			.map_err(|_| anyhow!("Failed to decode runtime_call"))?;
+			runtime_call
+				.dispatch(RawOrigin::Signed(beneficiary.clone()).into())
+				.map_err(|e| anyhow!("Call dispatch executed with error {:?}", e.error))?;
+			// Increase account nonce to ensure the call cannot be replayed
+			frame_system::Pallet::<T>::inc_account_nonce(beneficiary.clone());
+		}
+
 		Self::deposit_event(Event::<T>::AssetReceived {
 			beneficiary,
 			amount: amount.into(),
@@ -612,16 +695,13 @@ where
 				nonce,
 				..
 			})) => {
-				let body = Body::abi_decode(&mut &body[1..], true).map_err(|_| {
-					ismp::error::Error::ModuleDispatchError {
-						msg: "Token Gateway: Failed to decode request body".to_string(),
-						meta: Meta {
-							source,
-							dest,
-							nonce,
-						},
-					}
-				})?;
+				let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
+					body.into()
+				} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
+					body.into()
+				} else {
+					Err(anyhow!("Token Gateway: Failed to decode request body"))?
+				};
 				let beneficiary = body.from.0.into();
 				let local_asset_id = LocalAssets::<T>::get(H256::from(body.asset_id.0))
 					.ok_or_else(|| ismp::error::Error::ModuleDispatchError {
