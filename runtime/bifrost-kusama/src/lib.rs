@@ -1737,10 +1737,7 @@ impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(any(feature = "try-runtime", feature = "runtime-benchmarks")))]
-	type Migrations = bifrost_vesting::migrations::v2::LazyMigration<
-		Runtime,
-		weights::bifrost_vesting::BifrostWeight<Runtime>,
-	>;
+	type Migrations = ();
 	// Benchmarks need mocked migrations to guarantee that they succeed.
 	#[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
