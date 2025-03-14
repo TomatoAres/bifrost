@@ -18,14 +18,9 @@
 use alloc::vec::Vec;
 use anyhow::anyhow;
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::*, traits::fungibles};
+use frame_support::pallet_prelude::*;
 use ismp::host::StateMachine;
 use primitive_types::{H160, H256};
-
-use crate::Config;
-
-pub type AssetId<T> =
-	<<T as Config>::Assets as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
 /// Asset teleportation parameters
 #[derive(Debug, Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq)]
