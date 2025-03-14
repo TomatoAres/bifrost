@@ -250,7 +250,6 @@ sp-timestamp                               = { git = "https://github.com/parityt
 sp-transaction-pool                        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
 sp-trie                                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
 sp-version                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
->>>>>>> v0.18.0
 substrate-fixed                            = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
 xcm                                        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", package = "staging-xcm", default-features = false }
 xcm-builder                                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", package = "staging-xcm-builder", default-features = false }
