@@ -198,7 +198,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -1599,6 +1599,44 @@ where
 
 // zenlink runtime end
 
+parameter_types! {
+	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
+	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
+	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
+	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
+}
+
+use frame_support::traits::SortedMembers;
+pub struct MigControllerMembers;
+impl SortedMembers<AccountId> for MigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![MigController::get()]
+	}
+}
+
+pub struct RootMigControllerMembers;
+impl SortedMembers<AccountId> for RootMigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![RootMigController::get()]
+	}
+}
+
+impl pallet_state_trie_migration::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type SignedDepositPerItem = MigrationSignedDepositPerItem;
+	type SignedDepositBase = MigrationSignedDepositBase;
+	// An origin that can control the whole pallet: should be Root, or a part of your council.
+	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
+	// specific account for the migration, can trigger the signed migrations.
+	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
+	// Replace this with weight based on your runtime.
+	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type MaxKeyLen = ConstU32<256>;
+}
+
 construct_runtime! {
 	pub enum Runtime {
 		// Basic stuff
@@ -1697,6 +1735,7 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
+		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1869,6 +1908,7 @@ mod benches {
 		[bifrost_farming, Farming]
 		[bifrost_clouds_convert, CloudsConvert]
 		[pallet_evm_accounts, EVMAccounts]
+		[pallet_state_trie_migration, StateTrieMigration]
 	);
 }
 

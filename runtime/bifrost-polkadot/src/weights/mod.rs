@@ -45,4 +45,5 @@ pub mod ismp_parachain;
 pub mod lend_market;
 pub mod orml_oracle;
 pub mod orml_tokens;
+pub mod pallet_state_trie_migration;
 pub mod pallet_xcm;

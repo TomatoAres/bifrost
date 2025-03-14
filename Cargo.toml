@@ -219,6 +219,7 @@ pallet-treasury                            = { git = "https://github.com/parityt
 pallet-utility                             = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
 pallet-whitelist                           = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
 pallet-xcm                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
+pallet-state-trie-migration                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
 parachains-common                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
 parachain-info                             = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", package = "staging-parachain-info", default-features = false }
 polkadot-core-primitives                   = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2409", default-features = false }
