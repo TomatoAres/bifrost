@@ -1821,7 +1821,6 @@ pub type Migrations = migrations::Unreleased;
 pub mod migrations {
 	#[allow(unused_imports)]
 	use super::*;
-	use crate::migration::update_referenda_referendum_info;
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
