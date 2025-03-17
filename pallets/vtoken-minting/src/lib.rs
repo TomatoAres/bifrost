@@ -37,7 +37,7 @@ pub use weights::WeightInfo;
 use crate::impls::Operation;
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	CurrencyId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
+	CurrencyId, HyperBridgeSender, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
 };
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
@@ -103,6 +103,8 @@ pub mod pallet {
 		>;
 		/// Channel commission provider
 		type ChannelCommission: VTokenMintRedeemProvider<CurrencyId, BalanceOf<Self>>;
+
+		type HyperBridgeSender: HyperBridgeSender<AccountIdOf<Self>, BalanceOf<Self>>;
 
 		/// Maximum unlock id of user
 		#[pallet::constant]

@@ -37,6 +37,8 @@ pub enum RedeemTo<AccountId> {
 	Interlay(AccountId),
 	/// Manta chain.
 	Manta(AccountId),
+	/// HyperBridge
+	HyperBridge(u32, H160),
 }
 
 pub trait OnRedeemSuccess<AccountId, CurrencyId, Balance> {

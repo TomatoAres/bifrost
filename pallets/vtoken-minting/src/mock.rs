@@ -187,6 +187,7 @@ impl vtoken_minting::Config for Runtime {
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 ord_parameter_types! {
