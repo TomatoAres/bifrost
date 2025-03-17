@@ -1305,17 +1305,6 @@ impl zenlink_stable_amm::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl zenlink_swap_router::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type StablePoolId = u32;
-	type Balance = u128;
-	type StableCurrencyId = CurrencyId;
-	type NormalCurrencyId = ZenlinkAssetId;
-	type NormalAmm = ZenlinkProtocol;
-	type StableAMM = ZenlinkStableAMM;
-	type WeightInfo = zenlink_swap_router::weights::SubstrateWeight<Runtime>;
-}
-
 impl merkle_distributor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type CurrencyId = CurrencyId;
@@ -1844,7 +1833,6 @@ construct_runtime! {
 		ZenlinkProtocol: zenlink_protocol = 80,
 		MerkleDistributor: merkle_distributor = 81,
 		ZenlinkStableAMM: zenlink_stable_amm = 82,
-		ZenlinkSwapRouter: zenlink_swap_router = 83,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
@@ -1925,6 +1913,9 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
+parameter_types! {
+	pub const ZenlinkSwapRouterName: &'static str = "ZenlinkSwapRouter";
+}
 /// The runtime migrations per release.
 pub mod migrations {
 	#![allow(unused_imports)]
@@ -1934,6 +1925,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		frame_support::migrations::RemovePallet<ZenlinkSwapRouterName, RocksDbWeight>,
 	);
 }
 
