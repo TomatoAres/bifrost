@@ -106,7 +106,7 @@ pub mod pallet {
 		/// A successful call of the `SetVtoken` extrinsic will create this event.
 		ConfigSet {
 			currency_id: CurrencyIdOf<T>,
-			info: Info<BalanceOf<T>, BlockNumberFor<T>>,
+			info: Info<BalanceOf<T>, BlockNumberFor<T>, <T as frame_system::Config>::Hash>,
 		},
 		/// A successful call of the `RemoveVtoken` extrinsic will create this event.
 		Removed { currency_id: CurrencyIdOf<T> },
@@ -157,8 +157,12 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	pub type Infos<T: Config> =
-		StorageMap<_, Twox64Concat, CurrencyIdOf<T>, Info<BalanceOf<T>, BlockNumberFor<T>>>;
+	pub type Infos<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		CurrencyIdOf<T>,
+		Info<BalanceOf<T>, BlockNumberFor<T>, <T as frame_system::Config>::Hash>,
+	>;
 
 	#[pallet::storage]
 	pub type SwapOutMin<T: Config> = StorageMap<_, Twox64Concat, CurrencyIdOf<T>, u128>;
@@ -168,7 +172,7 @@ pub mod pallet {
 
 	/// Information on buybacks and add liquidity
 	#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-	pub struct Info<BalanceOf, BlockNumberFor> {
+	pub struct Info<BalanceOf, BlockNumberFor, Hash> {
 		/// The minimum value of the token to be swapped.
 		min_swap_value: BalanceOf,
 		/// Whether to automatically add liquidity and buy back.
@@ -189,6 +193,8 @@ pub mod pallet {
 		destruction_ratio: Option<Permill>,
 		/// The bias of the token value to be swapped.
 		bias: Permill,
+		/// The hash of the last buyback block
+		last_buyback_hash: Hash,
 	}
 
 	#[pallet::hooks]
@@ -265,7 +271,7 @@ pub mod pallet {
 				if info.last_buyback_cycle >= n {
 					continue;
 				}
-				match Self::get_target_block(info.last_buyback, info.buyback_duration) {
+				match Self::get_target_block(info.last_buyback_hash, info.buyback_duration) {
 					target_block
 						if target_block
 							== n.saturating_sub(info.last_buyback_cycle)
@@ -317,6 +323,8 @@ pub mod pallet {
 							info.last_buyback_cycle = info
 								.last_buyback_cycle
 								.saturating_add(info.buyback_duration);
+							let current_hash = frame_system::Pallet::<T>::block_hash(n);
+							info.last_buyback_hash = current_hash;
 							info.last_buyback = n;
 							Infos::<T>::insert(currency_id, info);
 							SwapOutMin::<T>::remove(currency_id);
@@ -356,6 +364,7 @@ pub mod pallet {
 			);
 
 			let now = T::BlockNumberProvider::current_block_number();
+			let current_hash = frame_system::Pallet::<T>::block_hash(now);
 
 			let info = Info {
 				min_swap_value,
@@ -368,6 +377,7 @@ pub mod pallet {
 				last_add_liquidity: now,
 				destruction_ratio,
 				bias,
+				last_buyback_hash: current_hash,
 			};
 			Infos::<T>::insert(currency_id, info.clone());
 
@@ -426,7 +436,7 @@ pub mod pallet {
 		pub fn buy_back(
 			buyback_address: &AccountIdOf<T>,
 			currency_id: CurrencyId,
-			info: &Info<BalanceOf<T>, BlockNumberFor<T>>,
+			info: &Info<BalanceOf<T>, BlockNumberFor<T>, <T as frame_system::Config>::Hash>,
 			swap_out_min: u128,
 		) -> DispatchResult {
 			let balance = T::MultiCurrency::free_balance(currency_id, &buyback_address);
@@ -456,7 +466,7 @@ pub mod pallet {
 		fn add_liquidity(
 			liquidity_address: &AccountIdOf<T>,
 			currency_id: CurrencyId,
-			info: &Info<BalanceOf<T>, BlockNumberFor<T>>,
+			info: &Info<BalanceOf<T>, BlockNumberFor<T>, <T as frame_system::Config>::Hash>,
 			swap_out_min: u128,
 		) -> DispatchResult {
 			let path = Self::get_path(currency_id)?;
@@ -505,9 +515,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn get_target_block(n: BlockNumberFor<T>, duration: BlockNumberFor<T>) -> u32 {
-			let block_hash = frame_system::Pallet::<T>::block_hash(n);
-			let hash_bytes = block_hash.as_ref();
+		pub fn get_target_block(
+			last_buyback_hash: <T as frame_system::Config>::Hash,
+			duration: BlockNumberFor<T>,
+		) -> u32 {
+			let hash_bytes = last_buyback_hash.as_ref();
 			let hash_value =
 				u32::from_le_bytes([hash_bytes[0], hash_bytes[1], hash_bytes[2], hash_bytes[3]]);
 			let target_block =
@@ -528,7 +540,7 @@ pub mod pallet {
 
 		pub fn set_swap_out_min(
 			currency_id: CurrencyId,
-			info: &Info<BalanceOf<T>, BlockNumberFor<T>>,
+			info: &Info<BalanceOf<T>, BlockNumberFor<T>, <T as frame_system::Config>::Hash>,
 		) -> DispatchResult {
 			let path = Self::get_path(currency_id)?;
 			let amounts = T::DexOperator::get_amount_out_by_path(
@@ -542,7 +554,7 @@ pub mod pallet {
 		pub fn set_add_liquidity_swap_out_min(
 			liquidity_address: &AccountIdOf<T>,
 			currency_id: CurrencyId,
-			info: &Info<BalanceOf<T>, BlockNumberFor<T>>,
+			info: &Info<BalanceOf<T>, BlockNumberFor<T>, <T as frame_system::Config>::Hash>,
 		) -> DispatchResult {
 			let path = Self::get_path(currency_id)?;
 			let balance = T::MultiCurrency::free_balance(currency_id, &liquidity_address);
