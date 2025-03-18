@@ -28,6 +28,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod migration;
 pub mod weights;
 
 use bifrost_primitives::{
@@ -45,10 +46,10 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
 pub use pallet::*;
+use sp_core::H256;
 use sp_std::{vec, vec::Vec};
 pub use weights::WeightInfo;
 use zenlink_protocol::{AssetId, ExportZenlink};
-use sp_core::H256;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
@@ -61,7 +62,7 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T
 pub mod pallet {
 	use super::*;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -159,12 +160,8 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	pub type Infos<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		CurrencyIdOf<T>,
-		Info<BalanceOf<T>, BlockNumberFor<T>>,
-	>;
+	pub type Infos<T: Config> =
+		StorageMap<_, Twox64Concat, CurrencyIdOf<T>, Info<BalanceOf<T>, BlockNumberFor<T>>>;
 
 	#[pallet::storage]
 	pub type SwapOutMin<T: Config> = StorageMap<_, Twox64Concat, CurrencyIdOf<T>, u128>;
@@ -547,10 +544,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn get_target_block(
-			last_buyback_hash: H256,
-			duration: BlockNumberFor<T>,
-		) -> u32 {
+		pub fn get_target_block(last_buyback_hash: H256, duration: BlockNumberFor<T>) -> u32 {
 			let hash_value = u32::from_le_bytes([
 				last_buyback_hash[0],
 				last_buyback_hash[1],
