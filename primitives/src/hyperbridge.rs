@@ -44,3 +44,30 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 		data: Option<Vec<u8>>,
 	) -> Result<H256, DispatchError>;
 }
+
+impl<AccountId, Balance> HyperBridgeSender<AccountId, Balance> for () {
+	fn send_msg(
+		_from: ModuleId,
+		_to: H160,
+		_dest: StateMachine,
+		_msg: Vec<u8>,
+		_timeout: u64,
+	) -> Result<H256, DispatchError> {
+		Ok(H256::default())
+	}
+
+	fn send_and_call(
+		_currency_id: CurrencyId,
+		_from: AccountId,
+		_to: H160,
+		_dest: StateMachine,
+		_amount: Balance,
+		_timeout: u64,
+		_data: Option<Vec<u8>>,
+	) -> Result<H256, DispatchError> {
+		Ok(H256::default())
+	}
+}
+
+/// Hyperbridge message timeout
+pub const HYPERBRIDGE_TIMEOUT: u64 = 60 * 60 * 3;

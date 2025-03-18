@@ -518,8 +518,6 @@ fn test_set_hyperbridge_oracle_config() {
 			1,
 			H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
 			60,
-			ALICE,
-			5u32.into(),
 			5u32.into(),
 			BoundedVec::try_from(vec![(
 				BNC,
@@ -529,12 +527,10 @@ fn test_set_hyperbridge_oracle_config() {
 		));
 
 		assert_eq!(
-			HyperBridgeOracleConfig::<Test>::get(1).unwrap(),
-			OracleConfig {
+			HyperBridgeOracle::<Test>::get(1).unwrap(),
+			HyperBridgeOracleConfig {
 				to: H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
 				timeout: 60,
-				payer: ALICE,
-				fee: 5u32.into(),
 				period: 5u32.into(),
 				last_block: 0u32.into(),
 				tokens: BoundedVec::try_from(vec![(

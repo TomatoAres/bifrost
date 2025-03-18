@@ -1109,7 +1109,7 @@ impl bifrost_slpx::Config for Runtime {
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
 	type BlockNumberProvider = System;
-	type IsmpHost = Ismp;
+	type HyperBridgeSender = TokenGateway;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1262,6 +1262,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = BbBNC;
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = TokenGateway;
 }
 
 parameter_types! {
