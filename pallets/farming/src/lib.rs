@@ -915,10 +915,13 @@ pub mod pallet {
 				pool_info.withdraw_limit_count = withdraw_limit_count;
 			};
 			if let Some(gauge_basic_rewards) = gauge_init {
+				if let Some(gauge_id) = pool_info.gauge {
+					GaugePoolInfos::<T>::remove(gauge_id);
+				}
 				let gauge_basic_rewards_map: BTreeMap<CurrencyIdOf<T>, BalanceOf<T>> =
 					gauge_basic_rewards.into_iter().collect();
 
-				Self::create_gauge_pool(pid, &mut pool_info, gauge_basic_rewards_map)?;
+				Self::reset_gauge_pool(pid, &mut pool_info, gauge_basic_rewards_map)?;
 			};
 			pool_info.total_shares = Default::default();
 			pool_info.rewards = BTreeMap::new();
@@ -988,17 +991,13 @@ pub mod pallet {
 				pool_info.withdraw_limit_count = withdraw_limit_count;
 			};
 			if let Some(gauge_basic_rewards) = gauge_basic_rewards {
+				if let Some(gauge_id) = pool_info.gauge {
+					GaugePoolInfos::<T>::remove(gauge_id);
+				}
 				let gauge_basic_rewards_map: BTreeMap<CurrencyIdOf<T>, BalanceOf<T>> =
 					gauge_basic_rewards.into_iter().collect();
-				GaugePoolInfos::<T>::mutate(
-					pool_info.gauge.ok_or(Error::<T>::GaugePoolNotExist)?,
-					|gauge_pool_info_old| {
-						if let Some(mut gauge_pool_info) = gauge_pool_info_old.take() {
-							gauge_pool_info.gauge_basic_rewards = gauge_basic_rewards_map;
-							*gauge_pool_info_old = Some(gauge_pool_info);
-						}
-					},
-				);
+
+				Self::create_gauge_pool(pid, &mut pool_info, gauge_basic_rewards_map)?;
 			};
 			PoolInfos::<T>::insert(pid, &pool_info);
 
