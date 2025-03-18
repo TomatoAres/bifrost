@@ -28,6 +28,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod migration;
 pub mod weights;
 
 use bifrost_primitives::{
@@ -61,8 +62,10 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T
 pub mod pallet {
 	use super::*;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -195,6 +198,36 @@ pub mod pallet {
 		bias: Permill,
 		/// The hash of the last buyback block
 		last_buyback_hash: Hash,
+	}
+
+	impl<BalanceOf, BlockNumberFor, Hash> Info<BalanceOf, BlockNumberFor, Hash> {
+		pub fn new(
+			min_swap_value: BalanceOf,
+			if_auto: bool,
+			proportion: Permill,
+			buyback_duration: BlockNumberFor,
+			last_buyback: BlockNumberFor,
+			last_buyback_cycle: BlockNumberFor,
+			add_liquidity_duration: BlockNumberFor,
+			last_add_liquidity: BlockNumberFor,
+			destruction_ratio: Option<Permill>,
+			bias: Permill,
+			last_buyback_hash: Hash,
+		) -> Self {
+			Self {
+				min_swap_value,
+				if_auto,
+				proportion,
+				buyback_duration,
+				last_buyback,
+				last_buyback_cycle,
+				add_liquidity_duration,
+				last_add_liquidity,
+				destruction_ratio,
+				bias,
+				last_buyback_hash,
+			}
+		}
 	}
 
 	#[pallet::hooks]
