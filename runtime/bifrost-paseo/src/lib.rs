@@ -26,7 +26,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
+use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
 use pallet_traits::evm::InspectEvmAccounts;
 // A few exports that help ease life for downstream crates.
@@ -96,7 +96,6 @@ use bifrost_runtime_common::{
 	constants::{currency::*, time::*},
 	dollar, micro, milli, AuraId, SlowAdjustingFeeUpdate,
 };
-use bifrost_slp::QueryId;
 use constants::currency::*;
 use cumulus_primitives_core::AggregateMessageOrigin;
 use fp_evm::FeeCalculator;
@@ -123,7 +122,7 @@ pub mod xcm_config;
 use orml_traits::{currency::MutationHooks, location::RelativeReserveProvider};
 use pallet_evm::{GasWeightMapping, Runner};
 use pallet_identity::legacy::IdentityInfo;
-use pallet_xcm::{EnsureResponse, QueryStatus};
+use pallet_xcm::EnsureResponse;
 use polkadot_runtime_common::prod_or_fast;
 use sp_arithmetic::traits::UniqueSaturatedInto;
 use sp_runtime::{
@@ -135,7 +134,7 @@ use xcm::{
 	VersionedLocation, VersionedXcm,
 };
 pub use xcm_config::{BifrostTreasuryAccount, MultiCurrency};
-use xcm_executor::{traits::QueryHandler, XcmExecutor};
+use xcm_executor::XcmExecutor;
 
 pub mod governance;
 mod hyperbridge;
@@ -958,41 +957,6 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 500;
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, BlockNumber, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(query_id: QueryId) -> bool {
-		if let Some(QueryStatus::Ready { .. }) = PolkadotXcm::query(query_id) {
-			true
-		} else {
-			false
-		}
-	}
-
-	fn create_query_record(
-		responder: Location,
-		call_back: Option<RuntimeCall>,
-		timeout: BlockNumber,
-	) -> u64 {
-		if let Some(call_back) = call_back {
-			PolkadotXcm::new_notify_query(responder.clone(), call_back, timeout, Here)
-		} else {
-			PolkadotXcm::new_query(responder, timeout, Here)
-		}
-	}
-
-	fn remove_query_record(query_id: QueryId) -> bool {
-		// Temporarily banned. Querries from pallet_xcm cannot be removed unless it is in ready
-		// status. And we are not allowed to mannually change query status.
-		// So in the manual mode, it is not possible to remove the query at all.
-		// PolkadotXcm::take_response(query_id).is_some()
-
-		PolkadotXcm::take_response(query_id);
-		true
-	}
-}
-
 impl bifrost_slp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1003,7 +967,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainInfo;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;
