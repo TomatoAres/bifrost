@@ -113,10 +113,6 @@ merkle-distributor             = { git = "https://github.com/bifrost-io/Zenlink-
 zenlink-protocol               = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409", default-features = false }
 zenlink-protocol-rpc           = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409" }
 zenlink-protocol-runtime-api   = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409", default-features = false }
-zenlink-stable-amm             = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409", default-features = false }
-zenlink-stable-amm-rpc         = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409" }
-zenlink-stable-amm-runtime-api = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409", default-features = false }
-zenlink-swap-router            = { git = "https://github.com/bifrost-io/Zenlink-DEX-Module", branch = "release-polkadot-stable2409", default-features = false }
 
 # Orml
 orml-tokens         = { git = "https://github.com/bifrost-io/open-runtime-module-library", branch = "release-polkadot-stable2409", default-features = false }

@@ -124,7 +124,6 @@ use zenlink_protocol::{
 	AssetBalance, AssetId as ZenlinkAssetId, LocalAssetHandler, MultiAssetsHandler, PairInfo,
 	PairLpGenerate, ZenlinkMultiAssets,
 };
-use zenlink_stable_amm::traits::{StablePoolLpCurrencyIdGenerate, ValidateCurrency};
 
 // Governance configurations.
 pub mod governance;
@@ -1301,29 +1300,6 @@ impl merkle_distributor::Config for Runtime {
 	type PalletId = MerkleDirtributorPalletId;
 	type StringLimit = StringLimit;
 	type WeightInfo = ();
-}
-
-pub struct StableAmmVerifyPoolAsset;
-
-impl ValidateCurrency<CurrencyId> for StableAmmVerifyPoolAsset {
-	fn validate_pooled_currency(_currencies: &[CurrencyId]) -> bool {
-		true
-	}
-
-	fn validate_pool_lp_currency(_currency_id: CurrencyId) -> bool {
-		if Currencies::total_issuance(_currency_id) > 0 {
-			return false;
-		}
-		true
-	}
-}
-
-pub struct PoolLpGenerate;
-
-impl StablePoolLpCurrencyIdGenerate<CurrencyId, PoolId> for PoolLpGenerate {
-	fn generate_by_pool_id(pool_id: PoolId) -> CurrencyId {
-		CurrencyId::StableLpToken(pool_id)
-	}
 }
 
 parameter_types! {
