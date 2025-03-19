@@ -26,7 +26,6 @@ use std::{
 use crate::{
 	chain_spec, eth,
 	eth::{EthConfiguration, FrontierBackend},
-	IdentifyVariant,
 };
 #[cfg(any(
 	feature = "with-bifrost-polkadot-runtime",
@@ -600,18 +599,14 @@ pub async fn start_node<Net: NetworkBackend<Block, Hash>>(
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
 ) -> sc_service::error::Result<(TaskManager, Arc<FullClient>)> {
-	if parachain_config.chain_spec.is_dev() {
-		crate::dev::start_node::<Net>(parachain_config, eth_config, para_id).await
-	} else {
-		start_node_impl::<Net>(
-			parachain_config,
-			polkadot_config,
-			eth_config,
-			collator_options,
-			CollatorSybilResistance::Resistant,
-			para_id,
-			hwbench,
-		)
-		.await
-	}
+	start_node_impl::<Net>(
+		parachain_config,
+		polkadot_config,
+		eth_config,
+		collator_options,
+		CollatorSybilResistance::Resistant,
+		para_id,
+		hwbench,
+	)
+	.await
 }
