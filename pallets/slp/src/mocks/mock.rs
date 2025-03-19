@@ -21,7 +21,7 @@
 #![cfg(test)]
 
 use crate as bifrost_slp;
-use crate::{Config, DispatchResult, QueryResponseManager, XcmDestWeightAndFeeHandler};
+use crate::{Config, DispatchResult, XcmDestWeightAndFeeHandler};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, KSM},
@@ -208,6 +208,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 parameter_types! {
@@ -377,22 +378,6 @@ parameter_types! {
 	pub BifrostTreasuryAccount: AccountId = PalletId(*b"bf/trsry").into_account_truncating();
 }
 
-impl QueryResponseManager<QueryId, Location, u64, RuntimeCall> for () {
-	fn get_query_response_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-	fn create_query_record(
-		_responder: Location,
-		_call_back: Option<RuntimeCall>,
-		_timeout: u64,
-	) -> u64 {
-		Default::default()
-	}
-	fn remove_query_record(_query_id: QueryId) -> bool {
-		true
-	}
-}
-
 pub struct CurrencyIdConvert;
 impl Convert<CurrencyId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: CurrencyId) -> Option<Location> {
@@ -419,25 +404,6 @@ impl SlpxOperator<Balance> for SlpxInterface {
 	}
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, xcm::v4::Location, u64, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-	fn create_query_record(
-		_responder: xcm::v4::Location,
-		_call_back: Option<RuntimeCall>,
-		_timeout: u64,
-	) -> u64 {
-		Default::default()
-	}
-	fn remove_query_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-}
-
 impl Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -448,7 +414,6 @@ impl Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainId;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;

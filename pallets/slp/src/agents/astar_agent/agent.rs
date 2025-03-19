@@ -23,7 +23,7 @@ use crate::{
 		Ledger, QueryId, SubstrateLedger, SubstrateLedgerUpdateEntry,
 		SubstrateLedgerUpdateOperation, UnlockChunk, ValidatorsByDelegatorUpdateEntry,
 	},
-	traits::{QueryResponseManager, StakingAgent},
+	traits::StakingAgent,
 	AccountIdOf, BalanceOf, Config, DelegatorLedgerXcmUpdateQueue, DelegatorLedgers,
 	DelegatorsMultilocation2Index, LedgerUpdateEntry, MinimumsAndMaximums, Pallet, TimeUnit,
 	Validators,
@@ -641,43 +641,29 @@ impl<T: Config>
 		&self,
 		query_id: QueryId,
 		entry: LedgerUpdateEntry<BalanceOf<T>>,
-		manual_mode: bool,
 		currency_id: CurrencyId,
-	) -> Result<bool, Error<T>> {
-		// If this is manual mode, it is always updatable.
-		let should_update = if manual_mode {
-			true
-		} else {
-			T::SubstrateResponseManager::get_query_response_record(query_id)
-		};
-
+	) -> Result<(), Error<T>> {
 		// Update corresponding storages.
-		if should_update {
-			Self::update_ledger_query_response_storage(query_id, entry.clone(), currency_id)?;
+		Self::update_ledger_query_response_storage(query_id, entry.clone(), currency_id)?;
 
-			// Deposit event.
-			Pallet::<T>::deposit_event(Event::DelegatorLedgerQueryResponseConfirmed {
-				query_id,
-				entry,
-			});
-		}
+		// Deposit event.
+		Pallet::<T>::deposit_event(Event::DelegatorLedgerQueryResponseConfirmed {
+			query_id,
+			entry,
+		});
 
-		Ok(should_update)
+		Ok(())
 	}
 
 	fn check_validators_by_delegator_query_response(
 		&self,
 		_query_id: QueryId,
 		_entry: ValidatorsByDelegatorUpdateEntry,
-		_manual_mode: bool,
-	) -> Result<bool, Error<T>> {
+	) -> Result<(), Error<T>> {
 		Err(Error::<T>::Unsupported)
 	}
 
 	fn fail_delegator_ledger_query_response(&self, query_id: QueryId) -> Result<(), Error<T>> {
-		// delete pallet_xcm query
-		T::SubstrateResponseManager::remove_query_record(query_id);
-
 		// delete update entry
 		DelegatorLedgerXcmUpdateQueue::<T>::remove(query_id);
 
@@ -807,13 +793,6 @@ impl<T: Config> AstarAgent<T> {
 
 		// Delete the DelegatorLedgerXcmUpdateQueue<T> query
 		DelegatorLedgerXcmUpdateQueue::<T>::remove(query_id);
-
-		// Delete the query in pallet_xcm.
-		ensure!(
-			T::SubstrateResponseManager::remove_query_record(query_id),
-			Error::<T>::QueryResponseRemoveError
-		);
-
 		Ok(())
 	}
 

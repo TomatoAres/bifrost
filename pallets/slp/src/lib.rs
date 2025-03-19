@@ -27,7 +27,7 @@ pub use crate::{
 		Delays, LedgerUpdateEntry, MinimumsMaximums, QueryId, SubstrateLedger,
 		ValidatorsByDelegatorUpdateEntry,
 	},
-	traits::{OnRefund, QueryResponseManager, StakingAgent},
+	traits::{OnRefund, StakingAgent},
 	Junction::AccountId32,
 	Junctions::X1,
 };
@@ -106,7 +106,10 @@ pub mod pallet {
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
-		type RuntimeCall: Parameter + From<Call<Self>> + GetDispatchInfo;
+		type RuntimeCall: IsType<<Self as pallet_xcm::Config>::RuntimeCall>
+			+ Parameter
+			+ From<Call<Self>>
+			+ GetDispatchInfo;
 
 		/// Currency operations handler
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
@@ -133,14 +136,6 @@ pub mod pallet {
 
 		/// Parachain Id which is gotten from the runtime.
 		type ParachainId: Get<ParaId>;
-
-		/// Substrate response manager.
-		type SubstrateResponseManager: QueryResponseManager<
-			QueryId,
-			xcm::v4::Location,
-			BlockNumberFor<Self>,
-			<Self as pallet::Config>::RuntimeCall,
-		>;
 
 		type XcmWeightAndFeeHandler: XcmDestWeightAndFeeHandler<CurrencyId, BalanceOf<Self>>;
 
@@ -1804,7 +1799,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			// Ensure origin
 			Self::ensure_authorized(origin, currency_id)?;
-			Self::get_ledger_update_agent_then_process(query_id, true)?;
+			Self::get_ledger_update_agent_then_process(query_id)?;
 			Ok(())
 		}
 
@@ -1831,7 +1826,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			// Ensure origin
 			Self::ensure_authorized(origin, currency_id)?;
-			Self::get_validators_by_delegator_update_agent_then_process(query_id, true)?;
+			Self::get_validators_by_delegator_update_agent_then_process(query_id)?;
 
 			Ok(())
 		}
@@ -1860,7 +1855,7 @@ pub mod pallet {
 			// Ensure origin
 			ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 			if let Response::DispatchResult(MaybeErrorCode::Success) = response {
-				Self::get_ledger_update_agent_then_process(query_id, true)?;
+				Self::get_ledger_update_agent_then_process(query_id)?;
 			} else {
 				Self::do_fail_delegator_ledger_query_response(query_id)?;
 			}
@@ -1877,7 +1872,7 @@ pub mod pallet {
 			// Ensure origin
 			ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 			if let Response::DispatchResult(MaybeErrorCode::Success) = response {
-				Self::get_validators_by_delegator_update_agent_then_process(query_id, true)?;
+				Self::get_validators_by_delegator_update_agent_then_process(query_id)?;
 			} else {
 				Self::do_fail_validators_by_delegator_query_response(query_id)?;
 			}

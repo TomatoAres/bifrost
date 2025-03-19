@@ -30,7 +30,7 @@ use bifrost_primitives::{
 	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
 	VBNC, VKSM,
 };
-use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
+use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
 // A few exports that help ease life for downstream crates.
 pub use bifrost_parachain_staking::{InflationInfo, Range};
@@ -95,7 +95,6 @@ pub use bifrost_runtime_common::{
 	constants::{currency::*, time::*},
 	dollar, micro, milli, millicent, AuraId, SlowAdjustingFeeUpdate,
 };
-use bifrost_slp::QueryId;
 use constants::currency::*;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 use cumulus_primitives_core::AggregateMessageOrigin;
@@ -138,7 +137,7 @@ use bifrost_primitives::{MoonriverChainId, OraclePriceProvider};
 use bifrost_runtime_common::currency_converter::CurrencyIdConvert;
 use ismp::dispatcher::FeeMetadata;
 use ismp::dispatcher::IsmpDispatcher;
-use pallet_xcm::{EnsureResponse, QueryStatus};
+use pallet_xcm::EnsureResponse;
 use sp_core::H256;
 use sp_runtime::traits::{IdentityLookup, Verify};
 use xcm::{
@@ -149,7 +148,7 @@ pub use xcm_config::{
 	AccountId32Aliases, BifrostTreasuryAccount, ExistentialDeposits, MultiCurrency, Sibling,
 	SiblingParachainConvertsVia, XcmConfig, XcmRouter,
 };
-use xcm_executor::{traits::QueryHandler, XcmExecutor};
+use xcm_executor::XcmExecutor;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
@@ -1117,43 +1116,6 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 500;
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, BlockNumber, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(query_id: QueryId) -> bool {
-		if let Some(QueryStatus::Ready { .. }) = PolkadotXcm::query(query_id) {
-			true
-		} else {
-			false
-		}
-	}
-
-	fn create_query_record(
-		responder: Location,
-		call_back: Option<RuntimeCall>,
-		timeout: BlockNumber,
-	) -> u64 {
-		// for xcm v3 version see the following
-		// PolkadotXcm::new_query(responder, timeout, Here)
-		if let Some(call_back) = call_back {
-			PolkadotXcm::new_notify_query(responder.clone(), call_back, timeout, Here)
-		} else {
-			PolkadotXcm::new_query(responder, timeout, Here)
-		}
-	}
-
-	fn remove_query_record(query_id: QueryId) -> bool {
-		// Temporarily banned. Querries from pallet_xcm cannot be removed unless it is in ready
-		// status. And we are not allowed to mannually change query status.
-		// So in the manual mode, it is not possible to remove the query at all.
-		// PolkadotXcm::take_response(query_id).is_some()
-
-		PolkadotXcm::take_response(query_id);
-		true
-	}
-}
-
 impl bifrost_slp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1164,7 +1126,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainInfo;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;
@@ -1364,6 +1325,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 #[derive(Default)]
@@ -1401,7 +1363,7 @@ impl bifrost_slpx::Config for Runtime {
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
 	type BlockNumberProvider = System;
-	type IsmpHost = MockIsmpHost;
+	type HyperBridgeSender = ();
 }
 
 pub struct EnsurePoolAssetId;

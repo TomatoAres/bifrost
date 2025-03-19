@@ -205,33 +205,18 @@ pub trait StakingAgent<
 		&self,
 		query_id: QueryId,
 		query_entry: LedgerUpdateEntry,
-		manual_mode: bool,
 		currency_id: CurrencyId,
-	) -> Result<bool, Error>;
+	) -> Result<(), Error>;
 
 	fn check_validators_by_delegator_query_response(
 		&self,
 		query_id: QueryId,
 		query_entry: ValidatorsByDelegatorUpdateEntry,
-		manual_mode: bool,
-	) -> Result<bool, Error>;
+	) -> Result<(), Error>;
 
 	fn fail_delegator_ledger_query_response(&self, query_id: QueryId) -> Result<(), Error>;
 
 	fn fail_validators_by_delegator_query_response(&self, query_id: QueryId) -> Result<(), Error>;
-}
-
-/// Helper to communicate with pallet_xcm's Queries storage for Substrate chains in runtime.
-pub trait QueryResponseManager<QueryId, AccountId, BlockNumber, RuntimeCall> {
-	// If the query exists and we've already got the Response, then True is returned. Otherwise,
-	// False is returned.
-	fn get_query_response_record(query_id: QueryId) -> bool;
-	fn create_query_record(
-		responder: AccountId,
-		call_back: Option<RuntimeCall>,
-		timeout: BlockNumber,
-	) -> u64;
-	fn remove_query_record(query_id: QueryId) -> bool;
 }
 
 pub trait OnRefund<AccountId, CurrencyId, Balance> {

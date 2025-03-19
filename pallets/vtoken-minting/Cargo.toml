@@ -25,6 +25,7 @@ sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 bb-bnc = { workspace = true }
 bifrost-asset-registry = { workspace = true }
+ismp = { workspace = true, default-features = false }
 
 [dev-dependencies]
 orml-tokens = { workspace = true }
@@ -55,6 +56,7 @@ std = [
 	"orml-xtokens/std",
 	"bifrost-asset-registry/std",
 	"bifrost-runtime-common/std",
+	"ismp/std",
 ]
 
 runtime-benchmarks = [
