@@ -233,6 +233,8 @@ pub enum RedeemType<AccountId> {
 	Interlay(AccountId),
 	/// Manta chain.
 	Manta(AccountId),
+	/// HyperBridge,
+	HyperBridge(u32, H160),
 }
 
 impl<AccountId> Default for RedeemType<AccountId> {

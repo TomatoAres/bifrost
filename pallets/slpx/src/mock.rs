@@ -191,6 +191,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 parameter_types! {
@@ -311,8 +312,7 @@ impl slpx::Config for Test {
 	type WeightInfo = ();
 	type MaxOrderSize = ConstU32<500>;
 	type BlockNumberProvider = System;
-	#[cfg(feature = "polkadot")]
-	type IsmpHost = Ismp;
+	type HyperBridgeSender = ();
 }
 
 // Build genesis storage according to the mock runtime.
