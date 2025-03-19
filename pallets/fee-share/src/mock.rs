@@ -28,7 +28,7 @@ use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, FeeSharePalletId,
 	IncentivePoolAccount, MoonbeamChainId, PriceDetail, ZenlinkPalletId,
 };
-use bifrost_slp::{QueryId, QueryResponseManager};
+use bifrost_slp::QueryId;
 pub use cumulus_primitives_core::ParaId;
 use frame_support::{
 	derive_impl, ord_parameter_types,
@@ -311,23 +311,6 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 100;
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, u64, RuntimeCall> for SubstrateResponseManager {
-	fn get_query_response_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-	fn create_query_record(
-		_responder: Location,
-		_call_back: Option<RuntimeCall>,
-		_timeout: u64,
-	) -> u64 {
-		Default::default()
-	}
-	fn remove_query_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-}
-
 pub struct SlpxInterface;
 impl SlpxOperator<Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
@@ -345,7 +328,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = ();
 	type ParachainId = ParachainId;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ();

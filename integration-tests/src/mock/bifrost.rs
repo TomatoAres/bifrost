@@ -37,7 +37,6 @@ use bifrost_primitives::{
 	AccountIdToLocation, CurrencyId, PolkadotUniversalLocation, SelfLocation,
 };
 use bifrost_runtime_common::currency_converter::CurrencyIdConvert;
-use bifrost_slp::QueryResponseManager;
 use pallet_xcm::{QueryStatus, XcmPassthrough};
 use polkadot_parachain_primitives::primitives::Sibling;
 use xcm::latest::prelude::*;
@@ -253,41 +252,6 @@ impl bifrost_currencies::Config for Runtime {
 //     type CurrencyIdConvert = AssetIdMaps<Runtime>;
 // }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, BlockNumber, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(query_id: QueryId) -> bool {
-		if let Some(QueryStatus::Ready { .. }) = PolkadotXcm::query(query_id) {
-			true
-		} else {
-			false
-		}
-	}
-
-	fn create_query_record(
-		responder: Location,
-		call_back: Option<RuntimeCall>,
-		timeout: BlockNumber,
-	) -> u64 {
-		if let Some(call_back) = call_back {
-			PolkadotXcm::new_notify_query(responder.clone(), call_back, timeout, Here)
-		} else {
-			PolkadotXcm::new_query(responder, timeout, Here)
-		}
-	}
-
-	fn remove_query_record(query_id: bifrost_slp::QueryId) -> bool {
-		// Temporarily banned. Querries from pallet_xcm cannot be removed unless it is in ready
-		// status. And we are not allowed to mannually change query status.
-		// So in the manual mode, it is not possible to remove the query at all.
-		// PolkadotXcm::take_response(query_id).is_some()
-
-		PolkadotXcm::take_response(query_id);
-		true
-	}
-}
-
 impl bifrost_slp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -298,7 +262,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainInfo;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ();

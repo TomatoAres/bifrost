@@ -271,17 +271,13 @@ impl<T: Config> Pallet<T> {
 	/// **************************************
 	/// ****** XCM confirming Functions ******
 	/// **************************************
-	pub fn get_ledger_update_agent_then_process(
-		query_id: QueryId,
-		manual_mode: bool,
-	) -> Result<bool, Error<T>> {
+	pub fn get_ledger_update_agent_then_process(query_id: QueryId) -> Result<(), Error<T>> {
 		// See if the query exists. If it exists, call corresponding chain storage update
 		// function.
 		let (entry, timeout) =
 			DelegatorLedgerXcmUpdateQueue::<T>::get(query_id).ok_or(Error::<T>::QueryNotExist)?;
 
 		let now = T::BlockNumberProvider::current_block_number();
-		let mut updated = true;
 		if now <= timeout {
 			let currency_id = match entry.clone() {
 				LedgerUpdateEntry::Substrate(substrate_entry) => Some(substrate_entry.currency_id),
@@ -293,30 +289,23 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::NotSupportedCurrencyId)?;
 
 			let staking_agent = Self::get_currency_staking_agent(currency_id)?;
-			updated = staking_agent.check_delegator_ledger_query_response(
-				query_id,
-				entry,
-				manual_mode,
-				currency_id,
-			)?;
+			staking_agent.check_delegator_ledger_query_response(query_id, entry, currency_id)?;
 		} else {
 			Self::do_fail_delegator_ledger_query_response(query_id)?;
 		}
 
-		Ok(updated)
+		Ok(())
 	}
 
 	pub fn get_validators_by_delegator_update_agent_then_process(
 		query_id: QueryId,
-		manual_mode: bool,
-	) -> Result<bool, Error<T>> {
+	) -> Result<(), Error<T>> {
 		// See if the query exists. If it exists, call corresponding chain storage update
 		// function.
 		let (entry, timeout) = ValidatorsByDelegatorXcmUpdateQueue::<T>::get(query_id)
 			.ok_or(Error::<T>::QueryNotExist)?;
 
 		let now = T::BlockNumberProvider::current_block_number();
-		let mut updated = true;
 		if now <= timeout {
 			let currency_id = match entry.clone() {
 				ValidatorsByDelegatorUpdateEntry::Substrate(substrate_entry) => {
@@ -326,15 +315,11 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::NotSupportedCurrencyId)?;
 
 			let staking_agent = Self::get_currency_staking_agent(currency_id)?;
-			updated = staking_agent.check_validators_by_delegator_query_response(
-				query_id,
-				entry,
-				manual_mode,
-			)?;
+			staking_agent.check_validators_by_delegator_query_response(query_id, entry)?;
 		} else {
 			Self::do_fail_validators_by_delegator_query_response(query_id)?;
 		}
-		Ok(updated)
+		Ok(())
 	}
 
 	pub(crate) fn do_fail_delegator_ledger_query_response(

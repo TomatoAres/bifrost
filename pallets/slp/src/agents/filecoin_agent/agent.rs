@@ -531,9 +531,8 @@ impl<T: Config>
 		&self,
 		_query_id: QueryId,
 		_entry: LedgerUpdateEntry<BalanceOf<T>>,
-		_manual_mode: bool,
 		_currency_id: CurrencyId,
-	) -> Result<bool, Error<T>> {
+	) -> Result<(), Error<T>> {
 		Err(Error::<T>::Unsupported)
 	}
 
@@ -541,8 +540,7 @@ impl<T: Config>
 		&self,
 		_query_id: QueryId,
 		_entry: ValidatorsByDelegatorUpdateEntry,
-		_manual_mode: bool,
-	) -> Result<bool, Error<T>> {
+	) -> Result<(), Error<T>> {
 		Err(Error::<T>::Unsupported)
 	}
 
