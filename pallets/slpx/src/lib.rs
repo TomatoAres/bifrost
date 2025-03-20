@@ -708,7 +708,7 @@ pub mod pallet {
 			remark: BoundedVec<u8, ConstU32<32>>,
 			channel_id: u32,
 		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
+			T::ControlOrigin::ensure_origin(origin)?;
 			Self::do_create_order(
 				source_chain_caller,
 				Default::default(),
