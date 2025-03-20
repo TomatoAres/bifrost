@@ -92,7 +92,6 @@ pub mod pallet {
 		pallet_prelude::{ValueQuery, *},
 		weights::WeightMeter,
 	};
-	use frame_system::ensure_root;
 	use sp_runtime::traits::BlockNumberProvider;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
