@@ -25,7 +25,6 @@ pub mod collator_kusama;
 pub mod collator_polkadot;
 pub mod eth;
 pub use bifrost_rpc as rpc;
-pub mod dev;
 
 /// Can be called for a `Configuration` to check if it is a configuration for the `Bifrost` network.
 pub trait IdentifyVariant {
@@ -37,9 +36,6 @@ pub trait IdentifyVariant {
 
 	/// Returns if this is a configuration for the `Bifrost-Paseo` network.
 	fn is_bifrost_paseo(&self) -> bool;
-
-	/// Returns if this is a configuration for the `Dev` network.
-	fn is_dev(&self) -> bool;
 }
 
 impl IdentifyVariant for Box<dyn sc_service::ChainSpec> {
@@ -55,10 +51,6 @@ impl IdentifyVariant for Box<dyn sc_service::ChainSpec> {
 
 	fn is_bifrost_paseo(&self) -> bool {
 		self.id().starts_with("bifrost_paseo")
-	}
-
-	fn is_dev(&self) -> bool {
-		self.id().starts_with("dev")
 	}
 }
 
