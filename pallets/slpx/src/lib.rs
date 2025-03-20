@@ -92,7 +92,6 @@ pub mod pallet {
 		pallet_prelude::{ValueQuery, *},
 		weights::WeightMeter,
 	};
-	use frame_system::ensure_root;
 	use sp_runtime::traits::BlockNumberProvider;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
@@ -708,7 +707,7 @@ pub mod pallet {
 			remark: BoundedVec<u8, ConstU32<32>>,
 			channel_id: u32,
 		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
+			T::ControlOrigin::ensure_origin(origin)?;
 			Self::do_create_order(
 				source_chain_caller,
 				Default::default(),
