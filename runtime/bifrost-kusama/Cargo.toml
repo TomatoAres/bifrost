@@ -109,9 +109,6 @@ orml-oracle = { workspace = true }
 merkle-distributor = { workspace = true }
 zenlink-protocol = { workspace = true }
 zenlink-protocol-runtime-api = { workspace = true }
-zenlink-stable-amm = { workspace = true }
-zenlink-stable-amm-runtime-api = { workspace = true }
-zenlink-swap-router = { workspace = true }
 
 # Nuts Finance
 bifrost-stable-asset = { workspace = true }
@@ -241,9 +238,6 @@ std = [
 
 	"zenlink-protocol/std",
 	"zenlink-protocol-runtime-api/std",
-	"zenlink-stable-amm/std",
-	"zenlink-stable-amm-runtime-api/std",
-	"zenlink-swap-router/std",
 	"merkle-distributor/std",
 
 	"bifrost-primitives/std",
@@ -377,8 +371,6 @@ try-runtime = [
 	"orml-oracle/try-runtime",
 	"zenlink-protocol/try-runtime",
 	"merkle-distributor/try-runtime",
-	"zenlink-stable-amm/try-runtime",
-	"zenlink-swap-router/try-runtime",
 	"bifrost-flexible-fee/try-runtime",
 	"bifrost-salp/try-runtime",
 	"bifrost-token-issuer/try-runtime",

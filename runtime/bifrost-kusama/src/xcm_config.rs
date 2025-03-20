@@ -234,14 +234,6 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 				zenlink_protocol::Call::add_liquidity { .. } |
 				zenlink_protocol::Call::remove_liquidity { .. } |
 				zenlink_protocol::Call::transfer { .. }
-			) |
-			RuntimeCall::ZenlinkStableAMM(
-				zenlink_stable_amm::Call::remove_liquidity_one_currency { .. } |
-				zenlink_stable_amm::Call::remove_pool_and_base_pool_liquidity_one_currency { .. } |
-				zenlink_stable_amm::Call::swap { .. } |
-				zenlink_stable_amm::Call::swap_pool_to_base { .. } |
-				zenlink_stable_amm::Call::swap_meta_pool_underlying { .. } |
-				zenlink_stable_amm::Call::withdraw_admin_fee { .. }
 			) => true,
 			_ => false,
 		}

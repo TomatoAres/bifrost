@@ -123,7 +123,6 @@ use zenlink_protocol::{
 	AssetBalance, AssetId as ZenlinkAssetId, LocalAssetHandler, MultiAssetsHandler, PairInfo,
 	PairLpGenerate, ZenlinkMultiAssets,
 };
-use zenlink_stable_amm::traits::{StableAmmApi, StablePoolLpCurrencyIdGenerate, ValidateCurrency};
 
 // Governance configurations.
 pub mod governance;
@@ -1253,30 +1252,6 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 }
 
-impl zenlink_stable_amm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = CurrencyId;
-	type MultiCurrency = Currencies;
-	type PoolId = u32;
-	type TimeProvider = Timestamp;
-	type EnsurePoolAsset = StableAmmVerifyPoolAsset;
-	type LpGenerate = PoolLpGenerate;
-	type PoolCurrencySymbolLimit = StringLimit;
-	type PalletId = StableAmmPalletId;
-	type WeightInfo = ();
-}
-
-impl zenlink_swap_router::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type StablePoolId = u32;
-	type Balance = u128;
-	type StableCurrencyId = CurrencyId;
-	type NormalCurrencyId = ZenlinkAssetId;
-	type NormalAmm = ZenlinkProtocol;
-	type StableAMM = ZenlinkStableAMM;
-	type WeightInfo = zenlink_swap_router::weights::SubstrateWeight<Runtime>;
-}
-
 impl merkle_distributor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type CurrencyId = CurrencyId;
@@ -1286,29 +1261,6 @@ impl merkle_distributor::Config for Runtime {
 	type PalletId = MerkleDirtributorPalletId;
 	type StringLimit = StringLimit;
 	type WeightInfo = ();
-}
-
-pub struct StableAmmVerifyPoolAsset;
-
-impl ValidateCurrency<CurrencyId> for StableAmmVerifyPoolAsset {
-	fn validate_pooled_currency(_currencies: &[CurrencyId]) -> bool {
-		true
-	}
-
-	fn validate_pool_lp_currency(_currency_id: CurrencyId) -> bool {
-		if Currencies::total_issuance(_currency_id) > 0 {
-			return false;
-		}
-		true
-	}
-}
-
-pub struct PoolLpGenerate;
-
-impl StablePoolLpCurrencyIdGenerate<CurrencyId, PoolId> for PoolLpGenerate {
-	fn generate_by_pool_id(pool_id: PoolId) -> CurrencyId {
-		CurrencyId::StableLpToken(pool_id)
-	}
 }
 
 parameter_types! {
@@ -1805,8 +1757,6 @@ construct_runtime! {
 		OrmlXcm: orml_xcm = 74,
 		ZenlinkProtocol: zenlink_protocol = 80,
 		MerkleDistributor: merkle_distributor = 81,
-		ZenlinkStableAMM: zenlink_stable_amm = 82,
-		ZenlinkSwapRouter: zenlink_swap_router = 83,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
@@ -1887,6 +1837,10 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
+parameter_types! {
+	pub const ZenlinkSwapRouterName: &'static str = "ZenlinkSwapRouter";
+	pub const ZenlinkStableAMMName: &'static str = "ZenlinkStableAMM";
+}
 /// The runtime migrations per release.
 pub mod migrations {
 	#![allow(unused_imports)]
@@ -1896,6 +1850,8 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		frame_support::migrations::RemovePallet<ZenlinkSwapRouterName, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<ZenlinkStableAMMName, RocksDbWeight>,
 	);
 }
 
@@ -2182,64 +2138,6 @@ impl_runtime_apis! {
 				asset_1,
 				amount,
 			)
-		}
-	}
-
-	impl zenlink_stable_amm_runtime_api::StableAmmApi<Block, CurrencyId, u128, AccountId, u32> for Runtime{
-		fn get_virtual_price(pool_id: PoolId)->Balance{
-			ZenlinkStableAMM::get_virtual_price(pool_id)
-		}
-
-		fn get_a(pool_id: PoolId)->Balance{
-			ZenlinkStableAMM::get_a(pool_id)
-		}
-
-		fn get_a_precise(pool_id: PoolId)->Balance{
-			ZenlinkStableAMM::get_a(pool_id) * 100
-		}
-
-		fn get_currencies(pool_id: PoolId)->Vec<CurrencyId>{
-			ZenlinkStableAMM::get_currencies(pool_id)
-		}
-
-		fn get_currency(pool_id: PoolId, index: u32)->Option<CurrencyId>{
-			ZenlinkStableAMM::get_currency(pool_id, index)
-		}
-
-		fn get_lp_currency(pool_id: PoolId)->Option<CurrencyId>{
-			ZenlinkStableAMM::get_lp_currency(pool_id)
-		}
-
-		fn get_currency_precision_multipliers(pool_id: PoolId)->Vec<Balance>{
-			ZenlinkStableAMM::get_currency_precision_multipliers(pool_id)
-		}
-
-		fn get_currency_balances(pool_id: PoolId)->Vec<Balance>{
-			ZenlinkStableAMM::get_currency_balances(pool_id)
-		}
-
-		fn get_number_of_currencies(pool_id: PoolId)->u32{
-			ZenlinkStableAMM::get_number_of_currencies(pool_id)
-		}
-
-		fn get_admin_balances(pool_id: PoolId)->Vec<Balance>{
-			ZenlinkStableAMM::get_admin_balances(pool_id)
-		}
-
-		fn calculate_currency_amount(pool_id: PoolId, amounts:Vec<Balance>, deposit: bool)->Balance{
-			ZenlinkStableAMM::stable_amm_calculate_currency_amount(pool_id, &amounts, deposit).unwrap_or_default()
-		}
-
-		fn calculate_swap(pool_id: PoolId, in_index: u32, out_index: u32, in_amount: Balance)->Balance{
-			ZenlinkStableAMM::stable_amm_calculate_swap_amount(pool_id, in_index as usize, out_index as usize, in_amount).unwrap_or_default()
-		}
-
-		fn calculate_remove_liquidity(pool_id: PoolId, amount: Balance)->Vec<Balance>{
-			ZenlinkStableAMM::stable_amm_calculate_remove_liquidity(pool_id, amount).unwrap_or_default()
-		}
-
-		fn calculate_remove_liquidity_one_currency(pool_id: PoolId, amount:Balance, index: u32)->Balance{
-			ZenlinkStableAMM::stable_amm_calculate_remove_liquidity_one_currency(pool_id, amount, index).unwrap_or_default()
 		}
 	}
 
