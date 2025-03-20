@@ -47,6 +47,7 @@ pallet-referenda = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-session = { workspace = true }
+pallet-sudo = { workspace = true, optional = true }
 pallet-timestamp = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-tx-pause = { workspace = true }
@@ -218,6 +219,7 @@ std = [
 	"pallet-referenda/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
+	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-tips/std",
 	"pallet-tx-pause/std",
@@ -484,3 +486,6 @@ fast-runtime = []
 # By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled.
 # This feature enables the detailed display of debug output.
 force-debug = ["sp-debug-derive/force-debug"]
+
+# Enable sudo pallet.
+sudo = ["pallet-sudo"]

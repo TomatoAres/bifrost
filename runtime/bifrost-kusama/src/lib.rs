@@ -1701,6 +1701,13 @@ impl pallet_state_trie_migration::Config for Runtime {
 	type MaxKeyLen = ConstU32<256>;
 }
 
+#[cfg(feature = "sudo")]
+impl pallet_sudo::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
+}
+
 construct_runtime! {
 	pub enum Runtime {
 		// Basic stuff
@@ -1724,6 +1731,8 @@ construct_runtime! {
 		ParachainStaking: bifrost_parachain_staking = 25,
 
 		// Governance stuff
+		#[cfg(feature = "sudo")]
+		Sudo: pallet_sudo = 35,
 		ConvictionVoting: pallet_conviction_voting = 36,
 		Referenda: pallet_referenda = 37,
 		Origins: custom_origins = 38,
