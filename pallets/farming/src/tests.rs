@@ -821,3 +821,90 @@ fn refresh_should_work() {
 			);
 		})
 }
+
+#[test]
+fn edit_pool_gauge_basic_rewards_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Initialize a pool without gauge
+			let pid = 0;
+			let mut tokens_proportion = Vec::new();
+			tokens_proportion.push((KSM, Perbill::from_percent(100)));
+			let mut basic_rewards = Vec::new();
+			basic_rewards.push((KSM, 990));
+
+			// Create farming pool without gauge
+			assert_ok!(Farming::create_farming_pool(
+				RuntimeOrigin::signed(ALICE),
+				tokens_proportion.clone(),
+				basic_rewards.clone(),
+				None, // No gauge initially
+				0,
+				0,
+				0,
+				0,
+				0
+			));
+
+			// Verify no gauge pool exists yet
+			assert_eq!(PoolInfos::<Runtime>::get(pid + GAUGE_BASE_ID), None);
+			assert_eq!(PoolInfos::<Runtime>::get(pid).unwrap().gauge, None);
+
+			// Edit pool to add gauge
+			let mut gauge_basic_rewards = Vec::new();
+			gauge_basic_rewards.push((KSM, 990_000));
+
+			assert_ok!(Farming::edit_pool(
+				RuntimeOrigin::signed(ALICE),
+				pid,
+				None,
+				None,
+				None,
+				Some(gauge_basic_rewards.clone()),
+				None
+			));
+
+			// Verify gauge pool was created
+			let gauge_pool = PoolInfos::<Runtime>::get(pid + GAUGE_BASE_ID).unwrap();
+			let pool_info = PoolInfos::<Runtime>::get(pid).unwrap();
+
+			// Check gauge field was set in original pool
+			assert_eq!(pool_info.gauge, Some(pid + GAUGE_BASE_ID));
+
+			// Check gauge pool was created with correct rewards
+			let mut expected_gauge_rewards = BTreeMap::new();
+			expected_gauge_rewards.insert(KSM, 990_000);
+			assert_eq!(gauge_pool.basic_rewards, expected_gauge_rewards);
+
+			// Verify gauge pool has correct keeper and reward issuer
+			let keeper: AccountId =
+				<Runtime as Config>::Keeper::get().into_sub_account_truncating(pid);
+			let gauge_reward_issuer: AccountId = <Runtime as Config>::RewardIssuer::get()
+				.into_sub_account_truncating(pid + GAUGE_BASE_ID);
+
+			assert_eq!(gauge_pool.keeper, keeper);
+			assert_eq!(gauge_pool.reward_issuer, gauge_reward_issuer);
+
+			// Edit pool again to update gauge rewards
+			let mut new_gauge_rewards = Vec::new();
+			new_gauge_rewards.push((KSM, 1_000_000));
+
+			assert_ok!(Farming::edit_pool(
+				RuntimeOrigin::signed(ALICE),
+				pid,
+				None,
+				None,
+				None,
+				Some(new_gauge_rewards.clone()),
+				None
+			));
+
+			// Verify gauge rewards were updated
+			let updated_gauge_pool = PoolInfos::<Runtime>::get(pid + GAUGE_BASE_ID).unwrap();
+			let mut expected_new_rewards = BTreeMap::new();
+			expected_new_rewards.insert(KSM, 1_000_000);
+			assert_eq!(updated_gauge_pool.basic_rewards, expected_new_rewards);
+		})
+}
