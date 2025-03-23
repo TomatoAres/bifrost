@@ -19,8 +19,8 @@ use crate as bifrost_stable_pool;
 use bifrost_asset_registry::AssetIdMaps;
 pub use bifrost_primitives::{
 	currency::{MOVR, VMOVR},
-	Balance, CurrencyId, CurrencyIdMapping, SlpOperator, SlpxOperator, TokenSymbol, ASTR, BNC, DOT,
-	GLMR, VBNC, VDOT,
+	Balance, CurrencyId, CurrencyIdMapping, SlpxOperator, TokenSymbol, ASTR, BNC, DOT, GLMR, VBNC,
+	VDOT,
 };
 use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, IncentivePoolAccount, MoonbeamChainId,

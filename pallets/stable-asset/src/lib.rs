@@ -346,7 +346,7 @@ pub mod pallet {
 	use super::{PoolTokenIndex, StableAssetPoolId, StableAssetPoolInfo};
 	use crate::{
 		traits::{StableAsset, ValidateAssetId},
-		WeightInfo,
+		WeightInfo, U256,
 	};
 	use frame_support::{
 		dispatch::DispatchResult, pallet_prelude::*, traits::EnsureOrigin, transactional, PalletId,
@@ -667,6 +667,9 @@ pub mod pallet {
 			/// The pool id.
 			pool_id: StableAssetPoolId,
 		},
+		/// Rate adjustment was limited by hardcap
+		/// Parameters: [pool_id, vtoken, current_rate, target_rate, adjusted_rate]
+		RateAdjustmentLimited(StableAssetPoolId, T::AssetId, U256, U256, U256),
 	}
 
 	#[pallet::error]

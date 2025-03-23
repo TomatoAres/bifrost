@@ -1134,41 +1134,97 @@ fn over_the_hardcap_should_not_work() {
 			assert_ok!(StablePool::config_vtoken_auto_refresh(
 				RuntimeOrigin::root(),
 				VDOT,
-				Permill::from_percent(10)
+				Permill::from_percent(5)
 			));
+			let initial_amount = 1_000_000_u128;
 			assert_ok!(StablePool::edit_token_rate(
 				RuntimeOrigin::root(),
 				0,
-				vec![(coin0, (1, 1)), (coin1, (1, 1))]
+				vec![
+					(coin0, (initial_amount, initial_amount)),
+					(coin1, (initial_amount, initial_amount))
+				]
 			));
 
 			assert_ok!(<Test as crate::Config>::VtokenMinting::increase_token_pool(
 				DOT, 20_000_000
 			));
 			assert_ok!(StablePool::on_swap(&3u128, 0, 0, 1, 5000000u128, 0));
+			// Verify that token rates remained within hardcap
+			let rates: Vec<_> =
+				bifrost_stable_asset::TokenRateCaches::<Test>::iter_prefix(0).collect();
+
+			// Check if rates changed but stayed within hardcap (5%)
+			for (asset, (issuance, amount)) in &rates {
+				if *asset == coin1 {
+					// Calculate max allowed change (5% of initial_amount)
+					let max_increase = initial_amount
+						.saturating_add(initial_amount.saturating_mul(5).saturating_div(100));
+
+					// Calculate current rate (amount/issuance)
+					let current_rate = amount
+						.saturating_mul(initial_amount)
+						.saturating_div(*issuance);
+
+					// Assert current rate is within bounds
+					assert!(
+						current_rate <= max_increase,
+						"Rate change exceeded hardcap of 5%. Current: {}, Max allowed: {}",
+						current_rate,
+						max_increase
+					);
+				}
+			}
+
+			// Verify there are still two token rates
+			assert_eq!(rates.len(), 2, "Expected two token rates to exist");
+
 			assert_eq!(
 				bifrost_stable_asset::TokenRateCaches::<Test>::iter_prefix(0).collect::<Vec<(
 					AssetIdOf<Test>,
 					(AtLeast64BitUnsignedOf<Test>, AtLeast64BitUnsignedOf<Test>),
 				)>>(),
-				vec![(coin0, (1, 1)), (coin1, (1, 1))]
+				vec![
+					(coin0, (initial_amount, initial_amount)),
+					(coin1, (100000000, 105000000))
+				]
 			);
+			assert_ok!(StablePool::on_swap(&3u128, 0, 0, 1, 5000000u128, 0));
 
-			assert_ok!(StablePool::config_vtoken_auto_refresh(
-				RuntimeOrigin::root(),
-				VDOT,
-				Permill::from_percent(20)
-			));
+			assert_eq!(
+				bifrost_stable_asset::TokenRateCaches::<Test>::iter_prefix(0).collect::<Vec<(
+					AssetIdOf<Test>,
+					(AtLeast64BitUnsignedOf<Test>, AtLeast64BitUnsignedOf<Test>),
+				)>>(),
+				vec![
+					(coin0, (initial_amount, initial_amount)),
+					(coin1, (100000000, 110250000))
+				]
+			);
 			assert_ok!(StablePool::on_swap(&3u128, 0, 0, 1, 5000000u128, 0));
 			assert_eq!(
 				bifrost_stable_asset::TokenRateCaches::<Test>::iter_prefix(0).collect::<Vec<(
 					AssetIdOf<Test>,
 					(AtLeast64BitUnsignedOf<Test>, AtLeast64BitUnsignedOf<Test>),
 				)>>(),
-				vec![(coin0, (1, 1)), (coin1, (100000000, 120000000))]
+				vec![
+					(coin0, (initial_amount, initial_amount)),
+					(coin1, (100000000, 115762500))
+				]
 			);
-
-			assert_eq!(Tokens::free_balance(DOT, &3), 75000000u128 - BALANCE_OFF);
+			assert_ok!(StablePool::on_swap(&3u128, 0, 0, 1, 5000000u128, 0));
+			assert_ok!(StablePool::on_swap(&3u128, 0, 0, 1, 5000000u128, 0));
+			assert_eq!(
+				bifrost_stable_asset::TokenRateCaches::<Test>::iter_prefix(0).collect::<Vec<(
+					AssetIdOf<Test>,
+					(AtLeast64BitUnsignedOf<Test>, AtLeast64BitUnsignedOf<Test>),
+				)>>(),
+				vec![
+					(coin0, (initial_amount, initial_amount)),
+					(coin1, (100000000, 120000000))
+				]
+			);
+			assert_eq!(Tokens::free_balance(DOT, &3), 60000000u128 - BALANCE_OFF);
 		});
 }
 

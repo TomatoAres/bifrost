@@ -461,16 +461,46 @@ impl<T: Config> Pallet<T> {
 			let old_price = U256::from(fee_denominator)
 				.checked_mul(numerator_u256)?
 				.checked_div(demoninator_u256)?;
-			// Skip if the new price is less than old price.
-			if new_price <= delta.checked_add(old_price)? && new_price > old_price {
+
+			// Skip if the new price is less than or equal to old price
+			if new_price <= old_price {
+				return Some(());
+			}
+
+			// Calculate maximum allowed price
+			let max_allowed_price = delta.checked_add(old_price)?;
+
+			if new_price <= max_allowed_price {
+				// Case 1: Price change is within hardcap - proceed normally
 				return bifrost_stable_asset::Pallet::<T>::set_token_rate(
 					pool_id,
 					sp_std::vec![(vtoken, (vtoken_issuance, token_pool_amount))],
 				)
 				.ok();
-			} else if new_price == old_price {
-				// Do not update token rate or emit failed event if the price is the same.
-				return Some(());
+			} else {
+				// Case 2: Price change exceeds hardcap - adjust to maximum allowed
+				let adjusted_token_pool_amount = max_allowed_price
+					.checked_mul(U256::from(vtoken_issuance.saturated_into::<u128>()))?
+					.checked_div(U256::from(fee_denominator))?
+					.saturated_into::<u128>();
+
+				// Emit event for hardcap limitation
+				bifrost_stable_asset::Pallet::<T>::deposit_event(
+					bifrost_stable_asset::Event::<T>::RateAdjustmentLimited(
+						pool_id,
+						vtoken,
+						old_price,
+						new_price,
+						max_allowed_price,
+					),
+				);
+
+				// Update rate to maximum allowed value
+				return bifrost_stable_asset::Pallet::<T>::set_token_rate(
+					pool_id,
+					sp_std::vec![(vtoken, (vtoken_issuance, adjusted_token_pool_amount.into()))],
+				)
+				.ok();
 			}
 		}
 		None
