@@ -59,6 +59,7 @@ bifrost-vtoken-minting-rpc = { path = "pallets/vtoken-minting/rpc" }
 # Bifrost Runtime
 bifrost-kusama-runtime   = { path = "runtime/bifrost-kusama" }
 bifrost-polkadot-runtime = { path = "runtime/bifrost-polkadot" }
+bifrost-paseo-runtime    = { path = "runtime/bifrost-paseo" }
 
 # Bifrost Wasm
 bifrost-asset-registry                 = { path = "pallets/asset-registry", default-features = false }
