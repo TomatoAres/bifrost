@@ -50,8 +50,10 @@ std = [
 with-bifrost-runtime = [
 	"with-bifrost-kusama-runtime",
 	"with-bifrost-polkadot-runtime",
+	"with-bifrost-paseo-runtime",
 ]
 with-bifrost-kusama-runtime = []
 with-bifrost-polkadot-runtime = []
+with-bifrost-paseo-runtime = []
 with-all-runtime = ["with-bifrost-runtime"]
 runtime-benchmarks = []

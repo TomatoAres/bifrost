@@ -1363,7 +1363,7 @@ impl pallet_membership::Config<pallet_membership::Instance3> for Runtime {
 
 impl leverage_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = leverage_staking::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::leverage_staking::BifrostWeight<Runtime>;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type VtokenMinting = VtokenMinting;
 	type LendMarket = LendMarket;
@@ -1763,6 +1763,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_buy_back::migration::v1::MigrateToV1<Runtime>,
 	);
 }
 

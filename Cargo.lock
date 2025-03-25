@@ -2269,6 +2269,7 @@ dependencies = [
  "bifrost-flexible-fee-rpc-runtime-api",
  "bifrost-kusama-runtime",
  "bifrost-parachain-staking",
+ "bifrost-paseo-runtime",
  "bifrost-polkadot-runtime",
  "bifrost-primitives",
  "bifrost-rpc",
