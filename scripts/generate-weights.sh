@@ -11,7 +11,12 @@ make build-all-release-with-bench
 IFS=', ' read -r -a runtimes <<< $@;
 for runtime in "${runtimes[@]}"
 do
-    chain="${runtime}-local"
+    # 特殊处理 bifrost-paseo，其他情况添加 -local 后缀
+    if [ "$runtime" = "bifrost-paseo" ]; then
+        chain="$runtime"
+    else
+        chain="${runtime}-local"
+    fi
     echo $chain
     target/release/bifrost benchmark pallet --chain=$chain --list | sed -n '2,$p' | grep -Eio "^\w+" | uniq |
         while IFS= read -r line
@@ -34,11 +39,15 @@ do
         done
 done
 
-
 IFS=', ' read -r -a runtimes <<< $@;
 for runtime in "${runtimes[@]}"
 do
-    chain="${runtime}-local"
+    # 特殊处理 bifrost-paseo，其他情况添加 -local 后缀
+    if [ "$runtime" = "bifrost-paseo" ]; then
+        chain="$runtime"
+    else
+        chain="${runtime}-local"
+    fi
     echo $chain
     target/release/bifrost benchmark pallet --chain=$chain --list | sed -n '2,$p' | grep -Eio "^\w+" | uniq |
         while IFS= read -r line
