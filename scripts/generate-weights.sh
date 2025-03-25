@@ -11,7 +11,7 @@ make build-all-release-with-bench
 IFS=', ' read -r -a runtimes <<< $@;
 for runtime in "${runtimes[@]}"
 do
-    # 特殊处理 bifrost-paseo，其他情况添加 -local 后缀
+    # Special handling for bifrost-paseo, append '-local' suffix for other cases.
     if [ "$runtime" = "bifrost-paseo" ]; then
         chain="$runtime"
     else
@@ -42,7 +42,7 @@ done
 IFS=', ' read -r -a runtimes <<< $@;
 for runtime in "${runtimes[@]}"
 do
-    # 特殊处理 bifrost-paseo，其他情况添加 -local 后缀
+    # Special handling for bifrost-paseo, append '-local' suffix for other cases.
     if [ "$runtime" = "bifrost-paseo" ]; then
         chain="$runtime"
     else
