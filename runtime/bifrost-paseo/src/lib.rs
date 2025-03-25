@@ -1763,6 +1763,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_buy_back::migration::v1::MigrateToV1<Runtime>,
 	);
 }
 

@@ -149,6 +149,8 @@ try-polkadot-runtime-upgrade:build-try-runtime
 		--runtime \
 		target/release/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
+		--overwrite-state-version \
+		--blocktime 6000 \
 		--disable-idempotency-checks \
 		live \
 		--uri wss://hk.p.bifrost-rpc.liebi.com:443/ws
@@ -160,6 +162,7 @@ try-polkadot-runtime-create-snap:
 .PHONY: try-polkadot-runtime-upgrade-snap # try polkadot runtime upgrade use snapshot
 try-polkadot-runtime-upgrade-snap:build-try-runtime
 	try-runtime \
+		--overwrite-state-version 1 \
 		--runtime \
 			target/release/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
@@ -174,12 +177,29 @@ try-kusama-runtime-create-snap:
 .PHONY: try-kusama-runtime-upgrade-snap # try kusama runtime upgrade use snapshot
 try-kusama-runtime-upgrade-snap:build-try-runtime
 	try-runtime \
+		--overwrite-state-version 1 \
 		--runtime \
 			target/release/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
 		--disable-idempotency-checks \
 		--checks=all \
 		snap -p bifrost@latest.snap
+
+.PHONY: try-paseo-runtime-create-snap # create paseo runtime snapshot
+try-paseo-runtime-create-snap:
+	try-runtime create-snapshot --uri wss://bifrost-rpc.paseo.liebi.com/ws bifrost_paseo@latest.snap
+
+.PHONY: try-paseo-runtime-upgrade-snap # try paseo runtime upgrade use snapshot
+try-paseo-runtime-upgrade-snap:build-try-runtime
+	try-runtime \
+		--overwrite-state-version 1 \
+		--runtime \
+			target/release/wbuild/bifrost-paseo-runtime/bifrost_paseo_runtime.compact.compressed.wasm \
+		on-runtime-upgrade \
+		--blocktime 6000 \
+		--disable-idempotency-checks \
+		--checks=all \
+		snap -p bifrost_paseo@latest.snap
 
 .PHONY: resources # export genesis resources
 resources:
