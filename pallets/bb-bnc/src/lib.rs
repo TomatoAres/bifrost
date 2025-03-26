@@ -1144,6 +1144,63 @@ pub mod pallet {
 			Ok(())
 		}
 
+		pub fn bonus(
+			who: &AccountIdOf<T>,
+			currency_id: CurrencyIdOf<T>,
+			value: BalanceOf<T>,
+		) -> Result<FixedU128, DispatchError> {
+			let markup_coefficient =
+				MarkupCoefficient::<T>::get(currency_id).ok_or(Error::<T>::ArgumentsError)?;
+			ensure!(!value.is_zero(), Error::<T>::ArgumentsError);
+
+			let total_lock = TotalLock::<T>::get(currency_id)
+				.checked_add(value)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
+			let locked_token = LockedTokens::<T>::get(currency_id, &who).unwrap_or(LockedToken {
+				amount: Zero::zero(),
+				markup_coefficient: Zero::zero(),
+				refresh_block: current_block_number,
+			});
+			let amount = locked_token.amount.saturating_add(value);
+
+			let ri: FixedU128 = FixedU128::from_inner(
+				U256::from(PRECISION)
+					.checked_mul(U256::from(amount.saturated_into::<u128>()))
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div(U256::from(total_lock.saturated_into::<u128>()))
+					.map(|x| u128::try_from(x))
+					.ok_or(ArithmeticError::Overflow)?
+					.map_err(|_| ArithmeticError::Overflow)?
+					.unique_saturated_into(),
+			);
+
+			let ni = amount;
+			let ti = T::MultiCurrency::total_issuance(currency_id);
+			let wi = markup_coefficient.markup_coefficient;
+			let left = markup_coefficient
+				.rwi
+				.checked_mul(&ri)
+				.ok_or(ArithmeticError::Overflow)?;
+			let right: FixedU128 = FixedU128::from_inner(
+				U256::from(PRECISION)
+					.checked_mul(U256::from(ni.saturated_into::<u128>()))
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div(U256::from(ti))
+					.map(|x| u128::try_from(x))
+					.ok_or(ArithmeticError::Overflow)?
+					.map_err(|_| ArithmeticError::Overflow)?
+					.unique_saturated_into(),
+			)
+			.checked_mul(&wi)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			let b = left.checked_add(&right).ok_or(ArithmeticError::Overflow)?;
+			Ok(markup_coefficient.hardcap.min(b))
+		}
+
 		pub fn withdraw_markup_inner(
 			who: &AccountIdOf<T>,
 			currency_id: CurrencyIdOf<T>,

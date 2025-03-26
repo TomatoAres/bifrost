@@ -31,7 +31,6 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, MoonbeamChainId,
 };
 use bifrost_runtime_common::{micro, milli};
-use bifrost_slp::QueryId;
 pub use cumulus_primitives_core::ParaId;
 use frame_support::{
 	derive_impl, ord_parameter_types,
