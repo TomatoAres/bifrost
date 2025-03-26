@@ -45,7 +45,7 @@ use parity_scale_codec::{Decode, Encode};
 use sp_core::{bounded::BoundedVec, hashing::blake2_256};
 use sp_runtime::{
 	traits::{AccountIdConversion, Convert, TrailingZeroInput},
-	AccountId32, BuildStorage,
+	AccountId32, BuildStorage, DispatchError,
 };
 use sp_std::vec::Vec;
 use xcm::v3::{prelude::*, Weight};
@@ -238,9 +238,12 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<AccountId, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
+	}
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 

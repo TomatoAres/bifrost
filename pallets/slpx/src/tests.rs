@@ -523,7 +523,9 @@ fn test_set_hyperbridge_oracle_config() {
 				BNC,
 				H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
 			)])
-			.unwrap()
+			.unwrap(),
+			ALICE,
+			5u32.into(),
 		));
 
 		assert_eq!(
@@ -538,6 +540,8 @@ fn test_set_hyperbridge_oracle_config() {
 					H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
 				)])
 				.unwrap(),
+				payer: ALICE,
+				fee: 5u32.into()
 			}
 		);
 	})

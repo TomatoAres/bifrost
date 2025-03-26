@@ -334,7 +334,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		u32,
-		HyperBridgeOracleConfig<BlockNumberFor<T>>,
+		HyperBridgeOracleConfig<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
 		OptionQuery,
 	>;
 
@@ -846,6 +846,8 @@ pub mod pallet {
 			timeout: u64,
 			period: BlockNumberFor<T>,
 			tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
+			payer: T::AccountId,
+			fee: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			T::ControlOrigin::ensure_origin(origin)?;
 			HyperBridgeOracle::<T>::insert(
@@ -856,6 +858,8 @@ pub mod pallet {
 					period,
 					last_block: Default::default(),
 					tokens: tokens.clone(),
+					payer,
+					fee,
 				},
 			);
 			Self::deposit_event(Event::SetHyperBridgeOracleConfig {
@@ -1163,6 +1167,7 @@ impl<T: Config> Pallet<T> {
 		target_chain: &TargetChain<AccountIdOf<T>>,
 	) -> DispatchResult {
 		if let TargetChain::HyperBridge(dest, to) = target_chain {
+			let (payer, fee) = Self::get_hyperbridge_payer_and_fee(*dest)?;
 			T::HyperBridgeSender::send_and_call(
 				currency_id,
 				caller,
@@ -1171,6 +1176,8 @@ impl<T: Config> Pallet<T> {
 				amount,
 				HYPERBRIDGE_TIMEOUT,
 				None,
+				payer,
+				fee,
 			)?;
 			return Ok(());
 		};
@@ -1481,6 +1488,8 @@ impl<T: Config> Pallet<T> {
 				period,
 				last_block,
 				tokens,
+				payer,
+				fee,
 			},
 		) in HyperBridgeOracle::<T>::iter()
 		{
@@ -1509,6 +1518,8 @@ impl<T: Config> Pallet<T> {
 						StateMachine::Evm(dest),
 						body,
 						HYPERBRIDGE_TIMEOUT,
+						payer.clone(),
+						fee,
 					)
 					.map_err(|_| Error::<T>::Unsupported)?;
 					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
@@ -1521,6 +1532,8 @@ impl<T: Config> Pallet<T> {
 						tokens,
 						period,
 						last_block: current_block_number,
+						payer,
+						fee,
 					},
 				);
 			}
@@ -1611,9 +1624,16 @@ impl<T: Config> Pallet<T> {
 }
 
 // Functions to be called by other pallets.
-impl<T: Config> SlpxOperator<BalanceOf<T>> for Pallet<T> {
+impl<T: Config> SlpxOperator<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	fn get_moonbeam_transfer_to_fee() -> BalanceOf<T> {
 		TransferToFee::<T>::get(SupportChain::Moonbeam)
 			.unwrap_or_else(|| Self::get_default_fee(BNC))
+	}
+
+	fn get_hyperbridge_payer_and_fee(
+		dest: u32,
+	) -> Result<(T::AccountId, BalanceOf<T>), DispatchError> {
+		let config = HyperBridgeOracle::<T>::get(dest).ok_or(Error::<T>::Unsupported)?;
+		Ok((config.payer, config.fee))
 	}
 }

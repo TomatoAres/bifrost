@@ -159,7 +159,7 @@ pub struct Order<AccountId, CurrencyId, Balance, BlockNumber> {
 
 /// HyperBridge Oracle Config
 #[derive(Encode, Decode, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct HyperBridgeOracleConfig<BlockNumber> {
+pub struct HyperBridgeOracleConfig<AccountId, Balance, BlockNumber> {
 	/// Destination chain contract address
 	pub to: H160,
 	/// Time out
@@ -170,6 +170,10 @@ pub struct HyperBridgeOracleConfig<BlockNumber> {
 	pub last_block: BlockNumber,
 	/// Token list
 	pub tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
+	/// Payer
+	pub payer: AccountId,
+	/// Fee
+	pub fee: Balance,
 }
 
 /// HyperBridge Oracle Config

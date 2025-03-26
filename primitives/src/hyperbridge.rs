@@ -14,6 +14,8 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 	/// - `dest`: Destination state machine
 	/// - `msg`: Message to be sent
 	/// - `timeout`: Timeout for the message
+	/// - `payer`: Account id of the payer
+	/// - `fee`: Fee for the message
 	/// Returns
 	/// - `H256`: Message hash
 	fn send_msg(
@@ -22,6 +24,8 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 		dest: StateMachine,
 		msg: Vec<u8>,
 		timeout: u64,
+		payer: AccountId,
+		fee: Balance,
 	) -> Result<H256, DispatchError>;
 
 	/// Send asset to the destination chain and call a function
@@ -32,6 +36,8 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 	/// - `amount`: Amount to be sent
 	/// - `timeout`: Timeout for the message
 	/// - `data`: Call data
+	/// - `payer`: Account id of the payer
+	/// - `fee`: Fee for the message
 	/// Returns
 	/// - `H256`: Message hash
 	fn send_and_call(
@@ -42,6 +48,8 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 		amount: Balance,
 		timeout: u64,
 		data: Option<Vec<u8>>,
+		payer: AccountId,
+		fee: Balance,
 	) -> Result<H256, DispatchError>;
 }
 
@@ -52,6 +60,8 @@ impl<AccountId, Balance> HyperBridgeSender<AccountId, Balance> for () {
 		_dest: StateMachine,
 		_msg: Vec<u8>,
 		_timeout: u64,
+		_payer: AccountId,
+		_fee: Balance,
 	) -> Result<H256, DispatchError> {
 		Ok(H256::default())
 	}
@@ -64,6 +74,8 @@ impl<AccountId, Balance> HyperBridgeSender<AccountId, Balance> for () {
 		_amount: Balance,
 		_timeout: u64,
 		_data: Option<Vec<u8>>,
+		_payer: AccountId,
+		_fee: Balance,
 	) -> Result<H256, DispatchError> {
 		Ok(H256::default())
 	}
