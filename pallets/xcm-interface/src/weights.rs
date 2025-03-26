@@ -27,13 +27,13 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 43.0.0
 //! DATE: 2025-03-26, STEPS: `50`, REPEAT: 20, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! HOSTNAME: `bifrost-jenkins`, CPU: `Intel(R) Xeon(R) CPU E5-26xx v4`
-//! WASM-EXECUTION: Compiled, CHAIN: Some("bifrost-paseo"), DB CACHE: 1024
+//! WASM-EXECUTION: Compiled, CHAIN: Some("bifrost-polkadot-local"), DB CACHE: 1024
 
 // Executed Command:
 // target/release/bifrost
 // benchmark
 // pallet
-// --chain=bifrost-paseo
+// --chain=bifrost-polkadot-local
 // --steps=50
 // --repeat=20
 // --pallet=bifrost_xcm_interface
@@ -72,8 +72,8 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `136`
 		//  Estimated: `3601`
-		// Minimum execution time: 61_948_000 picoseconds.
-		Weight::from_parts(63_494_000, 3601)
+		// Minimum execution time: 67_712_000 picoseconds.
+		Weight::from_parts(69_105_000, 3601)
 			.saturating_add(RocksDbWeight::get().reads(5_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
