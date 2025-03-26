@@ -2020,3 +2020,54 @@ fn unlock_time_edge_cases_should_work() {
 			);
 		});
 }
+
+#[test]
+fn bonus_works() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set initial state
+			let account = BOB;
+			let currency_id = VBNC;
+			let value = 1000;
+
+			// Set up necessary storage items
+			let markup_coefficient = MarkupCoefficientInfo {
+				markup_coefficient: FixedU128::from_rational(1, 2), // 0.5
+				rwi: FixedU128::from_rational(1, 4),                // 0.25
+				hardcap: FixedU128::from_rational(3, 4),            // 0.75
+				update_block: System::block_number(),
+			};
+			MarkupCoefficient::<Runtime>::insert(currency_id, markup_coefficient.clone());
+
+			// Set total issuance
+			orml_tokens::TotalIssuance::<Runtime>::insert(currency_id, 10000);
+
+			let result = BbBNC::bonus(&account, currency_id, value).unwrap();
+			assert!(result < markup_coefficient.hardcap);
+
+			let value_over_hardcap = 10000;
+			assert_eq!(
+				BbBNC::bonus(&account, currency_id, value_over_hardcap).unwrap(),
+				markup_coefficient.hardcap
+			);
+		});
+}
+
+#[test]
+fn bonus_fails_with_zero_value() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			let account = BOB;
+			let currency_id = VBNC;
+			let value = 0;
+
+			assert_noop!(
+				BbBNC::bonus(&account, currency_id, value),
+				Error::<Runtime>::ArgumentsError
+			);
+		});
+}

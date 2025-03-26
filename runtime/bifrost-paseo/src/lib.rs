@@ -2473,6 +2473,14 @@ impl_runtime_apis! {
 		) -> U256{
 			BbBNC::find_block_epoch(block, max_epoch)
 		}
+
+		fn bonus(
+			who: AccountId,
+			currency_id: CurrencyId,
+			value: Balance,
+		) -> FixedU128 {
+			BbBNC::bonus(&who, currency_id, value).unwrap_or_else(|_| FixedU128::zero())
+		}
 	}
 
 	impl lend_market_rpc_runtime_api::LendMarketApi<Block, AccountId, Balance> for Runtime {

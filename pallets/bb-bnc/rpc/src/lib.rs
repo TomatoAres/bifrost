@@ -19,7 +19,7 @@
 use std::{marker::PhantomData, sync::Arc};
 
 pub use bb_bnc_rpc_runtime_api::{self as runtime_api, BbBNCRuntimeApi};
-use bifrost_primitives::Balance;
+use bifrost_primitives::{Balance, CurrencyId, Rate};
 use jsonrpsee::{
 	core::{async_trait, RpcResult},
 	proc_macros::rpc,
@@ -49,6 +49,15 @@ pub trait BbBNCRpcApi<BlockHash, AccountId> {
 	/// RPC method to find block epoch
 	#[method(name = "bb_bnc_findBlockEpoch")]
 	fn find_block_epoch(&self, max_epoch: U256, at: Option<BlockHash>) -> RpcResult<NumberOrHex>;
+
+	#[method(name = "bb_bnc_bonus")]
+	fn bonus(
+		&self,
+		who: AccountId,
+		currency_id: CurrencyId,
+		value: Balance,
+		at: Option<BlockHash>,
+	) -> RpcResult<Rate>;
 }
 
 #[derive(Clone, Debug)]
@@ -179,5 +188,26 @@ where
 				Some(format!("{:?}", e)),
 			)),
 		}
+	}
+
+	fn bonus(
+		&self,
+		who: AccountId,
+		currency_id: CurrencyId,
+		value: Balance,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<Rate> {
+		let api = self.client.runtime_api();
+		let at = at.unwrap_or_else(|| self.client.info().best_hash);
+
+		let result = api.bonus(at, who, currency_id, value).map_err(|e| {
+			ErrorObject::owned(
+				ErrorCode::InternalError.code(),
+				"Failed to get bonus.",
+				Some(format!("{:?}", e)),
+			)
+		})?;
+
+		Ok(result)
 	}
 }

@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use bifrost_primitives::{Balance, BlockNumber};
+use bifrost_primitives::{Balance, BlockNumber, CurrencyId, Rate};
 use parity_scale_codec::Codec;
 use sp_api::decl_runtime_apis;
 use sp_core::U256;
@@ -41,5 +41,11 @@ decl_runtime_apis! {
 			block: BlockNumber,
 			max_epoch: U256,
 		) -> U256;
+
+		fn bonus(
+			who: AccountId,
+			currency_id: CurrencyId,
+			value: Balance,
+		) -> Rate;
 	}
 }
