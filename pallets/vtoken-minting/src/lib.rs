@@ -93,7 +93,7 @@ pub mod pallet {
 		/// Xtokens xcm transfer interface
 		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
 		/// Slpx operator
-		type BifrostSlpx: SlpxOperator<BalanceOf<Self>>;
+		type BifrostSlpx: SlpxOperator<crate::AccountIdOf<Self>, BalanceOf<Self>>;
 		/// bbBNC interface
 		type BbBNC: BbBNCInterface<
 			AccountIdOf<Self>,

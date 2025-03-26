@@ -448,6 +448,7 @@ impl<T: Config> Pallet<T> {
 				return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
 			}
 			if let RedeemType::HyperBridge(dest, to) = redeem_type {
+				let (payer, fee) = T::BifrostSlpx::get_hyperbridge_payer_and_fee(dest)?;
 				T::HyperBridgeSender::send_and_call(
 					redeem_currency_id,
 					entrance_account.clone(),
@@ -456,6 +457,8 @@ impl<T: Config> Pallet<T> {
 					redeem_currency_amount,
 					HYPERBRIDGE_TIMEOUT,
 					None,
+					payer,
+					fee,
 				)?;
 				return Ok((redeem_currency_amount, RedeemTo::HyperBridge(dest, to)));
 			};

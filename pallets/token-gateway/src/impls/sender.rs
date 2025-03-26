@@ -15,8 +15,10 @@ impl<T: Config> HyperBridgeSender<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		dest: StateMachine,
 		msg: Vec<u8>,
 		timeout: u64,
+		payer: T::AccountId,
+		fee: BalanceOf<T>,
 	) -> Result<H256, DispatchError> {
-		let dispatcher = T::IsmpHost::default();
+		let dispatcher = <T as Config>::Dispatcher::default();
 		let post = DispatchPost {
 			dest,
 			from: from.to_bytes(),
@@ -26,13 +28,7 @@ impl<T: Config> HyperBridgeSender<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		};
 
 		let commitment = dispatcher
-			.dispatch_request(
-				DispatchRequest::Post(post),
-				FeeMetadata {
-					payer: Pallet::<T>::pallet_account(),
-					fee: Default::default(),
-				},
-			)
+			.dispatch_request(DispatchRequest::Post(post), FeeMetadata { payer, fee })
 			.map_err(|_| Error::<T>::DispatchError)?;
 		Ok(commitment)
 	}
@@ -45,11 +41,9 @@ impl<T: Config> HyperBridgeSender<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		amount: BalanceOf<T>,
 		timeout: u64,
 		data: Option<Vec<u8>>,
+		payer: T::AccountId,
+		fee: BalanceOf<T>,
 	) -> Result<H256, DispatchError> {
-		let fee_metadata = FeeMetadata {
-			payer: Pallet::<T>::pallet_account(),
-			fee: Default::default(),
-		};
 		Pallet::<T>::do_teleport(
 			currency_id,
 			from,
@@ -58,7 +52,7 @@ impl<T: Config> HyperBridgeSender<T::AccountId, BalanceOf<T>> for Pallet<T> {
 			amount,
 			timeout,
 			data,
-			fee_metadata,
+			FeeMetadata { payer, fee },
 		)
 	}
 }

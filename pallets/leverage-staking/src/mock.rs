@@ -37,7 +37,7 @@ use orml_traits::{
 	location::RelativeReserveProvider, parameter_type_with_key, DataFeeder, DataProvider,
 	DataProviderExtended,
 };
-use sp_runtime::{traits::IdentityLookup, BuildStorage, FixedPointNumber};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, FixedPointNumber};
 use std::{
 	cell::RefCell,
 	collections::HashMap,
@@ -282,9 +282,12 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<u128, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
+	}
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(u128, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 

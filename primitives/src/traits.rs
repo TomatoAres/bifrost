@@ -139,8 +139,9 @@ pub trait SlpOperator<CurrencyId> {
 }
 
 /// Trait for Vtoken-Minting module to check whether accept redeeming or not.
-pub trait SlpxOperator<Balance> {
+pub trait SlpxOperator<AccountId, Balance> {
 	fn get_moonbeam_transfer_to_fee() -> Balance;
+	fn get_hyperbridge_payer_and_fee(dest: u32) -> Result<(AccountId, Balance), DispatchError>;
 }
 
 /// A mapping between CurrencyId and AssetMetadata.
