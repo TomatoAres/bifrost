@@ -27,13 +27,13 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 43.0.0
 //! DATE: 2025-03-26, STEPS: `50`, REPEAT: 20, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! HOSTNAME: `bifrost-jenkins`, CPU: `Intel(R) Xeon(R) CPU E5-26xx v4`
-//! WASM-EXECUTION: Compiled, CHAIN: Some("bifrost-polkadot-local"), DB CACHE: 1024
+//! WASM-EXECUTION: Compiled, CHAIN: Some("bifrost-kusama-local"), DB CACHE: 1024
 
 // Executed Command:
 // target/release/bifrost
 // benchmark
 // pallet
-// --chain=bifrost-polkadot-local
+// --chain=bifrost-kusama-local
 // --steps=50
 // --repeat=20
 // --pallet=bifrost_xcm_interface
@@ -60,21 +60,13 @@ pub trait WeightInfo {
 impl WeightInfo for () {
 	/// Storage: `XcmInterface::XcmWeightAndFee` (r:1 w:1)
 	/// Proof: `XcmInterface::XcmWeightAndFee` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `System::Number` (r:1 w:0)
-	/// Proof: `System::Number` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `System::ExecutionPhase` (r:1 w:0)
-	/// Proof: `System::ExecutionPhase` (`max_values`: Some(1), `max_size`: Some(5), added: 500, mode: `MaxEncodedLen`)
-	/// Storage: `System::EventCount` (r:1 w:1)
-	/// Proof: `System::EventCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `System::Events` (r:1 w:1)
-	/// Proof: `System::Events` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	fn update_xcm_dest_weight_and_fee() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `136`
-		//  Estimated: `3601`
-		// Minimum execution time: 67_712_000 picoseconds.
-		Weight::from_parts(69_105_000, 3601)
-			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(3_u64))
+		//  Measured:  `109`
+		//  Estimated: `3574`
+		// Minimum execution time: 56_812_000 picoseconds.
+		Weight::from_parts(58_152_000, 3574)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
