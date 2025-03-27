@@ -1069,7 +1069,8 @@ impl bifrost_slpx::Config for Runtime {
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type ParachainId = ParachainInfo;
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
-	type MaxOrderSize = ConstU32<500>;
+	type MaxOrderSize = ConstU32<2000>;
+	type MaxUserOrderSize = ConstU32<20>;
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = TokenGateway;
 }

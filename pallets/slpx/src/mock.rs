@@ -314,6 +314,7 @@ impl slpx::Config for Test {
 	type ParachainId = ParachainId;
 	type WeightInfo = ();
 	type MaxOrderSize = ConstU32<500>;
+	type MaxUserOrderSize = ConstU32<2>;
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = ();
 }

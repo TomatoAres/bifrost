@@ -132,9 +132,12 @@ pub mod pallet {
 		/// ParaId of the parachain
 		#[pallet::constant]
 		type ParachainId: Get<ParaId>;
-		/// The maximum number of order is 500
+		/// The maximum number of order
 		#[pallet::constant]
 		type MaxOrderSize: Get<u32>;
+		/// The maximum number of user order
+		#[pallet::constant]
+		type MaxUserOrderSize: Get<u32>;
 	}
 
 	#[pallet::event]
@@ -815,6 +818,17 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			let source_chain_caller = OrderCaller::Substrate(who.clone());
+			let mut count = 1;
+			let orders = OrderQueue::<T>::get();
+			for order in orders.iter() {
+				if order.source_chain_caller == source_chain_caller {
+					count += 1;
+				}
+			}
+			ensure!(
+				count <= T::MaxUserOrderSize::get(),
+				Error::<T>::OrderQueueOverflow
+			);
 			Self::do_create_order(
 				source_chain_caller,
 				Default::default(),
