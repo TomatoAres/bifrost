@@ -571,3 +571,36 @@ fn test_set_hydration_oracle_config() {
 		);
 	})
 }
+
+#[test]
+fn substrate_create_order() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Slpx::substrate_create_order(
+			RuntimeOrigin::signed(ALICE),
+			VDOT,
+			1000u128,
+			TargetChain::Hydradx(ALICE),
+			BoundedVec::default(),
+			0
+		));
+		assert_ok!(Slpx::substrate_create_order(
+			RuntimeOrigin::signed(ALICE),
+			VDOT,
+			1000u128,
+			TargetChain::Hydradx(ALICE),
+			BoundedVec::default(),
+			0
+		));
+		assert_noop!(
+			Slpx::substrate_create_order(
+				RuntimeOrigin::signed(ALICE),
+				VDOT,
+				1000u128,
+				TargetChain::Hydradx(ALICE),
+				BoundedVec::default(),
+				0
+			),
+			Error::<Test>::OrderQueueOverflow
+		);
+	});
+}
