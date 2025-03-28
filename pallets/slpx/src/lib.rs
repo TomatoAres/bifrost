@@ -807,7 +807,7 @@ pub mod pallet {
 
 		/// Substrate user create order
 		#[pallet::call_index(17)]
-		#[pallet::weight(<T as Config>::WeightInfo::mint())]
+		#[pallet::weight(<T as Config>::WeightInfo::substrate_create_order(T::MaxOrderSize::get()))]
 		pub fn substrate_create_order(
 			origin: OriginFor<T>,
 			currency_id: CurrencyId,

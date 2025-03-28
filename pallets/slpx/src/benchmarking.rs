@@ -162,6 +162,35 @@ mod benchmarks {
 		);
 	}
 
+	#[benchmark]
+	fn substrate_create_order(l: Linear<0, { T::MaxOrderSize::get() - 1 }>) {
+		let receiver = H160::default();
+
+		for index in 0..l {
+			let caller = account("caller", index, index);
+			Pallet::<T>::substrate_create_order(
+				RawOrigin::Signed(caller).into(),
+				KSM,
+				BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+				TargetChain::Astar(receiver),
+				BoundedVec::default(),
+				0,
+			)
+			.unwrap();
+		}
+
+		let caller = account("caller", 1, 1);
+		#[extrinsic_call]
+		_(
+			RawOrigin::Signed(caller),
+			KSM,
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			TargetChain::Astar(receiver),
+			BoundedVec::default(),
+			0,
+		);
+	}
+
 	//   `cargo test -p pallet-example-basic --all-features`, you will see one line per case:
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

@@ -61,6 +61,7 @@ pub trait WeightInfo {
 	fn mint_with_channel_id() -> Weight;
 	fn redeem() -> Weight;
 	fn evm_create_order() -> Weight;
+	fn substrate_create_order(l: u32, ) -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -157,6 +158,20 @@ impl WeightInfo for () {
 		// Minimum execution time: 38_443_000 picoseconds.
 		Weight::from_parts(39_398_000, 114987)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Slpx::OrderQueue` (r:1 w:1)
+	/// Proof: `Slpx::OrderQueue` (`max_values`: Some(1), `max_size`: Some(113502), added: 113997, mode: `MaxEncodedLen`)
+	/// The range of component `l` is `[0, 499]`.
+	fn substrate_create_order(l: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `35 + l * (155 ±0)`
+		//  Estimated: `114987`
+		// Minimum execution time: 10_000_000 picoseconds.
+		Weight::from_parts(13_393_193, 114987)
+			// Standard Error: 11_566
+			.saturating_add(Weight::from_parts(682_566, 0).saturating_mul(l.into()))
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
