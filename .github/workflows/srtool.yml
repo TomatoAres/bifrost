@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        chain: ["bifrost-kusama", "bifrost-polkadot"]
+        chain: ["bifrost-kusama", "bifrost-polkadot", "bifrost-paseo"]
     runs-on: ubuntu-22.04
     steps:
       - name: "📥 Checkout"
