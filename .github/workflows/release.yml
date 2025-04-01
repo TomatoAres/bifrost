@@ -40,6 +40,12 @@ jobs:
         with:
           name: bifrost-polkadot-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
+      
+      - name: Download paseo srtool result
+        uses: actions/download-artifact@v4
+        with:
+          name: bifrost-paseo-runtime-${{ github.ref_name }}
+          path: ${{ github.workspace }}/artifacts
 
       - name: Build bifrost
         working-directory: ${{ github.workspace }}
@@ -72,9 +78,16 @@ jobs:
           subwasm info ${{ github.workspace }}/artifacts/bifrost-kusama_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
           echo ' ' >> ${{ github.workspace }}-CHANGELOG.txt
+          
           echo "## Bifrost Polkadot Runtime" >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
           subwasm info ${{ github.workspace }}/artifacts/bifrost-polkadot_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
+          echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
+          echo ' ' >> ${{ github.workspace }}-CHANGELOG.txt
+
+          echo "## Bifrost Paseo Runtime" >> ${{ github.workspace }}-CHANGELOG.txt
+          echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
+          subwasm info ${{ github.workspace }}/artifacts/bifrost-paseo_runtime.compact.compressed.wasm >> ${{ github.workspace }}-CHANGELOG.txt
           echo '```' >> ${{ github.workspace }}-CHANGELOG.txt
 
       - name: Create Release
@@ -91,7 +104,7 @@ jobs:
             ${{ github.workspace }}/artifacts/bifrost.sha256
             ${{ github.workspace }}/artifacts/bifrost-kusama_runtime.compact.compressed.wasm
             ${{ github.workspace }}/artifacts/bifrost-polkadot_runtime.compact.compressed.wasm
-
+            ${{ github.workspace }}/artifacts/bifrost-paseo_runtime.compact.compressed.wasm
       - uses: 8398a7/action-slack@v3
         if: always()
         with:
