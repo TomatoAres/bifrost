@@ -25,9 +25,10 @@ use crate::{
 };
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	currency::BNC, AstarChainId, CurrencyId, CurrencyIdExt, HydrationChainId, InterlayChainId,
-	MantaChainId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
-	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, FIL, V_WETH,
+	currency::BNC, AstarChainId, CurrencyId, CurrencyIdExt, HydrationChainId, HyperBridgeSender,
+	InterlayChainId, MantaChainId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
+	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, FIL, HYPERBRIDGE_TIMEOUT,
+	V_WETH,
 };
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
@@ -39,6 +40,7 @@ use frame_support::{
 	transactional, BoundedVec,
 };
 use frame_system::pallet_prelude::*;
+use ismp::host::StateMachine;
 use orml_traits::{MultiCurrency, MultiLockableCurrency, XcmTransfer};
 use sp_core::U256;
 use sp_runtime::traits::BlockNumberProvider;
@@ -445,6 +447,21 @@ impl<T: Config> Pallet<T> {
 				}
 				return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
 			}
+			if let RedeemType::HyperBridge(dest, to) = redeem_type {
+				let (payer, fee) = T::BifrostSlpx::get_hyperbridge_payer_and_fee(dest)?;
+				T::HyperBridgeSender::send_and_call(
+					redeem_currency_id,
+					entrance_account.clone(),
+					to,
+					StateMachine::Evm(dest),
+					redeem_currency_amount,
+					HYPERBRIDGE_TIMEOUT,
+					None,
+					payer,
+					fee,
+				)?;
+				return Ok((redeem_currency_amount, RedeemTo::HyperBridge(dest, to)));
+			};
 			let (dest, redeem_to) = match redeem_type {
 				RedeemType::Astar(receiver) => (
 					Location::new(
@@ -511,7 +528,7 @@ impl<T: Config> Pallet<T> {
 					),
 					RedeemTo::Moonbeam(receiver),
 				),
-				RedeemType::Native => {
+				RedeemType::Native | RedeemType::HyperBridge(..) => {
 					unreachable!()
 				}
 			};

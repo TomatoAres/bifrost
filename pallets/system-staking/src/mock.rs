@@ -25,7 +25,7 @@ use bifrost_primitives::{
 	FarmingGaugeRewardIssuerPalletId, FarmingKeeperPalletId, FarmingRewardIssuerPalletId,
 	IncentivePoolAccount, MoonbeamChainId, SystemStakingPalletId,
 };
-use bifrost_slp::{QueryId, QueryResponseManager};
+use bifrost_slp::QueryId;
 pub use cumulus_primitives_core::ParaId;
 use cumulus_primitives_core::*;
 use frame_support::{
@@ -39,7 +39,7 @@ use orml_traits::{location::RelativeReserveProvider, parameter_type_with_key};
 use sp_core::ConstU32;
 use sp_runtime::{
 	traits::{AccountIdConversion, ConvertInto, IdentityLookup},
-	AccountId32, BuildStorage,
+	AccountId32, BuildStorage, DispatchError,
 };
 use sp_std::vec;
 use xcm::v3::Weight;
@@ -203,6 +203,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 ord_parameter_types! {
@@ -228,27 +229,13 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 100;
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, u64, RuntimeCall> for SubstrateResponseManager {
-	fn get_query_response_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-	fn create_query_record(
-		_responder: Location,
-		_call_back: Option<RuntimeCall>,
-		_timeout: u64,
-	) -> u64 {
-		Default::default()
-	}
-	fn remove_query_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-}
-
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<AccountId, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
+	}
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 
@@ -262,7 +249,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = ();
 	type ParachainId = ParachainId;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ();

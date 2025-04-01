@@ -26,7 +26,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
+use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
 use pallet_traits::evm::InspectEvmAccounts;
 // A few exports that help ease life for downstream crates.
@@ -96,7 +96,6 @@ use bifrost_runtime_common::{
 	constants::{currency::*, time::*},
 	dollar, micro, milli, AuraId, SlowAdjustingFeeUpdate,
 };
-use bifrost_slp::QueryId;
 use constants::currency::*;
 use cumulus_primitives_core::AggregateMessageOrigin;
 use fp_evm::FeeCalculator;
@@ -124,7 +123,7 @@ pub mod xcm_config;
 use orml_traits::{currency::MutationHooks, location::RelativeReserveProvider};
 use pallet_evm::{GasWeightMapping, Runner};
 use pallet_identity::legacy::IdentityInfo;
-use pallet_xcm::{EnsureResponse, QueryStatus};
+use pallet_xcm::EnsureResponse;
 use polkadot_runtime_common::prod_or_fast;
 use sp_arithmetic::traits::UniqueSaturatedInto;
 use sp_runtime::{
@@ -132,11 +131,11 @@ use sp_runtime::{
 	transaction_validity::TransactionValidityError,
 };
 use xcm::{
-	v3::MultiLocation, v4::prelude::*, VersionedAssetId, VersionedAssets, VersionedLocation,
-	VersionedXcm,
+	v3::MultiLocation, v4::prelude::*, Version as XcmVersion, VersionedAssetId, VersionedAssets,
+	VersionedLocation, VersionedXcm,
 };
 pub use xcm_config::{BifrostTreasuryAccount, MultiCurrency};
-use xcm_executor::{traits::QueryHandler, XcmExecutor};
+use xcm_executor::XcmExecutor;
 
 pub mod governance;
 mod hyperbridge;
@@ -151,9 +150,6 @@ use ismp::{
 	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
 	router::{Request, Response},
 };
-use pallet_ismp::offchain::Leaf;
-use pallet_ismp::offchain::Proof;
-use pallet_ismp::offchain::ProofKeys;
 use xcm::IntoVersion;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -197,11 +193,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_polkadot"),
 	impl_name: create_runtime_str!("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 17001,
+	spec_version: 18000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -962,41 +958,6 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 500;
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, BlockNumber, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(query_id: QueryId) -> bool {
-		if let Some(QueryStatus::Ready { .. }) = PolkadotXcm::query(query_id) {
-			true
-		} else {
-			false
-		}
-	}
-
-	fn create_query_record(
-		responder: Location,
-		call_back: Option<RuntimeCall>,
-		timeout: BlockNumber,
-	) -> u64 {
-		if let Some(call_back) = call_back {
-			PolkadotXcm::new_notify_query(responder.clone(), call_back, timeout, Here)
-		} else {
-			PolkadotXcm::new_query(responder, timeout, Here)
-		}
-	}
-
-	fn remove_query_record(query_id: QueryId) -> bool {
-		// Temporarily banned. Querries from pallet_xcm cannot be removed unless it is in ready
-		// status. And we are not allowed to mannually change query status.
-		// So in the manual mode, it is not possible to remove the query at all.
-		// PolkadotXcm::take_response(query_id).is_some()
-
-		PolkadotXcm::take_response(query_id);
-		true
-	}
-}
-
 impl bifrost_slp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1007,7 +968,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainInfo;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;
@@ -1111,8 +1071,9 @@ impl bifrost_slpx::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
+	type MaxUserOrderSize = ConstU32<20>;
 	type BlockNumberProvider = System;
-	type IsmpHost = Ismp;
+	type HyperBridgeSender = TokenGateway;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1265,6 +1226,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = BbBNC;
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = TokenGateway;
 }
 
 parameter_types! {
@@ -1403,7 +1365,7 @@ impl pallet_membership::Config<pallet_membership::Instance3> for Runtime {
 
 impl leverage_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = leverage_staking::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::leverage_staking::BifrostWeight<Runtime>;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type VtokenMinting = VtokenMinting;
 	type LendMarket = LendMarket;
@@ -1602,6 +1564,57 @@ where
 
 // zenlink runtime end
 
+parameter_types! {
+	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
+	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
+	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
+	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
+}
+
+use frame_support::traits::SortedMembers;
+pub struct MigControllerMembers;
+impl SortedMembers<AccountId> for MigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![MigController::get()]
+	}
+}
+
+pub struct RootMigControllerMembers;
+impl SortedMembers<AccountId> for RootMigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![RootMigController::get()]
+	}
+}
+
+impl pallet_state_trie_migration::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type SignedDepositPerItem = MigrationSignedDepositPerItem;
+	type SignedDepositBase = MigrationSignedDepositBase;
+	// An origin that can control the whole pallet: should be Root, or a part of your council.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ControlOrigin = frame_system::EnsureSigned<AccountId>;
+	// specific account for the migration, can trigger the signed migrations.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SignedFilter = frame_system::EnsureSigned<AccountId>;
+	// Replace this with weight based on your runtime.
+	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type MaxKeyLen = ConstU32<256>;
+}
+
+#[cfg(feature = "sudo")]
+impl pallet_sudo::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
+}
+
 construct_runtime! {
 	pub enum Runtime {
 		// Basic stuff
@@ -1625,6 +1638,8 @@ construct_runtime! {
 		ParachainStaking: bifrost_parachain_staking = 25,
 
 		// Governance stuff
+		#[cfg(feature = "sudo")]
+		Sudo: pallet_sudo = 35,
 		ConvictionVoting: pallet_conviction_voting = 36,
 		Referenda: pallet_referenda = 37,
 		Origins: custom_origins = 38,
@@ -1700,6 +1715,7 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
+		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1787,6 +1803,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_buy_back::migration::v1::MigrateToV1<Runtime>,
 	);
 }
 
@@ -1872,6 +1889,7 @@ mod benches {
 		[bifrost_farming, Farming]
 		[bifrost_clouds_convert, CloudsConvert]
 		[pallet_evm_accounts, EVMAccounts]
+		[pallet_state_trie_migration, StateTrieMigration]
 	);
 }
 
@@ -2208,13 +2226,6 @@ impl_runtime_apis! {
 			pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
 		}
 
-		/// Generate a proof for the provided leaf indices
-		fn generate_proof(
-			keys: ProofKeys
-		) -> Result<(Vec<Leaf>, Proof<<Block as BlockT>::Hash>), sp_mmr_primitives::Error> {
-			pallet_ismp::Pallet::<Runtime>::generate_proof(keys)
-		}
-
 		/// Fetch all ISMP events in the block, should only be called from runtime-api.
 		fn block_events() -> Vec<::ismp::events::Event> {
 			pallet_ismp::Pallet::<Runtime>::block_events()
@@ -2239,7 +2250,6 @@ impl_runtime_apis! {
 		fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
 			pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
 		}
-
 
 		/// Get actual requests
 		fn requests(commitments: Vec<H256>) -> Vec<Request> {
@@ -2375,8 +2385,8 @@ impl_runtime_apis! {
 	}
 
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
-		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call)
+		fn dry_run_call(origin: OriginCaller, call: RuntimeCall, result_xcms_version: XcmVersion) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call, result_xcms_version)
 		}
 
 		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
@@ -2497,6 +2507,14 @@ impl_runtime_apis! {
 			max_epoch: U256,
 		) -> U256{
 			BbBNC::find_block_epoch(block, max_epoch)
+		}
+
+		fn bonus(
+			who: AccountId,
+			currency_id: CurrencyId,
+			value: Balance,
+		) -> FixedU128 {
+			BbBNC::bonus(&who, currency_id, value).unwrap_or_else(|_| FixedU128::zero())
 		}
 	}
 

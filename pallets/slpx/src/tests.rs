@@ -518,23 +518,21 @@ fn test_set_hyperbridge_oracle_config() {
 			1,
 			H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
 			60,
-			ALICE,
-			5u32.into(),
 			5u32.into(),
 			BoundedVec::try_from(vec![(
 				BNC,
 				H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
 			)])
-			.unwrap()
+			.unwrap(),
+			ALICE,
+			5u32.into(),
 		));
 
 		assert_eq!(
-			HyperBridgeOracleConfig::<Test>::get(1).unwrap(),
-			OracleConfig {
+			HyperBridgeOracle::<Test>::get(1).unwrap(),
+			HyperBridgeOracleConfig {
 				to: H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
 				timeout: 60,
-				payer: ALICE,
-				fee: 5u32.into(),
 				period: 5u32.into(),
 				last_block: 0u32.into(),
 				tokens: BoundedVec::try_from(vec![(
@@ -542,6 +540,8 @@ fn test_set_hyperbridge_oracle_config() {
 					H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
 				)])
 				.unwrap(),
+				payer: ALICE,
+				fee: 5u32.into()
 			}
 		);
 	})
@@ -570,4 +570,37 @@ fn test_set_hydration_oracle_config() {
 			}
 		);
 	})
+}
+
+#[test]
+fn substrate_create_order() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Slpx::substrate_create_order(
+			RuntimeOrigin::signed(ALICE),
+			VDOT,
+			1000u128,
+			TargetChain::Hydradx(ALICE),
+			BoundedVec::default(),
+			0
+		));
+		assert_ok!(Slpx::substrate_create_order(
+			RuntimeOrigin::signed(ALICE),
+			VDOT,
+			1000u128,
+			TargetChain::Hydradx(ALICE),
+			BoundedVec::default(),
+			0
+		));
+		assert_noop!(
+			Slpx::substrate_create_order(
+				RuntimeOrigin::signed(ALICE),
+				VDOT,
+				1000u128,
+				TargetChain::Hydradx(ALICE),
+				BoundedVec::default(),
+				0
+			),
+			Error::<Test>::OrderQueueOverflow
+		);
+	});
 }

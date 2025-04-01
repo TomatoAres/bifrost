@@ -20,6 +20,7 @@ use crate::Currencies;
 use bifrost_primitives::{
 	AccountFeeCurrency, Balance, CurrencyId, OraclePriceProvider, Price, WETH,
 };
+use fp_evm::AccountProvider;
 use frame_support::traits::TryDrop;
 use orml_traits::MultiCurrency;
 use pallet_evm::{AddressMapping, Error, OnChargeEVMTransaction};
@@ -63,11 +64,12 @@ pub struct TransferEvmFees<AC, MC, Price>(PhantomData<(AC, MC, Price)>);
 impl<T, AC, MC, Price> OnChargeEVMTransaction<T> for TransferEvmFees<AC, MC, Price>
 where
 	T: pallet_evm::Config,
-	AC: AccountFeeCurrency<T::AccountId>, // AccountCurrency
-	Price: OraclePriceProvider,           // PriceProvider
-	MC: MultiCurrency<T::AccountId, CurrencyId = CurrencyId, Balance = Balance>,
+	AC: AccountFeeCurrency<pallet_evm::AccountIdOf<T>>, // AccountCurrency
+	Price: OraclePriceProvider,                         // PriceProvider
+	MC: MultiCurrency<pallet_evm::AccountIdOf<T>, CurrencyId = CurrencyId, Balance = Balance>,
 	U256: UniqueSaturatedInto<Balance>,
 	sp_runtime::AccountId32: From<<T as frame_system::Config>::AccountId>,
+	<<T as pallet_evm::Config>::AccountProvider as AccountProvider>::AccountId: core::fmt::Debug,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo>;
 

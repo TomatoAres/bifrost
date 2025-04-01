@@ -22,6 +22,9 @@ zenlink-protocol = { workspace = true }
 orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
 
+ismp = { workspace = true }
+pallet-ismp = { workspace = true }
+
 [features]
 default = ["std"]
 std = [
@@ -40,13 +43,17 @@ std = [
 	"zenlink-protocol/std",
 	"orml-oracle/std",
 	"orml-traits/std",
+	"ismp/std",
+	"pallet-ismp/std",
 ]
 
 with-bifrost-runtime = [
 	"with-bifrost-kusama-runtime",
 	"with-bifrost-polkadot-runtime",
+	"with-bifrost-paseo-runtime",
 ]
 with-bifrost-kusama-runtime = []
 with-bifrost-polkadot-runtime = []
+with-bifrost-paseo-runtime = []
 with-all-runtime = ["with-bifrost-runtime"]
 runtime-benchmarks = []

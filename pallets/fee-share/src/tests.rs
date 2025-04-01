@@ -25,7 +25,7 @@ use frame_support::{assert_err, assert_ok};
 use sp_arithmetic::per_things::Perbill;
 
 #[test]
-fn on_idle() {
+fn on_initialize() {
 	ExtBuilder::default()
 		.one_hundred_for_alice_n_bob()
 		.build()
@@ -44,13 +44,13 @@ fn on_idle() {
 			assert_ok!(FeeShare::set_era_length(RuntimeOrigin::signed(ALICE), 1));
 			let current_block_number = System::block_number() + 1;
 			System::set_block_number(current_block_number);
-			FeeShare::on_idle(current_block_number, Weight::zero());
+			FeeShare::on_initialize(current_block_number);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
 				KSM, &ALICE, &keeper, 100,
 			));
 			let current_block_number = System::block_number() + 1;
 			System::set_block_number(current_block_number);
-			FeeShare::on_idle(current_block_number, Weight::zero());
+			FeeShare::on_initialize(current_block_number);
 			assert_eq!(Tokens::free_balance(KSM, &keeper), 0);
 		});
 }
@@ -80,17 +80,11 @@ fn edit_delete_distribution() {
 				<Runtime as Config>::FeeSharePalletId::get().into_sub_account_truncating(0);
 
 			assert_ok!(FeeShare::set_era_length(RuntimeOrigin::signed(ALICE), 1));
-			FeeShare::on_idle(
-				<frame_system::Pallet<Runtime>>::block_number() + 1,
-				Weight::zero(),
-			);
+			FeeShare::on_initialize(<frame_system::Pallet<Runtime>>::block_number() + 1);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
 				KSM, &ALICE, &keeper, 100,
 			));
-			FeeShare::on_idle(
-				<frame_system::Pallet<Runtime>>::block_number() + 2,
-				Weight::zero(),
-			);
+			FeeShare::on_initialize(<frame_system::Pallet<Runtime>>::block_number() + 2);
 			assert_eq!(Tokens::free_balance(KSM, &keeper), 10100);
 			assert_ok!(FeeShare::execute_distribute(
 				RuntimeOrigin::signed(ALICE),
@@ -142,7 +136,7 @@ fn set_usd_config_should_work() {
 			assert_eq!(Tokens::free_balance(KSM, &BOB), 100);
 			let current_block_number = System::block_number() + 1;
 			System::set_block_number(current_block_number);
-			FeeShare::on_idle(current_block_number, Weight::zero());
+			FeeShare::on_initialize(current_block_number);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
 				KSM, &ALICE, &keeper, 100,
 			));
@@ -153,7 +147,7 @@ fn set_usd_config_should_work() {
 			);
 			let current_block_number = System::block_number() + 1;
 			System::set_block_number(current_block_number);
-			FeeShare::on_idle(current_block_number, Weight::zero());
+			FeeShare::on_initialize(current_block_number);
 			assert_eq!(Tokens::free_balance(KSM, &keeper), 0);
 			assert_eq!(Tokens::free_balance(KSM, &BOB), 10100);
 			assert_eq!(
@@ -165,7 +159,7 @@ fn set_usd_config_should_work() {
 			));
 			let current_block_number = System::block_number() + 8;
 			System::set_block_number(current_block_number);
-			FeeShare::on_idle(current_block_number, Weight::zero());
+			FeeShare::on_initialize(current_block_number);
 			assert_eq!(
 				DollarStandardInfos::<Runtime>::get(0).unwrap().cumulative,
 				0

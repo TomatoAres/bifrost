@@ -54,7 +54,6 @@ use pallet_ismp_rpc::{IsmpApiServer, IsmpRpcHandler};
 use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 use sc_client_api::{AuxStore, BlockBackend, ProofProvider};
 use sc_consensus_manual_seal::rpc::{EngineCommand, ManualSeal, ManualSealApiServer};
-use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
@@ -65,7 +64,6 @@ use substrate_frame_rpc_system::{System, SystemApiServer};
 use zenlink_protocol::AssetId;
 use zenlink_protocol_rpc::{ZenlinkProtocol, ZenlinkProtocolApiServer};
 use zenlink_protocol_runtime_api::ZenlinkProtocolApi as ZenlinkProtocolRuntimeApi;
-use zenlink_stable_amm_rpc::{StableAmm, StableAmmApiServer};
 
 mod eth;
 pub use self::eth::{create_eth, EthDeps};
@@ -76,8 +74,6 @@ pub struct FullDeps<C, P> {
 	pub client: Arc<C>,
 	/// Transaction pool instance.
 	pub pool: Arc<P>,
-	/// Whether to deny unsafe calls
-	pub deny_unsafe: DenyUnsafe,
 }
 
 /// Full client dependencies.
@@ -86,8 +82,6 @@ pub struct FullDepsPolkadot<C, P, B> {
 	pub client: Arc<C>,
 	/// Transaction pool instance.
 	pub pool: Arc<P>,
-	/// Whether to deny unsafe calls
-	pub deny_unsafe: DenyUnsafe,
 	/// Manual seal command sink
 	pub command_sink: Option<mpsc::Sender<EngineCommand<Hash>>>,
 	/// Backend used by the node.
@@ -117,26 +111,19 @@ where
 	C::Api: LendMarketApi<Block, AccountId, Balance>,
 	C::Api: VtokenMintingRuntimeApi<Block, CurrencyId, Balance>,
 	C::Api: ZenlinkProtocolRuntimeApi<Block, AccountId, AssetId>,
-	C::Api:
-		zenlink_stable_amm_runtime_api::StableAmmApi<Block, CurrencyId, Balance, AccountId, PoolId>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 {
 	let mut module = RpcExtension::new(());
-	let FullDeps {
-		client,
-		pool,
-		deny_unsafe,
-	} = deps;
+	let FullDeps { client, pool } = deps;
 
-	module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
+	module.merge(System::new(client.clone(), pool.clone()).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
 	module.merge(FarmingRpc::new(client.clone()).into_rpc())?;
 	module.merge(FlexibleFeeRpc::new(client.clone()).into_rpc())?;
 	module.merge(SalpRpc::new(client.clone()).into_rpc())?;
 	module.merge(ZenlinkProtocol::new(client.clone()).into_rpc())?;
-	module.merge(StableAmm::new(client.clone()).into_rpc())?;
 	module.merge(StablePoolRpc::new(client.clone()).into_rpc())?;
 	module.merge(LendMarket::new(client.clone()).into_rpc())?;
 	module.merge(VtokenMintingRpc::new(client).into_rpc())?;
@@ -180,12 +167,11 @@ where
 	let FullDepsPolkadot {
 		client,
 		pool,
-		deny_unsafe,
 		command_sink,
 		backend,
 	} = deps;
 
-	module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
+	module.merge(System::new(client.clone(), pool.clone()).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
 	module.merge(FarmingRpc::new(client.clone()).into_rpc())?;

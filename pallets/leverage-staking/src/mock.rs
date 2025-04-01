@@ -20,7 +20,7 @@ pub use super::*;
 use crate as leverage_staking;
 use bifrost_asset_registry::AssetIdMaps;
 pub use bifrost_primitives::{
-	currency::*, Balance, CurrencyId, CurrencyIdMapping, SlpOperator, SlpxOperator, TokenSymbol,
+	currency::*, Balance, CurrencyId, CurrencyIdMapping, SlpxOperator, TokenSymbol,
 };
 use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, IncentivePoolAccount, LendMarketPalletId, Moment,
@@ -37,7 +37,7 @@ use orml_traits::{
 	location::RelativeReserveProvider, parameter_type_with_key, DataFeeder, DataProvider,
 	DataProviderExtended,
 };
-use sp_runtime::{traits::IdentityLookup, BuildStorage, FixedPointNumber};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, FixedPointNumber};
 use std::{
 	cell::RefCell,
 	collections::HashMap,
@@ -282,9 +282,12 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<u128, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
+	}
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(u128, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 
@@ -313,14 +316,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
-}
-
-pub struct Slp;
-// Functions to be called by other pallets.
-impl SlpOperator<CurrencyId> for Slp {
-	fn all_delegation_requests_occupied(_currency_id: CurrencyId) -> bool {
-		true
-	}
+	type HyperBridgeSender = ();
 }
 
 parameter_types! {

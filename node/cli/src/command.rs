@@ -24,11 +24,10 @@ use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::info;
 use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
-	NetworkParams, Result, SharedParams, SubstrateCli,
+	NetworkParams, Result, RpcEndpoint, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_runtime::traits::{AccountIdConversion, HashingFor};
-use std::net::SocketAddr;
 
 fn get_exec_name() -> Option<String> {
 	std::env::current_exe()
@@ -224,7 +223,7 @@ macro_rules! with_runtime_or_err {
 
 			#[cfg(not(any(feature = "with-bifrost-kusama-runtime",feature = "with-bifrost-runtime")))]
 			return Err(service::BIFROST_KUSAMA_RUNTIME_NOT_AVAILABLE.into());
-		} else if $chain_spec.is_bifrost_polkadot() || $chain_spec.is_dev() {
+		} else if $chain_spec.is_bifrost_polkadot() {
 			#[cfg(any(feature = "with-bifrost-polkadot-runtime", feature = "with-bifrost-runtime"))]
 			#[allow(unused_imports)]
 			use service::collator_polkadot::{bifrost_polkadot_runtime::{Block, RuntimeApi}, start_node,new_partial};
@@ -462,7 +461,10 @@ pub fn run() -> Result<()> {
 				let hwbench = (!cli.no_hardware_benchmarks)
 					.then_some(config.database.path().map(|database_path| {
 						let _ = std::fs::create_dir_all(database_path);
-						sc_sysinfo::gather_hwbench(Some(database_path))
+						sc_sysinfo::gather_hwbench(
+							Some(database_path),
+							&SUBSTRATE_REFERENCE_HARDWARE,
+						)
 					}))
 					.flatten();
 
@@ -497,14 +499,6 @@ pub fn run() -> Result<()> {
 				info!(
 					"Is collating: {}",
 					if config.role.is_authority() {
-						"yes"
-					} else {
-						"no"
-					}
-				);
-				info!(
-					"Is dev modle: {}",
-					if config.chain_spec.is_dev() {
 						"yes"
 					} else {
 						"no"
@@ -575,35 +569,11 @@ impl CliConfiguration<Self> for RelayChainCli {
 			.prometheus_config(default_listen_port, chain_spec)
 	}
 
-	fn init<F>(
-		&self,
-		_support_url: &String,
-		_impl_version: &String,
-		_logger_hook: F,
-		_config: &sc_service::Configuration,
-	) -> Result<()>
+	fn init<F>(&self, _support_url: &String, _impl_version: &String, _logger_hook: F) -> Result<()>
 	where
-		F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration),
+		F: FnOnce(&mut sc_cli::LoggerBuilder),
 	{
 		unreachable!("PolkadotCli is never initialized; qed");
-	}
-
-	fn chain_id(&self, is_dev: bool) -> Result<String> {
-		let chain_id = self.base.base.chain_id(is_dev)?;
-
-		Ok(if chain_id.is_empty() {
-			self.chain_id.clone().unwrap_or_default()
-		} else {
-			chain_id
-		})
-	}
-
-	fn role(&self, is_dev: bool) -> Result<sc_service::Role> {
-		self.base.base.role(is_dev)
-	}
-
-	fn transaction_pool(&self, is_dev: bool) -> Result<sc_service::config::TransactionPoolOptions> {
-		self.base.base.transaction_pool(is_dev)
 	}
 
 	fn trie_cache_maximum_size(&self) -> Result<Option<usize>> {
@@ -618,12 +588,8 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.rpc_max_connections()
 	}
 
-	fn rpc_addr(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
+	fn rpc_addr(&self, default_listen_port: u16) -> Result<Option<Vec<RpcEndpoint>>> {
 		self.base.base.rpc_addr(default_listen_port)
-	}
-
-	fn rpc_cors(&self, is_dev: bool) -> Result<Option<Vec<String>>> {
-		self.base.base.rpc_cors(is_dev)
 	}
 
 	fn default_heap_pages(&self) -> Result<Option<u64>> {

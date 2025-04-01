@@ -28,6 +28,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod migration;
 pub mod weights;
 
 use bifrost_primitives::{
@@ -45,10 +46,10 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
 pub use pallet::*;
+use sp_core::H256;
 use sp_std::{vec, vec::Vec};
 pub use weights::WeightInfo;
 use zenlink_protocol::{AssetId, ExportZenlink};
-
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
@@ -61,8 +62,10 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T
 pub mod pallet {
 	use super::*;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -189,6 +192,38 @@ pub mod pallet {
 		destruction_ratio: Option<Permill>,
 		/// The bias of the token value to be swapped.
 		bias: Permill,
+		/// The hash of the last buyback block
+		last_buyback_hash: H256,
+	}
+
+	impl<BalanceOf, BlockNumberFor> Info<BalanceOf, BlockNumberFor> {
+		pub fn new(
+			min_swap_value: BalanceOf,
+			if_auto: bool,
+			proportion: Permill,
+			buyback_duration: BlockNumberFor,
+			last_buyback: BlockNumberFor,
+			last_buyback_cycle: BlockNumberFor,
+			add_liquidity_duration: BlockNumberFor,
+			last_add_liquidity: BlockNumberFor,
+			destruction_ratio: Option<Permill>,
+			bias: Permill,
+			last_buyback_hash: H256,
+		) -> Self {
+			Self {
+				min_swap_value,
+				if_auto,
+				proportion,
+				buyback_duration,
+				last_buyback,
+				last_buyback_cycle,
+				add_liquidity_duration,
+				last_add_liquidity,
+				destruction_ratio,
+				bias,
+				last_buyback_hash,
+			}
+		}
 	}
 
 	#[pallet::hooks]
@@ -265,7 +300,7 @@ pub mod pallet {
 				if info.last_buyback_cycle >= n {
 					continue;
 				}
-				match Self::get_target_block(info.last_buyback, info.buyback_duration) {
+				match Self::get_target_block(info.last_buyback_hash, info.buyback_duration) {
 					target_block
 						if target_block
 							== n.saturating_sub(info.last_buyback_cycle)
@@ -317,6 +352,8 @@ pub mod pallet {
 							info.last_buyback_cycle = info
 								.last_buyback_cycle
 								.saturating_add(info.buyback_duration);
+							let current_hash = frame_system::Pallet::<T>::block_hash(n);
+							info.last_buyback_hash = H256::from_slice(current_hash.as_ref());
 							info.last_buyback = n;
 							Infos::<T>::insert(currency_id, info);
 							SwapOutMin::<T>::remove(currency_id);
@@ -356,6 +393,7 @@ pub mod pallet {
 			);
 
 			let now = T::BlockNumberProvider::current_block_number();
+			let current_hash = frame_system::Pallet::<T>::block_hash(now);
 
 			let info = Info {
 				min_swap_value,
@@ -368,6 +406,7 @@ pub mod pallet {
 				last_add_liquidity: now,
 				destruction_ratio,
 				bias,
+				last_buyback_hash: H256::from_slice(current_hash.as_ref()),
 			};
 			Infos::<T>::insert(currency_id, info.clone());
 
@@ -505,11 +544,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn get_target_block(n: BlockNumberFor<T>, duration: BlockNumberFor<T>) -> u32 {
-			let block_hash = frame_system::Pallet::<T>::block_hash(n);
-			let hash_bytes = block_hash.as_ref();
-			let hash_value =
-				u32::from_le_bytes([hash_bytes[0], hash_bytes[1], hash_bytes[2], hash_bytes[3]]);
+		pub fn get_target_block(last_buyback_hash: H256, duration: BlockNumberFor<T>) -> u32 {
+			let hash_value = u32::from_le_bytes([
+				last_buyback_hash[0],
+				last_buyback_hash[1],
+				last_buyback_hash[2],
+				last_buyback_hash[3],
+			]);
 			let target_block =
 				hash_value % (duration.saturating_sub(One::one()).saturated_into::<u32>());
 

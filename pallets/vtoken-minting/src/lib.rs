@@ -37,7 +37,7 @@ pub use weights::WeightInfo;
 use crate::impls::Operation;
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	CurrencyId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
+	CurrencyId, HyperBridgeSender, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
 };
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
@@ -93,7 +93,7 @@ pub mod pallet {
 		/// Xtokens xcm transfer interface
 		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
 		/// Slpx operator
-		type BifrostSlpx: SlpxOperator<BalanceOf<Self>>;
+		type BifrostSlpx: SlpxOperator<crate::AccountIdOf<Self>, BalanceOf<Self>>;
 		/// bbBNC interface
 		type BbBNC: BbBNCInterface<
 			AccountIdOf<Self>,
@@ -103,6 +103,8 @@ pub mod pallet {
 		>;
 		/// Channel commission provider
 		type ChannelCommission: VTokenMintRedeemProvider<CurrencyId, BalanceOf<Self>>;
+
+		type HyperBridgeSender: HyperBridgeSender<AccountIdOf<Self>, BalanceOf<Self>>;
 
 		/// Maximum unlock id of user
 		#[pallet::constant]
@@ -492,7 +494,11 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			if remaining_weight.any_lt(T::DbWeight::get().reads_writes(12, 6)) {
+				return Weight::zero();
+			}
+
 			for currency in OngoingTimeUnit::<T>::iter_keys() {
 				let result = Self::handle_ledger_by_currency(currency);
 				match result {

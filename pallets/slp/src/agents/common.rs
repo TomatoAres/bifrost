@@ -20,7 +20,6 @@ use crate::{
 	primitives::{
 		ParachainStakingLedgerUpdateEntry, ParachainStakingLedgerUpdateOperation, TIMEOUT_BLOCKS,
 	},
-	traits::QueryResponseManager,
 	vec, AccountIdOf, BalanceOf, BlockNumberFor, BoundedVec, Config, CurrencyDelays,
 	DelegationsOccupied, DelegatorLatestTuneRecord, DelegatorLedgerXcmUpdateQueue,
 	DelegatorLedgers, DelegatorNextIndex, DelegatorsIndex2Multilocation,
@@ -399,24 +398,28 @@ impl<T: Config> Pallet<T> {
 		let timeout = BlockNumberFor::<T>::from(TIMEOUT_BLOCKS).saturating_add(now);
 		let responder = Self::convert_currency_to_dest_location(currency_id)?;
 
-		let (notify_call_weight, callback_option) = match (currency_id, operation) {
+		let (notify_call_weight, callback) = match (currency_id, operation) {
 			(DOT, &XcmOperationType::Delegate)
 			| (DOT, &XcmOperationType::Undelegate)
 			| (KSM, &XcmOperationType::Delegate)
 			| (KSM, &XcmOperationType::Undelegate) => {
 				let notify_call = Self::confirm_validators_by_delegator_call();
-				(notify_call.get_dispatch_info().weight, Some(notify_call))
+				(notify_call.get_dispatch_info().weight, notify_call)
 			}
 			_ => {
 				let notify_call = Self::confirm_delegator_ledger_call();
-				(notify_call.get_dispatch_info().weight, Some(notify_call))
+				(notify_call.get_dispatch_info().weight, notify_call)
 			}
 		};
 
-		let query_id =
-			T::SubstrateResponseManager::create_query_record(responder, callback_option, timeout);
+		let query_id = pallet_xcm::Pallet::<T>::new_notify_query(
+			responder,
+			callback,
+			timeout,
+			xcm::v4::Junctions::Here,
+		);
 
-		return Ok((query_id, notify_call_weight));
+		Ok((query_id, notify_call_weight))
 	}
 
 	pub(crate) fn construct_xcm_and_send_as_subaccount_without_query_id(

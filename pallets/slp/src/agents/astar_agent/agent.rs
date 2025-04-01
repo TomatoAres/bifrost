@@ -23,7 +23,7 @@ use crate::{
 		Ledger, QueryId, SubstrateLedger, SubstrateLedgerUpdateEntry,
 		SubstrateLedgerUpdateOperation, UnlockChunk, ValidatorsByDelegatorUpdateEntry,
 	},
-	traits::{QueryResponseManager, StakingAgent},
+	traits::StakingAgent,
 	AccountIdOf, BalanceOf, Config, DelegatorLedgerXcmUpdateQueue, DelegatorLedgers,
 	DelegatorsMultilocation2Index, LedgerUpdateEntry, MinimumsAndMaximums, Pallet, TimeUnit,
 	Validators,
@@ -114,18 +114,6 @@ impl<T: Config>
 				amount >= mins_maxs.delegator_bonded_minimum,
 				Error::<T>::LowerThanMinimum
 			);
-
-			// Create a new delegator ledger
-			// The real bonded amount will be updated by services once the xcm transaction succeeds.
-			let ledger = SubstrateLedger::<BalanceOf<T>> {
-				account: *who,
-				total: Zero::zero(),
-				active: Zero::zero(),
-				unlocking: vec![],
-			};
-			let sub_ledger = Ledger::<BalanceOf<T>>::Substrate(ledger);
-
-			DelegatorLedgers::<T>::insert(currency_id, who, sub_ledger);
 		}
 
 		// Get the contract_h160
@@ -137,35 +125,19 @@ impl<T: Config>
 
 		// Wrap the xcm message as it is sent from a subaccount of the parachain account, and
 		// send it out.
-		let (query_id, timeout, fee, xcm_message) =
-			Pallet::<T>::construct_xcm_as_subaccount_with_query_id(
-				XcmOperationType::Bond,
-				call.encode(),
-				who,
-				currency_id,
-				weight_and_fee,
-			)?;
+		let fee = Pallet::<T>::construct_xcm_and_send_as_subaccount_without_query_id(
+			XcmOperationType::Bond,
+			call.encode(),
+			who,
+			currency_id,
+			weight_and_fee,
+		)?;
 
 		// withdraw this xcm fee from treasury. If treasury doesn't have this money, stop the
 		// process.
 		Pallet::<T>::burn_fee_from_source_account(fee, currency_id)?;
 
-		// Insert a delegator ledger update record into DelegatorLedgerXcmUpdateQueue<T>.
-		Self::insert_delegator_ledger_update_entry(
-			who,
-			SubstrateLedgerUpdateOperation::Bond,
-			amount,
-			query_id,
-			timeout,
-			currency_id,
-		)?;
-
-		// Send out the xcm message.
-		let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-		xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
-			.map_err(|_e| Error::<T>::XcmFailure)?;
-
-		Ok(query_id)
+		Ok(Zero::zero())
 	}
 
 	/// Bond extra amount to a delegator.
@@ -177,26 +149,73 @@ impl<T: Config>
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
-		let call = match validator {
-			Some(_) => AstarCall::Staking(AstarDappsStakingCall::<T>::Unlock(amount)).encode(),
-			None => AstarCall::Staking(AstarDappsStakingCall::<T>::Lock(amount)).encode(),
-		};
+		match validator {
+			Some(_) => {
+				let call = AstarCall::Staking(AstarDappsStakingCall::<T>::Unlock(amount)).encode();
+				// Wrap the xcm message as it is sent from a subaccount of the parachain account, and
+				// send it out.
+				let fee = Pallet::<T>::construct_xcm_and_send_as_subaccount_without_query_id(
+					XcmOperationType::Payout,
+					call,
+					who,
+					currency_id,
+					weight_and_fee,
+				)?;
 
-		// Wrap the xcm message as it is sent from a subaccount of the parachain account, and
-		// send it out.
-		let fee = Pallet::<T>::construct_xcm_and_send_as_subaccount_without_query_id(
-			XcmOperationType::Payout,
-			call,
-			who,
-			currency_id,
-			weight_and_fee,
-		)?;
+				// withdraw this xcm fee from treasury. If treasury doesn't have this money, stop the
+				// process.
+				Pallet::<T>::burn_fee_from_source_account(fee, currency_id)?;
 
-		// withdraw this xcm fee from treasury. If treasury doesn't have this money, stop the
-		// process.
-		Pallet::<T>::burn_fee_from_source_account(fee, currency_id)?;
+				Ok(Zero::zero())
+			}
+			None => {
+				if DelegatorLedgers::<T>::get(currency_id, who).is_none() {
+					// Create a new delegator ledger
+					// The real bonded amount will be updated by services once the xcm transaction succeeds.
+					let ledger = SubstrateLedger::<BalanceOf<T>> {
+						account: *who,
+						total: Zero::zero(),
+						active: Zero::zero(),
+						unlocking: vec![],
+					};
+					let sub_ledger = Ledger::<BalanceOf<T>>::Substrate(ledger);
+					DelegatorLedgers::<T>::insert(currency_id, who, sub_ledger);
+				}
 
-		Ok(Zero::zero())
+				let call = AstarCall::Staking(AstarDappsStakingCall::<T>::Lock(amount)).encode();
+				// Wrap the xcm message as it is sent from a subaccount of the parachain account, and
+				// send it out.
+				let (query_id, timeout, fee, xcm_message) =
+					Pallet::<T>::construct_xcm_as_subaccount_with_query_id(
+						XcmOperationType::Payout,
+						call,
+						who,
+						currency_id,
+						weight_and_fee,
+					)?;
+
+				// withdraw this xcm fee from treasury. If treasury doesn't have this money, stop the
+				// process.
+				Pallet::<T>::burn_fee_from_source_account(fee, currency_id)?;
+
+				// Insert a delegator ledger update record into DelegatorLedgerXcmUpdateQueue<T>.
+				Self::insert_delegator_ledger_update_entry(
+					who,
+					SubstrateLedgerUpdateOperation::Bond,
+					amount,
+					query_id,
+					timeout,
+					currency_id,
+				)?;
+
+				// Send out the xcm message.
+				let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
+				xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+					.map_err(|_e| Error::<T>::XcmFailure)?;
+
+				Ok(query_id)
+			}
+		}
 	}
 
 	/// Decrease bonding amount to a delegator.
@@ -622,43 +641,29 @@ impl<T: Config>
 		&self,
 		query_id: QueryId,
 		entry: LedgerUpdateEntry<BalanceOf<T>>,
-		manual_mode: bool,
 		currency_id: CurrencyId,
-	) -> Result<bool, Error<T>> {
-		// If this is manual mode, it is always updatable.
-		let should_update = if manual_mode {
-			true
-		} else {
-			T::SubstrateResponseManager::get_query_response_record(query_id)
-		};
-
+	) -> Result<(), Error<T>> {
 		// Update corresponding storages.
-		if should_update {
-			Self::update_ledger_query_response_storage(query_id, entry.clone(), currency_id)?;
+		Self::update_ledger_query_response_storage(query_id, entry.clone(), currency_id)?;
 
-			// Deposit event.
-			Pallet::<T>::deposit_event(Event::DelegatorLedgerQueryResponseConfirmed {
-				query_id,
-				entry,
-			});
-		}
+		// Deposit event.
+		Pallet::<T>::deposit_event(Event::DelegatorLedgerQueryResponseConfirmed {
+			query_id,
+			entry,
+		});
 
-		Ok(should_update)
+		Ok(())
 	}
 
 	fn check_validators_by_delegator_query_response(
 		&self,
 		_query_id: QueryId,
 		_entry: ValidatorsByDelegatorUpdateEntry,
-		_manual_mode: bool,
-	) -> Result<bool, Error<T>> {
+	) -> Result<(), Error<T>> {
 		Err(Error::<T>::Unsupported)
 	}
 
 	fn fail_delegator_ledger_query_response(&self, query_id: QueryId) -> Result<(), Error<T>> {
-		// delete pallet_xcm query
-		T::SubstrateResponseManager::remove_query_record(query_id);
-
 		// delete update entry
 		DelegatorLedgerXcmUpdateQueue::<T>::remove(query_id);
 
@@ -788,13 +793,6 @@ impl<T: Config> AstarAgent<T> {
 
 		// Delete the DelegatorLedgerXcmUpdateQueue<T> query
 		DelegatorLedgerXcmUpdateQueue::<T>::remove(query_id);
-
-		// Delete the query in pallet_xcm.
-		ensure!(
-			T::SubstrateResponseManager::remove_query_record(query_id),
-			Error::<T>::QueryResponseRemoveError
-		);
-
 		Ok(())
 	}
 

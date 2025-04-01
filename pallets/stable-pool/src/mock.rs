@@ -19,8 +19,8 @@ use crate as bifrost_stable_pool;
 use bifrost_asset_registry::AssetIdMaps;
 pub use bifrost_primitives::{
 	currency::{MOVR, VMOVR},
-	Balance, CurrencyId, CurrencyIdMapping, SlpOperator, SlpxOperator, TokenSymbol, ASTR, BNC, DOT,
-	GLMR, VBNC, VDOT,
+	Balance, CurrencyId, CurrencyIdMapping, SlpxOperator, TokenSymbol, ASTR, BNC, DOT, GLMR, VBNC,
+	VDOT,
 };
 use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, IncentivePoolAccount, MoonbeamChainId,
@@ -33,7 +33,7 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{location::RelativeReserveProvider, parameter_type_with_key};
-use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 use xcm::{prelude::*, v3::Weight};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
@@ -260,9 +260,12 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<u128, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
+	}
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(u128, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 
@@ -291,14 +294,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
-}
-
-pub struct Slp;
-// Functions to be called by other pallets.
-impl SlpOperator<CurrencyId> for Slp {
-	fn all_delegation_requests_occupied(_currency_id: CurrencyId) -> bool {
-		true
-	}
+	type HyperBridgeSender = ();
 }
 
 impl pallet_xcm::Config for Test {

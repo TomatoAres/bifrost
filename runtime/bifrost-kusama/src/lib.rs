@@ -30,7 +30,7 @@ use bifrost_primitives::{
 	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
 	VBNC, VKSM,
 };
-use bifrost_slp::{DerivativeAccountProvider, QueryResponseManager};
+use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
 // A few exports that help ease life for downstream crates.
 pub use bifrost_parachain_staking::{InflationInfo, Range};
@@ -95,7 +95,6 @@ pub use bifrost_runtime_common::{
 	constants::{currency::*, time::*},
 	dollar, micro, milli, millicent, AuraId, SlowAdjustingFeeUpdate,
 };
-use bifrost_slp::QueryId;
 use constants::currency::*;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
 use cumulus_primitives_core::AggregateMessageOrigin;
@@ -124,7 +123,6 @@ use zenlink_protocol::{
 	AssetBalance, AssetId as ZenlinkAssetId, LocalAssetHandler, MultiAssetsHandler, PairInfo,
 	PairLpGenerate, ZenlinkMultiAssets,
 };
-use zenlink_stable_amm::traits::{StableAmmApi, StablePoolLpCurrencyIdGenerate, ValidateCurrency};
 
 // Governance configurations.
 pub mod governance;
@@ -139,18 +137,18 @@ use bifrost_primitives::{MoonriverChainId, OraclePriceProvider};
 use bifrost_runtime_common::currency_converter::CurrencyIdConvert;
 use ismp::dispatcher::FeeMetadata;
 use ismp::dispatcher::IsmpDispatcher;
-use pallet_xcm::{EnsureResponse, QueryStatus};
+use pallet_xcm::EnsureResponse;
 use sp_core::H256;
 use sp_runtime::traits::{IdentityLookup, Verify};
 use xcm::{
-	v3::MultiLocation, v4::prelude::*, IntoVersion, VersionedAssetId, VersionedAssets,
-	VersionedLocation, VersionedXcm,
+	v3::MultiLocation, v4::prelude::*, IntoVersion, Version as XcmVersion, VersionedAssetId,
+	VersionedAssets, VersionedLocation, VersionedXcm,
 };
 pub use xcm_config::{
 	AccountId32Aliases, BifrostTreasuryAccount, ExistentialDeposits, MultiCurrency, Sibling,
 	SiblingParachainConvertsVia, XcmConfig, XcmRouter,
 };
-use xcm_executor::{traits::QueryHandler, XcmExecutor};
+use xcm_executor::XcmExecutor;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
@@ -168,11 +166,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost"),
 	impl_name: create_runtime_str!("bifrost"),
 	authoring_version: 1,
-	spec_version: 17001,
+	spec_version: 18000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -1118,43 +1116,6 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 500;
 }
 
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, Location, BlockNumber, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(query_id: QueryId) -> bool {
-		if let Some(QueryStatus::Ready { .. }) = PolkadotXcm::query(query_id) {
-			true
-		} else {
-			false
-		}
-	}
-
-	fn create_query_record(
-		responder: Location,
-		call_back: Option<RuntimeCall>,
-		timeout: BlockNumber,
-	) -> u64 {
-		// for xcm v3 version see the following
-		// PolkadotXcm::new_query(responder, timeout, Here)
-		if let Some(call_back) = call_back {
-			PolkadotXcm::new_notify_query(responder.clone(), call_back, timeout, Here)
-		} else {
-			PolkadotXcm::new_query(responder, timeout, Here)
-		}
-	}
-
-	fn remove_query_record(query_id: QueryId) -> bool {
-		// Temporarily banned. Querries from pallet_xcm cannot be removed unless it is in ready
-		// status. And we are not allowed to mannually change query status.
-		// So in the manual mode, it is not possible to remove the query at all.
-		// PolkadotXcm::take_response(query_id).is_some()
-
-		PolkadotXcm::take_response(query_id);
-		true
-	}
-}
-
 impl bifrost_slp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1165,7 +1126,6 @@ impl bifrost_slp::Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainInfo;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;
@@ -1292,30 +1252,6 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 }
 
-impl zenlink_stable_amm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = CurrencyId;
-	type MultiCurrency = Currencies;
-	type PoolId = u32;
-	type TimeProvider = Timestamp;
-	type EnsurePoolAsset = StableAmmVerifyPoolAsset;
-	type LpGenerate = PoolLpGenerate;
-	type PoolCurrencySymbolLimit = StringLimit;
-	type PalletId = StableAmmPalletId;
-	type WeightInfo = ();
-}
-
-impl zenlink_swap_router::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type StablePoolId = u32;
-	type Balance = u128;
-	type StableCurrencyId = CurrencyId;
-	type NormalCurrencyId = ZenlinkAssetId;
-	type NormalAmm = ZenlinkProtocol;
-	type StableAMM = ZenlinkStableAMM;
-	type WeightInfo = zenlink_swap_router::weights::SubstrateWeight<Runtime>;
-}
-
 impl merkle_distributor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type CurrencyId = CurrencyId;
@@ -1325,29 +1261,6 @@ impl merkle_distributor::Config for Runtime {
 	type PalletId = MerkleDirtributorPalletId;
 	type StringLimit = StringLimit;
 	type WeightInfo = ();
-}
-
-pub struct StableAmmVerifyPoolAsset;
-
-impl ValidateCurrency<CurrencyId> for StableAmmVerifyPoolAsset {
-	fn validate_pooled_currency(_currencies: &[CurrencyId]) -> bool {
-		true
-	}
-
-	fn validate_pool_lp_currency(_currency_id: CurrencyId) -> bool {
-		if Currencies::total_issuance(_currency_id) > 0 {
-			return false;
-		}
-		true
-	}
-}
-
-pub struct PoolLpGenerate;
-
-impl StablePoolLpCurrencyIdGenerate<CurrencyId, PoolId> for PoolLpGenerate {
-	fn generate_by_pool_id(pool_id: PoolId) -> CurrencyId {
-		CurrencyId::StableLpToken(pool_id)
-	}
 }
 
 parameter_types! {
@@ -1412,6 +1325,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 #[derive(Default)]
@@ -1448,8 +1362,9 @@ impl bifrost_slpx::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type WeightInfo = weights::bifrost_slpx::BifrostWeight<Runtime>;
 	type MaxOrderSize = ConstU32<500>;
+	type MaxUserOrderSize = ConstU32<20>;
 	type BlockNumberProvider = System;
-	type IsmpHost = MockIsmpHost;
+	type HyperBridgeSender = ();
 }
 
 pub struct EnsurePoolAssetId;
@@ -1591,7 +1506,7 @@ impl pallet_membership::Config<pallet_membership::Instance3> for Runtime {
 
 impl leverage_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = leverage_staking::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::leverage_staking::BifrostWeight<Runtime>;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type VtokenMinting = VtokenMinting;
 	type LendMarket = LendMarket;
@@ -1749,6 +1664,57 @@ impl pallet_migrations::Config for Runtime {
 	type WeightInfo = pallet_migrations::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
+	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
+	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
+	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
+}
+
+use frame_support::traits::SortedMembers;
+pub struct MigControllerMembers;
+impl SortedMembers<AccountId> for MigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![MigController::get()]
+	}
+}
+
+pub struct RootMigControllerMembers;
+impl SortedMembers<AccountId> for RootMigControllerMembers {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![RootMigController::get()]
+	}
+}
+
+impl pallet_state_trie_migration::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type SignedDepositPerItem = MigrationSignedDepositPerItem;
+	type SignedDepositBase = MigrationSignedDepositBase;
+	// An origin that can control the whole pallet: should be Root, or a part of your council.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ControlOrigin = frame_system::EnsureSigned<AccountId>;
+	// specific account for the migration, can trigger the signed migrations.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SignedFilter = frame_system::EnsureSigned<AccountId>;
+	// Replace this with weight based on your runtime.
+	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type MaxKeyLen = ConstU32<256>;
+}
+
+#[cfg(feature = "sudo")]
+impl pallet_sudo::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
+}
+
 construct_runtime! {
 	pub enum Runtime {
 		// Basic stuff
@@ -1772,6 +1738,8 @@ construct_runtime! {
 		ParachainStaking: bifrost_parachain_staking = 25,
 
 		// Governance stuff
+		#[cfg(feature = "sudo")]
+		Sudo: pallet_sudo = 35,
 		ConvictionVoting: pallet_conviction_voting = 36,
 		Referenda: pallet_referenda = 37,
 		Origins: custom_origins = 38,
@@ -1805,8 +1773,6 @@ construct_runtime! {
 		OrmlXcm: orml_xcm = 74,
 		ZenlinkProtocol: zenlink_protocol = 80,
 		MerkleDistributor: merkle_distributor = 81,
-		ZenlinkStableAMM: zenlink_stable_amm = 82,
-		ZenlinkSwapRouter: zenlink_swap_router = 83,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
@@ -1834,6 +1800,7 @@ construct_runtime! {
 		LeverageStaking: leverage_staking = 135,
 		ChannelCommission: bifrost_channel_commission = 136,
 		VBNCConvert: bifrost_vbnc_convert = 140,
+		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1886,6 +1853,10 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
+parameter_types! {
+	pub const ZenlinkSwapRouterName: &'static str = "ZenlinkSwapRouter";
+	pub const ZenlinkStableAMMName: &'static str = "ZenlinkStableAMM";
+}
 /// The runtime migrations per release.
 pub mod migrations {
 	#![allow(unused_imports)]
@@ -1895,6 +1866,8 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		frame_support::migrations::RemovePallet<ZenlinkSwapRouterName, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<ZenlinkStableAMMName, RocksDbWeight>,
 	);
 }
 
@@ -1933,6 +1906,7 @@ mod benches {
 		[bifrost_xcm_interface, XcmInterface]
 		// [bifrost_channel_commission, ChannelCommission]
 		[bifrost_vesting, Vesting]
+		[pallet_state_trie_migration, StateTrieMigration]
 	);
 }
 
@@ -2100,8 +2074,8 @@ impl_runtime_apis! {
 	}
 
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
-		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call)
+		fn dry_run_call(origin: OriginCaller, call: RuntimeCall, result_xcms_version: XcmVersion) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_call::<Runtime, XcmRouter, OriginCaller, RuntimeCall>(origin, call, result_xcms_version)
 		}
 
 		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
@@ -2180,64 +2154,6 @@ impl_runtime_apis! {
 				asset_1,
 				amount,
 			)
-		}
-	}
-
-	impl zenlink_stable_amm_runtime_api::StableAmmApi<Block, CurrencyId, u128, AccountId, u32> for Runtime{
-		fn get_virtual_price(pool_id: PoolId)->Balance{
-			ZenlinkStableAMM::get_virtual_price(pool_id)
-		}
-
-		fn get_a(pool_id: PoolId)->Balance{
-			ZenlinkStableAMM::get_a(pool_id)
-		}
-
-		fn get_a_precise(pool_id: PoolId)->Balance{
-			ZenlinkStableAMM::get_a(pool_id) * 100
-		}
-
-		fn get_currencies(pool_id: PoolId)->Vec<CurrencyId>{
-			ZenlinkStableAMM::get_currencies(pool_id)
-		}
-
-		fn get_currency(pool_id: PoolId, index: u32)->Option<CurrencyId>{
-			ZenlinkStableAMM::get_currency(pool_id, index)
-		}
-
-		fn get_lp_currency(pool_id: PoolId)->Option<CurrencyId>{
-			ZenlinkStableAMM::get_lp_currency(pool_id)
-		}
-
-		fn get_currency_precision_multipliers(pool_id: PoolId)->Vec<Balance>{
-			ZenlinkStableAMM::get_currency_precision_multipliers(pool_id)
-		}
-
-		fn get_currency_balances(pool_id: PoolId)->Vec<Balance>{
-			ZenlinkStableAMM::get_currency_balances(pool_id)
-		}
-
-		fn get_number_of_currencies(pool_id: PoolId)->u32{
-			ZenlinkStableAMM::get_number_of_currencies(pool_id)
-		}
-
-		fn get_admin_balances(pool_id: PoolId)->Vec<Balance>{
-			ZenlinkStableAMM::get_admin_balances(pool_id)
-		}
-
-		fn calculate_currency_amount(pool_id: PoolId, amounts:Vec<Balance>, deposit: bool)->Balance{
-			ZenlinkStableAMM::stable_amm_calculate_currency_amount(pool_id, &amounts, deposit).unwrap_or_default()
-		}
-
-		fn calculate_swap(pool_id: PoolId, in_index: u32, out_index: u32, in_amount: Balance)->Balance{
-			ZenlinkStableAMM::stable_amm_calculate_swap_amount(pool_id, in_index as usize, out_index as usize, in_amount).unwrap_or_default()
-		}
-
-		fn calculate_remove_liquidity(pool_id: PoolId, amount: Balance)->Vec<Balance>{
-			ZenlinkStableAMM::stable_amm_calculate_remove_liquidity(pool_id, amount).unwrap_or_default()
-		}
-
-		fn calculate_remove_liquidity_one_currency(pool_id: PoolId, amount:Balance, index: u32)->Balance{
-			ZenlinkStableAMM::stable_amm_calculate_remove_liquidity_one_currency(pool_id, amount, index).unwrap_or_default()
 		}
 	}
 

@@ -49,6 +49,8 @@ pub mod time_unit;
 pub use crate::time_unit::*;
 pub mod evm;
 pub use crate::evm::*;
+pub mod hyperbridge;
+pub use crate::hyperbridge::*;
 
 #[cfg(test)]
 mod tests;
@@ -231,6 +233,8 @@ pub enum RedeemType<AccountId> {
 	Interlay(AccountId),
 	/// Manta chain.
 	Manta(AccountId),
+	/// HyperBridge,
+	HyperBridge(u32, H160),
 }
 
 impl<AccountId> Default for RedeemType<AccountId> {

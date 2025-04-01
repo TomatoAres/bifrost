@@ -37,6 +37,7 @@ token-gateway-primitives = { version = "1.15.1", path = "./primitives", default-
 pallet-hyperbridge = { workspace = true }
 
 bifrost-primitives = { workspace = true }
+orml-traits = { workspace = true }
 [features]
 default = ["std"]
 std = [
@@ -53,6 +54,7 @@ std = [
     "anyhow/std",
     "alloy-primitives/std",
     "pallet-hyperbridge/std",
-    "token-gateway-primitives/std"
+    "token-gateway-primitives/std",
+    "orml-traits/std"
 ]
 try-runtime = []

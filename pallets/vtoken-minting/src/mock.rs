@@ -187,6 +187,7 @@ impl vtoken_minting::Config for Runtime {
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 ord_parameter_types! {
@@ -200,9 +201,12 @@ impl bifrost_asset_registry::Config for Runtime {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<AccountId, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
+	}
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 
@@ -291,8 +295,8 @@ pub fn run_to_block(n: BlockNumber) {
 		VtokenMinting::on_finalize(System::block_number());
 		System::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
-		System::on_initialize(System::block_number());
-		VtokenMinting::on_initialize(System::block_number());
+		System::on_idle(System::block_number(), Weight::MAX);
+		VtokenMinting::on_idle(System::block_number(), Weight::MAX);
 	}
 }
 

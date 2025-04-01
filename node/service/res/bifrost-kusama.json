@@ -6,7 +6,10 @@
     "/dns4/eu.bifrost-kusama.liebi.com/tcp/30333/p2p/12D3KooWA3Vz7a9kCF4qv7sukd3AGySwxzS98zTGVft1oHjW5enm",
     "/dns4/hk.bifrost-kusama.liebi.com/tcp/30333/p2p/12D3KooWSo1VurYUZXhd6MW6hZ9uvMUQh7W2XstNGY6Kxu1S6P4w",
     "/dns4/jp.bifrost-kusama.liebi.com/tcp/30333/p2p/12D3KooWDGkdSwUTwYZhWY6bdcUFPbJXhgrHjivRw8EStDutxowq",
-    "/dns4/us.bifrost-kusama.liebi.com/tcp/30333/p2p/12D3KooWHrV63FD42bpf8JmBJKWJTHZeAnEjbjiALPNnfpxYqYYa"
+    "/dns4/us.bifrost-kusama.liebi.com/tcp/30333/p2p/12D3KooWHrV63FD42bpf8JmBJKWJTHZeAnEjbjiALPNnfpxYqYYa",
+    "/dns4/hk-bootnode-1.bifrost-kusama.liebi.com/tcp/30333/ws/p2p/12D3KooWRKF6Mmz5gaoHbr2VXy6gcD9bfkdfntD12fiqjsdEtAVS",
+    "/dns4/hk-bootnode-2.bifrost-kusama.liebi.com/tcp/30333/ws/p2p/12D3KooWNN836JTGUUaYGwh2tBZEpyQdTvfBkfUAZYmGzzbSBPt7",
+    "/dns4/us-bootnode-1.bifrost-kusama.liebi.com/tcp/30333/ws/p2p/12D3KooWPn59JHuDpVPpgLYcj7uwLJJ62ngfDPCWaGa5E6A8qALu"
   ],
   "telemetryEndpoints": [
     [

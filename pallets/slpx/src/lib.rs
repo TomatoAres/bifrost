@@ -19,9 +19,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use crate::types::{
 	AccountIdOf, BalanceOf, CurrencyIdOf, EthereumCallConfiguration, EthereumXcmCall,
-	EthereumXcmTransaction, EthereumXcmTransactionV2, HydrationOracleConfig, MoonbeamCall,
-	OracleConfig, Order, OrderCaller, OrderType, SupportChain, TargetChain, EVM_FUNCTION_SELECTOR,
-	MAX_GAS_LIMIT,
+	EthereumXcmTransaction, EthereumXcmTransactionV2, HydrationOracleConfig,
+	HyperBridgeOracleConfig, MoonbeamCall, Order, OrderCaller, OrderType, SupportChain,
+	TargetChain, EVM_FUNCTION_SELECTOR, MAX_GAS_LIMIT,
 };
 #[cfg(feature = "polkadot")]
 use crate::types::{HYDRATION_EMA_ORACLE_CALL_INDEX, HYDRATION_EMA_ORACLE_PALLET_INDEX};
@@ -29,8 +29,9 @@ use bifrost_asset_registry::AssetMetadata;
 use bifrost_primitives::{
 	currency::{BNC, MOVR, VFIL},
 	AstarChainId, AstarEvmChainId, Balance, BifrostKusamaChainId, CurrencyId, CurrencyIdMapping,
-	HydrationChainId, InterlayChainId, MantaChainId, MoonbeamEvmChainId, MoonriverEvmChainId,
-	RedeemType, SlpxOperator, TokenInfo, VtokenMintingInterface, GLMR,
+	HydrationChainId, HyperBridgeSender, InterlayChainId, MantaChainId, MoonbeamEvmChainId,
+	MoonriverEvmChainId, RedeemType, SlpxOperator, TokenInfo, VtokenMintingInterface, GLMR,
+	HYPERBRIDGE_TIMEOUT,
 };
 use cumulus_primitives_core::ParaId;
 use ethereum::TransactionAction;
@@ -46,12 +47,7 @@ use frame_system::{
 	ensure_signed,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
-use ismp::dispatcher::IsmpDispatcher;
-#[cfg(feature = "polkadot")]
-use ismp::{
-	dispatcher::{DispatchPost, DispatchRequest, FeeMetadata},
-	host::StateMachine,
-};
+use ismp::host::StateMachine;
 use orml_traits::{MultiCurrency, XcmTransfer};
 pub use pallet::*;
 use pallet_ismp::ModuleId;
@@ -96,7 +92,6 @@ pub mod pallet {
 		pallet_prelude::{ValueQuery, *},
 		weights::WeightMeter,
 	};
-	use frame_system::ensure_root;
 	use sp_runtime::traits::BlockNumberProvider;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
@@ -130,17 +125,19 @@ pub mod pallet {
 		/// Convert Location to `T::CurrencyId`.
 		type CurrencyIdConvert: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 		/// Ismp message disptacher
-		type IsmpHost: IsmpDispatcher<Account = AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ Default;
+		type HyperBridgeSender: HyperBridgeSender<AccountIdOf<Self>, BalanceOf<Self>>;
 		/// TreasuryAccount
 		#[pallet::constant]
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
 		/// ParaId of the parachain
 		#[pallet::constant]
 		type ParachainId: Get<ParaId>;
-		/// The maximum number of order is 500
+		/// The maximum number of order
 		#[pallet::constant]
 		type MaxOrderSize: Get<u32>;
+		/// The maximum number of user order
+		#[pallet::constant]
+		type MaxUserOrderSize: Get<u32>;
 	}
 
 	#[pallet::event]
@@ -240,8 +237,6 @@ pub mod pallet {
 			chain_id: u32,
 			to: H160,
 			timeout: u64,
-			payer: AccountIdOf<T>,
-			fee: BalanceOf<T>,
 			period: BlockNumberFor<T>,
 			tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
 		},
@@ -338,11 +333,11 @@ pub mod pallet {
 
 	/// HyperBridge Oracle Config
 	#[pallet::storage]
-	pub type HyperBridgeOracleConfig<T: Config> = StorageMap<
+	pub type HyperBridgeOracle<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		u32,
-		OracleConfig<AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>,
+		HyperBridgeOracleConfig<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
 		OptionQuery,
 	>;
 
@@ -379,9 +374,7 @@ pub mod pallet {
 			};
 
 			#[cfg(feature = "polkadot")]
-			if !is_handle_xcm_oracle {
-				let _ = Self::handle_hyperbridge_oracle(current_block_number, &mut weight);
-			}
+			let _ = Self::handle_hyperbridge_oracle(current_block_number, &mut weight);
 
 			#[cfg(feature = "polkadot")]
 			let _ = Self::handle_hydration_oracle(current_block_number, &mut weight);
@@ -717,7 +710,7 @@ pub mod pallet {
 			remark: BoundedVec<u8, ConstU32<32>>,
 			channel_id: u32,
 		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
+			T::ControlOrigin::ensure_origin(origin)?;
 			Self::do_create_order(
 				source_chain_caller,
 				Default::default(),
@@ -812,31 +805,43 @@ pub mod pallet {
 			)
 		}
 
-		// TODO: Substrate user create order
-		// #[pallet::call_index(14)]
-		// #[pallet::weight(<T as Config>::WeightInfo::mint())]
-		// pub fn substrate_create_order(
-		// 	origin: OriginFor<T>,
-		// 	currency_id: CurrencyId,
-		// 	amount: BalanceOf<T>,
-		// 	target_chain: TargetChain<T::AccountId>,
-		// 	remark: BoundedVec<u8, ConstU32<32>>,
-		// 	channel_id: u32,
-		// ) -> DispatchResultWithPostInfo {
-		// 	// let who = ensure_signed(origin)?;
-		// 	let location = ensure_xcm(<T as Config>::RuntimeOrigin::from(origin))?;
-		//
-		// 	let account_id = match location.unpack() {
-		// 		(1, [Parachain(para_id), AccountId32 { network: _, id }]) => {
-		// 			let account_id = T::AccountId::decode(&mut &id[..]).map_err(|_|
-		// Error::<T>::Unsupported)?; 			Ok(account_id)
-		// 		},
-		// 		_ => {
-		// 			Err(Error::<T>::Unsupported)
-		// 		},
-		// 	};
-		// 	Ok(().into())
-		// }
+		/// Substrate user create order
+		#[pallet::call_index(17)]
+		#[pallet::weight(<T as Config>::WeightInfo::substrate_create_order(T::MaxOrderSize::get()))]
+		pub fn substrate_create_order(
+			origin: OriginFor<T>,
+			currency_id: CurrencyId,
+			amount: BalanceOf<T>,
+			target_chain: TargetChain<T::AccountId>,
+			remark: BoundedVec<u8, ConstU32<32>>,
+			channel_id: u32,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let source_chain_caller = OrderCaller::Substrate(who.clone());
+			let mut count = 1;
+			let orders = OrderQueue::<T>::get();
+			for order in orders.iter() {
+				if order.source_chain_caller == source_chain_caller {
+					count += 1;
+				}
+			}
+			ensure!(
+				count <= T::MaxUserOrderSize::get(),
+				Error::<T>::OrderQueueOverflow
+			);
+			Self::do_create_order(
+				source_chain_caller,
+				Default::default(),
+				None,
+				who,
+				currency_id,
+				amount,
+				remark,
+				channel_id,
+				target_chain,
+			)?;
+			Ok(().into())
+		}
 
 		// Set Hyperbridge oracle configuration
 		/// Parameters:
@@ -853,30 +858,28 @@ pub mod pallet {
 			chain_id: u32,
 			to: H160,
 			timeout: u64,
-			payer: T::AccountId,
-			fee: BalanceOf<T>,
 			period: BlockNumberFor<T>,
 			tokens: BoundedVec<(CurrencyId, H160), ConstU32<10>>,
+			payer: T::AccountId,
+			fee: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			T::ControlOrigin::ensure_origin(origin)?;
-			HyperBridgeOracleConfig::<T>::insert(
+			HyperBridgeOracle::<T>::insert(
 				chain_id,
-				OracleConfig {
+				HyperBridgeOracleConfig {
 					to,
 					timeout,
-					payer: payer.clone(),
-					fee,
 					period,
 					last_block: Default::default(),
 					tokens: tokens.clone(),
+					payer,
+					fee,
 				},
 			);
 			Self::deposit_event(Event::SetHyperBridgeOracleConfig {
 				chain_id,
 				to,
 				timeout,
-				payer,
-				fee,
 				period,
 				tokens,
 			});
@@ -1124,7 +1127,10 @@ impl<T: Config> Pallet<T> {
 		let bifrost_chain_caller = ensure_signed(origin)?;
 
 		match target_chain {
-			TargetChain::Hydradx(_) | TargetChain::Manta(_) | TargetChain::Interlay(_) => Ok((
+			TargetChain::Hydradx(_)
+			| TargetChain::Manta(_)
+			| TargetChain::Interlay(_)
+			| TargetChain::HyperBridge(..) => Ok((
 				OrderCaller::Substrate(bifrost_chain_caller.clone()),
 				bifrost_chain_caller.clone(),
 				bifrost_chain_caller,
@@ -1174,6 +1180,22 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 		target_chain: &TargetChain<AccountIdOf<T>>,
 	) -> DispatchResult {
+		if let TargetChain::HyperBridge(dest, to) = target_chain {
+			let (payer, fee) = Self::get_hyperbridge_payer_and_fee(*dest)?;
+			T::HyperBridgeSender::send_and_call(
+				currency_id,
+				caller,
+				*to,
+				StateMachine::Evm(*dest),
+				amount,
+				HYPERBRIDGE_TIMEOUT,
+				None,
+				payer,
+				fee,
+			)?;
+			return Ok(());
+		};
+
 		let dest = match target_chain {
 			TargetChain::Astar(receiver) => Location::new(
 				1,
@@ -1237,6 +1259,7 @@ impl<T: Config> Pallet<T> {
 					},
 				],
 			),
+			_ => unreachable!(),
 		};
 
 		if let TargetChain::Moonbeam(_) = target_chain {
@@ -1329,6 +1352,9 @@ impl<T: Config> Pallet<T> {
 					TargetChain::Hydradx(receiver) => RedeemType::Hydradx(receiver),
 					TargetChain::Interlay(receiver) => RedeemType::Interlay(receiver),
 					TargetChain::Manta(receiver) => RedeemType::Manta(receiver),
+					TargetChain::HyperBridge(dest, receiver) => {
+						RedeemType::HyperBridge(dest, receiver)
+					}
 				};
 				T::VtokenMintingInterface::slpx_redeem(
 					order.derivative_account.clone(),
@@ -1468,19 +1494,18 @@ impl<T: Config> Pallet<T> {
 		current_block_number: BlockNumberFor<T>,
 		weight: &mut Weight,
 	) -> DispatchResult {
-		let dispatcher = T::IsmpHost::default();
 		for (
 			dest,
-			OracleConfig {
+			HyperBridgeOracleConfig {
 				to,
 				timeout,
-				payer,
-				fee,
 				period,
 				last_block,
 				tokens,
+				payer,
+				fee,
 			},
-		) in HyperBridgeOracleConfig::<T>::iter()
+		) in HyperBridgeOracle::<T>::iter()
 		{
 			if last_block + period < current_block_number {
 				for (currency, token) in tokens.clone() {
@@ -1501,36 +1526,31 @@ impl<T: Config> Pallet<T> {
 						ethabi::Token::Uint(uint256_token_amount),
 						ethabi::Token::Uint(uint256_vtoken_amount),
 					]);
-					dispatcher
-						.dispatch_request(
-							DispatchRequest::Post(DispatchPost {
-								dest: StateMachine::Evm(dest),
-								from: PALLET_ID.to_bytes(),
-								to: to.0.to_vec(),
-								timeout,
-								body: body.to_vec(),
-							}),
-							FeeMetadata {
-								payer: payer.clone(),
-								fee,
-							},
-						)
-						.map_err(|_| Error::<T>::Unsupported)?;
+					T::HyperBridgeSender::send_msg(
+						PALLET_ID,
+						to,
+						StateMachine::Evm(dest),
+						body,
+						HYPERBRIDGE_TIMEOUT,
+						payer.clone(),
+						fee,
+					)
+					.map_err(|_| Error::<T>::Unsupported)?;
 					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
 				}
+				HyperBridgeOracle::<T>::insert(
+					dest,
+					HyperBridgeOracleConfig {
+						to,
+						timeout,
+						tokens,
+						period,
+						last_block: current_block_number,
+						payer,
+						fee,
+					},
+				);
 			}
-			HyperBridgeOracleConfig::<T>::insert(
-				dest,
-				OracleConfig {
-					to,
-					timeout,
-					payer,
-					fee,
-					tokens,
-					period,
-					last_block: current_block_number,
-				},
-			);
 		}
 		return Ok(());
 	}
@@ -1618,9 +1638,16 @@ impl<T: Config> Pallet<T> {
 }
 
 // Functions to be called by other pallets.
-impl<T: Config> SlpxOperator<BalanceOf<T>> for Pallet<T> {
+impl<T: Config> SlpxOperator<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	fn get_moonbeam_transfer_to_fee() -> BalanceOf<T> {
 		TransferToFee::<T>::get(SupportChain::Moonbeam)
 			.unwrap_or_else(|| Self::get_default_fee(BNC))
+	}
+
+	fn get_hyperbridge_payer_and_fee(
+		dest: u32,
+	) -> Result<(T::AccountId, BalanceOf<T>), DispatchError> {
+		let config = HyperBridgeOracle::<T>::get(dest).ok_or(Error::<T>::Unsupported)?;
+		Ok((config.payer, config.fee))
 	}
 }

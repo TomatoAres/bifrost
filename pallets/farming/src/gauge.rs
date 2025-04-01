@@ -114,6 +114,41 @@ where
 		gauge_basic_rewards: BTreeMap<CurrencyIdOf<T>, BalanceOf<T>>,
 	) -> DispatchResult {
 		let gid: u32 = pid + GAUGE_BASE_ID;
+
+		PoolInfos::<T>::mutate(gid, |maybe_gauge_pool| {
+			if let Some(gauge_pool) = maybe_gauge_pool {
+				// Update existing gauge pool
+				gauge_pool.basic_rewards = gauge_basic_rewards;
+			} else {
+				// Create new gauge pool
+				let gauge_reward_issuer: AccountIdOf<T> =
+					T::RewardIssuer::get().into_sub_account_truncating(gid);
+
+				*maybe_gauge_pool = Some(PoolInfo::new_gauge(
+					pool_info.keeper.clone(),
+					gauge_reward_issuer,
+					pool_info.tokens_proportion.clone(),
+					pool_info.basic_token,
+					gauge_basic_rewards,
+					None,
+					Zero::zero(),
+					Default::default(),
+					Default::default(),
+					Default::default(),
+					Default::default(),
+				));
+			}
+		});
+		pool_info.gauge = Some(gid);
+		Ok(())
+	}
+
+	pub fn reset_gauge_pool(
+		pid: PoolId,
+		pool_info: &mut PoolInfo<BalanceOf<T>, CurrencyIdOf<T>, AccountIdOf<T>, BlockNumberFor<T>>,
+		gauge_basic_rewards: BTreeMap<CurrencyIdOf<T>, BalanceOf<T>>,
+	) -> DispatchResult {
+		let gid: u32 = pid + GAUGE_BASE_ID;
 		pool_info.gauge = Some(gid);
 		let gauge_reward_issuer: AccountIdOf<T> =
 			T::RewardIssuer::get().into_sub_account_truncating(gid);
@@ -124,7 +159,7 @@ where
 			pool_info.basic_token,
 			gauge_basic_rewards,
 			None,
-			Zero::zero(), // min_deposit_to_start,
+			Zero::zero(),
 			Default::default(),
 			Default::default(),
 			Default::default(),

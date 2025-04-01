@@ -201,12 +201,13 @@ pub mod pallet {
 				.unwrap();
 
 			// deposit the event
-			pallet_ismp::Pallet::<T>::deposit_pallet_event(Event::StateMachineUpdated(
-				StateMachineUpdated {
+			pallet_ismp::Pallet::<T>::deposit_event(
+				Event::StateMachineUpdated(StateMachineUpdated {
 					state_machine_id: height.id,
 					latest_height: height.height,
-				},
-			));
+				})
+				.into(),
+			);
 
 			Ok(())
 		}

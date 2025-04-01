@@ -21,7 +21,7 @@
 #![cfg(test)]
 
 use crate as bifrost_slp;
-use crate::{Config, DispatchResult, QueryResponseManager, XcmDestWeightAndFeeHandler};
+use crate::{Config, DispatchResult, XcmDestWeightAndFeeHandler};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, KSM},
@@ -43,7 +43,7 @@ use parity_scale_codec::{Decode, Encode};
 use sp_core::{bounded::BoundedVec, hashing::blake2_256, ConstU32};
 use sp_runtime::{
 	traits::{AccountIdConversion, Convert, IdentityLookup, TrailingZeroInput},
-	AccountId32, BuildStorage,
+	AccountId32, BuildStorage, DispatchError,
 };
 use sp_std::vec::Vec;
 use xcm::v3::{prelude::*, MultiLocation, Weight};
@@ -208,6 +208,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 parameter_types! {
@@ -377,22 +378,6 @@ parameter_types! {
 	pub BifrostTreasuryAccount: AccountId = PalletId(*b"bf/trsry").into_account_truncating();
 }
 
-impl QueryResponseManager<QueryId, Location, u64, RuntimeCall> for () {
-	fn get_query_response_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-	fn create_query_record(
-		_responder: Location,
-		_call_back: Option<RuntimeCall>,
-		_timeout: u64,
-	) -> u64 {
-		Default::default()
-	}
-	fn remove_query_record(_query_id: QueryId) -> bool {
-		true
-	}
-}
-
 pub struct CurrencyIdConvert;
 impl Convert<CurrencyId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: CurrencyId) -> Option<Location> {
@@ -413,28 +398,12 @@ impl Convert<CurrencyId, Option<Location>> for CurrencyIdConvert {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<AccountId, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
-}
-
-pub struct SubstrateResponseManager;
-impl QueryResponseManager<QueryId, xcm::v4::Location, u64, RuntimeCall>
-	for SubstrateResponseManager
-{
-	fn get_query_response_record(_query_id: QueryId) -> bool {
-		Default::default()
-	}
-	fn create_query_record(
-		_responder: xcm::v4::Location,
-		_call_back: Option<RuntimeCall>,
-		_timeout: u64,
-	) -> u64 {
-		Default::default()
-	}
-	fn remove_query_record(_query_id: QueryId) -> bool {
-		Default::default()
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 
@@ -448,7 +417,6 @@ impl Config for Runtime {
 	type VtokenMinting = VtokenMinting;
 	type AccountConverter = SubAccountIndexMultiLocationConvertor;
 	type ParachainId = ParachainId;
-	type SubstrateResponseManager = SubstrateResponseManager;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;

@@ -21,7 +21,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::DOT, Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount,
 	BlockNumber, CommissionPalletId, CurrencyId, IncentivePoolAccount, MockXcmRouter,
-	MockXcmTransfer, SlpOperator, SlpxOperator, BNC,
+	MockXcmTransfer, SlpxOperator, BNC,
 };
 use frame_support::{
 	derive_impl,
@@ -36,7 +36,7 @@ use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_core::{crypto::AccountId32, ConstU64};
 use sp_runtime::{
 	traits::{BlockNumberProvider, IdentityLookup},
-	BuildStorage,
+	BuildStorage, DispatchError,
 };
 use xcm::{
 	prelude::Parachain,
@@ -217,16 +217,12 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<Balance> for SlpxInterface {
+impl SlpxOperator<AccountId, Balance> for SlpxInterface {
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
-}
-
-pub struct MockSlp;
-impl SlpOperator<CurrencyId> for MockSlp {
-	fn all_delegation_requests_occupied(_currency_id: CurrencyId) -> bool {
-		true
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
 	}
 }
 
@@ -251,6 +247,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type IncentivePoolAccount = IncentivePoolAccount;
 	type BbBNC = ();
 	type BlockNumberProvider = System;
+	type HyperBridgeSender = ();
 }
 
 parameter_types! {

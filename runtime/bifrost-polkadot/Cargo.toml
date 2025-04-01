@@ -47,6 +47,7 @@ pallet-referenda = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-session = { workspace = true }
+pallet-sudo = { workspace = true, optional = true }
 pallet-timestamp = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-tx-pause = { workspace = true }
@@ -55,6 +56,7 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-whitelist = { workspace = true }
+pallet-state-trie-migration = { workspace = true }
 sp-api = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -217,6 +219,7 @@ std = [
 	"pallet-referenda/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
+	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-tips/std",
 	"pallet-tx-pause/std",
@@ -224,6 +227,7 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
 	"pallet-whitelist/std",
+	"pallet-state-trie-migration/std",
 	"sp-api/std",
 	"sp-arithmetic/std",
 	"sp-block-builder/std",
@@ -378,6 +382,7 @@ runtime-benchmarks = [
 	"bifrost-parachain-staking/runtime-benchmarks",
 	"bifrost-farming/runtime-benchmarks",
 	"pallet-evm-accounts/runtime-benchmarks",
+	"pallet-state-trie-migration/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -445,6 +450,7 @@ try-runtime = [
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-whitelist/try-runtime",
+	"pallet-state-trie-migration/try-runtime",
 	"parachain-info/try-runtime",
 	"zenlink-protocol/try-runtime",
 	"fp-self-contained/try-runtime",
@@ -480,3 +486,6 @@ fast-runtime = []
 # By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled.
 # This feature enables the detailed display of debug output.
 force-debug = ["sp-debug-derive/force-debug"]
+
+# Enable sudo pallet.
+sudo = ["pallet-sudo"]

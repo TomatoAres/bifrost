@@ -47,6 +47,7 @@ pallet-referenda = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-session = { workspace = true }
+pallet-sudo = { workspace = true, optional = true }
 pallet-timestamp = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-tx-pause = { workspace = true }
@@ -55,6 +56,7 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-whitelist = { workspace = true }
+pallet-state-trie-migration = { workspace = true }
 sp-api = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -108,9 +110,6 @@ orml-oracle = { workspace = true }
 merkle-distributor = { workspace = true }
 zenlink-protocol = { workspace = true }
 zenlink-protocol-runtime-api = { workspace = true }
-zenlink-stable-amm = { workspace = true }
-zenlink-stable-amm-runtime-api = { workspace = true }
-zenlink-swap-router = { workspace = true }
 
 # Nuts Finance
 bifrost-stable-asset = { workspace = true }
@@ -186,6 +185,7 @@ std = [
 	"pallet-referenda/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
+	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-tips/std",
 	"pallet-tx-pause/std",
@@ -194,6 +194,7 @@ std = [
 	"pallet-treasury/std",
 	"pallet-utility/std",
 	"pallet-whitelist/std",
+	"pallet-state-trie-migration/std",
 	"sp-api/std",
 	"sp-genesis-builder/std",
 	"sp-arithmetic/std",
@@ -239,9 +240,6 @@ std = [
 
 	"zenlink-protocol/std",
 	"zenlink-protocol-runtime-api/std",
-	"zenlink-stable-amm/std",
-	"zenlink-stable-amm-runtime-api/std",
-	"zenlink-swap-router/std",
 	"merkle-distributor/std",
 
 	"bifrost-primitives/std",
@@ -326,6 +324,7 @@ runtime-benchmarks = [
 	"leverage-staking/runtime-benchmarks",
 	"bifrost-channel-commission/runtime-benchmarks",
 	"bifrost-vbnc-convert/runtime-benchmarks",
+	"pallet-state-trie-migration/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -365,6 +364,7 @@ try-runtime = [
 	"pallet-tx-pause/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-whitelist/try-runtime",
+	"pallet-state-trie-migration/try-runtime",
 	"orml-xtokens/try-runtime",
 	"orml-tokens/try-runtime",
 	"bifrost-currencies/try-runtime",
@@ -373,8 +373,6 @@ try-runtime = [
 	"orml-oracle/try-runtime",
 	"zenlink-protocol/try-runtime",
 	"merkle-distributor/try-runtime",
-	"zenlink-stable-amm/try-runtime",
-	"zenlink-swap-router/try-runtime",
 	"bifrost-flexible-fee/try-runtime",
 	"bifrost-salp/try-runtime",
 	"bifrost-token-issuer/try-runtime",
@@ -418,3 +416,6 @@ fast-runtime = []
 # By default RuntimeDebug implements Debug that outputs <wasm:stripped> when std is disabled. 
 # This feature enables the detailed display of debug output.
 force-debug = ["sp-debug-derive/force-debug"]
+
+# Enable sudo pallet.
+sudo = ["pallet-sudo"]

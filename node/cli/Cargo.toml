@@ -1,6 +1,6 @@
 [package]
 name = "bifrost-cli"
-version = "0.17.1"
+version = "0.18.0"
 authors = ["Liebi Technologies <bifrost@liebi.com>"]
 description = "Bifrost Parachain Node"
 build = "build.rs"
@@ -71,9 +71,11 @@ runtime-benchmarks = ["bifrost-service/runtime-benchmarks"]
 with-bifrost-runtime = [
     "bifrost-service/with-bifrost-kusama-runtime",
     "bifrost-service/with-bifrost-polkadot-runtime",
+    "bifrost-service/with-bifrost-paseo-runtime",
 ]
 with-bifrost-kusama-runtime = ["bifrost-service/with-bifrost-kusama-runtime"]
 with-bifrost-polkadot-runtime = ["bifrost-service/with-bifrost-polkadot-runtime"]
+with-bifrost-paseo-runtime = ["bifrost-service/with-bifrost-paseo-runtime"]
 with-all-runtime = ["with-bifrost-runtime"]
 try-runtime = ["bifrost-service/try-runtime"]
 fast-runtime = ["bifrost-service/fast-runtime"]
