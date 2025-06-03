@@ -23,7 +23,7 @@ use orml_traits::MultiCurrency;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::{H160, H256, U256};
-use sp_runtime::{traits::ConstU32, BoundedVec, RuntimeDebug};
+use sp_runtime::{traits::ConstU32, BoundedVec, FixedU128, RuntimeDebug};
 use sp_std::vec::Vec;
 use xcm::prelude::Weight;
 use xcm::v4::Location;
@@ -151,6 +151,8 @@ pub struct Order<AccountId, CurrencyId, Balance, BlockNumber> {
 	pub create_block_number: BlockNumber,
 	pub currency_id: CurrencyId,
 	pub currency_amount: Balance,
+	pub v_currency_id: CurrencyId,
+	pub v_currency_amount: Balance,
 	pub order_type: OrderType,
 	pub remark: BoundedVec<u8, ConstU32<32>>,
 	pub target_chain: TargetChain<AccountId>,
@@ -189,4 +191,13 @@ pub struct HydrationOracleConfig<BlockNumber> {
 	pub fee: u128,
 	/// Token list
 	pub tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
+}
+
+/// Async Mint configuration
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, Default, MaxEncodedLen)]
+pub struct AsyncMintConfiguration<BlockNumber> {
+	/// Maximum ratio of vToken issuance to token pool
+	pub max_issuance_ratio: FixedU128,
+	/// Block interval for execution records
+	pub block_interval: BlockNumber,
 }

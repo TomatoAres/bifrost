@@ -46,7 +46,6 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
 pub use pallet::*;
-use sp_core::H256;
 use sp_std::{vec, vec::Vec};
 pub use weights::WeightInfo;
 use zenlink_protocol::{AssetId, ExportZenlink};
@@ -62,7 +61,7 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T
 pub mod pallet {
 	use super::*;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -192,8 +191,6 @@ pub mod pallet {
 		destruction_ratio: Option<Permill>,
 		/// The bias of the token value to be swapped.
 		bias: Permill,
-		/// The hash of the last buyback block
-		last_buyback_hash: H256,
 	}
 
 	impl<BalanceOf, BlockNumberFor> Info<BalanceOf, BlockNumberFor> {
@@ -208,7 +205,6 @@ pub mod pallet {
 			last_add_liquidity: BlockNumberFor,
 			destruction_ratio: Option<Permill>,
 			bias: Permill,
-			last_buyback_hash: H256,
 		) -> Self {
 			Self {
 				min_swap_value,
@@ -221,7 +217,6 @@ pub mod pallet {
 				last_add_liquidity,
 				destruction_ratio,
 				bias,
-				last_buyback_hash,
 			}
 		}
 	}
@@ -300,7 +295,8 @@ pub mod pallet {
 				if info.last_buyback_cycle >= n {
 					continue;
 				}
-				match Self::get_target_block(info.last_buyback_hash, info.buyback_duration) {
+				match Self::get_target_block(info.last_buyback, currency_id, info.buyback_duration)
+				{
 					target_block
 						if target_block
 							== n.saturating_sub(info.last_buyback_cycle)
@@ -352,8 +348,6 @@ pub mod pallet {
 							info.last_buyback_cycle = info
 								.last_buyback_cycle
 								.saturating_add(info.buyback_duration);
-							let current_hash = frame_system::Pallet::<T>::block_hash(n);
-							info.last_buyback_hash = H256::from_slice(current_hash.as_ref());
 							info.last_buyback = n;
 							Infos::<T>::insert(currency_id, info);
 							SwapOutMin::<T>::remove(currency_id);
@@ -393,7 +387,6 @@ pub mod pallet {
 			);
 
 			let now = T::BlockNumberProvider::current_block_number();
-			let current_hash = frame_system::Pallet::<T>::block_hash(now);
 
 			let info = Info {
 				min_swap_value,
@@ -406,7 +399,6 @@ pub mod pallet {
 				last_add_liquidity: now,
 				destruction_ratio,
 				bias,
-				last_buyback_hash: H256::from_slice(current_hash.as_ref()),
 			};
 			Infos::<T>::insert(currency_id, info.clone());
 
@@ -544,17 +536,33 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn get_target_block(last_buyback_hash: H256, duration: BlockNumberFor<T>) -> u32 {
-			let hash_value = u32::from_le_bytes([
-				last_buyback_hash[0],
-				last_buyback_hash[1],
-				last_buyback_hash[2],
-				last_buyback_hash[3],
-			]);
-			let target_block =
-				hash_value % (duration.saturating_sub(One::one()).saturated_into::<u32>());
+		pub fn get_target_block(
+			last_block_number: BlockNumberFor<T>,
+			currency_id: CurrencyId,
+			duration: BlockNumberFor<T>,
+		) -> u32 {
+			// Use a combination of last_block_number and currency_id to create entropy
+			let block_seed = last_block_number.saturated_into::<u32>();
 
-			target_block + 1
+			// Use the CurrencyId bytes as additional entropy
+			let currency_bytes = currency_id.encode();
+			let mut currency_seed: u32 = 0;
+			// Mix in currency bytes (take up to 4 bytes if available)
+			for (i, byte) in currency_bytes.iter().take(4).enumerate() {
+				currency_seed |= (*byte as u32) << (i * 8);
+			}
+
+			// Combine both seeds with simple operations to generate randomness
+			let combined_seed = block_seed.saturating_add(currency_seed);
+
+			// Calculate a target block within the valid range
+			let effective_duration = duration.saturating_sub(One::one()).saturated_into::<u32>();
+			if effective_duration == 0 {
+				return 1;
+			}
+			log::debug!("combined_seed: {}", combined_seed);
+
+			(combined_seed % effective_duration) + 1
 		}
 
 		pub fn get_path(currency_id: CurrencyId) -> Result<Vec<AssetId>, DispatchError> {

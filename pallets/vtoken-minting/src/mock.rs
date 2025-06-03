@@ -26,7 +26,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId, CurrencyIdMapping,
-	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, SlpxOperator, KUSD, V_WETH, WETH,
+	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, SlpxOperator, ETH, KUSD, V_ETH, WETH,
 };
 use bifrost_runtime_common::{micro, milli};
 use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::Nothing};
@@ -125,6 +125,8 @@ orml_traits::parameter_type_with_key! {
 			&FIL => 0,
 			&VFIL => 0,
 			&V_WETH => 0,
+			&V_ETH => 0,
+			&ETH => 0,
 			&WETH => 0,
 			&VFIL => 0,
 			&MOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
@@ -201,11 +203,26 @@ impl bifrost_asset_registry::Config for Runtime {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<AccountId, Balance> for SlpxInterface {
+impl
+	SlpxOperator<
+		AccountId,
+		Balance,
+		BlockNumber,
+		RuntimeOrigin,
+		bifrost_primitives::TargetChain<AccountId>,
+	> for SlpxInterface
+{
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
 	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
+	}
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<BlockNumber>, // None means processing all currency
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> DispatchResult {
 		unreachable!()
 	}
 }
@@ -238,8 +255,10 @@ impl ExtBuilder {
 			(BOB, VFIL, 1000),
 			(BOB, FIL, 100000000000000000000000),
 			(BOB, WETH, 1000000000000000000000),
+			(BOB, ETH, 1000000000000000000000),
 			(CHARLIE, MOVR, 100000000000000000000000),
 			(CHARLIE, WETH, 100000000000000000000000),
+			(CHARLIE, ETH, 100000000000000000000000),
 		])
 	}
 
@@ -309,7 +328,7 @@ impl BbBNCInterface<AccountId, CurrencyId, Balance, BlockNumber> for BbBNC {
 		Ok(100)
 	}
 
-	fn total_supply(_t: BlockNumber) -> Result<Balance, DispatchError> {
+	fn total_supply(_time: Option<BlockNumber>) -> Result<Balance, DispatchError> {
 		Ok(10000)
 	}
 

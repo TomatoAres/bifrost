@@ -19,8 +19,8 @@
 #![cfg(test)]
 
 use bifrost_primitives::{
-	Balance, CurrencyId, OraclePriceProvider, Price, PriceDetail, BNC, DOT, DOT_U, KSM, MANTA,
-	VDOT, VKSM, WETH,
+	Balance, CurrencyId, OraclePriceProvider, Price, PriceDetail, BNC, DOT, DOT_U, ETH, KSM, MANTA,
+	VDOT, VKSM,
 };
 use frame_support::parameter_types;
 use sp_runtime::FixedU128;
@@ -35,7 +35,7 @@ parameter_types! {
 		(DOT_U, (FixedU128::from(1), 10u128.pow(6))),
 		(KSM, (FixedU128::from(20), 10u128.pow(12))),
 		(VKSM, (FixedU128::from(25), 10u128.pow(12))),
-		(WETH, (FixedU128::from(3000), 10u128.pow(18))),
+		(ETH, (FixedU128::from(3000), 10u128.pow(18))),
 	]);
 }
 

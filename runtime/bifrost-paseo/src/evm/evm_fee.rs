@@ -18,7 +18,7 @@
 
 use crate::Currencies;
 use bifrost_primitives::{
-	AccountFeeCurrency, Balance, CurrencyId, OraclePriceProvider, Price, WETH,
+	AccountFeeCurrency, Balance, CurrencyId, OraclePriceProvider, Price, ETH,
 };
 use fp_evm::AccountProvider;
 use frame_support::traits::TryDrop;
@@ -84,7 +84,7 @@ where
 
 		let Some((fee_amount, weth_price, fee_currency_price)) =
 			Price::get_oracle_amount_by_currency_and_amount_in(
-				&WETH,
+				&ETH,
 				fee.unique_saturated_into(),
 				&fee_currency,
 			)
@@ -126,7 +126,7 @@ where
 			let account_id = T::AddressMapping::into_account_id(*who);
 
 			let adjusted_paid = if let Some(converted_corrected_fee) = Price::get_amount_by_prices(
-				&WETH,
+				&ETH,
 				corrected_fee.unique_saturated_into(),
 				payment_info.weth_price,
 				&payment_info.fee_currency,

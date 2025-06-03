@@ -240,9 +240,9 @@ fn reset() {
 			assert_eq!(Tokens::free_balance(KSM, &ALICE), 2000);
 			Farming::on_initialize(0);
 			System::set_block_number(System::block_number() + 1);
-			assert_eq!(BbBNC::balance_of(&ALICE, None), Ok(99716188888));
+			assert_eq!(BbBNC::balance_of(&ALICE, None), Ok(62393570833));
 			assert_ok!(Farming::claim(RuntimeOrigin::signed(ALICE), pid));
-			assert_eq!(BbBNC::balance_of(&ALICE, None), Ok(99716188888));
+			assert_eq!(BbBNC::balance_of(&ALICE, None), Ok(62393570833));
 			assert_eq!(Tokens::free_balance(KSM, &ALICE), 2990);
 			assert_ok!(Farming::close_pool(RuntimeOrigin::signed(ALICE), pid));
 			assert_ok!(Farming::set_retire_limit(RuntimeOrigin::signed(ALICE), 10));
@@ -354,7 +354,8 @@ fn init_gauge() -> (PoolId, BalanceOf<Runtime>) {
 	assert_ok!(BbBNC::set_config(
 		RuntimeOrigin::signed(ALICE),
 		Some(0),
-		Some(7 * 86400 / 12)
+		Some(7 * 86400 / 12),
+		Some(10)
 	));
 	assert_ok!(BbBNC::create_lock_inner(
 		&ALICE,
@@ -646,10 +647,10 @@ fn vote() {
 
 			assert_eq!(
 				UserBoostInfos::<Runtime>::get(ALICE).unwrap().vote_amount,
-				99716198400
+				62393574400
 			);
 			let boost_pool_info = BoostPoolInfo {
-				total_votes: 99716198400,
+				total_votes: 62393574400,
 				end_round: 100,
 				start_round: 0,
 				round_length: 100,
@@ -660,13 +661,13 @@ fn vote() {
 				100_000_000_000,
 				(365 * 86400 - 7 * 86400) / 12
 			));
-			assert_eq!(BoostPoolInfos::<Runtime>::get().total_votes, 99716198400);
+			assert_eq!(BoostPoolInfos::<Runtime>::get().total_votes, 62393574400);
 			// vote again to refresh the vote amount of CHARLIE
 			assert_ok!(Farming::vote(
 				RuntimeOrigin::signed(CHARLIE),
 				vote_list.clone()
 			));
-			assert_eq!(BoostPoolInfos::<Runtime>::get().total_votes, 124645248000);
+			assert_eq!(BoostPoolInfos::<Runtime>::get().total_votes, 96741968000);
 
 			assert_eq!(BoostBasicRewards::<Runtime>::get(pid, KSM), Some(3000));
 			Farming::on_initialize(0);
@@ -805,7 +806,7 @@ fn refresh_should_work() {
 				SharesAndWithdrawnRewards::<Runtime>::get(pid + GAUGE_BASE_ID, &ALICE)
 					.unwrap()
 					.share,
-				249252371904000
+				193469639464000
 			);
 			System::set_block_number(System::block_number() + 100);
 			assert_ok!(Farming::withdraw(

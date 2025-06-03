@@ -195,7 +195,7 @@ parameter_types! {
 	pub const LiquidityAccount: PalletId = PalletId(*b"bf/liqdt");
 	pub const LiquidityMiningDOTPalletId: PalletId = PalletId(*b"bf/lmdot");
 	pub const LiquidityMiningPalletId: PalletId = PalletId(*b"mining##");
-	pub const MerkleDirtributorPalletId: PalletId = PalletId(*b"bf/mklds");
+	pub const MerkleDistributorPalletId: PalletId = PalletId(*b"bf/mklds");
 	pub const OraclePalletId: PalletId = PalletId(*b"bf/oracl");
 	pub const ParachainStakingPalletId: PalletId = PalletId(*b"bf/stake");
 	pub const SlpEntrancePalletId: PalletId = PalletId(*b"bf/vtkin");
@@ -209,6 +209,7 @@ parameter_types! {
 	// unused after vsbond_auction pallet removed
 	pub const VsbondAuctionPalletId: PalletId = PalletId(*b"bf/vsbnd");
 	pub const ZenlinkPalletId: PalletId = PalletId(*b"/zenlink");
+	pub const SlpxPalletId: PalletId = PalletId(*b"bif-slpx");
 }
 
 // Account Id
@@ -273,4 +274,36 @@ pub enum XcmOperationType {
 	SupplementaryFee,
 	EthereumTransfer,
 	TeleportAssets,
+}
+
+#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum SupportChain {
+	Astar,
+	Moonbeam,
+	Hydradx,
+	Interlay,
+	Manta,
+}
+
+#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum TargetChain<AccountId> {
+	Astar(H160),
+	Moonbeam(H160),
+	Hydradx(AccountId),
+	Interlay(AccountId),
+	Manta(AccountId),
+	HyperBridge(u32, H160),
+}
+
+impl<AccountId> TargetChain<AccountId> {
+	pub fn support_chain(self: &TargetChain<AccountId>) -> SupportChain {
+		match self {
+			TargetChain::Astar(_) => SupportChain::Astar,
+			TargetChain::Moonbeam(_) => SupportChain::Moonbeam,
+			TargetChain::Hydradx(_) => SupportChain::Hydradx,
+			TargetChain::Interlay(_) => SupportChain::Interlay,
+			TargetChain::Manta(_) => SupportChain::Manta,
+			_ => unreachable!(),
+		}
+	}
 }

@@ -34,6 +34,7 @@ bifrost-xcm-interface = { workspace = true }
 bifrost-asset-registry = { workspace = true }
 bifrost-stable-pool = { workspace = true }
 bifrost-stable-asset = { workspace = true }
+bifrost-vtoken-minting = { workspace = true }
 orml-tokens = { workspace = true }
 log = { workspace = true }
 pallet-xcm  = { workspace = true }
@@ -44,12 +45,12 @@ pallet-staking = { workspace = true }
 pallet-ismp = { workspace = true, default-features = false }
 ismp = { workspace = true, default-features = false }
 anyhow = { workspace = true }
+token-gateway-primitives = { workspace = true }
 
 [dev-dependencies]
 hex = { workspace = true }
 sp-io = { workspace = true }
 pallet-balances = { workspace = true }
-bifrost-vtoken-minting = { workspace = true }
 bifrost-slp = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 bifrost-currencies = { workspace = true }
@@ -58,6 +59,7 @@ pallet-collective = { workspace = true }
 parachain-info = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-ismp = { workspace = true, default-features = false, features = [ "testing", "unsigned" ] }
+env_logger = { workspace = true }
 
 
 [features]
@@ -92,6 +94,7 @@ std = [
 	"pallet-ismp/std",
 	"ismp/std",
 	"anyhow/std",
+	"token-gateway-primitives/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

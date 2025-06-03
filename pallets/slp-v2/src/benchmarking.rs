@@ -183,7 +183,15 @@ mod benchmarks {
 			None
 		));
 		#[extrinsic_call]
-		_(RawOrigin::Root, STAKING_PROTOCOL, delegator);
+		_(
+			RawOrigin::Root,
+			STAKING_PROTOCOL,
+			delegator,
+			None,
+			None,
+			None,
+			None,
+		);
 		Ok(())
 	}
 
@@ -208,7 +216,12 @@ mod benchmarks {
 	#[benchmark]
 	fn update_ongoing_time_unit() -> Result<(), BenchmarkError> {
 		#[extrinsic_call]
-		_(RawOrigin::Root, STAKING_PROTOCOL, Some(TimeUnit::Era(1)));
+		_(
+			RawOrigin::Root,
+			STAKING_PROTOCOL,
+			None,
+			Some(TimeUnit::Era(1)),
+		);
 		Ok(())
 	}
 
@@ -225,7 +238,7 @@ mod benchmarks {
 			None
 		));
 		#[extrinsic_call]
-		_(RawOrigin::Root, STAKING_PROTOCOL, delegator, 1000, 0);
+		_(RawOrigin::Root, STAKING_PROTOCOL, None, delegator, 1000, 0);
 		Ok(())
 	}
 

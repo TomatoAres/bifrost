@@ -22,6 +22,8 @@ use frame_support::pallet_prelude::*;
 use ismp::host::StateMachine;
 use primitive_types::{H160, H256};
 
+pub const ETHEREUM_MESSAGE_PREFIX: &'static str = "\x19Ethereum Signed Message:\n";
+
 /// Asset teleportation parameters
 #[derive(Debug, Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq)]
 pub struct TeleportParams<AssetId, Balance> {

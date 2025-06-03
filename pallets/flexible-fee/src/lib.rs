@@ -22,7 +22,7 @@ pub use crate::pallet::*;
 use bifrost_asset_registry::{AssetMetadata, CurrencyIdMapping};
 use bifrost_primitives::{
 	traits::XcmDestWeightAndFeeHandler, AssetHubChainId, Balance, BalanceCmp, CurrencyId,
-	DerivativeIndex, OraclePriceProvider, Price, TryConvertFrom, XcmOperationType, BNC, VBNC, WETH,
+	DerivativeIndex, OraclePriceProvider, Price, TryConvertFrom, XcmOperationType, BNC, ETH, VBNC,
 };
 use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
@@ -740,7 +740,7 @@ impl<T: Config> BalanceCmp<T::AccountId> for Pallet<T> {
 
 		let (fee_amount, _, _) =
 			T::OraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
-				&WETH, amount, &currency,
+				&ETH, amount, &currency,
 			)
 			.ok_or(Error::<T>::ConversionError)?;
 

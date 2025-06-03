@@ -21,10 +21,11 @@ use crate::{
 		AstarDappStakingLedger, AstarDappStakingPendingStatus, AstarValidator, DappStaking,
 	},
 	common::types::{Delegator, DelegatorIndex, StakingProtocolInfo},
+	ethereum_staking::types::EthereumStakingLedger,
 	Config, Error,
 };
 use bifrost_primitives::{
-	AstarChainId, BifrostPolkadotChainId, MoonbeamChainId, TimeUnit, ASTR, DOT, GLMR,
+	AstarChainId, BifrostPolkadotChainId, MoonbeamChainId, TimeUnit, ASTR, DOT, ETH, GLMR,
 };
 use frame_support::traits::Get;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -46,6 +47,8 @@ pub enum StakingProtocol {
 	MoonbeamParachainStaking,
 	/// Staking on Polkadot
 	PolkadotStaking,
+	/// Ethereum Staking
+	EthereumStaking,
 }
 
 impl StakingProtocol {
@@ -95,6 +98,16 @@ impl StakingProtocol {
 				),
 				remote_dest_location: Location::parent(),
 				bifrost_dest_location: Location::new(0, Parachain(BifrostPolkadotChainId::get())),
+			},
+			StakingProtocol::EthereumStaking => StakingProtocolInfo {
+				utility_pallet_index: 27,
+				xcm_pallet_index: 100,
+				currency_id: ETH,
+				unlock_period: TimeUnit::Era(15),
+				remote_fee_location: Location::here(),
+				remote_refund_beneficiary: Location::here(),
+				remote_dest_location: Location::here(),
+				bifrost_dest_location: Location::here(),
 			},
 		}
 	}
@@ -166,6 +179,9 @@ impl StakingProtocol {
 			StakingProtocol::AstarDappStaking => {
 				Ledger::AstarDappStaking(AstarDappStakingLedger::default())
 			}
+			StakingProtocol::EthereumStaking => {
+				Ledger::EthereumStaking(EthereumStakingLedger::default())
+			}
 			_ => unreachable!(),
 		}
 	}
@@ -177,12 +193,14 @@ pub enum Validator<AccountId> {
 	AstarDappStaking(AstarValidator<AccountId>),
 	MoonbeamParachainStaking(H160),
 	PolkadotStaking(AccountId),
+	EthereumStaking(H160),
 }
 
 /// Ledger in slp protocol.
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
 pub enum Ledger {
 	AstarDappStaking(AstarDappStakingLedger),
+	EthereumStaking(EthereumStakingLedger),
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]

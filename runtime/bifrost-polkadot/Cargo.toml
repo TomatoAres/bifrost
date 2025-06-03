@@ -56,7 +56,6 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-whitelist = { workspace = true }
-pallet-state-trie-migration = { workspace = true }
 sp-api = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -83,11 +82,13 @@ cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
+cumulus-pallet-session-benchmarking = { workspace = true }
 parachain-info = { workspace = true }
 parachains-common = { workspace = true }
 
 # Polkadot dependencies
 pallet-xcm = { workspace = true }
+pallet-xcm-benchmarks = { workspace = true, optional = true }
 polkadot-parachain-primitives = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-runtime-common = { workspace = true }
@@ -104,9 +105,9 @@ orml-unknown-tokens = { workspace = true }
 orml-xcm = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-oracle = { workspace = true }
+orml-benchmarking = { workspace = true, optional = true }
 
 # zenlink
-merkle-distributor = { workspace = true }
 zenlink-protocol = { workspace = true }
 zenlink-protocol-runtime-api = { workspace = true }
 
@@ -227,7 +228,8 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
 	"pallet-whitelist/std",
-	"pallet-state-trie-migration/std",
+	"pallet-xcm/std",
+      "pallet-xcm-benchmarks?/std",
 	"sp-api/std",
 	"sp-arithmetic/std",
 	"sp-block-builder/std",
@@ -252,6 +254,7 @@ std = [
 	"cumulus-primitives-core/std",
 	"cumulus-primitives-timestamp/std",
 	"cumulus-primitives-utility/std",
+	"cumulus-pallet-session-benchmarking/std",
 	"parachain-info/std",
 
 	"polkadot-primitives/std",
@@ -261,6 +264,7 @@ std = [
 	"xcm-runtime-apis/std",
 
 	"orml-tokens/std",
+	"orml-benchmarking/std",
 	"orml-traits/std",
 	"orml-unknown-tokens/std",
 	"orml-xcm-support/std",
@@ -268,7 +272,6 @@ std = [
 	"orml-xcm/std",
 	"orml-xtokens/std",
 
-	"merkle-distributor/std",
 	"zenlink-protocol-runtime-api/std",
 	"zenlink-protocol/std",
 
@@ -343,10 +346,14 @@ with-tracing = ["frame-executive/with-tracing"]
 
 runtime-benchmarks = [
 	"frame-benchmarking",
+	"orml-benchmarking",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-asset-rate/runtime-benchmarks",
+	"cumulus-pallet-parachain-system/runtime-benchmarks",
+	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
+	"cumulus-primitives-utility/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-conviction-voting/runtime-benchmarks",
 	"pallet-ranked-collective/runtime-benchmarks",
@@ -362,6 +369,7 @@ runtime-benchmarks = [
 	"pallet-ethereum/runtime-benchmarks",
 	"bifrost-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"pallet-xcm-benchmarks/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"bifrost-slp/runtime-benchmarks",
@@ -382,7 +390,6 @@ runtime-benchmarks = [
 	"bifrost-parachain-staking/runtime-benchmarks",
 	"bifrost-farming/runtime-benchmarks",
 	"pallet-evm-accounts/runtime-benchmarks",
-	"pallet-state-trie-migration/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -419,7 +426,6 @@ try-runtime = [
 	"frame-try-runtime/try-runtime",
 	"lend-market/try-runtime",
 	"leverage-staking/try-runtime",
-	"merkle-distributor/try-runtime",
 	"orml-oracle/try-runtime",
 	"orml-tokens/try-runtime",
 	"orml-unknown-tokens/try-runtime",
@@ -450,7 +456,6 @@ try-runtime = [
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-whitelist/try-runtime",
-	"pallet-state-trie-migration/try-runtime",
 	"parachain-info/try-runtime",
 	"zenlink-protocol/try-runtime",
 	"fp-self-contained/try-runtime",

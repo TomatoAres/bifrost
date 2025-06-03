@@ -30,26 +30,29 @@ use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, BuyBackAccount,
 	IncentivePalletId, IncentivePoolAccount, MoonbeamChainId,
 };
+pub use bifrost_runtime_common::constants::time::DAYS;
 use bifrost_runtime_common::{micro, milli};
 pub use cumulus_primitives_core::ParaId;
 use frame_support::{
-	derive_impl, ord_parameter_types,
+	assert_ok, derive_impl, ord_parameter_types,
 	pallet_prelude::Get,
 	parameter_types,
 	traits::{Everything, Nothing},
+	weights::Weight,
+	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{location::RelativeReserveProvider, parameter_type_with_key};
-use sp_core::ConstU32;
+use sp_core::{ConstU32, H160, H256};
 use sp_runtime::{
 	traits::{ConvertInto, IdentityLookup},
-	AccountId32, BuildStorage, DispatchError,
+	AccountId32, BuildStorage, DispatchError, DispatchResult, FixedU128,
 };
-use xcm::{prelude::*, v3::Weight};
+use xcm::prelude::*;
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
 
-pub type BlockNumber = u64;
+pub type BlockNumber = u32;
 pub type Amount = i128;
 pub type Balance = u128;
 
@@ -73,10 +76,10 @@ frame_support::construct_runtime!(
 	}
 );
 
-type Block = frame_system::mocking::MockBlock<Runtime>;
+type Block = frame_system::mocking::MockBlockU32<Runtime>;
 
 parameter_types! {
-	pub const BlockHashCount: u64 = 250;
+	pub const BlockHashCount: BlockNumber = 250;
 	// pub BlockWeights: frame_system::limits::BlockWeights =
 	// 	frame_system::limits::BlockWeights::simple_max(1024);
 }
@@ -87,6 +90,7 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	type Block = Block;
 	type Lookup = IdentityLookup<Self::AccountId>;
+	type BlockHashCount = BlockHashCount;
 }
 
 parameter_types! {
@@ -232,12 +236,12 @@ impl bifrost_asset_registry::Config for Runtime {
 
 parameter_types! {
 	pub const BbBNCTokenType: CurrencyId = VBNC;
-	pub const Week: BlockNumber = 50400; // a week
-	pub const FourYears: BlockNumber = 10483200; // four years
-	pub const OneYear: BlockNumber = 2620800; // one year
-	pub const MaxBlock: BlockNumber = 10512000; // four years
+	pub const Week: BlockNumber = 7 * DAYS; // a week
+	pub const FiveYears: BlockNumber = 5 * 365 * DAYS; // five years
+	pub const OneYear: BlockNumber = 365 * DAYS; // one year
+	pub const MaxBlock: BlockNumber = 4 * 365 * DAYS; // four years
 	pub const Multiplier: Balance = 10_u128.pow(12);
-	pub const VoteWeightMultiplier: Balance = 1;
+	pub const VoteWeightMultiplier: FixedU128 = FixedU128::from_inner(750_000_000_000_000_000);
 	pub const MaxPositions: u32 = 10;
 	pub const MarkupRefreshLimit: u32 = 100;
 }
@@ -259,7 +263,7 @@ impl bb_bnc::Config for Runtime {
 	type MarkupRefreshLimit = MarkupRefreshLimit;
 	type VtokenMinting = VtokenMinting;
 	type FarmingInfo = ();
-	type FourYears = FourYears;
+	type FiveYears = FiveYears;
 	type OneYear = OneYear;
 	type BlockNumberProvider = System;
 }
@@ -278,12 +282,44 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<AccountId, Balance> for SlpxInterface {
+impl
+	SlpxOperator<
+		AccountId,
+		Balance,
+		BlockNumber,
+		RuntimeOrigin,
+		bifrost_primitives::TargetChain<AccountId>,
+	> for SlpxInterface
+{
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
 	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
 		unreachable!()
+	}
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<BlockNumber>, // None means processing all currency
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> DispatchResult {
+		unreachable!()
+	}
+
+	fn async_mint(
+		_currency_id: CurrencyId,
+		_chain_id: u32,
+		_required_amount: Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn redeem(
+		_origin: RuntimeOrigin,
+		_evm_caller: sp_core::H160,
+		_vtoken_id: CurrencyId,
+		_target_chain: bifrost_primitives::TargetChain<AccountId>,
+	) -> DispatchResult {
+		Ok(())
 	}
 }
 
@@ -313,6 +349,7 @@ impl bifrost_slp::Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = TreasuryAccount;
 	type BlockNumberProvider = System;
+	type BifrostSlpx = SlpxInterface;
 }
 
 parameter_types! {

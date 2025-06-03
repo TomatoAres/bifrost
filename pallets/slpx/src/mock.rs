@@ -26,7 +26,7 @@ use frame_support::{
 	construct_runtime, derive_impl, ord_parameter_types,
 	pallet_prelude::*,
 	parameter_types,
-	traits::{Everything, Nothing},
+	traits::{Contains, Everything, Nothing},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -129,7 +129,7 @@ parameter_type_with_key! {
 		match currency_id {
 			&BNC => 10 * 1_000_000_000,
 			&KSM => 10 * 1_000_000_000,
-			_=> 10 * 1_000_000_000
+			_=> 0
 		}
 	};
 }
@@ -143,7 +143,7 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type CurrencyHooks = ();
 	type MaxLocks = ();
-	type DustRemovalWhitelist = Nothing;
+	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type ReserveIdentifier = ReserveIdentifier;
 	type MaxReserves = ConstU32<100_000>;
 }
@@ -164,12 +164,44 @@ ord_parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<AccountId, Balance> for SlpxInterface {
+impl
+	SlpxOperator<
+		AccountId,
+		Balance,
+		BlockNumber,
+		RuntimeOrigin,
+		bifrost_primitives::TargetChain<AccountId>,
+	> for SlpxInterface
+{
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
 	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
 		unreachable!()
+	}
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<BlockNumber>, // None means processing all currency
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> sp_runtime::DispatchResult {
+		unreachable!()
+	}
+
+	fn async_mint(
+		_currency_id: CurrencyId,
+		_chain_id: u32,
+		_required_amount: Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn redeem(
+		_origin: RuntimeOrigin,
+		_evm_caller: sp_core::H160,
+		_vtoken_id: CurrencyId,
+		_target_chain: bifrost_primitives::TargetChain<AccountId>,
+	) -> DispatchResult {
+		Ok(())
 	}
 }
 
@@ -268,6 +300,7 @@ parameter_types! {
 	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
 	 // The host state machine of this pallet, your state machine id goes here
 	pub const HostStateMachine: StateMachine = StateMachine::Kusama(2030); // polkadot
+	pub const SlpxPalletId: PalletId = PalletId(*b"bif-slpx");
 }
 
 #[derive(Default)]
@@ -314,16 +347,62 @@ impl slpx::Config for Test {
 	type ParachainId = ParachainId;
 	type WeightInfo = ();
 	type MaxOrderSize = ConstU32<500>;
-	type MaxUserOrderSize = ConstU32<2>;
+	type MaxUserOrderSize = ConstU32<3>;
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = ();
+	type PalletId = SlpxPalletId;
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == slpx::Pallet::<Test>::account_id_for_async_mint()
+			|| *a == slpx::Pallet::<Test>::reserve_account()
+	}
+}
+
+/// Run until a particular block.
+pub fn run_to_block(n: BlockNumber) {
+	use frame_support::traits::Hooks;
+	while System::block_number() <= n {
+		Slpx::on_finalize(System::block_number());
+		System::on_finalize(System::block_number());
+		System::set_block_number(System::block_number() + 1);
+		System::on_idle(System::block_number(), Weight::MAX);
+		Slpx::on_idle(System::block_number(), Weight::MAX);
+	}
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::<Test>::default()
+	let mut t = frame_system::GenesisConfig::<Test>::default()
 		.build_storage()
 		.unwrap();
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(BOB, 1000 * 1000_000_000_000)],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
+	orml_tokens::GenesisConfig::<Test> {
+		balances: vec![
+			(ALICE, bifrost_primitives::DOT, 1000 * 10_000_000_000),
+			(ALICE, bifrost_primitives::VDOT, 1000 * 10_000_000_000),
+			(
+				ALICE,
+				bifrost_primitives::WETH,
+				1000 * 1000_000_000_000_000_000,
+			),
+			(
+				ALICE,
+				bifrost_primitives::V_ETH,
+				1000 * 1000_000_000_000_000_000,
+			),
+		],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(0));
 	ext

@@ -27,7 +27,7 @@ jobs:
         with:
           components: rustfmt
           target: wasm32-unknown-unknown
-          toolchain: 1.81.0
+          toolchain: 1.82.0
 
       - name: Download kusama srtool result
         uses: actions/download-artifact@v4

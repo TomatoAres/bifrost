@@ -30,8 +30,8 @@ use crate::{
 	ValidatorsByDelegator, ValidatorsByDelegatorXcmUpdateQueue,
 };
 use bifrost_primitives::{
-	currency::KSM, CurrencyId, VtokenMintingOperator, XcmDestWeightAndFeeHandler, XcmOperationType,
-	DOT,
+	currency::KSM, CurrencyId, SlpxOperator, VtokenMintingOperator, XcmDestWeightAndFeeHandler,
+	XcmOperationType, DOT,
 };
 use core::marker::PhantomData;
 use frame_support::{ensure, traits::Get};
@@ -991,6 +991,9 @@ impl<T: Config>
 				Err(Error::<T>::Unexpected)?
 			}
 		})?;
+
+		T::BifrostSlpx::handle_hyperbridge_oracle(None, Some(currency_id), &mut Weight::default())
+			.map_err(|_| Error::<T>::HandleHyperbridgeOracleError)?;
 
 		Ok(())
 	}

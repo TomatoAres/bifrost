@@ -18,7 +18,7 @@
 
 use crate::governance::TechAdminOrRoot;
 use crate::weights::ismp_parachain as ismp_parachain_weight;
-use crate::Currencies;
+use crate::{Currencies, Slpx};
 use crate::{Ismp, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
 use crate::{TokenGateway, Treasury};
 use bifrost_asset_registry::AssetIdMaps;
@@ -99,6 +99,10 @@ impl Get<AccountId> for AssetAdmin {
 	}
 }
 
+parameter_types! {
+	pub const MaxLengthLimit: u32 = 100;
+}
+
 impl pallet_token_gateway::Config for Runtime {
 	// configure the runtime event
 	type RuntimeEvent = RuntimeEvent;
@@ -111,4 +115,7 @@ impl pallet_token_gateway::Config for Runtime {
 	type ControlOrigin = TechAdminOrRoot;
 	type CurrencyIdConvert = AssetIdMaps<Runtime>;
 	type EvmToSubstrate = ();
+	type MaxLengthLimit = MaxLengthLimit;
+	type WeightInfo = ();
+	type BifrostSlpx = Slpx;
 }

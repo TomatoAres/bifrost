@@ -655,7 +655,8 @@ mod benchmarks {
 		assert_ok!(bb_bnc::Pallet::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10)
 		));
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()));

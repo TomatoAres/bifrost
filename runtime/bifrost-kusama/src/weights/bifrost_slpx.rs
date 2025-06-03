@@ -155,11 +155,63 @@ impl<T: frame_system::Config> bifrost_slpx::WeightInfo for BifrostWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `35 + l * (155 ±0)`
 		//  Estimated: `114987`
-		// Minimum execution time: 10_000 nanoseconds.
-		Weight::from_parts(3_227_886, 114987)
-			// Standard Error: 2_188
-			.saturating_add(Weight::from_parts(646_591, 0).saturating_mul(l.into()))
+		// Minimum execution time: 10_244 nanoseconds.
+		Weight::from_parts(10_720_000, 114987)
+			// Standard Error: 4_321
+			.saturating_add(Weight::from_parts(1_127_000, 0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	
+	// Storage: `Slpx::AsyncMintWhitelist` (r:1 w:0)
+	// Proof: `Slpx::AsyncMintWhitelist` (`max_values`: Some(1), `max_size`: Some(338), added: 833, mode: `MaxEncodedLen`)
+	// Storage: `Slpx::AsyncMintConfig` (r:1 w:0)
+	// Proof: `Slpx::AsyncMintConfig` (`max_values`: Some(1), `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
+	// Storage: `Slpx::AsyncMintExecutions` (r:1 w:1)
+	// Proof: `Slpx::AsyncMintExecutions` (`max_values`: None, `max_size`: Some(50), added: 2525, mode: `MaxEncodedLen`)
+	fn async_mint() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `4`
+		//  Estimated: `3877`
+		// Minimum execution time: 31_165 nanoseconds.
+		Weight::from_parts(32_000_000, 3877)
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	
+	// Storage: `Slpx::AsyncMintWhitelist` (r:0 w:1)
+	// Proof: `Slpx::AsyncMintWhitelist` (`max_values`: Some(1), `max_size`: Some(338), added: 833, mode: `MaxEncodedLen`)
+	fn update_async_mint_whitelist() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_353 nanoseconds.
+		Weight::from_parts(19_000_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	
+	// Storage: `Slpx::AsyncMintConfig` (r:0 w:1)
+	// Proof: `Slpx::AsyncMintConfig` (`max_values`: Some(1), `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
+	fn update_async_mint_config() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_353 nanoseconds.
+		Weight::from_parts(19_000_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	
+	// Storage: `Slpx::AsyncMintConfig` (r:1 w:0)
+	// Proof: `Slpx::AsyncMintConfig` (`max_values`: Some(1), `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
+	// Storage: `Slpx::AsyncMintExecutions` (r:1 w:1)
+	// Proof: `Slpx::AsyncMintExecutions` (`max_values`: None, `max_size`: Some(50), added: 2525, mode: `MaxEncodedLen`)
+	fn correct_vtoken_reserves() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `3544`
+		// Minimum execution time: 28_000 nanoseconds.
+		Weight::from_parts(29_000_000, 3544)
+			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 }

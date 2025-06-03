@@ -25,6 +25,7 @@ sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 bifrost-asset-registry = { workspace = true }
+ismp = { workspace = true }
 
 [dev-dependencies]
 hex-literal = { workspace = true }
@@ -56,6 +57,7 @@ std = [
 	"sp-io/std",
 	"sp-std/std",
 	"sp-runtime/std",
+	"ismp/std",
 	"bifrost-primitives/std",
 	"xcm/std",
 	"xcm-executor/std",

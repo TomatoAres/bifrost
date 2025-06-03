@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{Config, Error, Pallet, UniversalFeeCurrencyOrderList, UserDefaultFeeCurrency};
-use bifrost_primitives::{AccountFeeCurrency, BalanceCmp, CurrencyId, WETH};
+use bifrost_primitives::{AccountFeeCurrency, BalanceCmp, CurrencyId, ETH};
 use frame_support::traits::{
 	fungibles::Inspect,
 	tokens::{Fortitude, Preservation},
@@ -33,7 +33,7 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 	/// Determines the appropriate currency to be used for paying transaction fees based on a
 	/// prioritized order:
 	/// 1. User's default fee currency (`UserDefaultFeeCurrency`)
-	/// 2. WETH
+	/// 2. ETH
 	/// 3. Currencies in the `UniversalFeeCurrencyOrderList`
 	///
 	/// The method first checks if the balance of the highest-priority currency is sufficient to
@@ -47,11 +47,11 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 
 		let first_item_index = 0;
 		currency_list
-			.try_insert(first_item_index, WETH)
+			.try_insert(first_item_index, ETH)
 			.map_err(|_| Error::<T>::MaxCurrenciesReached)?;
 
 		// When all currency balances are insufficient, return the one with the highest balance
-		let mut hopeless_currency = WETH;
+		let mut hopeless_currency = ETH;
 
 		if let Some(currency) = priority_currency {
 			currency_list

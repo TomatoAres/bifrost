@@ -27,17 +27,18 @@ use bifrost_primitives::{
 	BuyBackAccount, FarmingBoostPalletId, FarmingGaugeRewardIssuerPalletId, FarmingKeeperPalletId,
 	FarmingRewardIssuerPalletId, IncentivePalletId,
 };
+use bifrost_runtime_common::constants::time::DAYS;
 use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::Nothing};
 use frame_system::EnsureSignedBy;
 use sp_core::ConstU32;
 use sp_runtime::{
 	traits::{ConvertInto, IdentityLookup},
-	AccountId32, BuildStorage,
+	AccountId32, BuildStorage, FixedU128,
 };
 
 use crate as bifrost_farming;
 
-pub type BlockNumber = u64;
+pub type BlockNumber = u32;
 pub type Amount = i128;
 pub type Balance = u128;
 
@@ -59,10 +60,10 @@ frame_support::construct_runtime!(
 	}
 );
 
-type Block = frame_system::mocking::MockBlock<Runtime>;
+type Block = frame_system::mocking::MockBlockU32<Runtime>;
 
 parameter_types! {
-	pub const BlockHashCount: u64 = 250;
+	pub const BlockHashCount: u32 = 250;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
@@ -155,11 +156,12 @@ impl bifrost_farming::Config for Runtime {
 
 parameter_types! {
 	pub const BbBNCTokenType: CurrencyId = VBNC;
-	pub const Week: BlockNumber = 50400; // a week
-	pub const OneYear: BlockNumber = 2620800; // one year
-	pub const MaxBlock: BlockNumber = 10512000; // four years
+	pub const Week: BlockNumber = 7 * DAYS; // a week
+	pub const OneYear: BlockNumber = 365 * DAYS; // one year
+	pub const FiveYears: BlockNumber = 5 * 365 * DAYS; // five years
+	pub const MaxBlock: BlockNumber = 4 * 365 * DAYS; // four years
 	pub const Multiplier: Balance = 10_u128.pow(12);
-	pub const VoteWeightMultiplier: Balance = 1;
+	pub const VoteWeightMultiplier: FixedU128 = FixedU128::from_inner(750_000_000_000_000_000);
 	pub const MaxPositions: u32 = 10;
 	pub const MarkupRefreshLimit: u32 = 100;
 }
@@ -181,7 +183,7 @@ impl bb_bnc::Config for Runtime {
 	type MarkupRefreshLimit = MarkupRefreshLimit;
 	type VtokenMinting = ();
 	type FarmingInfo = Farming;
-	type FourYears = MaxBlock;
+	type FiveYears = FiveYears;
 	type OneYear = OneYear;
 	type BlockNumberProvider = System;
 }

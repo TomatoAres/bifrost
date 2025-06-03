@@ -37,7 +37,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		let rewards = vec![CurrencyId::Native(TokenSymbol::BNC)];
@@ -69,6 +70,7 @@ mod benchmarks {
 			RawOrigin::Root,
 			Some((4 * 365 * 86400 / 12u32).into()),
 			Some((7 * 86400 / 12u32).into()),
+			Some(10u32),
 		);
 
 		Ok(())
@@ -81,7 +83,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -122,7 +125,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -169,7 +173,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -216,7 +221,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -261,7 +267,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -303,7 +310,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		let rewards = vec![CurrencyId::Native(TokenSymbol::BNC)];
@@ -330,7 +338,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -358,7 +367,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -414,7 +424,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -476,7 +487,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(
@@ -535,7 +547,8 @@ mod benchmarks {
 		assert_ok!(BbBNC::<T>::set_config(
 			RawOrigin::Root.into(),
 			Some((4 * 365 * 86400 / 12u32).into()),
-			Some((7 * 86400 / 12u32).into())
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
 		));
 
 		T::MultiCurrency::deposit(

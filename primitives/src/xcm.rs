@@ -48,6 +48,10 @@ parameter_types! {
 // Evm chain id
 parameter_types! {
 	pub const EthereumChainId: u64 = 1;
+	pub const OptimismChainId: u32 = 10;
+	pub const ArbitrumChainId: u32 = 42161;
+	pub const BaseChainId: u32 = 8453;
+	pub const BSCChainId: u32 = 56;
 	pub const MoonriverEvmChainId: u64 = 1285;
 	pub const MoonbeamEvmChainId: u64 = 1284;
 	pub const AstarEvmChainId: u64 = 592;

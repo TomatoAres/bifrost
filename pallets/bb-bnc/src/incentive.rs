@@ -79,7 +79,7 @@ impl<T: Config> Pallet<T> {
 		let mut conf = IncentiveConfigs::<T>::get(pool_id);
 		let current_block_number: BlockNumberFor<T> =
 			T::BlockNumberProvider::current_block_number();
-		let total_supply = Self::total_supply(current_block_number)?;
+		let total_supply = Self::total_supply(Some(current_block_number))?;
 		if total_supply == BalanceOf::<T>::zero() {
 			return Ok(conf.reward_per_token_stored);
 		}

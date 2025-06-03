@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_asset_registry::AssetIdMaps;
-use bifrost_primitives::{CurrencyId, CurrencyIdMapping};
+use bifrost_primitives::{CurrencyId, CurrencyIdMapping, LocalBncLocation, BNC};
 use cumulus_primitives_core::ParaId;
 use frame_support::traits::Get;
 use sp_runtime::traits::Convert;
@@ -34,7 +34,11 @@ impl<T: Get<ParaId>, R: bifrost_asset_registry::Config> Convert<CurrencyId, Opti
 	for CurrencyIdConvert<T, R>
 {
 	fn convert(id: CurrencyId) -> Option<Location> {
-		AssetIdMaps::<R>::get_location(&id)
+		if id == BNC {
+			Some(LocalBncLocation::get())
+		} else {
+			AssetIdMaps::<R>::get_location(&id)
+		}
 	}
 }
 /// Convert Location to CurrencyId
@@ -42,7 +46,11 @@ impl<T: Get<ParaId>, R: bifrost_asset_registry::Config> Convert<Location, Option
 	for CurrencyIdConvert<T, R>
 {
 	fn convert(location: Location) -> Option<CurrencyId> {
-		AssetIdMaps::<R>::get_currency_id(&location)
+		if location == LocalBncLocation::get() {
+			Some(BNC)
+		} else {
+			AssetIdMaps::<R>::get_currency_id(&location)
+		}
 	}
 }
 /// Convert Asset to CurrencyId

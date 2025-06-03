@@ -26,6 +26,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+extern crate alloc;
+
 use bifrost_primitives::{
 	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
 	VBNC, VKSM,
@@ -38,9 +40,9 @@ use bifrost_primitives::{
 	BifrostCrowdloanId, BifrostVsbondAccount, BuybackPalletId, CommissionPalletId,
 	FarmingBoostPalletId, FarmingGaugeRewardIssuerPalletId, FarmingKeeperPalletId,
 	FarmingRewardIssuerPalletId, FeeSharePalletId, FlexibleFeePalletId, IncentivePoolAccount,
-	LendMarketPalletId, LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId,
-	ParachainStakingPalletId, SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId,
-	SystemStakingPalletId, TreasuryPalletId, VBNCConvertPalletId,
+	LendMarketPalletId, LocalBncLocation, OraclePalletId, ParachainStakingPalletId,
+	SlpEntrancePalletId, SlpExitPalletId, SlpxPalletId, SystemMakerPalletId, SystemStakingPalletId,
+	TreasuryPalletId, VBNCConvertPalletId,
 };
 pub use frame_support::{
 	construct_runtime, match_types, parameter_types,
@@ -166,7 +168,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost"),
 	impl_name: create_runtime_str!("bifrost"),
 	authoring_version: 1,
-	spec_version: 18000,
+	spec_version: 19000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1137,6 +1139,7 @@ impl bifrost_slp::Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type BlockNumberProvider = System;
+	type BifrostSlpx = Slpx;
 }
 
 impl bifrost_vstoken_conversion::Config for Runtime {
@@ -1252,17 +1255,6 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 }
 
-impl merkle_distributor::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = CurrencyId;
-	type MultiCurrency = Currencies;
-	type Balance = Balance;
-	type MerkleDistributorId = u32;
-	type PalletId = MerkleDirtributorPalletId;
-	type StringLimit = StringLimit;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const ZenlinkPalletId: PalletId = PalletId(*b"/zenlink");
 	pub const GetExchangeFee: (u32, u32) = (3, 1000);   // 0.3%
@@ -1365,6 +1357,7 @@ impl bifrost_slpx::Config for Runtime {
 	type MaxUserOrderSize = ConstU32<20>;
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = ();
+	type PalletId = SlpxPalletId;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1687,27 +1680,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
 	}
 }
 
-impl pallet_state_trie_migration::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SignedDepositPerItem = MigrationSignedDepositPerItem;
-	type SignedDepositBase = MigrationSignedDepositBase;
-	// An origin that can control the whole pallet: should be Root, or a part of your council.
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ControlOrigin = frame_system::EnsureSigned<AccountId>;
-	// specific account for the migration, can trigger the signed migrations.
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type SignedFilter = frame_system::EnsureSigned<AccountId>;
-	// Replace this with weight based on your runtime.
-	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type MaxKeyLen = ConstU32<256>;
-}
-
 #[cfg(feature = "sudo")]
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1772,7 +1744,6 @@ construct_runtime! {
 		UnknownTokens: orml_unknown_tokens = 73,
 		OrmlXcm: orml_xcm = 74,
 		ZenlinkProtocol: zenlink_protocol = 80,
-		MerkleDistributor: merkle_distributor = 81,
 
 		// Bifrost modules
 		FlexibleFee: bifrost_flexible_fee = 100,
@@ -1800,7 +1771,6 @@ construct_runtime! {
 		LeverageStaking: leverage_staking = 135,
 		ChannelCommission: bifrost_channel_commission = 136,
 		VBNCConvert: bifrost_vbnc_convert = 140,
-		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1854,8 +1824,8 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 pub type Migrations = migrations::Unreleased;
 
 parameter_types! {
-	pub const ZenlinkSwapRouterName: &'static str = "ZenlinkSwapRouter";
-	pub const ZenlinkStableAMMName: &'static str = "ZenlinkStableAMM";
+	pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
+	pub const MerkleDistributorName: &'static str = "MerkleDistributor";
 }
 /// The runtime migrations per release.
 pub mod migrations {
@@ -1866,8 +1836,11 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		frame_support::migrations::RemovePallet<ZenlinkSwapRouterName, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<ZenlinkStableAMMName, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<MerkleDistributorName, RocksDbWeight>,
+		bifrost_system_staking::migrations::v3::MigrateToV3<Runtime>,
+		bifrost_slpx::migration::v3::MigrateToV3<Runtime>,
+		bifrost_slp::migrations::v4::SlpMigration<Runtime>,
 	);
 }
 
@@ -1906,7 +1879,6 @@ mod benches {
 		[bifrost_xcm_interface, XcmInterface]
 		// [bifrost_channel_commission, ChannelCommission]
 		[bifrost_vesting, Vesting]
-		[pallet_state_trie_migration, StateTrieMigration]
 	);
 }
 

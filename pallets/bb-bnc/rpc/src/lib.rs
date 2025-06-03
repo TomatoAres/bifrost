@@ -58,6 +58,13 @@ pub trait BbBNCRpcApi<BlockHash, AccountId> {
 		value: Balance,
 		at: Option<BlockHash>,
 	) -> RpcResult<Rate>;
+
+	#[method(name = "bb_bnc_query_pending_rewards")]
+	fn query_pending_rewards(
+		&self,
+		who: AccountId,
+		at: Option<BlockHash>,
+	) -> RpcResult<Vec<(CurrencyId, Balance)>>;
 }
 
 #[derive(Clone, Debug)]
@@ -142,8 +149,7 @@ where
 					Some(format!("{:?}", e)),
 				)
 			})?;
-		let rs: Result<Balance, _> =
-			lm_rpc_api.total_supply(at, block_number.expect("no block found"));
+		let rs: Result<Balance, _> = lm_rpc_api.total_supply(at, block_number);
 
 		match rs {
 			Ok(supply) => Ok(NumberOrHex::Hex(supply.into())),
@@ -204,6 +210,25 @@ where
 			ErrorObject::owned(
 				ErrorCode::InternalError.code(),
 				"Failed to get bonus.",
+				Some(format!("{:?}", e)),
+			)
+		})?;
+
+		Ok(result)
+	}
+
+	fn query_pending_rewards(
+		&self,
+		who: AccountId,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<Vec<(CurrencyId, Balance)>> {
+		let api = self.client.runtime_api();
+		let at = at.unwrap_or_else(|| self.client.info().best_hash);
+
+		let result = api.query_pending_rewards(at, who).map_err(|e| {
+			ErrorObject::owned(
+				ErrorCode::InternalError.code(),
+				"Failed to query pending rewards.",
 				Some(format!("{:?}", e)),
 			)
 		})?;

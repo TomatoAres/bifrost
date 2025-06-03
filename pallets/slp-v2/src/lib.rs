@@ -21,9 +21,12 @@
 #[cfg(feature = "polkadot")]
 use astar_dapp_staking::types::DappStaking;
 use bifrost_primitives::{
-	Balance, BlockNumber, CurrencyId, CurrencyIdConversion, TimeUnit, VtokenMintingOperator,
+	Balance, BlockNumber, CurrencyId, CurrencyIdConversion, HyperBridgeSender, TimeUnit,
+	VtokenMintingOperator,
 };
 use common::types::{Delegator, DelegatorIndex, ProtocolConfiguration};
+#[cfg(feature = "polkadot")]
+use ethereum_staking::types::EthereumStaking;
 use frame_support::{
 	dispatch::{DispatchResultWithPostInfo, GetDispatchInfo},
 	pallet_prelude::*,
@@ -44,6 +47,8 @@ mod mock;
 #[cfg(feature = "polkadot")]
 mod astar_dapp_staking;
 mod common;
+#[cfg(feature = "polkadot")]
+mod ethereum_staking;
 #[cfg(test)]
 mod tests;
 pub mod weights;
@@ -82,6 +87,8 @@ pub mod pallet {
 		type XcmSender: SendXcm;
 		/// XTokens transfer interface
 		type XcmTransfer: XcmTransfer<Self::AccountId, Balance, CurrencyId>;
+		/// HyperBridge
+		type HyperBridgeSender: HyperBridgeSender<Self::AccountId, Balance>;
 		/// The interface to call VtokenMinting module functions.
 		type VtokenMinting: VtokenMintingOperator<CurrencyId, Balance, Self::AccountId, TimeUnit>;
 		/// The currency id conversion.
@@ -308,6 +315,11 @@ pub mod pallet {
 			to: T::AccountId,
 			/// Amount
 			amount: Balance,
+		},
+		/// Ethereum staking task.
+		EthereumStaking {
+			delegator: Delegator<T::AccountId>,
+			task: EthereumStaking,
 		},
 	}
 
@@ -564,9 +576,13 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			staking_protocol: StakingProtocol,
 			delegator: Delegator<T::AccountId>,
+			currency_id: Option<CurrencyId>,
+			amount: Option<Balance>,
+			dest: Option<u32>,
+			fee: Option<Balance>,
 		) -> DispatchResultWithPostInfo {
 			Self::ensure_governance_or_operator(origin, staking_protocol)?;
-			Self::do_transfer_to(staking_protocol, delegator)
+			Self::do_transfer_to(staking_protocol, delegator, currency_id, amount, dest, fee)
 		}
 
 		/// Transfer the staking token back from remote chain.
@@ -605,6 +621,7 @@ pub mod pallet {
 		pub fn update_ongoing_time_unit(
 			origin: OriginFor<T>,
 			staking_protocol: StakingProtocol,
+			currency_id: Option<CurrencyId>,
 			time_uint_option: Option<TimeUnit>,
 		) -> DispatchResultWithPostInfo {
 			Self::ensure_governance_or_operator(origin, staking_protocol)?;
@@ -620,7 +637,13 @@ pub mod pallet {
 				Error::<T>::UpdateIntervalTooShort
 			);
 
-			let currency_id = staking_protocol.info().currency_id;
+			let currency_id = if let (StakingProtocol::EthereumStaking, Some(currency_id)) =
+				(staking_protocol, currency_id)
+			{
+				currency_id
+			} else {
+				staking_protocol.info().currency_id
+			};
 
 			let time_unit = match time_uint_option {
 				Some(time_unit) => time_unit,
@@ -657,12 +680,19 @@ pub mod pallet {
 		pub fn update_token_exchange_rate(
 			origin: OriginFor<T>,
 			staking_protocol: StakingProtocol,
+			currency_id: Option<CurrencyId>,
 			delegator: Delegator<T::AccountId>,
 			pool_value: Balance,
 			delegator_value: Balance,
 		) -> DispatchResultWithPostInfo {
 			Self::ensure_governance_or_operator(origin, staking_protocol)?;
-			let currency_id = staking_protocol.info().currency_id;
+			let currency_id = if let (StakingProtocol::EthereumStaking, Some(currency_id)) =
+				(staking_protocol, currency_id)
+			{
+				currency_id
+			} else {
+				staking_protocol.info().currency_id
+			};
 
 			// Check the update token exchange rate limit.
 			let (update_interval, max_update_permill, protocol_fee_rate) =
@@ -696,12 +726,13 @@ pub mod pallet {
 
 			// Charge the protocol fee.
 			let mut protocol_fee = protocol_fee_rate.mul_floor(pool_value);
-			let protocol_fee_currency_id = T::CurrencyIdConversion::convert_to_vtoken(currency_id)
+			// Because vETH has many currency ids, we need to convert currency id to vtoken currency id by vtoken minting.
+			let protocol_fee_currency_id = T::VtokenMinting::convert_to_vtoken(currency_id)
 				.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
 			if protocol_fee != 0 {
-				protocol_fee = Self::calculate_vtoken_amount_by_token_amount(
-					protocol_fee_currency_id,
+				protocol_fee = T::VtokenMinting::calculate_v_currency_amount_by_currency_amount(
 					currency_id,
+					protocol_fee_currency_id,
 					protocol_fee,
 				)?;
 				let protocol_fee_receiver = T::CommissionPalletId::get().into_account_truncating();
@@ -722,6 +753,11 @@ pub mod pallet {
 					#[cfg(feature = "polkadot")]
 					Some(Ledger::AstarDappStaking(astar_dapp_staking_ledger)) => {
 						astar_dapp_staking_ledger.add_lock_amount(delegator_value);
+						Ok(())
+					}
+					#[cfg(feature = "polkadot")]
+					Some(Ledger::EthereumStaking(ethereum_staking_ledger)) => {
+						ethereum_staking_ledger.add_lock_amount(delegator_value);
 						Ok(())
 					}
 					_ => Err(Error::<T>::LedgerNotFound),
@@ -784,6 +820,26 @@ pub mod pallet {
 				PendingStatusByQueryId::<T>::remove(query_id);
 			}
 			Ok(().into())
+		}
+
+		/// Manipulate a delegator to perform Dapp staking related operations.
+		///
+		/// Can be called by governance or staking protocol operator.
+		///
+		/// Parameters
+		/// - `staking_protocol`: Slp supports staking protocols.
+		/// - `delegator`: Select the delegator which is existed.
+		/// - `task`: The Dapp staking task.
+		#[cfg(feature = "polkadot")]
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::astar_dapp_staking())]
+		pub fn ethereum_staking(
+			origin: OriginFor<T>,
+			delegator: Delegator<T::AccountId>,
+			task: EthereumStaking,
+		) -> DispatchResultWithPostInfo {
+			Self::ensure_governance_or_operator(origin, StakingProtocol::EthereumStaking)?;
+			Self::do_ethereum_staking(delegator, task)
 		}
 	}
 }

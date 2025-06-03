@@ -18,8 +18,11 @@
 
 extern crate alloc;
 
+mod benchmarking;
 pub mod impls;
 pub mod types;
+mod weights;
+
 use alloc::collections::BTreeMap;
 use alloc::{string::ToString, vec, vec::Vec};
 use alloy_sol_types::SolValue;
@@ -46,6 +49,7 @@ use sp_runtime::{DispatchError, SaturatedConversion};
 use token_gateway_primitives::{token_gateway_id, token_governor_id};
 use token_gateway_primitives::{GatewayAssetUpdate, RemoteERC6160AssetRegistration};
 pub use types::*;
+pub use weights::WeightInfo;
 
 type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 	<T as frame_system::Config>::AccountId,
@@ -54,6 +58,7 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use bifrost_primitives::{SlpxOperator, TargetChain};
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -85,6 +90,22 @@ pub mod pallet {
 
 		/// A trait that converts an evm address to a substrate account
 		type EvmToSubstrate: EvmToSubstrate<Self>;
+
+		/// BoundedVec maximum length
+		#[pallet::constant]
+		type MaxLengthLimit: Get<u32>;
+
+		/// Weight information for extrinsics in this pallet
+		type WeightInfo: WeightInfo;
+
+		/// Slpx operator
+		type BifrostSlpx: SlpxOperator<
+			Self::AccountId,
+			BalanceOf<Self>,
+			BlockNumberFor<Self>,
+			OriginFor<Self>,
+			TargetChain<Self::AccountId>,
+		>;
 	}
 
 	/// Assets supported by this instance of token gateway
@@ -111,6 +132,16 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type TokenGatewayAddresses<T: Config> =
 		StorageMap<_, Blake2_128Concat, StateMachine, Vec<u8>, OptionQuery>;
+
+	/// The whitelist adresses on different chains
+	#[pallet::storage]
+	pub type WhitelistAddresses<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		StateMachine,
+		BoundedVec<Vec<u8>, T::MaxLengthLimit>,
+		OptionQuery,
+	>;
 
 	/// Pallet events that functions in this pallet can emit.
 	#[pallet::event]
@@ -157,6 +188,14 @@ pub mod pallet {
 			/// Request commitment
 			commitment: H256,
 		},
+
+		/// Whitelist has been reset
+		WhitelistReset {
+			/// Destination chain
+			chain: StateMachine,
+			/// Whitelist asress set
+			whitelist: BoundedVec<Vec<u8>, T::MaxLengthLimit>,
+		},
 	}
 
 	/// Errors that can be returned by this pallet.
@@ -178,6 +217,8 @@ pub mod pallet {
 		NotInitialized,
 		/// Unknown Asset
 		UnknownAsset,
+		/// BoundedVec conversion failed
+		FailToConvert,
 	}
 
 	#[pallet::call]
@@ -330,6 +371,27 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::DispatchError)?;
 			Self::deposit_event(Event::<T>::ERC6160AssetRegistrationDispatched { commitment });
 
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(weight())]
+		pub fn set_whitelist_addresses(
+			origin: OriginFor<T>,
+			addresses: BTreeMap<StateMachine, Vec<Vec<u8>>>,
+		) -> DispatchResult {
+			T::AdminOrigin::ensure_origin(origin)?;
+			for (chain, address_list) in addresses {
+				let bounded_address =
+					BoundedVec::<Vec<u8>, T::MaxLengthLimit>::try_from(address_list)
+						.map_err(|_| Error::<T>::FailToConvert)?;
+				WhitelistAddresses::<T>::insert(chain, bounded_address.clone());
+
+				Pallet::<T>::deposit_event(Event::WhitelistReset {
+					chain,
+					whitelist: bounded_address,
+				});
+			}
 			Ok(())
 		}
 	}

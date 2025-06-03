@@ -62,6 +62,10 @@ pub trait WeightInfo {
 	fn redeem() -> Weight;
 	fn evm_create_order() -> Weight;
 	fn substrate_create_order(l: u32, ) -> Weight;
+	fn async_mint() -> Weight;
+	fn update_async_mint_whitelist() -> Weight;
+	fn update_async_mint_config() -> Weight;
+	fn correct_vtoken_reserves() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -172,6 +176,51 @@ impl WeightInfo for () {
 			// Standard Error: 11_566
 			.saturating_add(Weight::from_parts(682_566, 0).saturating_mul(l.into()))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Slpx::AsyncMintWhitelist` (r:1 w:0)
+	/// Proof: `Slpx::AsyncMintWhitelist` (`max_values`: Some(1), `max_size`: Some(338), added: 833, mode: `MaxEncodedLen`)
+	/// Storage: `Slpx::AsyncMintConfig` (r:1 w:0)
+	/// Proof: `Slpx::AsyncMintConfig` (`max_values`: Some(1), `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
+	/// Storage: `Slpx::AsyncMintExecutions` (r:1 w:1)
+	/// Proof: `Slpx::AsyncMintExecutions` (`max_values`: None, `max_size`: Some(50), added: 2525, mode: `MaxEncodedLen`)
+	fn async_mint() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `4`
+		//  Estimated: `3877`
+		// Minimum execution time: 31_165_000 picoseconds.
+		Weight::from_parts(31_528_000, 3877)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Slpx::AsyncMintWhitelist` (r:0 w:1)
+	/// Proof: `Slpx::AsyncMintWhitelist` (`max_values`: Some(1), `max_size`: Some(338), added: 833, mode: `MaxEncodedLen`)
+	fn update_async_mint_whitelist() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_353_000 picoseconds.
+		Weight::from_parts(19_084_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Slpx::AsyncMintConfig` (r:0 w:1)
+	/// Proof: `Slpx::AsyncMintConfig` (`max_values`: Some(1), `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
+	fn update_async_mint_config() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_353_000 picoseconds.
+		Weight::from_parts(19_084_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Slpx::CorrectVTokenReserves` (r:0 w:1)
+	/// Proof: `Slpx::CorrectVTokenReserves` (`max_values`: None, `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
+	fn correct_vtoken_reserves() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_353_000 picoseconds.
+		Weight::from_parts(19_084_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

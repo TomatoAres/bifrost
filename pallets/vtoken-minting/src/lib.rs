@@ -37,7 +37,8 @@ pub use weights::WeightInfo;
 use crate::impls::Operation;
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	CurrencyId, HyperBridgeSender, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
+	CurrencyId, HyperBridgeSender, RedeemType, SlpxOperator, TargetChain, TimeUnit,
+	VTokenMintRedeemProvider,
 };
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
@@ -93,7 +94,13 @@ pub mod pallet {
 		/// Xtokens xcm transfer interface
 		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
 		/// Slpx operator
-		type BifrostSlpx: SlpxOperator<crate::AccountIdOf<Self>, BalanceOf<Self>>;
+		type BifrostSlpx: SlpxOperator<
+			crate::AccountIdOf<Self>,
+			BalanceOf<Self>,
+			BlockNumberFor<Self>,
+			OriginFor<Self>,
+			TargetChain<AccountIdOf<Self>>,
+		>;
 		/// bbBNC interface
 		type BbBNC: BbBNCInterface<
 			AccountIdOf<Self>,
@@ -465,6 +472,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type SupportedEth<T: Config> =
 		StorageValue<_, BoundedVec<CurrencyId, ConstU32<10>>, ValueQuery>;
+
+	/// Next unlock id for all ETH tokens in SupportedEth list
+	#[pallet::storage]
+	pub type EthUnlockNextId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	//【vtoken -> Blocks】, the locked blocks for each vtoken when minted in an incentive mode
 	#[pallet::storage]

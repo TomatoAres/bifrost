@@ -26,6 +26,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+extern crate alloc;
+
 use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
 use pallet_traits::evm::InspectEvmAccounts;
@@ -36,9 +38,9 @@ use bifrost_primitives::{
 	CommissionPalletId, FarmingBoostPalletId, FarmingGaugeRewardIssuerPalletId,
 	FarmingKeeperPalletId, FarmingRewardIssuerPalletId, FeeSharePalletId, FlexibleFeePalletId,
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
-	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
-	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC, BNC_DECIMALS, DOT, VDOT,
+	LocalBncLocation, OraclePalletId, ParachainStakingPalletId, SlpEntrancePalletId,
+	SlpExitPalletId, SlpxPalletId, SystemMakerPalletId, SystemStakingPalletId, TreasuryPalletId,
+	BNC, BNC_DECIMALS, DOT, VDOT,
 };
 use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
@@ -193,7 +195,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_polkadot"),
 	impl_name: create_runtime_str!("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 18000,
+	spec_version: 19000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -979,6 +981,7 @@ impl bifrost_slp::Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type BlockNumberProvider = System;
+	type BifrostSlpx = Slpx;
 }
 
 parameter_types! {
@@ -1074,6 +1077,7 @@ impl bifrost_slpx::Config for Runtime {
 	type MaxUserOrderSize = ConstU32<20>;
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = TokenGateway;
+	type PalletId = SlpxPalletId;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1153,17 +1157,6 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 }
 
-impl merkle_distributor::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = CurrencyId;
-	type MultiCurrency = Currencies;
-	type Balance = Balance;
-	type MerkleDistributorId = u32;
-	type PalletId = MerkleDirtributorPalletId;
-	type StringLimit = StringLimit;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const ZenlinkPalletId: PalletId = PalletId(*b"/zenlink");
 	pub const GetExchangeFee: (u32, u32) = (3, 1000);   // 0.3%
@@ -1234,8 +1227,9 @@ parameter_types! {
 	pub const Week: BlockNumber = prod_or_fast!(WEEKS, 10);
 	pub const OneYear: BlockNumber = 365 * DAYS;
 	pub const MaxBlock: BlockNumber = 4 * 365 * DAYS;
+	pub const FiveYears: BlockNumber = 5 * 365 * DAYS;
 	pub const Multiplier: Balance = 10_u128.pow(12);
-	pub const VoteWeightMultiplier: Balance = 1;
+	pub const VoteWeightMultiplier: FixedU128 = FixedU128::from_inner(750_000_000_000_000_000);
 	pub const MaxPositions: u32 = 10;
 	pub const MarkupRefreshLimit: u32 = 100;
 }
@@ -1257,7 +1251,7 @@ impl bb_bnc::Config for Runtime {
 	type MarkupRefreshLimit = MarkupRefreshLimit;
 	type VtokenMinting = VtokenMinting;
 	type FarmingInfo = Farming;
-	type FourYears = MaxBlock;
+	type FiveYears = FiveYears;
 	type OneYear = OneYear;
 	type BlockNumberProvider = System;
 }
@@ -1438,6 +1432,7 @@ impl bifrost_slp_v2::Config for Runtime {
 	type CommissionPalletId = CommissionPalletId;
 	type ParachainId = ParachainInfo;
 	type MaxValidators = ConstU32<256>;
+	type HyperBridgeSender = TokenGateway;
 }
 
 parameter_types! {
@@ -1587,27 +1582,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
 	}
 }
 
-impl pallet_state_trie_migration::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SignedDepositPerItem = MigrationSignedDepositPerItem;
-	type SignedDepositBase = MigrationSignedDepositBase;
-	// An origin that can control the whole pallet: should be Root, or a part of your council.
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ControlOrigin = frame_system::EnsureSigned<AccountId>;
-	// specific account for the migration, can trigger the signed migrations.
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type SignedFilter = frame_system::EnsureSigned<AccountId>;
-	// Replace this with weight based on your runtime.
-	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type MaxKeyLen = ConstU32<256>;
-}
-
 #[cfg(feature = "sudo")]
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1679,7 +1653,6 @@ construct_runtime! {
 		UnknownTokens: orml_unknown_tokens = 73,
 		OrmlXcm: orml_xcm = 74,
 		ZenlinkProtocol: zenlink_protocol = 80,
-		MerkleDistributor: merkle_distributor = 81,
 
 		// Hyperbridge
 		Ismp: pallet_ismp = 90,
@@ -1715,7 +1688,6 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
-		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1794,6 +1766,11 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
+parameter_types! {
+	pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
+	pub const MerkleDistributorName: &'static str = "MerkleDistributor";
+}
+
 /// The runtime migrations per release.
 pub mod migrations {
 	#[allow(unused_imports)]
@@ -1803,7 +1780,12 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_buy_back::migration::v1::MigrateToV1<Runtime>,
+		bifrost_buy_back::migration::v2::MigrateToV2<Runtime>,
+		frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<MerkleDistributorName, RocksDbWeight>,
+		bifrost_system_staking::migrations::v3::MigrateToV3<Runtime>,
+		bifrost_slpx::migration::v3::MigrateToV3<Runtime>,
+		bifrost_slp::migrations::v4::SlpMigration<Runtime>,
 	);
 }
 
@@ -1876,12 +1858,13 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
+use benches::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
-	define_benchmarks!(
+	use super::*;
+	use alloc::boxed::Box;
+	frame_benchmarking::define_benchmarks!(
 		[bb_bnc, BbBNC]
 		[bifrost_buy_back, BuyBack]
 		[bifrost_slp_v2, SlpV2]
@@ -1889,8 +1872,254 @@ mod benches {
 		[bifrost_farming, Farming]
 		[bifrost_clouds_convert, CloudsConvert]
 		[pallet_evm_accounts, EVMAccounts]
-		[pallet_state_trie_migration, StateTrieMigration]
+		[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
+		[pallet_xcm_benchmarks::fungible, XcmBalances]
+		[pallet_xcm_benchmarks::generic, XcmGeneric]
 	);
+
+	use bifrost_primitives::LocalBncLocation;
+	use cumulus_primitives_core::ParaId;
+	use frame_benchmarking::BenchmarkError;
+	use xcm::latest::prelude::{
+		Asset, Assets as XcmAssets, Fungible, Here, InteriorLocation, Junction, Location,
+		NetworkId, NonFungible, Parent, ParentThen, Response,
+	};
+
+	impl frame_system_benchmarking::Config for Runtime {
+		fn setup_set_code_requirements(code: &Vec<u8>) -> Result<(), BenchmarkError> {
+			ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
+			Ok(())
+		}
+
+		fn verify_set_code() {
+			System::assert_last_event(
+				cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into(),
+			);
+		}
+	}
+
+	impl cumulus_pallet_session_benchmarking::Config for Runtime {}
+
+	use pallet_xcm_benchmarks::asset_instance_from;
+	use xcm_config::{DotLocation, MaxAssetsIntoHolding};
+
+	parameter_types! {
+		pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(DotLocation::get());
+		pub ExistentialDepositAsset: Option<Asset> = Some((
+			DotLocation::get(),
+			ExistentialDeposit::get()
+		).into());
+		pub const RandomParaId: ParaId = ParaId::new(43211234);
+		pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
+	}
+	pub type PriceForParentDelivery = polkadot_runtime_common::xcm_sender::ExponentialPrice<
+		FeeAssetId,
+		BaseDeliveryFee,
+		TransactionByteFee,
+		ParachainSystem,
+	>;
+	impl pallet_xcm::benchmarking::Config for Runtime {
+		type DeliveryHelper = ();
+
+		fn reachable_dest() -> Option<Location> {
+			Some(Parent.into())
+		}
+
+		fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
+			None
+		}
+
+		fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
+			ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(RandomParaId::get());
+			Some((
+				Asset {
+					fun: Fungible(ExistentialDeposit::get()),
+					id: AssetId(LocalBncLocation::get()),
+				},
+				ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
+			))
+		}
+		fn set_up_complex_asset_transfer() -> Option<(XcmAssets, u32, Location, Box<dyn FnOnce()>)>
+		{
+			ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(RandomParaId::get());
+
+			let destination = ParentThen(Parachain(RandomParaId::get().into()).into()).into();
+
+			let fee_asset: Asset = (LocalBncLocation::get(), ExistentialDeposit::get()).into();
+
+			let who = frame_benchmarking::whitelisted_caller();
+			let balance = 10 * ExistentialDeposit::get();
+			let _ = <Balances as frame_support::traits::Currency<_>>::make_free_balance_be(
+				&who, balance,
+			);
+
+			assert_eq!(Balances::free_balance(&who), balance);
+
+			let transfer_asset: Asset = (LocalBncLocation::get(), ExistentialDeposit::get()).into();
+
+			let assets: Assets = vec![fee_asset.clone(), transfer_asset].into();
+
+			let fee_index: u32 = 0;
+			let verify: Box<dyn FnOnce()> = Box::new(move || {
+				assert!(Balances::free_balance(&who) <= balance - ExistentialDeposit::get());
+			});
+
+			Some((assets, fee_index, destination, verify))
+		}
+
+		fn get_asset() -> Asset {
+			Asset {
+				id: AssetId(Location::parent()),
+				fun: Fungible(ExistentialDeposit::get()),
+			}
+		}
+	}
+
+	impl pallet_xcm_benchmarks::Config for Runtime {
+		type XcmConfig = xcm_config::XcmConfig;
+		type AccountIdConverter = xcm_config::LocationToAccountId;
+		type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+			xcm_config::XcmConfig,
+			ExistentialDepositAsset,
+			PriceForParentDelivery,
+		>;
+		fn valid_destination() -> Result<Location, BenchmarkError> {
+			Ok(DotLocation::get())
+		}
+		fn worst_case_holding(depositable_count: u32) -> XcmAssets {
+			// A mix of fungible, non-fungible, and concrete assets.
+			let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
+			let holding_fungibles = holding_non_fungibles.saturating_sub(2); // -2 for two `iter::once` bellow
+			let fungibles_amount: u128 = 1_000_000 * UNITS;
+			(0..holding_fungibles)
+				.map(|i| {
+					Asset {
+						id: AssetId(LocalBncLocation::get()),
+						fun: Fungible(fungibles_amount * (i + 1) as u128), // non-zero amount
+					}
+				})
+				.chain(core::iter::once(Asset {
+					id: AssetId(Here.into()),
+					fun: Fungible(u128::MAX),
+				}))
+				.chain(core::iter::once(Asset {
+					id: AssetId(DotLocation::get()),
+					fun: Fungible(1_000_000 * UNITS),
+				}))
+				.chain((0..holding_non_fungibles).map(|i| Asset {
+					id: AssetId(GeneralIndex(i as u128).into()),
+					fun: NonFungible(asset_instance_from(i)),
+				}))
+				.collect::<Vec<_>>()
+				.into()
+		}
+	}
+
+	parameter_types! {
+		pub TrustedTeleporter: Option<(Location, Asset)> = Some((
+			DotLocation::get(),
+			Asset { fun: Fungible(UNITS), id: AssetId(DotLocation::get()) },
+		));
+		pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
+		pub TrustedReserve: Option<(Location, Asset)> = Some(
+			(
+				DotLocation::get(),
+				Asset { fun: Fungible(UNITS), id: AssetId(DotLocation::get()) },
+			)
+		);
+	}
+
+	impl pallet_xcm_benchmarks::fungible::Config for Runtime {
+		type TransactAsset = Balances;
+
+		type CheckedAccount = CheckedAccount;
+		type TrustedTeleporter = TrustedTeleporter;
+		type TrustedReserve = TrustedReserve;
+
+		fn get_asset() -> Asset {
+			Asset {
+				id: AssetId(LocalBncLocation::get()),
+				fun: Fungible(UNITS),
+			}
+		}
+	}
+
+	impl pallet_xcm_benchmarks::generic::Config for Runtime {
+		type TransactAsset = Balances;
+		type RuntimeCall = RuntimeCall;
+
+		fn worst_case_response() -> (u64, Response) {
+			(0u64, Response::Version(Default::default()))
+		}
+
+		fn worst_case_asset_exchange() -> Result<(XcmAssets, XcmAssets), BenchmarkError> {
+			Err(BenchmarkError::Skip)
+		}
+
+		fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
+			Err(BenchmarkError::Skip)
+		}
+
+		fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
+			Ok((
+				DotLocation::get(),
+				frame_system::Call::remark_with_event { remark: vec![] }.into(),
+			))
+		}
+
+		fn subscribe_origin() -> Result<Location, BenchmarkError> {
+			Ok(DotLocation::get())
+		}
+
+		fn claimable_asset() -> Result<(Location, Location, XcmAssets), BenchmarkError> {
+			// let _ = AssetIdMaps::<Runtime>::register_metadata(
+			// 	DOT,
+			// 	bifrost_primitives::AssetMetadata {
+			// 		name: b"Polkadot".to_vec(),
+			// 		symbol: b"DOT".to_vec(),
+			// 		decimals: 10,
+			// 		minimal_balance: 10u128,
+			// 	},
+			// );
+			// let _ = bifrost_asset_registry::Pallet::<Runtime>::do_register_location(
+			// 	DOT,
+			// 	&DotLocation::get(),
+			// );
+			// let origin = DotLocation::get();
+			// let assets: XcmAssets = (AssetId(DotLocation::get()), 1_000 * UNITS).into();
+			// let ticket = Location { parents: 0, interior: Here };
+			// Ok((origin, ticket, assets))
+			Err(BenchmarkError::Skip)
+		}
+
+		fn fee_asset() -> Result<Asset, BenchmarkError> {
+			Ok(Asset {
+				id: AssetId(LocalBncLocation::get()),
+				fun: Fungible(1_000_000 * UNITS),
+			})
+		}
+
+		fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
+			Err(BenchmarkError::Skip)
+		}
+
+		fn export_message_origin_and_destination(
+		) -> Result<(Location, NetworkId, InteriorLocation), BenchmarkError> {
+			Err(BenchmarkError::Skip)
+		}
+
+		fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
+			Err(BenchmarkError::Skip)
+		}
+	}
+	pub use frame_benchmarking::{BenchmarkBatch, BenchmarkList, Benchmarking};
+	pub use frame_support::traits::{StorageInfoTrait, WhitelistedStorageKeys};
+	pub use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
+
+	pub use frame_support::traits::TrackedStorageKey;
+
+	pub type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet<Runtime>;
+	pub type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet<Runtime>;
 }
 
 impl_runtime_apis! {
@@ -2497,7 +2726,7 @@ impl_runtime_apis! {
 		}
 
 		fn total_supply(
-			t: bifrost_primitives::BlockNumber,
+			t: Option<bifrost_primitives::BlockNumber>,
 		) -> Balance{
 			BbBNC::total_supply(t).unwrap_or(Zero::zero())
 		}
@@ -2515,6 +2744,12 @@ impl_runtime_apis! {
 			value: Balance,
 		) -> FixedU128 {
 			BbBNC::bonus(&who, currency_id, value).unwrap_or_else(|_| FixedU128::zero())
+		}
+
+		fn query_pending_rewards(
+			who: AccountId,
+		) -> Vec<(CurrencyId, Balance)> {
+			BbBNC::query_pending_rewards(&who).unwrap_or(Vec::new())
 		}
 	}
 
@@ -2566,33 +2801,21 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
-			use frame_support::traits::StorageInfoTrait;
-
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
-			return (list, storage_info)
+			(list, storage_info)
 		}
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
-			use frame_support::traits::TrackedStorageKey;
-
-			impl frame_system_benchmarking::Config for Runtime {}
-
-			let whitelist: Vec<TrackedStorageKey> = vec![
-			// you can whitelist any storage keys you do not want to track here
-			];
-
+			let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 			add_benchmarks!(params, batches);
 
-			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
 	}

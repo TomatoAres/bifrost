@@ -23,7 +23,7 @@
 use crate::{mock::*, DispatchError::Module, *};
 use bifrost_primitives::{
 	currency::{BNC, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
-	VtokenMintingOperator, V_WETH, WETH,
+	VtokenMintingOperator, ETH, V_ETH,
 };
 use frame_support::{assert_noop, assert_ok, sp_runtime::Permill, BoundedVec};
 use sp_runtime::ModuleError;
@@ -439,10 +439,10 @@ fn set_supported_eths() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(VtokenMinting::set_supported_eth(
 			RuntimeOrigin::signed(ALICE),
-			vec![WETH].try_into().unwrap()
+			vec![ETH].try_into().unwrap()
 		));
 
-		assert_eq!(SupportedEth::<Runtime>::get().to_vec(), vec![WETH]);
+		assert_eq!(SupportedEth::<Runtime>::get().to_vec(), vec![ETH]);
 	})
 }
 
@@ -459,94 +459,97 @@ fn eth() {
 			));
 			assert_ok!(VtokenMinting::set_min_time_unit(
 				RuntimeOrigin::signed(ALICE),
-				WETH,
+				ETH,
 				TimeUnit::Round(1)
 			));
 			pub const FEE: Permill = Permill::from_percent(2);
 			assert_ok!(VtokenMinting::set_fees(RuntimeOrigin::root(), FEE, FEE));
 			assert_ok!(VtokenMinting::set_unlock_duration(
 				RuntimeOrigin::signed(ALICE),
-				WETH,
+				ETH,
 				TimeUnit::Round(1)
 			));
 			assert_ok!(VtokenMinting::update_ongoing_time_unit(
-				WETH,
+				ETH,
 				TimeUnit::Round(1)
 			));
 			assert_ok!(VtokenMinting::mint(
 				Some(BOB).into(),
-				WETH,
+				ETH,
 				300000000000000000000,
 				BoundedVec::default(),
 				None
 			));
 			assert_eq!(
-				Tokens::free_balance(WETH, &entrance_account),
+				Tokens::free_balance(ETH, &entrance_account),
 				294000000000000000000
 			);
-			assert_eq!(Tokens::free_balance(V_WETH, &BOB), 294000000000000000000);
-			SupportedEth::<Runtime>::set(vec![WETH].try_into().unwrap());
+			assert_eq!(Tokens::free_balance(V_ETH, &BOB), 294000000000000000000);
+			SupportedEth::<Runtime>::set(vec![ETH].try_into().unwrap());
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
-				Some(WETH),
-				V_WETH,
+				Some(ETH),
+				V_ETH,
 				200000000000000000000
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
-				Some(WETH),
-				V_WETH,
+				Some(ETH),
+				V_ETH,
 				80000000000000000000
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
-				Some(WETH),
-				V_WETH,
+				Some(ETH),
+				V_ETH,
 				10000000000000000000
 			));
 			VtokenMinting::on_idle(100, Weight::MAX);
 			VtokenMinting::on_idle(100, Weight::MAX);
 			VtokenMinting::on_idle(100, Weight::MAX);
 			VtokenMinting::on_idle(100, Weight::MAX);
-			assert_eq!(MinTimeUnit::<Runtime>::get(WETH), TimeUnit::Round(2));
+			assert_eq!(MinTimeUnit::<Runtime>::get(ETH), TimeUnit::Round(2));
 			assert_eq!(
-				OngoingTimeUnit::<Runtime>::get(WETH),
+				OngoingTimeUnit::<Runtime>::get(ETH),
 				Some(TimeUnit::Round(1))
 			);
-			assert_eq!(Tokens::free_balance(WETH, &BOB), 984200000000000000000);
-			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 0), None);
+			assert_eq!(Tokens::free_balance(ETH, &BOB), 984200000000000000000);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 0), None);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 1), None);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 2), None);
+			assert_eq!(EthUnlockNextId::<Runtime>::get(), 3);
 			assert_ok!(VtokenMinting::mint(
 				Some(CHARLIE).into(),
-				WETH,
+				ETH,
 				30000000000000000000000,
 				BoundedVec::default(),
 				None
 			));
 			assert_ok!(VtokenMinting::redeem(
 				Some(CHARLIE).into(),
-				Some(WETH),
-				V_WETH,
+				Some(ETH),
+				V_ETH,
 				20000000000000000000000
 			));
 			assert_ok!(VtokenMinting::add_support_rebond_token(
 				RuntimeOrigin::signed(ALICE),
-				WETH
+				ETH
 			));
-			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 0), None);
-			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 1), None);
-			assert_eq!(TokenUnlockLedger::<Runtime>::get(WETH, 2), None);
-			assert_eq!(TokenUnlockNextId::<Runtime>::get(WETH), 4);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 0), None);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 1), None);
+			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 2), None);
+			assert_eq!(EthUnlockNextId::<Runtime>::get(), 4);
 			assert_ok!(VtokenMinting::rebond(
 				Some(CHARLIE).into(),
-				WETH,
+				ETH,
 				19000000000000000000000
 			));
 			assert_ok!(VtokenMinting::rebond_by_unlock_id(
 				Some(CHARLIE).into(),
-				WETH,
+				ETH,
 				3
 			));
-			assert_eq!(UnlockingTotal::<Runtime>::get(WETH), 0);
+			assert_eq!(UnlockingTotal::<Runtime>::get(ETH), 0);
 		});
 }
 

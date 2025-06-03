@@ -55,7 +55,6 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-whitelist = { workspace = true }
-pallet-state-trie-migration = { workspace = true }
 sp-api = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -104,7 +103,6 @@ orml-xcm-support = { workspace = true }
 orml-oracle = { workspace = true }
 
 # zenlink
-merkle-distributor = { workspace = true }
 zenlink-protocol = { workspace = true }
 zenlink-protocol-runtime-api = { workspace = true }
 
@@ -224,7 +222,6 @@ std = [
     "pallet-transaction-payment/std",
     "pallet-treasury/std",
     "pallet-whitelist/std",
-    "pallet-state-trie-migration/std",
     "sp-api/std",
     "sp-arithmetic/std",
     "sp-block-builder/std",
@@ -260,7 +257,6 @@ std = [
     "orml-oracle/std",
     "orml-xcm/std",
     "orml-xtokens/std",
-    "merkle-distributor/std",
     "zenlink-protocol-runtime-api/std",
     "zenlink-protocol/std",
     "bifrost-asset-registry/std",
@@ -370,7 +366,6 @@ runtime-benchmarks = [
 	"bifrost-buy-back/runtime-benchmarks",
 	"bifrost-parachain-staking/runtime-benchmarks",
 	"bifrost-farming/runtime-benchmarks",
-	"pallet-state-trie-migration/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -407,7 +402,6 @@ try-runtime = [
     "frame-try-runtime/try-runtime",
     "lend-market/try-runtime",
     "leverage-staking/try-runtime",
-    "merkle-distributor/try-runtime",
     "orml-oracle/try-runtime",
     "orml-tokens/try-runtime",
     "orml-unknown-tokens/try-runtime",
@@ -437,7 +431,6 @@ try-runtime = [
     "pallet-treasury/try-runtime",
     "pallet-utility/try-runtime",
     "pallet-whitelist/try-runtime",
-    "pallet-state-trie-migration/try-runtime",
     "parachain-info/try-runtime",
     "zenlink-protocol/try-runtime",
     "fp-self-contained/try-runtime",
@@ -467,7 +460,7 @@ disable-runtime-api = []
 # A feature that should be enabled when the runtime should be build for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller like logging for example.
-on-chain-release-build = ["sp-api/disable-logging", "metadata-hash"]
+on-chain-release-build = ["metadata-hash"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []

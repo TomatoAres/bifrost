@@ -23,6 +23,7 @@ orml-tokens = { workspace = true }
 bifrost-currencies = { workspace = true }
 sp-io = { workspace = true }
 bifrost-asset-registry = { workspace = true }
+bifrost-runtime-common = { workspace = true }
 
 [features]
 default = ["std"]
@@ -43,6 +44,7 @@ std = [
 	"sp-io/std",
 	"bifrost-asset-registry/std",
 	"pallet-balances/std",
+	"bifrost-runtime-common/std",
 ]
 
 runtime-benchmarks = [

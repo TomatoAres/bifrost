@@ -22,7 +22,8 @@ use crate::{
 	types::{EthereumXcmCall, EthereumXcmTransaction, EthereumXcmTransactionV2, MoonbeamCall},
 	*,
 };
-use bifrost_primitives::{TokenSymbol, DOT, VDOT};
+use bifrost_primitives::VtokenMintingOperator;
+use bifrost_primitives::{TimeUnit, TokenSymbol, DOT, VDOT, V_ETH, WETH};
 use ethereum::TransactionAction;
 use frame_support::{assert_noop, assert_ok, dispatch::RawOrigin, traits::OnIdle};
 use hex_literal::hex;
@@ -573,34 +574,262 @@ fn test_set_hydration_oracle_config() {
 }
 
 #[test]
-fn substrate_create_order() {
+fn substrate_create_mint_order() {
 	new_test_ext().execute_with(|| {
+		DelayBlock::<Test>::set(2u32.into());
+		HyperBridgeOracle::<Test>::insert(
+			8453,
+			HyperBridgeOracleConfig {
+				to: H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
+				timeout: 60,
+				period: 500u32.into(),
+				last_block: 0u32.into(),
+				tokens: BoundedVec::try_from(vec![]).unwrap(),
+				payer: BOB,
+				fee: 100000u32.into(),
+			},
+		);
+		assert_ok!(VtokenMinting::set_supported_eth(
+			RuntimeOrigin::signed(ALICE),
+			vec![WETH].try_into().unwrap(),
+		));
+
 		assert_ok!(Slpx::substrate_create_order(
 			RuntimeOrigin::signed(ALICE),
-			VDOT,
-			1000u128,
+			OrderType::Mint,
+			WETH,
+			V_ETH,
+			10u128 * 10_000_000_000_000_000_000,
+			TargetChain::HyperBridge(8453, H160::default()),
+			BoundedVec::default(),
+			0
+		));
+
+		run_to_block(2u32.into());
+		println!("{:?}", System::events());
+		println!("{:?}", OrderQueue::<Test>::get());
+	});
+}
+
+#[test]
+fn substrate_create_redeem_order() {
+	new_test_ext().execute_with(|| {
+		DelayBlock::<Test>::set(2u32.into());
+		assert_ok!(VtokenMinting::set_minimum_mint(
+			RuntimeOrigin::signed(ALICE),
+			DOT,
+			1000
+		));
+		assert_ok!(VtokenMinting::set_supported_eth(
+			RuntimeOrigin::signed(ALICE),
+			vec![WETH].try_into().unwrap(),
+		));
+		assert_ok!(VtokenMinting::set_unlock_duration(
+			RuntimeOrigin::signed(ALICE),
+			WETH,
+			TimeUnit::Era(15)
+		));
+		assert_ok!(VtokenMinting::set_ongoing_time_unit(
+			RuntimeOrigin::signed(ALICE),
+			WETH,
+			TimeUnit::Era(15)
+		));
+		assert_ok!(VtokenMinting::redeem(
+			RuntimeOrigin::signed(ALICE),
+			Some(WETH),
+			V_ETH,
+			10 * 10_000_000_000_000_000_000
+		));
+		println!("{:?}", Currencies::free_balance(V_ETH, &ALICE));
+		println!("{:?}", System::events());
+
+		assert_ok!(Slpx::substrate_create_order(
+			RuntimeOrigin::signed(ALICE),
+			OrderType::Redeem,
+			WETH,
+			V_ETH,
+			10u128 * 10_000_000_000_000_000_000,
 			TargetChain::Hydradx(ALICE),
 			BoundedVec::default(),
 			0
 		));
-		assert_ok!(Slpx::substrate_create_order(
+
+		run_to_block(2u32.into());
+		println!("{:?}", System::events());
+		println!("{:?}", OrderQueue::<Test>::get());
+	});
+}
+
+#[test]
+fn test_async_mint() {
+	new_test_ext().execute_with(|| {
+		// env_logger::init();
+		env_logger::try_init().unwrap_or(());
+		// Set up initial state
+		let config = AsyncMintConfiguration {
+			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
+			block_interval: 10u32.into(),
+		};
+		AsyncMintConfig::<Test>::put(config);
+
+		// Set initial block number
+		System::set_block_number(11u32.into());
+
+		// Initialize token pool and vtoken supply
+		assert_ok!(bifrost_vtoken_minting::Pallet::<Test>::increase_token_pool(
+			DOT, 10_000
+		));
+
+		// Add ALICE to whitelist for Astar
+		WhitelistAccountId::<Test>::insert(
+			SupportChain::Astar,
+			BoundedVec::try_from(vec![ALICE]).unwrap(),
+		);
+
+		// Set execution fee for DOT
+		assert_ok!(Slpx::set_execution_fee(
+			RuntimeOrigin::root(),
+			DOT,
+			10 * 1_000_000_000
+		));
+
+		let source_chain_caller = H160::default();
+		assert_ok!(Slpx::mint(
 			RuntimeOrigin::signed(ALICE),
-			VDOT,
-			1000u128,
-			TargetChain::Hydradx(ALICE),
-			BoundedVec::default(),
+			source_chain_caller,
+			DOT,
+			TargetChain::Astar(source_chain_caller),
+			BoundedVec::default()
+		));
+		assert_eq!(OrderQueue::<Test>::get().len(), 1usize);
+
+		assert_ok!(Tokens::set_balance(
+			RuntimeOrigin::root(),
+			OrderQueue::<Test>::get()[0].derivative_account.clone(),
+			DOT,
+			10_000_000_000_000_000_000,
 			0
 		));
+
+		// Set hyperbridge oracle for Astar
+		assert_ok!(Slpx::set_hyperbridge_oracle(
+			RuntimeOrigin::root(),
+			1,
+			H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
+			60,
+			5u32.into(),
+			BoundedVec::try_from(vec![(
+				BNC,
+				H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
+			)])
+			.unwrap(),
+			ALICE,
+			5u32.into(),
+		));
+		// Test successful async mint
+		assert_ok!(Slpx::async_mint(RuntimeOrigin::root(), VDOT, 1, 1000u128));
+
+		// Test too frequent execution - should succeed without issuance
+		assert_ok!(Slpx::async_mint(RuntimeOrigin::root(), VDOT, 1, 1000u128),);
+
+		// Advance blocks to allow next execution
+		System::set_block_number(21u32.into());
+
+		// Test high issuance ratio - should succeed with limited issuance
+		assert_ok!(Slpx::async_mint(RuntimeOrigin::root(), VDOT, 1, 10_000u128),);
+	});
+}
+
+#[test]
+fn test_update_async_mint_config() {
+	new_test_ext().execute_with(|| {
+		// Test successful update
+		let config = AsyncMintConfiguration {
+			max_issuance_ratio: FixedU128::from_rational(3, 4), // 75%
+			block_interval: 20u32.into(),
+		};
+		assert_ok!(Slpx::update_async_mint_config(
+			RuntimeOrigin::root(),
+			config.clone()
+		));
+
+		// Verify storage was updated
+		assert_eq!(AsyncMintConfig::<Test>::get(), config);
+
+		// Test unauthorized access
 		assert_noop!(
-			Slpx::substrate_create_order(
-				RuntimeOrigin::signed(ALICE),
+			Slpx::update_async_mint_config(RuntimeOrigin::signed(ALICE), config),
+			DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn test_correct_vtoken_reserves() {
+	new_test_ext().execute_with(|| {
+		// Set up initial state
+		let config = AsyncMintConfiguration {
+			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
+			block_interval: 10u32.into(),
+		};
+		AsyncMintConfig::<Test>::put(config);
+
+		// Set initial block number
+		System::set_block_number(11u32.into());
+
+		// Initialize token pool
+		assert_ok!(bifrost_vtoken_minting::Pallet::<Test>::increase_token_pool(
+			DOT, 10_000
+		));
+
+		// Set up HyperBridgeOracle for chain_id 1
+		assert_ok!(Slpx::set_hyperbridge_oracle(
+			RuntimeOrigin::root(),
+			1, // chain_id
+			H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"]),
+			60,
+			5u32.into(),
+			BoundedVec::try_from(vec![(
+				DOT,
+				H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
+			)])
+			.unwrap(),
+			ALICE,
+			5u32.into(),
+		));
+
+		// Test successful correction
+		assert_ok!(Slpx::correct_vtoken_reserves(
+			RuntimeOrigin::root(),
+			1, // chain_id
+			VDOT,
+			1_000 // amount less than max issuance ratio
+		));
+
+		// Test too frequent execution
+		assert_noop!(
+			Slpx::correct_vtoken_reserves(RuntimeOrigin::root(), 1, VDOT, 1_000),
+			Error::<Test>::AsyncMintTooFrequent
+		);
+
+		// Advance blocks to allow next execution
+		System::set_block_number(21u32.into());
+
+		// Test issuance ratio too high
+		assert_noop!(
+			Slpx::correct_vtoken_reserves(
+				RuntimeOrigin::root(),
+				1,
 				VDOT,
-				1000u128,
-				TargetChain::Hydradx(ALICE),
-				BoundedVec::default(),
-				0
+				10_000 // amount exceeds max issuance ratio
 			),
-			Error::<Test>::OrderQueueOverflow
+			Error::<Test>::AsyncMintIssuanceRatioTooHigh
+		);
+
+		// Test unauthorized access
+		assert_noop!(
+			Slpx::correct_vtoken_reserves(RuntimeOrigin::signed(ALICE), 1, VDOT, 1_000),
+			DispatchError::BadOrigin
 		);
 	});
 }

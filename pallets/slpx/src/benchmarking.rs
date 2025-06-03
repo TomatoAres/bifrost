@@ -20,6 +20,8 @@
 use crate::*;
 use bifrost_asset_registry::CurrencyIdToLocations;
 use bifrost_primitives::{KSM, VKSM};
+use bifrost_vtoken_minting;
+use frame_benchmarking::v2::account;
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, sp_runtime::traits::UniqueSaturatedFrom, BoundedVec};
 use frame_system::RawOrigin;
@@ -51,7 +53,7 @@ fn init_whitelist<T: Config + bifrost_asset_registry::Config>() -> (T::AccountId
 	(caller, receiver)
 }
 
-#[benchmarks(where  T: Config + bifrost_asset_registry::Config + orml_tokens::Config<CurrencyId = CurrencyId>)]
+#[benchmarks(where  T: Config + bifrost_asset_registry::Config + orml_tokens::Config<CurrencyId = CurrencyId> + bifrost_vtoken_minting::Config)]
 mod benchmarks {
 	use super::*;
 	use hex_literal::hex;
@@ -170,7 +172,9 @@ mod benchmarks {
 			let caller = account("caller", index, index);
 			Pallet::<T>::substrate_create_order(
 				RawOrigin::Signed(caller).into(),
+				OrderType::Mint,
 				KSM,
+				VKSM,
 				BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
 				TargetChain::Astar(receiver),
 				BoundedVec::default(),
@@ -183,12 +187,152 @@ mod benchmarks {
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(caller),
+			OrderType::Mint,
 			KSM,
+			VKSM,
 			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
 			TargetChain::Astar(receiver),
 			BoundedVec::default(),
 			0,
 		);
+	}
+
+	#[benchmark]
+	fn async_mint() -> Result<(), BenchmarkError> {
+		let (caller, _) = init_whitelist::<T>();
+
+		// Set up AsyncMintConfig
+		let config = AsyncMintConfiguration {
+			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
+			block_interval: 10u32.into(),
+		};
+		AsyncMintConfig::<T>::put(config);
+
+		// Initialize token pool using mint instead of increase_token_pool
+		#[cfg(feature = "runtime-benchmarks")]
+		{
+			let token_amount = bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(
+				10_000_000_000_000u128,
+			);
+
+			// Ensure KSM balance for caller
+			assert_ok!(<T as Config>::MultiCurrency::deposit(
+				KSM,
+				&caller,
+				BalanceOf::<T>::unique_saturated_from(20_000_000_000_000u128)
+			));
+
+			assert_ok!(bifrost_vtoken_minting::Pallet::<T>::mint(
+				RawOrigin::Signed(caller.clone()).into(),
+				KSM.into(),
+				token_amount,
+				BoundedVec::default(),
+				None
+			));
+		}
+
+		// Set up HyperBridgeOracle
+		HyperBridgeOracle::<T>::insert(
+			1,
+			HyperBridgeOracleConfig {
+				to: H160::default(),
+				timeout: 60,
+				period: 5u32.into(),
+				last_block: 0u32.into(),
+				tokens: BoundedVec::try_from(vec![(KSM, H160::default())]).unwrap(),
+				payer: caller.clone(),
+				fee: 5u32.into(),
+			},
+		);
+
+		// Set a past execution time to avoid AsyncMintTooFrequent error
+		let current_block = <T as pallet::Config>::BlockNumberProvider::current_block_number();
+		let past_block = current_block.saturating_sub(100u32.into());
+		AsyncMintExecutions::<T>::insert((KSM, 1), past_block);
+
+		#[extrinsic_call]
+		_(
+			RawOrigin::Root,
+			VKSM,           // Use VKSM instead of KSM
+			1,              // chain_id
+			1000u32.into(), // required_vtoken_amount
+		);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn update_async_mint_config() {
+		let config = AsyncMintConfiguration {
+			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
+			block_interval: 10u32.into(),
+		};
+
+		#[extrinsic_call]
+		_(RawOrigin::Root, config);
+	}
+
+	#[benchmark]
+	fn correct_vtoken_reserves() -> Result<(), BenchmarkError> {
+		// Set up AsyncMintConfig
+		let config = AsyncMintConfiguration {
+			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
+			block_interval: 1u32.into(),
+		};
+		AsyncMintConfig::<T>::put(config);
+
+		// Initialize token pool using mint instead of increase_token_pool
+		#[cfg(feature = "runtime-benchmarks")]
+		{
+			let caller = account("caller", 0, 0);
+			let token_amount = bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(
+				10_000_000_000_000u128,
+			);
+
+			// Ensure KSM balance for caller
+			assert_ok!(<T as Config>::MultiCurrency::deposit(
+				KSM,
+				&caller,
+				BalanceOf::<T>::unique_saturated_from(20_000_000_000_000u128)
+			));
+
+			assert_ok!(bifrost_vtoken_minting::Pallet::<T>::mint(
+				RawOrigin::Signed(caller).into(),
+				KSM.into(),
+				token_amount,
+				BoundedVec::default(),
+				None
+			));
+		}
+
+		// Set up HyperBridgeOracle
+		HyperBridgeOracle::<T>::insert(
+			1,
+			HyperBridgeOracleConfig {
+				to: H160::default(),
+				timeout: 60,
+				period: 5u32.into(),
+				last_block: 0u32.into(),
+				tokens: BoundedVec::try_from(vec![(KSM, H160::default())]).unwrap(),
+				payer: account("payer", 0, 0),
+				fee: 5u32.into(),
+			},
+		);
+
+		// Set a past execution time to avoid AsyncMintTooFrequent error
+		let current_block = <T as pallet::Config>::BlockNumberProvider::current_block_number();
+		let past_block = current_block.saturating_sub(100u32.into());
+		AsyncMintExecutions::<T>::insert((KSM, 1), past_block);
+
+		#[extrinsic_call]
+		_(
+			RawOrigin::Root,
+			1,              // chain_id
+			VKSM,           // Use VKSM instead of KSM
+			1000u32.into(), // amount
+		);
+
+		Ok(())
 	}
 
 	//   `cargo test -p pallet-example-basic --all-features`, you will see one line per case:

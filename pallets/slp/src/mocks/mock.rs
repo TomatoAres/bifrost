@@ -398,12 +398,39 @@ impl Convert<CurrencyId, Option<Location>> for CurrencyIdConvert {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<AccountId, Balance> for SlpxInterface {
+impl
+	SlpxOperator<AccountId, Balance, u64, RuntimeOrigin, bifrost_primitives::TargetChain<AccountId>>
+	for SlpxInterface
+{
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
 	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
 		unreachable!()
+	}
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<u64>, // None means processing all currency
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+
+	fn async_mint(
+		_currency_id: CurrencyId,
+		_chain_id: u32,
+		_required_amount: Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn redeem(
+		_origin: RuntimeOrigin,
+		_evm_caller: sp_core::H160,
+		_vtoken_id: CurrencyId,
+		_target_chain: bifrost_primitives::TargetChain<AccountId>,
+	) -> DispatchResult {
+		Ok(())
 	}
 }
 
@@ -428,6 +455,7 @@ impl Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type BlockNumberProvider = System;
+	type BifrostSlpx = SlpxInterface;
 }
 
 pub struct XcmDestWeightAndFee;

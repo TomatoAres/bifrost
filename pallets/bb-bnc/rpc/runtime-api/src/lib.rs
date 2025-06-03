@@ -22,6 +22,7 @@ use bifrost_primitives::{Balance, BlockNumber, CurrencyId, Rate};
 use parity_scale_codec::Codec;
 use sp_api::decl_runtime_apis;
 use sp_core::U256;
+use sp_std::vec::Vec;
 
 decl_runtime_apis! {
 	pub trait BbBNCRuntimeApi<AccountId> where
@@ -34,7 +35,7 @@ decl_runtime_apis! {
 		) -> Balance;
 
 		fn total_supply(
-			t: BlockNumber,
+			t: Option<BlockNumber>,
 		) -> Balance;
 
 		fn find_block_epoch(
@@ -47,5 +48,9 @@ decl_runtime_apis! {
 			currency_id: CurrencyId,
 			value: Balance,
 		) -> Rate;
+
+		fn query_pending_rewards(
+			who: AccountId,
+		) -> Vec<(CurrencyId, Balance)>;
 	}
 }

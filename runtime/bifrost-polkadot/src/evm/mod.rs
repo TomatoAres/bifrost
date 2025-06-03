@@ -29,7 +29,7 @@ use crate::{
 	Aura, ConstU32, DynamicFee, EVMChainId, Runtime, RuntimeEvent, Timestamp, Weight, EVM,
 	MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO, WEIGHT_REF_TIME_PER_SECOND,
 };
-use bifrost_primitives::{currency::WETH, CurrencyId};
+use bifrost_primitives::{currency::ETH, CurrencyId};
 
 mod accounts_conversion;
 mod evm_fee;
@@ -58,7 +58,7 @@ precompiles::BifrostPrecompiles::<_>::new();
 pub struct WethAssetId;
 impl Get<CurrencyId> for WethAssetId {
 	fn get() -> CurrencyId {
-		WETH
+		ETH
 	}
 }
 

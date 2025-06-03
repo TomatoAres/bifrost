@@ -33,7 +33,7 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{location::RelativeReserveProvider, parameter_type_with_key};
-use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, DispatchResult};
 use xcm::{prelude::*, v3::Weight};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
@@ -260,11 +260,20 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<u128, Balance> for SlpxInterface {
+impl SlpxOperator<u128, Balance, BlockNumber, RuntimeOrigin, bifrost_primitives::TargetChain<u128>>
+	for SlpxInterface
+{
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
 	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(u128, Balance), DispatchError> {
+		unreachable!()
+	}
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<BlockNumber>, // None means processing all currency
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> DispatchResult {
 		unreachable!()
 	}
 }

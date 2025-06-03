@@ -33,7 +33,7 @@ use crate::{
 use bifrost_parachain_staking::ParachainStakingInterface;
 use bifrost_primitives::{
 	currency::{GLMR, MANTA, MOVR},
-	CurrencyId, VtokenMintingOperator, XcmOperationType,
+	CurrencyId, SlpxOperator, VtokenMintingOperator, XcmOperationType,
 };
 use core::marker::PhantomData;
 use frame_support::{ensure, traits::Get};
@@ -1600,6 +1600,9 @@ impl<T: Config>
 		// Tune the vtoken exchange rate.
 		T::VtokenMinting::increase_token_pool(currency_id, pool_value)
 			.map_err(|_| Error::<T>::IncreaseTokenPoolError)?;
+
+		T::BifrostSlpx::handle_hyperbridge_oracle(None, Some(currency_id), &mut Weight::default())
+			.map_err(|_| Error::<T>::HandleHyperbridgeOracleError)?;
 
 		Ok(())
 	}

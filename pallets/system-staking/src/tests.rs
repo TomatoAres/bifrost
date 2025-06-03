@@ -36,22 +36,11 @@ fn token_config_should_work() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(BlockNumberFor::<Runtime>::from(1u32)),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				None,
-				None,
 			));
 			let token_info = <TokenStatus<Runtime>>::get(KSM).unwrap();
-			assert_eq!(token_info.new_config.add_or_sub, false);
 			assert_eq!(token_info.new_config.exec_delay, 1);
-			assert_eq!(
-				token_info.new_config.system_stakable_farming_rate,
-				Permill::from_percent(80)
-			);
 			assert_eq!(token_info.new_config.system_stakable_base, 100);
-			assert_eq!(token_info.new_config.farming_poolids, Vec::<PoolId>::new());
-			assert_eq!(token_info.new_config.lptoken_rates, Vec::<Perbill>::new());
 		});
 }
 
@@ -65,33 +54,21 @@ fn delete_token_should_work() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(1),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				None,
-				None,
 			));
 
 			assert_ok!(SystemStaking::token_config(
 				RuntimeOrigin::root(),
 				MOVR,
 				Some(2),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				None,
-				None,
 			));
 
 			assert_ok!(SystemStaking::token_config(
 				RuntimeOrigin::root(),
 				MOVR,
 				Some(2),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				None,
-				None,
 			));
 
 			assert_ok!(SystemStaking::delete_token(RuntimeOrigin::root(), MOVR,));
@@ -116,11 +93,7 @@ fn round_info_should_correct() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(1),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				None,
-				None,
 			));
 			roll_one_block();
 			assert_eq!(Round::<Runtime>::get().unwrap().length, 5);
@@ -135,7 +108,6 @@ fn refresh_token_info_should_work() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let (pid, _tokens) = init_farming_no_gauge();
 			asset_registry();
 			assert_ok!(VtokenMinting::set_minimum_mint(
 				RuntimeOrigin::signed(ALICE),
@@ -164,11 +136,7 @@ fn refresh_token_info_should_work() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(1),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				Some(vec![pid]),
-				Some(vec![Perbill::from_percent(100)]),
 			));
 
 			assert_ok!(SystemStaking::refresh_token_info(
@@ -186,7 +154,6 @@ fn payout_should_work() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let (pid, _tokens) = init_farming_no_gauge();
 			asset_registry();
 
 			assert_ok!(VtokenMinting::set_minimum_mint(
@@ -201,11 +168,7 @@ fn payout_should_work() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(1),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				Some(vec![pid]),
-				Some(vec![Perbill::from_percent(100)]),
 			));
 
 			assert_ok!(VtokenMinting::mint(
@@ -374,7 +337,6 @@ fn round_process_token() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let (pid, _tokens) = init_farming_no_gauge();
 			asset_registry();
 			assert_ok!(VtokenMinting::set_minimum_mint(
 				RuntimeOrigin::signed(ALICE),
@@ -403,11 +365,7 @@ fn round_process_token() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(1),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				Some(vec![pid]),
-				Some(vec![Perbill::from_percent(100)]),
 			));
 
 			roll_to(5); // round start
@@ -424,7 +382,6 @@ fn round_process_token_rollback() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let (pid, _tokens) = init_farming_no_gauge();
 			asset_registry();
 			assert_ok!(VtokenMinting::set_minimum_mint(
 				RuntimeOrigin::signed(ALICE),
@@ -453,11 +410,7 @@ fn round_process_token_rollback() {
 				RuntimeOrigin::root(),
 				KSM,
 				Some(1),
-				Some(Permill::from_percent(80)),
-				Some(false),
 				Some(100),
-				Some(vec![pid]),
-				Some(vec![Perbill::from_percent(100)]),
 			));
 
 			roll_to(5); // round start
@@ -466,39 +419,6 @@ fn round_process_token_rollback() {
 			let token_info = <TokenStatus<Runtime>>::get(KSM).unwrap();
 			assert!(token_info.system_shadow_amount == 0);
 		});
-}
-
-fn init_farming_no_gauge() -> (PoolId, BalanceOf<Runtime>) {
-	let mut tokens_proportion_map = BTreeMap::<CurrencyIdOf<Runtime>, Perbill>::new();
-	tokens_proportion_map
-		.entry(KSM)
-		.or_insert(Perbill::from_percent(100));
-	let tokens_proportion = vec![(KSM, Perbill::from_percent(100))];
-	let tokens = 1000;
-	let basic_rewards = vec![(KSM, 1000)];
-	let gauge_basic_rewards = vec![(KSM, 1000)];
-
-	assert_ok!(Farming::create_farming_pool(
-		RuntimeOrigin::signed(ALICE),
-		tokens_proportion.clone(),
-		basic_rewards.clone(),
-		Some(gauge_basic_rewards),
-		0,
-		0,
-		10,
-		0,
-		1
-	));
-
-	let pid = 0;
-	let charge_rewards = vec![(KSM, 100000)];
-	assert_ok!(Farming::charge(
-		RuntimeOrigin::signed(BOB),
-		pid,
-		charge_rewards,
-	));
-	assert_ok!(Farming::deposit(RuntimeOrigin::signed(ALICE), pid, tokens));
-	(pid, tokens)
 }
 
 fn asset_registry() {

@@ -18,8 +18,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 use crate::types::{
-	AccountIdOf, BalanceOf, CurrencyIdOf, EthereumCallConfiguration, EthereumXcmCall,
-	EthereumXcmTransaction, EthereumXcmTransactionV2, HydrationOracleConfig,
+	AccountIdOf, AsyncMintConfiguration, BalanceOf, CurrencyIdOf, EthereumCallConfiguration,
+	EthereumXcmCall, EthereumXcmTransaction, EthereumXcmTransactionV2, HydrationOracleConfig,
 	HyperBridgeOracleConfig, MoonbeamCall, Order, OrderCaller, OrderType, SupportChain,
 	TargetChain, EVM_FUNCTION_SELECTOR, MAX_GAS_LIMIT,
 };
@@ -56,11 +56,13 @@ use polkadot_parachain_primitives::primitives::{Id, Sibling};
 use sp_core::{Hasher, H160, U256};
 use sp_runtime::{
 	traits::{
-		AccountIdConversion, BlakeTwo256, BlockNumberProvider, CheckedSub, UniqueSaturatedFrom,
+		AccountIdConversion, BlakeTwo256, BlockNumberProvider, CheckedSub, Saturating,
+		UniqueSaturatedFrom, Zero,
 	},
-	BoundedVec, DispatchError,
+	BoundedVec, DispatchError, FixedPointNumber, FixedU128,
 };
 use sp_std::{vec, vec::Vec};
+use token_gateway_primitives::token_gateway_id;
 use xcm::v4::{prelude::*, Location};
 #[cfg(feature = "polkadot")]
 use xcm::{DoubleEncoded, VersionedLocation};
@@ -82,9 +84,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-/// [`PalletId`] where protocol fees will be collected
-pub const PALLET_ID: ModuleId = ModuleId::Pallet(PalletId(*b"bif-slpx"));
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -94,7 +93,7 @@ pub mod pallet {
 	};
 	use sp_runtime::traits::BlockNumberProvider;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -138,6 +137,8 @@ pub mod pallet {
 		/// The maximum number of user order
 		#[pallet::constant]
 		type MaxUserOrderSize: Get<u32>;
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 	}
 
 	#[pallet::event]
@@ -245,6 +246,31 @@ pub mod pallet {
 			period: BlockNumberFor<T>,
 			tokens: BoundedVec<(CurrencyId, Location, Location), ConstU32<10>>,
 		},
+		/// Async Mint executed
+		AsyncMintExecuted {
+			/// The currency id of the token
+			v_currency_id: CurrencyId,
+			/// The chain id of the target chain
+			chain_id: u32,
+			/// The amount of vToken minted
+			minted_amount: BalanceOf<T>,
+			/// The amount of vToken issued
+			issued_amount: BalanceOf<T>,
+		},
+		/// Async Mint configuration updated
+		AsyncMintConfigUpdated {
+			/// The new configuration
+			config: AsyncMintConfiguration<BlockNumberFor<T>>,
+		},
+		/// Async Mint execution failed
+		AsyncMintExecutionFailed {
+			/// The currency id of the token
+			v_currency_id: CurrencyId,
+			/// The chain id of the target chain
+			chain_id: u32,
+			/// The error
+			error: DispatchError,
+		},
 	}
 
 	#[pallet::error]
@@ -279,6 +305,12 @@ pub mod pallet {
 		ErrorChargeFee,
 		ErrorArguments,
 		Unsupported,
+		/// Async Mint execution too frequent
+		AsyncMintTooFrequent,
+		/// Async Mint issuance ratio too high
+		AsyncMintIssuanceRatioTooHigh,
+		/// Async Mint configuration not set
+		AsyncMintConfigNotSet,
 	}
 
 	/// Contract whitelist
@@ -346,6 +378,21 @@ pub mod pallet {
 	pub type HydrationOracle<T: Config> =
 		StorageValue<_, HydrationOracleConfig<BlockNumberFor<T>>, OptionQuery>;
 
+	/// Async Mint configuration
+	#[pallet::storage]
+	pub type AsyncMintConfig<T: Config> =
+		StorageValue<_, AsyncMintConfiguration<BlockNumberFor<T>>, ValueQuery>;
+
+	/// Async Mint execution records
+	#[pallet::storage]
+	pub type AsyncMintExecutions<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		(CurrencyId, u32), // (v_currency_id, chain_id)
+		BlockNumberFor<T>,
+		ValueQuery,
+	>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_idle(_: BlockNumberFor<T>, limit: Weight) -> Weight {
@@ -374,7 +421,7 @@ pub mod pallet {
 			};
 
 			#[cfg(feature = "polkadot")]
-			let _ = Self::handle_hyperbridge_oracle(current_block_number, &mut weight);
+			let _ = Self::handle_hyperbridge_oracle(Some(current_block_number), None, &mut weight);
 
 			#[cfg(feature = "polkadot")]
 			let _ = Self::handle_hydration_oracle(current_block_number, &mut weight);
@@ -430,31 +477,7 @@ pub mod pallet {
 			vtoken_id: CurrencyIdOf<T>,
 			target_chain: TargetChain<AccountIdOf<T>>,
 		) -> DispatchResultWithPostInfo {
-			let evm_contract_account_id = ensure_signed(origin.clone())?;
-			let (source_chain_caller, frontier_derivative_account, bifrost_chain_caller) =
-				Self::ensure_singer_on_whitelist(origin, evm_caller, &target_chain)?;
-
-			if vtoken_id == VFIL {
-				let fee_amount = Self::get_moonbeam_transfer_to_fee();
-				T::MultiCurrency::transfer(
-					BNC,
-					&evm_contract_account_id,
-					&frontier_derivative_account,
-					fee_amount,
-				)?;
-			}
-
-			Self::do_create_order(
-				source_chain_caller,
-				Default::default(),
-				None,
-				bifrost_chain_caller,
-				vtoken_id,
-				Default::default(),
-				Default::default(),
-				0u32,
-				target_chain,
-			)
+			Self::do_redeem(origin, evm_caller, vtoken_id, target_chain)
 		}
 
 		/// Add the contract account to the whitelist
@@ -810,7 +833,9 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::substrate_create_order(T::MaxOrderSize::get()))]
 		pub fn substrate_create_order(
 			origin: OriginFor<T>,
+			order_type: OrderType,
 			currency_id: CurrencyId,
+			v_currency_id: CurrencyId,
 			amount: BalanceOf<T>,
 			target_chain: TargetChain<T::AccountId>,
 			remark: BoundedVec<u8, ConstU32<32>>,
@@ -829,18 +854,47 @@ pub mod pallet {
 				count <= T::MaxUserOrderSize::get(),
 				Error::<T>::OrderQueueOverflow
 			);
-			Self::do_create_order(
-				source_chain_caller,
-				Default::default(),
-				None,
-				who,
-				currency_id,
-				amount,
-				remark,
-				channel_id,
-				target_chain,
-			)?;
-			Ok(().into())
+			let order = match order_type {
+				OrderType::Mint => Order {
+					create_block_number: T::BlockNumberProvider::current_block_number(),
+					order_type,
+					currency_id,
+					currency_amount: amount,
+					v_currency_id,
+					v_currency_amount: BalanceOf::<T>::zero(),
+					remark,
+					source_chain_caller: OrderCaller::Substrate(who.clone()),
+					source_chain_id: Default::default(),
+					source_chain_block_number: Default::default(),
+					bifrost_chain_caller: who.clone(),
+					derivative_account: who.clone(),
+					target_chain,
+					channel_id,
+				},
+				OrderType::Redeem => Order {
+					create_block_number: T::BlockNumberProvider::current_block_number(),
+					order_type,
+					currency_id,
+					currency_amount: BalanceOf::<T>::zero(),
+					v_currency_id,
+					v_currency_amount: amount,
+					remark,
+					source_chain_caller: OrderCaller::Substrate(who.clone()),
+					source_chain_id: Default::default(),
+					source_chain_block_number: Default::default(),
+					bifrost_chain_caller: who.clone(),
+					derivative_account: who.clone(),
+					target_chain,
+					channel_id,
+				},
+			};
+			OrderQueue::<T>::mutate(|order_queue| -> DispatchResultWithPostInfo {
+				order_queue
+					.try_push(order.clone())
+					.map_err(|_| Error::<T>::OrderQueueOverflow)?;
+				Self::deposit_event(Event::<T>::CreateOrder { order });
+				Ok(().into())
+			})
 		}
 
 		// Set Hyperbridge oracle configuration
@@ -914,6 +968,106 @@ pub mod pallet {
 			Self::deposit_event(Event::SetHydrationOracleConfig { period, tokens });
 			Ok(().into())
 		}
+
+		/// Execute Async Mint
+		#[pallet::call_index(18)]
+		#[pallet::weight(<T as Config>::WeightInfo::async_mint())]
+		pub fn async_mint(
+			origin: OriginFor<T>,
+			currency_id: CurrencyId,
+			chain_id: u32,
+			required_vtoken_amount: BalanceOf<T>,
+		) -> DispatchResultWithPostInfo {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			// Execute the async mint logic
+			Self::do_async_mint(currency_id, chain_id, required_vtoken_amount)
+		}
+
+		/// Update Async Mint configuration
+		#[pallet::call_index(20)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_async_mint_config())]
+		pub fn update_async_mint_config(
+			origin: OriginFor<T>,
+			config: AsyncMintConfiguration<BlockNumberFor<T>>,
+		) -> DispatchResultWithPostInfo {
+			T::ControlOrigin::ensure_origin(origin)?;
+			AsyncMintConfig::<T>::put(config.clone());
+			Self::deposit_event(Event::<T>::AsyncMintConfigUpdated { config });
+			Ok(().into())
+		}
+
+		/// Correct vToken reserves for Hyperbridge
+		///
+		/// Parameters:
+		/// - `chain_id`: The target chain ID for correction
+		/// - `currency_id`: The currency ID of the vToken
+		/// - `amount`: The amount of vToken to mint and transfer
+		#[pallet::call_index(21)]
+		#[pallet::weight(<T as Config>::WeightInfo::async_mint())]
+		pub fn correct_vtoken_reserves(
+			origin: OriginFor<T>,
+			chain_id: u32,
+			v_currency_id: CurrencyId,
+			amount: BalanceOf<T>,
+		) -> DispatchResultWithPostInfo {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			// Get current configuration
+			let config = AsyncMintConfig::<T>::get();
+			let current_block = T::BlockNumberProvider::current_block_number();
+			let currency_id = v_currency_id
+				.to_token()
+				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+
+			// Check if async mint has been executed in the current block interval
+			let last_execution = AsyncMintExecutions::<T>::get((v_currency_id, chain_id));
+			let next_valid_block = last_execution.saturating_add(config.block_interval);
+			ensure!(
+				current_block >= next_valid_block,
+				Error::<T>::AsyncMintTooFrequent
+			);
+
+			// Get token pool and calculate issuance ratio
+			let token_pool = T::VtokenMintingInterface::get_token_pool(currency_id);
+			let issuance_ratio: FixedU128 = FixedU128::from_rational(
+				amount.saturated_into::<u128>(),
+				token_pool.saturated_into::<u128>(),
+			);
+
+			// Check if issuance ratio is within limits
+			ensure!(
+				issuance_ratio <= config.max_issuance_ratio,
+				Error::<T>::AsyncMintIssuanceRatioTooHigh
+			);
+
+			// Get module account
+			let module_account = Self::account_id_for_async_mint();
+
+			// Mint vToken
+			T::MultiCurrency::deposit(v_currency_id, &module_account, amount)?;
+
+			// Transfer to reserve address
+			T::MultiCurrency::transfer(
+				v_currency_id,
+				&module_account,
+				&Self::reserve_account(),
+				amount,
+			)?;
+
+			// Update execution record
+			AsyncMintExecutions::<T>::insert((v_currency_id, chain_id), current_block);
+
+			// Emit event
+			Self::deposit_event(Event::<T>::AsyncMintExecuted {
+				v_currency_id,
+				chain_id,
+				minted_amount: BalanceOf::<T>::zero(),
+				issued_amount: amount,
+			});
+
+			Ok(().into())
+		}
 	}
 }
 
@@ -931,12 +1085,23 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// According to currency_id, return the order type
-	fn order_type(currency_id: CurrencyId) -> Result<OrderType, Error<T>> {
+	fn order_type(
+		currency_id: CurrencyId,
+	) -> Result<(OrderType, CurrencyId, CurrencyId), Error<T>> {
 		match currency_id {
 			CurrencyId::Native(_) | CurrencyId::Token(_) | CurrencyId::Token2(_) => {
-				Ok(OrderType::Mint)
+				let v_currency_id = currency_id
+					.to_vtoken()
+					.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+				Ok((OrderType::Mint, currency_id, v_currency_id))
 			}
-			CurrencyId::VToken(_) | CurrencyId::VToken2(_) => Ok(OrderType::Redeem),
+			CurrencyId::VToken(_) | CurrencyId::VToken2(_) => {
+				let v_currency_id = currency_id;
+				let currency_id = currency_id
+					.to_token()
+					.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+				Ok((OrderType::Redeem, currency_id, v_currency_id))
+			}
 			_ => Err(Error::<T>::Unsupported),
 		}
 	}
@@ -1005,21 +1170,41 @@ impl<T: Config> Pallet<T> {
 		channel_id: u32,
 		target_chain: TargetChain<T::AccountId>,
 	) -> DispatchResultWithPostInfo {
-		let order_type = Self::order_type(currency_id)?;
+		let (order_type, currency_id, v_currency_id) = Self::order_type(currency_id)?;
 		let derivative_account = Self::frontier_derivative_account(&source_chain_caller);
-		let order = Order {
-			create_block_number: T::BlockNumberProvider::current_block_number(),
-			order_type,
-			currency_id,
-			currency_amount,
-			remark,
-			source_chain_caller,
-			source_chain_id,
-			source_chain_block_number,
-			bifrost_chain_caller,
-			derivative_account,
-			target_chain,
-			channel_id,
+		let order = match order_type {
+			OrderType::Mint => Order {
+				create_block_number: T::BlockNumberProvider::current_block_number(),
+				order_type,
+				currency_id,
+				currency_amount,
+				v_currency_id,
+				v_currency_amount: BalanceOf::<T>::zero(),
+				remark,
+				source_chain_caller,
+				source_chain_id,
+				source_chain_block_number,
+				bifrost_chain_caller,
+				derivative_account,
+				target_chain,
+				channel_id,
+			},
+			OrderType::Redeem => Order {
+				create_block_number: T::BlockNumberProvider::current_block_number(),
+				order_type,
+				currency_id,
+				currency_amount: BalanceOf::<T>::zero(),
+				v_currency_id,
+				v_currency_amount: currency_amount,
+				remark,
+				source_chain_caller,
+				source_chain_id,
+				source_chain_block_number,
+				bifrost_chain_caller,
+				derivative_account,
+				target_chain,
+				channel_id,
+			},
 		};
 
 		OrderQueue::<T>::mutate(|order_queue| -> DispatchResultWithPostInfo {
@@ -1303,23 +1488,18 @@ impl<T: Config> Pallet<T> {
 	pub fn handle_order(
 		order: &Order<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>,
 	) -> DispatchResult {
-		let currency_amount = Self::charge_execution_fee(
-			order.currency_id,
-			order.currency_amount,
-			&order.derivative_account,
-		)
-		.map_err(|_| Error::<T>::ErrorChargeFee)?;
 		match order.order_type {
 			OrderType::Mint => {
-				let vtoken_id = order
-					.currency_id
-					.to_vtoken()
-					.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
-
+				let currency_amount = Self::charge_execution_fee(
+					order.currency_id,
+					order.currency_amount,
+					&order.derivative_account,
+				)
+				.map_err(|_| Error::<T>::ErrorChargeFee)?;
 				let vtoken_amount =
 					T::VtokenMintingInterface::get_v_currency_amount_by_currency_amount(
 						order.currency_id,
-						vtoken_id,
+						order.v_currency_id,
 						currency_amount,
 					)
 					.map_err(|_| Error::<T>::ErrorVtokenMiting)?;
@@ -1336,13 +1516,19 @@ impl<T: Config> Pallet<T> {
 				Self::transfer_to(
 					order.derivative_account.clone(),
 					&order.bifrost_chain_caller,
-					vtoken_id,
+					order.v_currency_id,
 					vtoken_amount,
 					&order.target_chain,
 				)
 				.map_err(|_| Error::<T>::ErrorTransferTo)?;
 			}
 			OrderType::Redeem => {
+				let v_currency_amount = Self::charge_execution_fee(
+					order.v_currency_id,
+					order.v_currency_amount,
+					&order.derivative_account,
+				)
+				.map_err(|_| Error::<T>::ErrorChargeFee)?;
 				let redeem_type = match order.target_chain.clone() {
 					TargetChain::Astar(receiver) => {
 						let receiver = Self::h160_to_account_id(&receiver);
@@ -1358,8 +1544,9 @@ impl<T: Config> Pallet<T> {
 				};
 				T::VtokenMintingInterface::slpx_redeem(
 					order.derivative_account.clone(),
-					order.currency_id,
-					currency_amount,
+					Some(order.currency_id),
+					order.v_currency_id,
+					v_currency_amount,
 					redeem_type,
 				)
 				.map_err(|_| Error::<T>::ErrorVtokenMiting)?;
@@ -1382,19 +1569,34 @@ impl<T: Config> Pallet<T> {
 			if current_block_number - order_queue[0].create_block_number >= DelayBlock::<T>::get() {
 				let mut order = order_queue.remove(0);
 				// For compatibility with older versions
-				if order.currency_amount == Default::default() {
-					order.currency_amount = T::MultiCurrency::free_balance(
-						order.currency_id,
-						&order.derivative_account,
-					);
-				} else {
-					// Ensure that the currency amount is not greater than the free balance
-					let free_balance = T::MultiCurrency::free_balance(
-						order.currency_id,
-						&order.derivative_account,
-					);
-					order.currency_amount = order.currency_amount.min(free_balance);
-				}
+				if order.order_type == OrderType::Mint {
+					if order.currency_amount == Default::default() {
+						order.currency_amount = T::MultiCurrency::free_balance(
+							order.currency_id,
+							&order.derivative_account,
+						);
+					} else {
+						// Ensure that the currency amount is not greater than the free balance
+						let free_balance = T::MultiCurrency::free_balance(
+							order.currency_id,
+							&order.derivative_account,
+						);
+						order.currency_amount = order.currency_amount.min(free_balance);
+					}
+				} else if order.order_type == OrderType::Redeem {
+					if order.v_currency_amount == Default::default() {
+						order.v_currency_amount = T::MultiCurrency::free_balance(
+							order.v_currency_id,
+							&order.derivative_account,
+						);
+					} else {
+						let free_balance = T::MultiCurrency::free_balance(
+							order.v_currency_id,
+							&order.derivative_account,
+						);
+						order.v_currency_amount = order.v_currency_amount.min(free_balance);
+					}
+				};
 				match Self::handle_order(&order) {
 					Ok(_) => {
 						Self::deposit_event(Event::<T>::OrderHandled {
@@ -1490,73 +1692,6 @@ impl<T: Config> Pallet<T> {
 
 	#[cfg(feature = "polkadot")]
 	#[transactional]
-	pub fn handle_hyperbridge_oracle(
-		current_block_number: BlockNumberFor<T>,
-		weight: &mut Weight,
-	) -> DispatchResult {
-		for (
-			dest,
-			HyperBridgeOracleConfig {
-				to,
-				timeout,
-				period,
-				last_block,
-				tokens,
-				payer,
-				fee,
-			},
-		) in HyperBridgeOracle::<T>::iter()
-		{
-			if last_block + period < current_block_number {
-				for (currency, token) in tokens.clone() {
-					let staking_currency_amount =
-						T::VtokenMintingInterface::get_token_pool(currency);
-					let v_currency_id = currency
-						.to_vtoken()
-						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
-
-					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
-					let uint256_token_amount =
-						U256::from(staking_currency_amount.saturated_into::<u128>());
-					let uint256_vtoken_amount =
-						U256::from(v_currency_total_supply.saturated_into::<u128>());
-
-					let body = ethabi::encode(&[
-						ethabi::Token::Address(token),
-						ethabi::Token::Uint(uint256_token_amount),
-						ethabi::Token::Uint(uint256_vtoken_amount),
-					]);
-					T::HyperBridgeSender::send_msg(
-						PALLET_ID,
-						to,
-						StateMachine::Evm(dest),
-						body,
-						HYPERBRIDGE_TIMEOUT,
-						payer.clone(),
-						fee,
-					)
-					.map_err(|_| Error::<T>::Unsupported)?;
-					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
-				}
-				HyperBridgeOracle::<T>::insert(
-					dest,
-					HyperBridgeOracleConfig {
-						to,
-						timeout,
-						tokens,
-						period,
-						last_block: current_block_number,
-						payer,
-						fee,
-					},
-				);
-			}
-		}
-		return Ok(());
-	}
-
-	#[cfg(feature = "polkadot")]
-	#[transactional]
 	pub fn handle_hydration_oracle(
 		current_block_number: BlockNumberFor<T>,
 		consumed_weight: &mut Weight,
@@ -1635,10 +1770,152 @@ impl<T: Config> Pallet<T> {
 		}
 		return Ok(());
 	}
+
+	fn account_id_for_async_mint() -> T::AccountId {
+		T::PalletId::get().into_sub_account_truncating(1)
+	}
+
+	pub fn reserve_account() -> T::AccountId {
+		let mut inner = [0u8; 8];
+		inner.copy_from_slice(&token_gateway_id().0[0..8]);
+		PalletId(inner).into_account_truncating()
+	}
+
+	fn do_async_mint(
+		v_currency_id: CurrencyId,
+		chain_id: u32,
+		required_vtoken_amount: BalanceOf<T>,
+	) -> DispatchResultWithPostInfo {
+		let config = AsyncMintConfig::<T>::get();
+		let current_block = T::BlockNumberProvider::current_block_number();
+		// Convert vToken to token
+		let currency_id = v_currency_id
+			.to_token()
+			.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+
+		// Get token balance in module account
+		let module_account = Self::account_id_for_async_mint();
+		let token_balance = T::MultiCurrency::free_balance(currency_id, &module_account);
+
+		// Mint vToken
+		T::VtokenMintingInterface::mint(
+			module_account.clone(),
+			currency_id,
+			token_balance,
+			Default::default(),
+			None,
+		)
+		.map_err(|_| Error::<T>::ErrorVtokenMiting)?;
+		let vtoken_amount = T::MultiCurrency::free_balance(v_currency_id, &module_account);
+
+		// Calculate issuance amount if needed
+		let mut issued_amount = BalanceOf::<T>::zero();
+		let mut is_issuance_limited = false;
+		if vtoken_amount < required_vtoken_amount {
+			// Check if async mint has been executed in the current block interval
+			let last_execution = AsyncMintExecutions::<T>::get((v_currency_id, chain_id));
+			let next_valid_block = last_execution.saturating_add(config.block_interval);
+
+			// Only issue new tokens if not executed in current interval
+			if current_block > next_valid_block {
+				let token_pool = T::VtokenMintingInterface::get_token_pool(currency_id);
+
+				// Calculate requested issuance amount
+				let requested_issuance = required_vtoken_amount.saturating_sub(vtoken_amount);
+				let issuance_ratio: FixedU128 = FixedU128::from_rational(
+					requested_issuance.saturated_into::<u128>(),
+					token_pool.saturated_into::<u128>(),
+				);
+
+				if issuance_ratio > config.max_issuance_ratio {
+					// Calculate maximum allowed issuance
+					let max_issuance = config.max_issuance_ratio.saturating_mul_int(token_pool);
+
+					issued_amount = max_issuance;
+					is_issuance_limited = true;
+				} else {
+					issued_amount = requested_issuance;
+				}
+
+				if !issued_amount.is_zero() {
+					T::MultiCurrency::deposit(v_currency_id, &module_account, issued_amount)?;
+				}
+
+				// Update execution record only if we issued new tokens
+				AsyncMintExecutions::<T>::insert((v_currency_id, chain_id), current_block);
+			}
+		}
+
+		// Transfer to reserve address
+		T::MultiCurrency::transfer(
+			v_currency_id,
+			&module_account,
+			&Self::reserve_account(),
+			vtoken_amount.saturating_add(issued_amount),
+		)?;
+
+		// Emit event
+		if is_issuance_limited {
+			Self::deposit_event(Event::<T>::AsyncMintExecutionFailed {
+				v_currency_id,
+				chain_id,
+				error: Error::<T>::AsyncMintIssuanceRatioTooHigh.into(),
+			});
+		}
+		Self::deposit_event(Event::<T>::AsyncMintExecuted {
+			v_currency_id,
+			chain_id,
+			minted_amount: vtoken_amount,
+			issued_amount,
+		});
+
+		Ok(().into())
+	}
+
+	pub fn do_redeem(
+		origin: OriginFor<T>,
+		evm_caller: H160,
+		vtoken_id: CurrencyIdOf<T>,
+		target_chain: TargetChain<AccountIdOf<T>>,
+	) -> DispatchResultWithPostInfo {
+		let evm_contract_account_id = ensure_signed(origin.clone())?;
+		let (source_chain_caller, frontier_derivative_account, bifrost_chain_caller) =
+			Self::ensure_singer_on_whitelist(origin, evm_caller, &target_chain)?;
+
+		if vtoken_id == VFIL {
+			let fee_amount = Self::get_moonbeam_transfer_to_fee();
+			T::MultiCurrency::transfer(
+				BNC,
+				&evm_contract_account_id,
+				&frontier_derivative_account,
+				fee_amount,
+			)?;
+		}
+
+		Self::do_create_order(
+			source_chain_caller,
+			Default::default(),
+			None,
+			bifrost_chain_caller,
+			vtoken_id,
+			Default::default(),
+			Default::default(),
+			0u32,
+			target_chain,
+		)
+	}
 }
 
 // Functions to be called by other pallets.
-impl<T: Config> SlpxOperator<T::AccountId, BalanceOf<T>> for Pallet<T> {
+impl<T: Config>
+	SlpxOperator<
+		T::AccountId,
+		BalanceOf<T>,
+		BlockNumberFor<T>,
+		OriginFor<T>,
+		bifrost_primitives::TargetChain<AccountIdOf<T>>,
+	> for Pallet<T>
+{
 	fn get_moonbeam_transfer_to_fee() -> BalanceOf<T> {
 		TransferToFee::<T>::get(SupportChain::Moonbeam)
 			.unwrap_or_else(|| Self::get_default_fee(BNC))
@@ -1649,5 +1926,167 @@ impl<T: Config> SlpxOperator<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	) -> Result<(T::AccountId, BalanceOf<T>), DispatchError> {
 		let config = HyperBridgeOracle::<T>::get(dest).ok_or(Error::<T>::Unsupported)?;
 		Ok((config.payer, config.fee))
+	}
+
+	#[transactional]
+	fn handle_hyperbridge_oracle(
+		current_block_number: Option<BlockNumberFor<T>>, // None means processing all currency
+		target_currency: Option<CurrencyId>,
+		weight: &mut Weight,
+	) -> DispatchResult {
+		for (
+			dest,
+			HyperBridgeOracleConfig {
+				to,
+				timeout,
+				period,
+				last_block,
+				tokens,
+				payer,
+				fee,
+			},
+		) in HyperBridgeOracle::<T>::iter()
+		{
+			// Determine whether to process this config (either: it's due || a specific currency is requested)
+			let should_process = match current_block_number {
+				Some(now) => last_block + period < now,
+				None => true,
+			};
+
+			if !should_process {
+				continue;
+			}
+
+			let mut updated = false;
+
+			for (currency, token) in tokens.iter() {
+				// Only process the specified currency, or all if not specified
+				if target_currency.map_or(true, |c| c == *currency) {
+					let staking_currency_amount =
+						T::VtokenMintingInterface::get_token_pool(*currency);
+					let v_currency_id = currency
+						.to_vtoken()
+						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
+
+					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
+
+					let uint256_token_amount =
+						U256::from(staking_currency_amount.saturated_into::<u128>());
+					let uint256_vtoken_amount =
+						U256::from(v_currency_total_supply.saturated_into::<u128>());
+
+					let body = ethabi::encode(&[
+						ethabi::Token::Address(*token),
+						ethabi::Token::Uint(uint256_token_amount),
+						ethabi::Token::Uint(uint256_vtoken_amount),
+					]);
+
+					T::HyperBridgeSender::send_msg(
+						ModuleId::Pallet(T::PalletId::get()),
+						to,
+						StateMachine::Evm(dest),
+						body,
+						HYPERBRIDGE_TIMEOUT,
+						payer.clone(),
+						fee,
+					)
+					.map_err(|_| Error::<T>::Unsupported)?;
+
+					updated = true;
+					*weight = weight.saturating_add(T::DbWeight::get().reads_writes(6, 2));
+				}
+			}
+
+			// If a message was sent, update the last_block only in periodic mode
+			if updated && current_block_number.is_some() {
+				HyperBridgeOracle::<T>::insert(
+					dest,
+					HyperBridgeOracleConfig {
+						to,
+						timeout,
+						period,
+						last_block: current_block_number.unwrap(),
+						tokens,
+						payer,
+						fee,
+					},
+				);
+			}
+		}
+		Ok(())
+	}
+
+	fn async_mint(
+		currency_id: CurrencyId,
+		chain_id: u32,
+		required_amount: BalanceOf<T>,
+	) -> DispatchResult {
+		let result = Self::do_async_mint(currency_id, chain_id, required_amount);
+		if let Err(e) = result {
+			log::error!(
+				target: "runtime::slpx",
+				"async_mint failed: {:?}",
+				e
+			);
+			return Err(e.error);
+		}
+		Ok(())
+	}
+
+	fn redeem(
+		origin: OriginFor<T>,
+		evm_caller: H160,
+		vtoken_id: CurrencyIdOf<T>,
+		target_chain: bifrost_primitives::TargetChain<AccountIdOf<T>>,
+	) -> DispatchResult {
+		let target_chain_converted = match target_chain {
+			bifrost_primitives::TargetChain::Astar(addr) => TargetChain::Astar(addr),
+			bifrost_primitives::TargetChain::Moonbeam(addr) => TargetChain::Moonbeam(addr),
+			bifrost_primitives::TargetChain::Hydradx(addr) => TargetChain::Hydradx(addr),
+			bifrost_primitives::TargetChain::Interlay(addr) => TargetChain::Interlay(addr),
+			bifrost_primitives::TargetChain::Manta(addr) => TargetChain::Manta(addr),
+			bifrost_primitives::TargetChain::HyperBridge(dest, addr) => {
+				TargetChain::HyperBridge(dest, addr)
+			}
+		};
+		let result = Self::do_redeem(origin, evm_caller, vtoken_id, target_chain_converted);
+		if let Err(e) = result {
+			return Err(e.error);
+		}
+		Ok(())
+	}
+
+	fn redeem_without_ensure_origin(
+		bifrost_chain_caller: T::AccountId,
+		vtoken_id: CurrencyIdOf<T>,
+		target_chain: bifrost_primitives::TargetChain<AccountIdOf<T>>,
+	) -> DispatchResult {
+		let target_chain_converted = match target_chain {
+			bifrost_primitives::TargetChain::Astar(addr) => TargetChain::Astar(addr),
+			bifrost_primitives::TargetChain::Moonbeam(addr) => TargetChain::Moonbeam(addr),
+			bifrost_primitives::TargetChain::Hydradx(addr) => TargetChain::Hydradx(addr),
+			bifrost_primitives::TargetChain::Interlay(addr) => TargetChain::Interlay(addr),
+			bifrost_primitives::TargetChain::Manta(addr) => TargetChain::Manta(addr),
+			bifrost_primitives::TargetChain::HyperBridge(dest, addr) => {
+				TargetChain::HyperBridge(dest, addr)
+			}
+		};
+
+		let result = Self::do_create_order(
+			OrderCaller::Substrate(bifrost_chain_caller.clone()),
+			Default::default(),
+			None,
+			bifrost_chain_caller,
+			vtoken_id,
+			Default::default(),
+			Default::default(),
+			0u32,
+			target_chain_converted,
+		);
+
+		if let Err(e) = result {
+			return Err(e.error);
+		}
+		Ok(())
 	}
 }

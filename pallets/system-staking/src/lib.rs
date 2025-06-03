@@ -21,7 +21,7 @@ pub mod weights;
 pub use weights::WeightInfo;
 pub mod migration;
 
-use bifrost_primitives::{CurrencyId, FarmingInfo, PoolId, VtokenMintingInterface};
+use bifrost_primitives::{CurrencyId, FarmingInfo, VtokenMintingInterface};
 pub use frame_support::weights::Weight;
 use frame_support::{dispatch::DispatchResultWithPostInfo, traits::Get, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -31,7 +31,6 @@ use sp_runtime::{
 	traits::{AccountIdConversion, BlockNumberProvider, Saturating, Zero},
 	BoundedVec,
 };
-use sp_std::vec::Vec;
 pub use types::*;
 pub use RoundIndex;
 #[cfg(test)]
@@ -57,10 +56,7 @@ pub type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountId
 pub mod pallet {
 	use super::*;
 	use crate::{RoundInfo, TokenInfo};
-	use frame_support::{
-		pallet_prelude::*,
-		sp_runtime::{Perbill, Permill},
-	};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
 	pub type RoundIndex = u32;
@@ -112,7 +108,7 @@ pub mod pallet {
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -155,32 +151,22 @@ pub mod pallet {
 		///
 		/// - `token`: The identifier of the token whose configuration changed.
 		/// - `exec_delay`: The delay in blocks before the changes take effect.
-		/// - `system_stakable_farming_rate`: The farming rate applied to system-stakable tokens.
-		/// - `add_or_sub`: Whether to add or subtract from the stakable farming rate.
 		/// - `system_stakable_base`: The base value of system-stakable assets.
-		/// - `farming_poolids`: List of pool IDs related to the token.
-		/// - `lptoken_rates`: List of rates for liquidity provider (LP) tokens.
 		TokenConfigChanged {
 			token: CurrencyIdOf<T>,
 			exec_delay: BlockNumberFor<T>,
-			system_stakable_farming_rate: Permill,
-			add_or_sub: bool,
 			system_stakable_base: BalanceOf<T>,
-			farming_poolids: BoundedVec<PoolId, ConstU32<32>>,
-			lptoken_rates: BoundedVec<Perbill, ConstU32<32>>,
 		},
 		/// A deposit operation has failed.
 		///
 		/// - `token`: The identifier of the token being deposited.
 		/// - `amount`: The amount of the token to be deposited.
-		/// - `farming_staking_amount`: The amount staked in the farming pool.
 		/// - `system_stakable_amount`: The amount staked in the system-stakable pool.
 		/// - `system_shadow_amount`: The amount shadow-staked in the system.
 		/// - `pending_redeem_amount`: The amount pending redemption.
 		DepositFailed {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -190,14 +176,12 @@ pub mod pallet {
 		///
 		/// - `token`: The identifier of the token being minted.
 		/// - `amount`: The amount of the token to be minted.
-		/// - `farming_staking_amount`: The amount staked in the farming pool.
 		/// - `system_stakable_amount`: The amount staked in the system-stakable pool.
 		/// - `system_shadow_amount`: The amount shadow-staked in the system.
 		/// - `pending_redeem_amount`: The amount pending redemption.
 		MintSuccess {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -209,7 +193,6 @@ pub mod pallet {
 		MintFailed {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -221,7 +204,6 @@ pub mod pallet {
 		WithdrawSuccess {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -233,7 +215,6 @@ pub mod pallet {
 		WithdrawFailed {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -246,7 +227,6 @@ pub mod pallet {
 		Redeemed {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -258,7 +238,6 @@ pub mod pallet {
 		RedeemFailed {
 			token: CurrencyIdOf<T>,
 			amount: BalanceOf<T>,
-			farming_staking_amount: BalanceOf<T>,
 			system_stakable_amount: BalanceOf<T>,
 			system_shadow_amount: BalanceOf<T>,
 			pending_redeem_amount: BalanceOf<T>,
@@ -389,11 +368,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			token: CurrencyIdOf<T>,
 			exec_delay: Option<BlockNumberFor<T>>,
-			system_stakable_farming_rate: Option<Permill>,
-			add_or_sub: Option<bool>,
 			system_stakable_base: Option<BalanceOf<T>>,
-			farming_poolids: Option<Vec<PoolId>>,
-			lptoken_rates: Option<Vec<Perbill>>, // TODO, can be > 1
 		) -> DispatchResultWithPostInfo {
 			T::EnsureConfirmAsGovernance::ensure_origin(origin)?; // Motion
 
@@ -415,42 +390,9 @@ pub mod pallet {
 				token_info.new_config.exec_delay = exec_delay;
 			}
 
-			// Set token_info.new_config.system_stakable_farming_rate = system_stakable_farming_rate
-			if let Some(system_stakable_farming_rate) = system_stakable_farming_rate {
-				token_info.new_config.system_stakable_farming_rate = system_stakable_farming_rate;
-			}
-
 			// Set token_info.new_config.system_stakable_base = system_stakable_base
 			if let Some(system_stakable_base) = system_stakable_base {
 				token_info.new_config.system_stakable_base = system_stakable_base;
-			}
-
-			// Set token_info.new_config.add_or_sub = add_or_sub
-			if let Some(add_or_sub) = add_or_sub {
-				token_info.new_config.add_or_sub = add_or_sub;
-			}
-
-			// Set token_info.new_config.farming_poolids = farming_poolids
-			if let Some(farming_poolids) = farming_poolids.clone() {
-				ensure!(!farming_poolids.is_empty(), Error::<T>::InvalidTokenConfig);
-				ensure!(
-					farming_poolids.len() as u32 <= T::MaxFarmingPoolIdLen::get(),
-					Error::<T>::ExceedMaxFarmingPoolidLen
-				);
-				token_info.new_config.farming_poolids =
-					BoundedVec::try_from(farming_poolids.clone())
-						.map_err(|_| Error::<T>::ConversionError)?;
-			}
-
-			// Set token_info.new_config.lptoken_rates = lptoken_rates
-			if let Some(lptoken_rates) = lptoken_rates.clone() {
-				ensure!(!lptoken_rates.is_empty(), Error::<T>::InvalidTokenConfig);
-				ensure!(
-					lptoken_rates.len() as u32 <= T::MaxFarmingPoolIdLen::get(),
-					Error::<T>::ExceedMaxFarmingPoolidLen
-				);
-				token_info.new_config.lptoken_rates = BoundedVec::try_from(lptoken_rates.clone())
-					.map_err(|_| Error::<T>::ConversionError)?;
 			}
 
 			// Update token info
@@ -468,11 +410,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TokenConfigChanged {
 				token,
 				exec_delay: token_info.new_config.exec_delay,
-				system_stakable_farming_rate: token_info.new_config.system_stakable_farming_rate,
-				add_or_sub: token_info.new_config.add_or_sub,
 				system_stakable_base: token_info.new_config.system_stakable_base,
-				farming_poolids: token_info.new_config.farming_poolids.clone(),
-				lptoken_rates: token_info.new_config.lptoken_rates.clone(),
 			});
 
 			Ok(().into())
@@ -545,37 +483,7 @@ impl<T: Config> Pallet<T> {
 		mut token_info: TokenInfo<BalanceOf<T>, BlockNumberFor<T>>,
 		token_id: CurrencyIdOf<T>,
 	) -> DispatchResultWithPostInfo {
-		// Query farming info
-		let mut farming_staking_amount = BalanceOf::<T>::zero();
-		for i in 0..token_info.current_config.farming_poolids.len() {
-			farming_staking_amount = farming_staking_amount
-				+ token_info.current_config.lptoken_rates[i].mul_floor(
-					// TODO: get_token_shares
-					T::FarmingInfo::get_token_shares(
-						token_info.current_config.farming_poolids[i],
-						token_id,
-					),
-				);
-		}
-		// Set token_info.farming_staking_amount
-		token_info.farming_staking_amount = farming_staking_amount;
-
-		// Check amount, and call vtoken minting pallet
-		let stakable_amount = if token_info.current_config.add_or_sub {
-			// system_stakable_farming_rate * farming_staking_amount + system_stakable_base
-			token_info
-				.current_config
-				.system_stakable_farming_rate
-				.mul_floor(token_info.farming_staking_amount)
-				.saturating_add(token_info.current_config.system_stakable_base)
-		} else {
-			// system_stakable_farming_rate * farming_staking_amount - system_stakable_base
-			token_info
-				.current_config
-				.system_stakable_farming_rate
-				.mul_floor(token_info.farming_staking_amount)
-				.saturating_sub(token_info.current_config.system_stakable_base)
-		};
+		let stakable_amount = token_info.current_config.system_stakable_base;
 		// Set token_info.system_stakable_amount
 		token_info.system_stakable_amount = stakable_amount;
 
@@ -615,7 +523,6 @@ impl<T: Config> Pallet<T> {
 			Self::deposit_event(Event::MintSuccess {
 				token: token_id,
 				amount: mint_amount,
-				farming_staking_amount: token_info.farming_staking_amount,
 				system_stakable_amount: token_info.system_stakable_amount,
 				system_shadow_amount: token_info.system_shadow_amount,
 				pending_redeem_amount: token_info.pending_redeem_amount,
@@ -744,7 +651,6 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::WithdrawSuccess {
 					token: token_id,
 					amount: token_amount,
-					farming_staking_amount: token_info.farming_staking_amount,
 					system_stakable_amount: token_info.system_stakable_amount,
 					system_shadow_amount: token_info.system_shadow_amount,
 					pending_redeem_amount: token_info.pending_redeem_amount,
@@ -757,7 +663,6 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::WithdrawFailed {
 					token: token_id,
 					amount: token_amount,
-					farming_staking_amount: token_info.farming_staking_amount,
 					system_stakable_amount: token_info.system_stakable_amount,
 					system_shadow_amount: token_info.system_shadow_amount,
 					pending_redeem_amount: token_info.pending_redeem_amount,
@@ -808,7 +713,6 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::Redeemed {
 			token: token_id,
 			amount: token_amount,
-			farming_staking_amount: token_info.farming_staking_amount,
 			system_stakable_amount: token_info.system_stakable_amount,
 			system_shadow_amount: token_info.system_shadow_amount,
 			pending_redeem_amount: token_info.pending_redeem_amount,

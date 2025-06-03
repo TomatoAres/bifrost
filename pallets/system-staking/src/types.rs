@@ -16,10 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 use crate::RoundIndex;
-use bifrost_primitives::PoolId;
 use frame_support::pallet_prelude::*;
 use parity_scale_codec::{Decode, Encode};
-use sp_arithmetic::per_things::{Perbill, Permill};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 
@@ -81,9 +79,6 @@ pub struct TokenInfo<
 		+ From<u32>
 		+ PartialOrd,
 > {
-	/// The number of token staking in Farming
-	pub farming_staking_amount: Balance,
-	/// token_config.system_stakable_farming_rate(100%) * farming_staking_amount(0) +/-
 	/// token_config.system_stakable_base
 	pub system_stakable_amount: Balance,
 	/// Number of additional token already mint
@@ -107,7 +102,6 @@ impl<
 {
 	fn default() -> TokenInfo<Balance, BlockNumber> {
 		TokenInfo {
-			farming_staking_amount: Balance::zero(),
 			system_stakable_amount: Balance::zero(),
 			system_shadow_amount: Balance::zero(),
 			pending_redeem_amount: Balance::zero(),
@@ -146,16 +140,8 @@ where
 {
 	/// Number of blocks with delayed execution
 	pub exec_delay: BlockNumber,
-	/// 100 %
-	pub system_stakable_farming_rate: Permill,
-	///
-	pub lptoken_rates: BoundedVec<Perbill, ConstU32<32>>,
-	/// true: add, false: sub , +/- token_config.system_stakable_base
-	pub add_or_sub: bool,
 	///
 	pub system_stakable_base: Balance,
-	/// Farming pool ids
-	pub farming_poolids: BoundedVec<PoolId, ConstU32<32>>,
 }
 
 impl<
@@ -170,11 +156,7 @@ impl<
 	fn default() -> TokenConfig<Balance, BlockNumber> {
 		TokenConfig {
 			exec_delay: 0u32.into(),
-			system_stakable_farming_rate: Permill::from_percent(0),
-			lptoken_rates: BoundedVec::default(),
 			system_stakable_base: Balance::zero(),
-			add_or_sub: true, // default add
-			farming_poolids: BoundedVec::default(),
 		}
 	}
 }

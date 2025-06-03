@@ -18,15 +18,10 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 use crate::{Config, Pallet as SystemStaking, *};
-use bifrost_primitives::{CurrencyId, PoolId, TokenSymbol, *};
+use bifrost_primitives::{CurrencyId, TokenSymbol, *};
 use frame_benchmarking::v2::*;
-use frame_support::{
-	assert_ok,
-	sp_runtime::{traits::UniqueSaturatedFrom, Perbill, Permill},
-	traits::OnInitialize,
-};
+use frame_support::{assert_ok, sp_runtime::traits::UniqueSaturatedFrom, traits::OnInitialize};
 use frame_system::{Pallet as System, RawOrigin};
-use sp_std::vec;
 
 #[benchmarks(where T: Config + bifrost_vtoken_minting::Config)]
 mod benchmarks {
@@ -38,22 +33,14 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 
 		assert_ok!(SystemStaking::<T>::token_config(
 			RawOrigin::Root.into(),
 			MOVR,
 			Some(BlockNumberFor::<T>::from(2u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 
 		System::<T>::set_block_number(System::<T>::block_number() + 1u32.into());
@@ -72,17 +59,12 @@ mod benchmarks {
 	fn token_config() -> Result<(), BenchmarkError> {
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
 		let token_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
-		let pool_id = PoolId::from(1u32);
 		#[extrinsic_call]
 		_(
 			RawOrigin::Root,
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(token_amount),
-			Some(vec![pool_id]),
-			Some(vec![Perbill::from_percent(100)]),
 		);
 
 		Ok(())
@@ -95,11 +77,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 		#[extrinsic_call]
 		_(RawOrigin::Root, KSM);
@@ -113,11 +91,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 
 		let caller: T::AccountId = whitelisted_caller();
@@ -146,11 +120,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 		let caller: T::AccountId = whitelisted_caller();
 		let token_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
@@ -168,11 +138,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 		let caller: T::AccountId = whitelisted_caller();
 		let token_amount = BalanceOf::<T>::unique_saturated_from(1000u128);
@@ -191,11 +157,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			KSM,
 			Some(BlockNumberFor::<T>::from(1u32)),
-			Some(Permill::from_percent(80)),
-			Some(false),
 			Some(BalanceOf::<T>::unique_saturated_from(1000u128)),
-			Some(vec![1 as PoolId]),
-			Some(vec![Perbill::from_percent(100)]),
 		));
 
 		#[extrinsic_call]

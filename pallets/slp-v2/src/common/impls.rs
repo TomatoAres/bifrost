@@ -25,20 +25,20 @@ use crate::{
 	DelegatorIndexByStakingProtocolAndDelegator, Error, Event, LedgerByStakingProtocolAndDelegator,
 	NextDelegatorIndexByStakingProtocol, Pallet, ValidatorsByStakingProtocolAndDelegator,
 };
-use bifrost_primitives::{Balance, CurrencyId, VtokenMintingOperator};
+use bifrost_primitives::{
+	Balance, CurrencyId, HyperBridgeSender, VtokenMintingOperator, HYPERBRIDGE_TIMEOUT,
+};
 use frame_support::{
 	dispatch::{DispatchResultWithPostInfo, GetDispatchInfo, RawOrigin},
 	ensure,
 	traits::{EnsureOrigin, Get},
 };
 use frame_system::pallet_prelude::OriginFor;
+use ismp::host::StateMachine;
 use orml_traits::{MultiCurrency, XcmTransfer};
 use parity_scale_codec::{Decode, Encode};
 use sp_core::blake2_256;
-use sp_runtime::{
-	helpers_128bit::multiply_by_rational_with_rounding, traits::TrailingZeroInput, DispatchError,
-	Rounding, Saturating,
-};
+use sp_runtime::{traits::TrailingZeroInput, DispatchError, Saturating};
 use sp_std::{vec, vec::Vec};
 use xcm::{
 	latest::{OriginKind, QueryId, QueryResponseInfo, WeightLimit, WildAsset},
@@ -60,8 +60,10 @@ impl<T: Config> Pallet<T> {
 				*index = index
 					.checked_add(1)
 					.ok_or(Error::<T>::DelegatorIndexOverflow)?;
-				let delegator =
-					delegator.unwrap_or(staking_protocol.get_delegator::<T>(delegator_index)?);
+				let delegator = match delegator {
+					Some(d) => d,
+					None => staking_protocol.get_delegator::<T>(delegator_index)?,
+				};
 				ensure!(
 					!DelegatorByStakingProtocolAndDelegatorIndex::<T>::contains_key(
 						staking_protocol,
@@ -125,23 +127,70 @@ impl<T: Config> Pallet<T> {
 	pub fn do_transfer_to(
 		staking_protocol: StakingProtocol,
 		delegator: Delegator<T::AccountId>,
+		currency_id: Option<CurrencyId>,
+		amount: Option<Balance>,
+		dest: Option<u32>,
+		fee: Option<Balance>,
 	) -> DispatchResultWithPostInfo {
 		Self::ensure_delegator_exist(&staking_protocol, &delegator)?;
-		let currency_id = staking_protocol.info().currency_id;
-		let dest_beneficiary_location = staking_protocol
-			.get_dest_beneficiary_location::<T>(delegator.clone())
-			.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+		let currency_id = match currency_id {
+			Some(c) => c,
+			None => staking_protocol.info().currency_id,
+		};
 		let (entrance_account, _) = T::VtokenMinting::get_entrance_and_exit_accounts();
 		let entrance_account_free_balance =
 			T::MultiCurrency::free_balance(currency_id, &entrance_account);
-		T::XcmTransfer::transfer(
-			entrance_account.clone(),
-			currency_id,
-			entrance_account_free_balance,
-			dest_beneficiary_location,
-			WeightLimit::Unlimited,
-		)
-		.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
+
+		match staking_protocol {
+			StakingProtocol::AstarDappStaking => {
+				let dest_beneficiary_location = staking_protocol
+					.get_dest_beneficiary_location::<T>(delegator.clone())
+					.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+				T::XcmTransfer::transfer(
+					entrance_account.clone(),
+					currency_id,
+					entrance_account_free_balance,
+					dest_beneficiary_location,
+					WeightLimit::Unlimited,
+				)
+				.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
+			}
+			StakingProtocol::EthereumStaking => {
+				let (amount, to, dest, payer, fee) = if let (
+					Some(amount),
+					Delegator::Ethereum(to),
+					Some(dest),
+					Some(config),
+					Some(fee),
+				) = (
+					amount,
+					delegator.clone(),
+					dest,
+					ConfigurationByStakingProtocol::<T>::get(staking_protocol),
+					fee,
+				) {
+					(amount, to, dest, config.operator, fee)
+				} else {
+					return Err(Error::<T>::UnsupportedStakingProtocol.into());
+				};
+				ensure!(
+					entrance_account_free_balance >= amount,
+					Error::<T>::InvalidParameter
+				);
+				T::HyperBridgeSender::send_and_call(
+					currency_id,
+					entrance_account.clone(),
+					to,
+					StateMachine::Evm(dest),
+					amount,
+					HYPERBRIDGE_TIMEOUT,
+					None,
+					payer,
+					fee,
+				)?;
+			}
+			_ => unreachable!(),
+		}
 		Self::deposit_event(Event::TransferTo {
 			staking_protocol,
 			from: entrance_account,
@@ -315,25 +364,6 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| Error::<T>::ValidatingFailed)?;
 		T::XcmSender::deliver(ticket).map_err(|_| Error::<T>::DeliveringFailed)?;
 		Ok(())
-	}
-
-	pub fn calculate_vtoken_amount_by_token_amount(
-		vtoken_currency_id: CurrencyId,
-		currency_id: CurrencyId,
-		token_amount: Balance,
-	) -> Result<Balance, Error<T>> {
-		let vtoken_total_issuance = T::MultiCurrency::total_issuance(vtoken_currency_id);
-		let token_pool_amount = T::VtokenMinting::get_token_pool(currency_id);
-		// vtoken_amount / vtoken_total_issuance = token_amount / token_pool_amount
-		// vtoken_amount = token_amount * vtoken_total_issuance / token_pool_amount
-		let vtoken_amount = multiply_by_rational_with_rounding(
-			token_amount,
-			vtoken_total_issuance,
-			token_pool_amount,
-			Rounding::Down,
-		)
-		.ok_or(Error::<T>::CalculateProtocolFeeFailed)?;
-		Ok(vtoken_amount)
 	}
 
 	pub fn ensure_governance_or_xcm_response(

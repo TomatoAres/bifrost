@@ -36,7 +36,7 @@ use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_core::{crypto::AccountId32, ConstU64};
 use sp_runtime::{
 	traits::{BlockNumberProvider, IdentityLookup},
-	BuildStorage, DispatchError,
+	BuildStorage, DispatchError, DispatchResult,
 };
 use xcm::{
 	prelude::Parachain,
@@ -217,11 +217,21 @@ parameter_types! {
 }
 
 pub struct SlpxInterface;
-impl SlpxOperator<AccountId, Balance> for SlpxInterface {
+impl
+	SlpxOperator<AccountId, Balance, u64, RuntimeOrigin, bifrost_primitives::TargetChain<AccountId>>
+	for SlpxInterface
+{
 	fn get_moonbeam_transfer_to_fee() -> Balance {
 		Default::default()
 	}
 	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
+	}
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<u64>, // None means processing all currency
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> DispatchResult {
 		unreachable!()
 	}
 }
@@ -288,6 +298,7 @@ impl slp_v2::Config for Test {
 	type CommissionPalletId = CommissionPalletId;
 	type RelaychainBlockNumberProvider = RelaychainDataProvider;
 	type MaxValidators = ConstU32<256>;
+	type HyperBridgeSender = ();
 }
 
 // Build genesis storage according to the mock runtime.

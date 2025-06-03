@@ -192,7 +192,34 @@ pub mod v1 {
 
 pub mod v2 {
 	use super::*;
+	use frame_support::pallet_prelude::ValueQuery;
 	use frame_support::traits::GetStorageVersion;
+
+	#[derive(Encode, Decode, Clone)]
+	pub struct Order<AccountId, CurrencyId, Balance, BlockNumber> {
+		pub source_chain_caller: OrderCaller<AccountId>,
+		pub source_chain_id: u64,
+		pub source_chain_block_number: Option<u128>,
+		pub bifrost_chain_caller: AccountId,
+		pub derivative_account: AccountId,
+		pub create_block_number: BlockNumber,
+		pub currency_id: CurrencyId,
+		pub currency_amount: Balance,
+		pub order_type: OrderType,
+		pub remark: BoundedVec<u8, ConstU32<32>>,
+		pub target_chain: TargetChain<AccountId>,
+		pub channel_id: u32,
+	}
+
+	#[storage_alias]
+	pub(super) type OrderQueue<T: Config> = StorageValue<
+		Pallet<T>,
+		BoundedVec<
+			Order<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>,
+			ConstU32<500>,
+		>,
+		ValueQuery,
+	>;
 
 	pub struct MigrateToV2<T>(sp_std::marker::PhantomData<T>);
 	impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
@@ -219,6 +246,41 @@ pub mod v2 {
 			ensure!(
 				Pallet::<T>::in_code_storage_version() == 2,
 				"in_code_storage_version should be 2"
+			);
+			Ok(())
+		}
+	}
+}
+
+pub mod v3 {
+	use super::*;
+	use frame_support::traits::GetStorageVersion;
+
+	pub struct MigrateToV3<T>(sp_std::marker::PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
+		fn on_runtime_upgrade() -> Weight {
+			let on_chain_storage_version = Pallet::<T>::on_chain_storage_version();
+			let in_code_storage_version = Pallet::<T>::in_code_storage_version();
+			if on_chain_storage_version == 2 && in_code_storage_version == 3 {
+				let weight_consumed = migrate_to_v3::<T>();
+				log::info!("Migrating slpx storage to v3");
+				in_code_storage_version.put::<Pallet<T>>();
+				weight_consumed.saturating_add(T::DbWeight::get().writes(1))
+			} else {
+				log::warn!("slpx migration should be removed.");
+				T::DbWeight::get().reads(1)
+			}
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+			ensure!(
+				Pallet::<T>::on_chain_storage_version() == 3,
+				"on_chain_storage_version should be 3"
+			);
+			ensure!(
+				Pallet::<T>::in_code_storage_version() == 3,
+				"in_code_storage_version should be 3"
 			);
 			Ok(())
 		}
@@ -263,7 +325,7 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 
 	let old_order_queue = v1::OrderQueue::<T>::take();
 	for old_order in old_order_queue.into_iter() {
-		let order = Order {
+		let order = v2::Order {
 			source_chain_caller: old_order.source_chain_caller,
 			source_chain_id: 0,
 			source_chain_block_number: None,
@@ -276,6 +338,64 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 			remark: old_order.remark,
 			target_chain: old_order.target_chain,
 			channel_id: old_order.channel_id,
+		};
+
+		v2::OrderQueue::<T>::mutate(|order_queue| -> DispatchResultWithPostInfo {
+			order_queue
+				.try_push(order.clone())
+				.map_err(|_| Error::<T>::ErrorArguments)?;
+			Ok(().into())
+		})
+		.expect("BoundedVec should not overflow");
+
+		weight = weight.saturating_add(T::DbWeight::get().writes(1));
+	}
+
+	weight
+}
+
+pub fn migrate_to_v3<T: Config>() -> Weight {
+	let mut weight: Weight = Weight::zero();
+
+	let old_order_queue = v2::OrderQueue::<T>::take();
+	for old_order in old_order_queue.into_iter() {
+		let order = if old_order.order_type == OrderType::Mint {
+			Order {
+				source_chain_caller: old_order.source_chain_caller,
+				source_chain_id: 0,
+				source_chain_block_number: None,
+				bifrost_chain_caller: old_order.bifrost_chain_caller,
+				derivative_account: old_order.derivative_account,
+				create_block_number: old_order.create_block_number,
+				currency_id: old_order.currency_id,
+				currency_amount: old_order.currency_amount,
+				v_currency_id: old_order.currency_id,
+				v_currency_amount: old_order.currency_amount,
+				order_type: old_order.order_type,
+				remark: old_order.remark,
+				target_chain: old_order.target_chain,
+				channel_id: old_order.channel_id,
+			}
+		} else {
+			Order {
+				source_chain_caller: old_order.source_chain_caller,
+				source_chain_id: 0,
+				source_chain_block_number: None,
+				bifrost_chain_caller: old_order.bifrost_chain_caller,
+				derivative_account: old_order.derivative_account,
+				create_block_number: old_order.create_block_number,
+				currency_id: old_order
+					.currency_id
+					.to_token()
+					.expect("v_currency_id can convert to currency_id"),
+				currency_amount: old_order.currency_amount,
+				v_currency_id: old_order.currency_id,
+				v_currency_amount: old_order.currency_amount,
+				order_type: old_order.order_type,
+				remark: old_order.remark,
+				target_chain: old_order.target_chain,
+				channel_id: old_order.channel_id,
+			}
 		};
 
 		OrderQueue::<T>::mutate(|order_queue| -> DispatchResultWithPostInfo {

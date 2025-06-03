@@ -26,6 +26,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+extern crate alloc;
+
 use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
 use pallet_traits::evm::InspectEvmAccounts;
@@ -36,9 +38,9 @@ use bifrost_primitives::{
 	CommissionPalletId, FarmingBoostPalletId, FarmingGaugeRewardIssuerPalletId,
 	FarmingKeeperPalletId, FarmingRewardIssuerPalletId, FeeSharePalletId, FlexibleFeePalletId,
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
-	LocalBncLocation, MerkleDirtributorPalletId, OraclePalletId, ParachainStakingPalletId,
-	SlpEntrancePalletId, SlpExitPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, BNC, BNC_DECIMALS, DOT, VDOT,
+	LocalBncLocation, OraclePalletId, ParachainStakingPalletId, SlpEntrancePalletId,
+	SlpExitPalletId, SlpxPalletId, SystemMakerPalletId, SystemStakingPalletId, TreasuryPalletId,
+	BNC, BNC_DECIMALS, DOT, VDOT,
 };
 use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
@@ -192,7 +194,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost_paseo"),
 	impl_name: create_runtime_str!("bifrost_paseo"),
 	authoring_version: 0,
-	spec_version: 18000,
+	spec_version: 19000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -978,6 +980,7 @@ impl bifrost_slp::Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type BlockNumberProvider = System;
+	type BifrostSlpx = Slpx;
 }
 
 parameter_types! {
@@ -1073,6 +1076,7 @@ impl bifrost_slpx::Config for Runtime {
 	type MaxUserOrderSize = ConstU32<20>;
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = TokenGateway;
+	type PalletId = SlpxPalletId;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1152,17 +1156,6 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 }
 
-impl merkle_distributor::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = CurrencyId;
-	type MultiCurrency = Currencies;
-	type Balance = Balance;
-	type MerkleDistributorId = u32;
-	type PalletId = MerkleDirtributorPalletId;
-	type StringLimit = StringLimit;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const ZenlinkPalletId: PalletId = PalletId(*b"/zenlink");
 	pub const GetExchangeFee: (u32, u32) = (3, 1000);   // 0.3%
@@ -1233,8 +1226,9 @@ parameter_types! {
 	pub const Week: BlockNumber = prod_or_fast!(WEEKS, 10);
 	pub const OneYear: BlockNumber = 365 * DAYS;
 	pub const MaxBlock: BlockNumber = 4 * 365 * DAYS;
+	pub const FiveYears: BlockNumber = 5 * 365 * DAYS;
 	pub const Multiplier: Balance = 10_u128.pow(12);
-	pub const VoteWeightMultiplier: Balance = 1;
+	pub const VoteWeightMultiplier: FixedU128 = FixedU128::from_inner(750_000_000_000_000_000);
 	pub const MaxPositions: u32 = 10;
 	pub const MarkupRefreshLimit: u32 = 100;
 }
@@ -1256,7 +1250,7 @@ impl bb_bnc::Config for Runtime {
 	type MarkupRefreshLimit = MarkupRefreshLimit;
 	type VtokenMinting = VtokenMinting;
 	type FarmingInfo = Farming;
-	type FourYears = MaxBlock;
+	type FiveYears = FiveYears;
 	type OneYear = OneYear;
 	type BlockNumberProvider = System;
 }
@@ -1437,6 +1431,7 @@ impl bifrost_slp_v2::Config for Runtime {
 	type CommissionPalletId = CommissionPalletId;
 	type ParachainId = ParachainInfo;
 	type MaxValidators = ConstU32<256>;
+	type HyperBridgeSender = TokenGateway;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1562,27 +1557,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
 	}
 }
 
-impl pallet_state_trie_migration::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SignedDepositPerItem = MigrationSignedDepositPerItem;
-	type SignedDepositBase = MigrationSignedDepositBase;
-	// An origin that can control the whole pallet: should be Root, or a part of your council.
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type ControlOrigin = frame_system::EnsureSignedBy<RootMigControllerMembers, AccountId>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ControlOrigin = frame_system::EnsureSigned<AccountId>;
-	// specific account for the migration, can trigger the signed migrations.
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type SignedFilter = frame_system::EnsureSignedBy<MigControllerMembers, AccountId>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type SignedFilter = frame_system::EnsureSigned<AccountId>;
-	// Replace this with weight based on your runtime.
-	type WeightInfo = weights::pallet_state_trie_migration::BifrostWeight<Runtime>;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type MaxKeyLen = ConstU32<256>;
-}
-
 construct_runtime! {
 	pub enum Runtime {
 		// Basic stuff
@@ -1645,7 +1619,6 @@ construct_runtime! {
 		UnknownTokens: orml_unknown_tokens = 73,
 		OrmlXcm: orml_xcm = 74,
 		ZenlinkProtocol: zenlink_protocol = 80,
-		MerkleDistributor: merkle_distributor = 81,
 
 		// Hyperbridge
 		Ismp: pallet_ismp = 90,
@@ -1682,7 +1655,6 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
-		StateTrieMigration: pallet_state_trie_migration = 141,
 	}
 }
 
@@ -1761,6 +1733,11 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
+parameter_types! {
+	pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
+	pub const MerkleDistributorName: &'static str = "MerkleDistributor";
+}
+
 /// The runtime migrations per release.
 pub mod migrations {
 	#[allow(unused_imports)]
@@ -1771,6 +1748,12 @@ pub mod migrations {
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 		bifrost_buy_back::migration::v1::MigrateToV1<Runtime>,
+		bifrost_buy_back::migration::v2::MigrateToV2<Runtime>,
+		frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
+		frame_support::migrations::RemovePallet<MerkleDistributorName, RocksDbWeight>,
+		bifrost_system_staking::migrations::v3::MigrateToV3<Runtime>,
+		bifrost_slpx::migration::v3::MigrateToV3<Runtime>,
+		bifrost_slp::migrations::v4::SlpMigration<Runtime>,
 	);
 }
 
@@ -1854,7 +1837,6 @@ mod benches {
 		[bifrost_slp_v2, SlpV2]
 		[bifrost_xcm_interface, XcmInterface]
 		[bifrost_farming, Farming]
-		[pallet_state_trie_migration, StateTrieMigration]
 	);
 }
 
@@ -2463,7 +2445,7 @@ impl_runtime_apis! {
 		}
 
 		fn total_supply(
-			t: bifrost_primitives::BlockNumber,
+			t: Option<bifrost_primitives::BlockNumber>,
 		) -> Balance{
 			BbBNC::total_supply(t).unwrap_or(Zero::zero())
 		}
@@ -2481,6 +2463,12 @@ impl_runtime_apis! {
 			value: Balance,
 		) -> FixedU128 {
 			BbBNC::bonus(&who, currency_id, value).unwrap_or_else(|_| FixedU128::zero())
+		}
+
+		fn query_pending_rewards(
+			who: AccountId,
+		) -> Vec<(CurrencyId, Balance)> {
+			BbBNC::query_pending_rewards(&who).unwrap_or(Vec::new())
 		}
 	}
 

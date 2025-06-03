@@ -22,7 +22,7 @@
 
 use crate::{
 	AssetIds, AssetMetadata, Balance, CurrencyId, DerivativeIndex, LeasePeriod, ParaId, PoolId,
-	RedeemType, TokenId, TokenSymbol, XcmOperationType,
+	RedeemType, TokenId, TokenSymbol, XcmOperationType, H160,
 };
 use frame_support::pallet_prelude::{DispatchResultWithPostInfo, Weight};
 use parity_scale_codec::{Decode, Encode, FullCodec};
@@ -131,6 +131,16 @@ pub trait VtokenMintingOperator<CurrencyId, Balance, AccountId, TimeUnit> {
 		index: u32,
 	) -> Option<(AccountId, Balance, TimeUnit, RedeemType<AccountId>)>;
 	fn get_moonbeam_parachain_id() -> u32;
+
+	/// Convert a CurrencyId to a vtoken CurrencyId.
+	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyId, DispatchError>;
+
+	/// Calculate the vtoken amount by token amount.
+	fn calculate_v_currency_amount_by_currency_amount(
+		token_id: CurrencyId,
+		vtoken_id: CurrencyId,
+		token_amount: Balance,
+	) -> Result<Balance, DispatchError>;
 }
 
 /// Trait for Vtoken-Minting module to check whether accept redeeming or not.
@@ -139,9 +149,42 @@ pub trait SlpOperator<CurrencyId> {
 }
 
 /// Trait for Vtoken-Minting module to check whether accept redeeming or not.
-pub trait SlpxOperator<AccountId, Balance> {
+pub trait SlpxOperator<AccountId, Balance, BlockNumber, OriginFor = (), TargetChain = ()> {
 	fn get_moonbeam_transfer_to_fee() -> Balance;
 	fn get_hyperbridge_payer_and_fee(dest: u32) -> Result<(AccountId, Balance), DispatchError>;
+	fn handle_hyperbridge_oracle(
+		current_block_number: Option<BlockNumber>, // None means processing all currency
+		target_currency: Option<CurrencyId>,
+		weight: &mut Weight,
+	) -> DispatchResult;
+
+	/// Execute async mint operation for a specific currency to a chain
+	fn async_mint(
+		_currency_id: CurrencyId,
+		_chain_id: u32,
+		_required_amount: Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	/// Execute redeem operation for a specific currency from a chain
+	fn redeem(
+		_origin: OriginFor,
+		_evm_caller: H160,
+		_vtoken_id: CurrencyId,
+		_target_chain: TargetChain,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	/// Execute redeem operation for a specific currency from a chain without ensuring the origin
+	fn redeem_without_ensure_origin(
+		_bifrost_chain_caller: AccountId,
+		_vtoken_id: CurrencyId,
+		_target_chain: TargetChain,
+	) -> DispatchResult {
+		Ok(())
+	}
 }
 
 /// A mapping between CurrencyId and AssetMetadata.
@@ -260,6 +303,7 @@ pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
 	) -> DispatchResultWithPostInfo;
 	fn slpx_redeem(
 		exchanger: AccountId,
+		currency_id: Option<CurrencyId>,
 		vtoken_id: CurrencyId,
 		vtoken_amount: Balance,
 		redeem: RedeemType<AccountId>,
@@ -302,6 +346,7 @@ impl<AccountId, CurrencyId, Balance: Zero> VtokenMintingInterface<AccountId, Cur
 
 	fn slpx_redeem(
 		_exchanger: AccountId,
+		_currency_id: Option<CurrencyId>,
 		_vtoken_id: CurrencyId,
 		_vtoken_amount: Balance,
 		_redeem_type: RedeemType<AccountId>,

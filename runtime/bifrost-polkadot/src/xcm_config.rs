@@ -50,7 +50,7 @@ pub use xcm_builder::{
 };
 use xcm_builder::{
 	DescribeAllTerminal, DescribeFamily, FrameTransactionalProcessor, HashedDescription,
-	TrailingSetTopicAsId, WithComputedOrigin, WithUniqueTopic,
+	TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
 
 parameter_types! {
@@ -67,6 +67,9 @@ parameter_types! {
 	pub const UnitWeightCost: Weight = Weight::from_parts(50_000_000, 0);
 	// Maximum number of instructions that can be executed in one XCM message
 	pub const MaxInstructions: u32 = 100;
+	pub DotLocation: Location = Location::parent();
+	pub const MaxAssetsIntoHolding: u32 = 64;
+	pub WeightPrice: (AssetId, u128, u128) = (AssetId(LocalBncLocation::get()), 1_000_000, 1024);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -263,12 +266,11 @@ impl xcm_executor::Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type Trader = XcmWeightTrader<WeightToFee, Prices, AssetIdMaps<Runtime>, ToTreasury>;
-	// TODO: Implement XcmWeigher, using real Weight, currently per instruction Weight =
-	// Weight::from_parts(50_000_000, 0)
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type Weigher =
+		WeightInfoBounds<weights::xcm::BifrostXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 	type XcmSender = XcmRouter;
 	type PalletInstancesInfo = AllPalletsWithSystem;
-	type MaxAssetsIntoHolding = ConstU32<8>;
+	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = SafeCallFilter;
@@ -306,13 +308,11 @@ impl pallet_xcm::Config for Runtime {
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type UniversalLocation = PolkadotUniversalLocation;
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type Weigher =
+		WeightInfoBounds<weights::xcm::BifrostXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 	type XcmExecuteFilter = Nothing;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmReserveTransferFilter = Everything;
-	#[cfg(feature = "runtime-benchmarks")]
-	type XcmRouter = MockXcmRouter;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type XcmRouter = XcmRouter;
 	type XcmTeleportFilter = Nothing;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -324,7 +324,7 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
-	type WeightInfo = weights::pallet_xcm::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_xcm::BifrostWeight<Runtime>;
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
@@ -466,7 +466,8 @@ impl orml_xtokens::Config for Runtime {
 	type UniversalLocation = PolkadotUniversalLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type Weigher =
+		WeightInfoBounds<weights::xcm::BifrostXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
 	type MinXcmFee = ParachainMinFee;

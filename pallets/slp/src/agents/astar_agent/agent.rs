@@ -28,7 +28,9 @@ use crate::{
 	DelegatorsMultilocation2Index, LedgerUpdateEntry, MinimumsAndMaximums, Pallet, TimeUnit,
 	Validators,
 };
-use bifrost_primitives::{CurrencyId, VtokenMintingOperator, XcmOperationType, ASTR_TOKEN_ID};
+use bifrost_primitives::{
+	CurrencyId, SlpxOperator, VtokenMintingOperator, XcmOperationType, ASTR_TOKEN_ID,
+};
 use core::marker::PhantomData;
 use frame_support::{ensure, traits::Get};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -598,6 +600,9 @@ impl<T: Config>
 				Err(Error::<T>::Unexpected)?
 			}
 		})?;
+
+		T::BifrostSlpx::handle_hyperbridge_oracle(None, Some(currency_id), &mut Weight::default())
+			.map_err(|_| Error::<T>::HandleHyperbridgeOracleError)?;
 
 		Ok(())
 	}

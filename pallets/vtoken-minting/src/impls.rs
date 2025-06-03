@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::EthUnlockNextId;
 use crate::{
 	AccountIdOf, BalanceOf, Config, CurrencyIdOf, Error, Event, Fees, HookIterationLimit,
 	MinTimeUnit, MinimumMint, MinimumRedeem, MintWithLockBlocks, OnRedeemSuccess, OngoingTimeUnit,
@@ -28,7 +29,7 @@ use bifrost_primitives::{
 	currency::BNC, AstarChainId, CurrencyId, CurrencyIdExt, HydrationChainId, HyperBridgeSender,
 	InterlayChainId, MantaChainId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
 	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, FIL, HYPERBRIDGE_TIMEOUT,
-	V_WETH,
+	V_ETH,
 };
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
@@ -624,6 +625,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Helper function to check if a currency is a supported ETH token
+	pub fn is_supported_eth(currency_id: &CurrencyIdOf<T>) -> bool {
+		SupportedEth::<T>::get().contains(currency_id)
+	}
+
 	pub fn do_mint(
 		minter: AccountIdOf<T>,
 		currency_id: CurrencyIdOf<T>,
@@ -636,8 +642,8 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::BelowMinimumMint
 		);
 
-		let v_currency_id = if SupportedEth::<T>::get().contains(&currency_id) {
-			V_WETH
+		let v_currency_id = if Self::is_supported_eth(&currency_id) {
+			V_ETH
 		} else {
 			currency_id
 				.to_vtoken()
@@ -679,11 +685,13 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let currency_id = match currency_id {
 			Some(currency_id) => {
-				ensure!(
-					SupportedEth::<T>::get().contains(&currency_id),
-					Error::<T>::NotSupportTokenType
-				);
-				currency_id
+				if SupportedEth::<T>::get().contains(&currency_id) {
+					currency_id
+				} else {
+					v_currency_id
+						.to_token()
+						.map_err(|_| Error::<T>::NotSupportTokenType)?
+				}
 			}
 			None => v_currency_id
 				.to_token()
@@ -730,41 +738,80 @@ impl<T: Config> Pallet<T> {
 		// Decrease the token pool amount
 		Self::update_token_pool(&currency_id, &currency_amount, Operation::Sub)?;
 
-		TokenUnlockNextId::<T>::mutate(&currency_id, |next_id| -> DispatchResultWithPostInfo {
-			Self::update_unlock_ledger(
-				&redeemer,
-				&currency_id,
-				&currency_amount,
-				&next_id,
-				&lock_to_time_unit,
-				Some(redeem_type),
-				Operation::Add,
-			)?;
+		// Use EthUnlockNextId for ETH tokens in SupportedEth list
+		if Self::is_supported_eth(&currency_id) {
+			EthUnlockNextId::<T>::mutate(|next_id| -> DispatchResultWithPostInfo {
+				Self::update_unlock_ledger(
+					&redeemer,
+					&currency_id,
+					&currency_amount,
+					&next_id,
+					&lock_to_time_unit,
+					Some(redeem_type),
+					Operation::Add,
+				)?;
 
-			Self::deposit_event(Event::Redeemed {
-				redeemer: redeemer.clone(),
-				currency_id,
-				v_currency_amount,
-				currency_amount,
-				redeem_fee,
-				unlock_id: *next_id,
-			});
+				Self::deposit_event(Event::Redeemed {
+					redeemer: redeemer.clone(),
+					currency_id,
+					v_currency_amount,
+					currency_amount,
+					redeem_fee,
+					unlock_id: *next_id,
+				});
 
-			// Increase the next unlock id
-			*next_id = next_id
-				.checked_add(1)
-				.ok_or(Error::<T>::CalculationOverflow)?;
+				// Increase the next unlock id
+				*next_id = next_id
+					.checked_add(1)
+					.ok_or(Error::<T>::CalculationOverflow)?;
 
-			T::ChannelCommission::record_redeem_amount(v_currency_id, v_currency_amount)?;
-			let extra_weight = T::OnRedeemSuccess::on_redeemed(
-				redeemer,
-				currency_id,
-				currency_amount,
-				v_currency_amount,
-				redeem_fee,
-			);
-			Ok(Some(T::WeightInfo::redeem() + extra_weight).into())
-		})
+				T::ChannelCommission::record_redeem_amount(v_currency_id, v_currency_amount)?;
+				let extra_weight = T::OnRedeemSuccess::on_redeemed(
+					redeemer,
+					currency_id,
+					currency_amount,
+					v_currency_amount,
+					redeem_fee,
+				);
+				Ok(Some(T::WeightInfo::redeem() + extra_weight).into())
+			})
+		} else {
+			TokenUnlockNextId::<T>::mutate(&currency_id, |next_id| -> DispatchResultWithPostInfo {
+				Self::update_unlock_ledger(
+					&redeemer,
+					&currency_id,
+					&currency_amount,
+					&next_id,
+					&lock_to_time_unit,
+					Some(redeem_type),
+					Operation::Add,
+				)?;
+
+				Self::deposit_event(Event::Redeemed {
+					redeemer: redeemer.clone(),
+					currency_id,
+					v_currency_amount,
+					currency_amount,
+					redeem_fee,
+					unlock_id: *next_id,
+				});
+
+				// Increase the next unlock id
+				*next_id = next_id
+					.checked_add(1)
+					.ok_or(Error::<T>::CalculationOverflow)?;
+
+				T::ChannelCommission::record_redeem_amount(v_currency_id, v_currency_amount)?;
+				let extra_weight = T::OnRedeemSuccess::on_redeemed(
+					redeemer,
+					currency_id,
+					currency_amount,
+					v_currency_amount,
+					redeem_fee,
+				);
+				Ok(Some(T::WeightInfo::redeem() + extra_weight).into())
+			})
+		}
 	}
 
 	pub fn incentive_pool_account() -> AccountIdOf<T> {
@@ -853,7 +900,7 @@ impl<T: Config> Pallet<T> {
 		let current_block_number: BlockNumberFor<T> =
 			T::BlockNumberProvider::current_block_number();
 		// get the veBNC total amount
-		let vebnc_total_issuance = T::BbBNC::total_supply(current_block_number)
+		let vebnc_total_issuance = T::BbBNC::total_supply(Some(current_block_number))
 			.map_err(|_| Error::<T>::VeBNCCheckingError)?;
 		ensure!(
 			vebnc_total_issuance > BalanceOf::<T>::zero(),
@@ -984,6 +1031,44 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 	fn get_moonbeam_parachain_id() -> u32 {
 		T::MoonbeamChainId::get()
 	}
+
+	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyIdOf<T>, DispatchError> {
+		if SupportedEth::<T>::get().contains(&currency_id) {
+			Ok(V_ETH)
+		} else {
+			let currency_id = currency_id
+				.to_vtoken()
+				.map_err(|_| Error::<T>::NotSupportTokenType)?;
+			Ok(currency_id)
+		}
+	}
+
+	fn calculate_v_currency_amount_by_currency_amount(
+		currency_id: CurrencyIdOf<T>,
+		v_currency_id: CurrencyIdOf<T>,
+		currency_amount: BalanceOf<T>,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		let token_pool_amount = <Pallet<T> as VtokenMintingOperator<
+			CurrencyIdOf<T>,
+			BalanceOf<T>,
+			AccountIdOf<T>,
+			TimeUnit,
+		>>::get_token_pool(currency_id);
+		let v_currency_total_issuance = T::MultiCurrency::total_issuance(v_currency_id);
+
+		if BalanceOf::<T>::zero().eq(&token_pool_amount) {
+			Ok(currency_amount)
+		} else {
+			Ok(multiply_by_rational_with_rounding(
+				currency_amount.saturated_into::<u128>(),
+				v_currency_total_issuance.saturated_into::<u128>(),
+				token_pool_amount.saturated_into::<u128>(),
+				Rounding::Down,
+			)
+			.ok_or(Error::<T>::CalculationOverflow)?
+			.unique_saturated_into())
+		}
+	}
 }
 
 impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>>
@@ -1015,13 +1100,14 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 
 	fn slpx_redeem(
 		exchanger: AccountIdOf<T>,
+		currency_id: Option<CurrencyIdOf<T>>,
 		v_currency_id: CurrencyIdOf<T>,
 		v_currency_amount: BalanceOf<T>,
 		redeem_type: RedeemType<AccountIdOf<T>>,
 	) -> DispatchResultWithPostInfo {
 		Self::do_redeem(
 			exchanger,
-			None,
+			currency_id,
 			v_currency_id,
 			v_currency_amount,
 			redeem_type,

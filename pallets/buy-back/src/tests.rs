@@ -23,11 +23,12 @@
 use crate::{mock::*, *};
 use frame_support::{assert_noop, assert_ok};
 use sp_arithmetic::per_things::Permill;
+use std::collections::HashSet;
 
 const PARAID: u32 = 2001;
 const VALUE: u128 = 1000;
-const BUYBACK_DURATION: u64 = 2;
-const LIQUID_DURATION: u64 = 1000;
+const BUYBACK_DURATION: u32 = 2;
+const LIQUID_DURATION: u32 = 1000;
 const LIQUID_PROPORTION: Permill = Permill::from_percent(2);
 
 #[test]
@@ -439,6 +440,48 @@ fn on_initialize_with_bias_should_not_work() {
 			);
 			assert_eq!(Currencies::free_balance(BNC, &buyback_account), 0);
 			assert_eq!(Currencies::free_balance(BNC, &incentive_account), 0);
+		});
+}
+
+#[test]
+fn get_target_block_should_generate_random_blocks() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			let duration = 10u32;
+			let currency_id = VKSM;
+
+			// Test with different last block numbers
+			let mut results = HashSet::new();
+			for last_block in 1..=5 {
+				let target = BuyBack::get_target_block(last_block, currency_id, duration.into());
+				results.insert(target);
+			}
+
+			// Verify that we get different target blocks
+			assert!(results.len() > 1, "Should generate different target blocks");
+
+			// Verify that all targets are within valid range
+			for target in &results {
+				assert!(
+					target >= &1 && target <= &(duration as u32),
+					"Target block should be within valid range"
+				);
+			}
+
+			// Test with different currency IDs
+			let mut results = HashSet::new();
+			for currency in [VKSM, VDOT, VBNC] {
+				let target = BuyBack::get_target_block(1u32, currency, duration);
+				results.insert(target);
+			}
+
+			// Verify that different currencies generate different targets
+			assert!(
+				results.len() > 1,
+				"Different currencies should generate different targets"
+			);
 		});
 }
 

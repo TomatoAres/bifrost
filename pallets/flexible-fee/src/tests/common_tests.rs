@@ -26,8 +26,8 @@ use crate::{
 use bifrost_asset_registry::AssetMetadata;
 use bifrost_asset_registry::CurrencyMetadatas;
 use bifrost_primitives::{
-	AccountFeeCurrency, BalanceCmp, CurrencyId, TryConvertFrom, BNC, DOT, KSM, MANTA, VBNC, VDOT,
-	WETH,
+	AccountFeeCurrency, BalanceCmp, CurrencyId, TryConvertFrom, BNC, DOT, ETH, KSM, MANTA, VBNC,
+	VDOT,
 };
 use frame_support::{
 	assert_noop, assert_ok, assert_storage_noop,
@@ -244,7 +244,31 @@ fn ini_meta_data() {
 		Box::new(metadata.clone())
 	));
 
-	assert_eq!(CurrencyMetadatas::<Test>::get(WETH), Some(metadata.clone()));
+	let metadata = AssetMetadata {
+		name: b"Liquid Wave".to_vec(),
+		symbol: b"WAVE".to_vec(),
+		decimals: 18,
+		minimal_balance: 15000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	let metadata = AssetMetadata {
+		name: b"Native ETH".to_vec(),
+		symbol: b"ETH".to_vec(),
+		decimals: 18,
+		minimal_balance: 15000000000000,
+	};
+
+	assert_ok!(AssetRegistry::register_token_metadata(
+		RuntimeOrigin::signed(CouncilAccount::get()),
+		Box::new(metadata.clone())
+	));
+
+	assert_eq!(CurrencyMetadatas::<Test>::get(ETH), Some(metadata.clone()));
 }
 
 fn basic_setup() {
@@ -619,7 +643,7 @@ fn get_fee_currency_should_work_with_default_currency() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 100u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 100u128.pow(18))); // ETH
 
 		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
 		assert_eq!(currency, BNC);
@@ -642,7 +666,7 @@ fn get_fee_currency_should_work_with_dot() {
 			&ALICE,
 			660u128 * 10u128.pow(10) + 1
 		));
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18)));
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 100u128.pow(18)));
 
 		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
 		assert_eq!(currency, DOT);
@@ -665,10 +689,10 @@ fn get_fee_currency_should_work_with_dot_weth() {
 			&ALICE,
 			660u128 * 10u128.pow(10) - 1
 		));
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18)));
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 100u128.pow(18)));
 
 		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
-		assert_eq!(currency, WETH);
+		assert_eq!(currency, ETH);
 	});
 }
 
@@ -687,10 +711,10 @@ fn get_fee_currency_should_work_with_default_currency_poor() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 100u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 100u128.pow(18))); // ETH
 
 		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
-		assert_eq!(currency, WETH);
+		assert_eq!(currency, ETH);
 	});
 }
 
@@ -703,10 +727,10 @@ fn get_fee_currency_should_work_with_weth() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 100u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 100u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 100u128.pow(18))); // ETH
 
 		let currency = FlexibleFee::get_fee_currency(&ALICE, 10u128.pow(18).into()).unwrap();
-		assert_eq!(currency, WETH);
+		assert_eq!(currency, ETH);
 	});
 }
 
@@ -719,7 +743,7 @@ fn get_fee_currency_should_work_with_weth_poor() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 100u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 1u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 1u128.pow(18))); // ETH
 
 		let asset_order_list_vec: BoundedVec<
 			CurrencyId,
@@ -751,7 +775,7 @@ fn get_fee_currency_should_work_with_universal_fee_currency() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 100u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 100u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 1u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 1u128.pow(18))); // ETH
 
 		let asset_order_list_vec: BoundedVec<
 			CurrencyId,
@@ -777,7 +801,7 @@ fn get_fee_currency_should_work_with_universal_fee_currency_poor() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 100u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 1u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 100u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 1u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 1u128.pow(18))); // ETH
 
 		let asset_order_list_vec: BoundedVec<
 			CurrencyId,
@@ -809,7 +833,7 @@ fn get_fee_currency_should_work_with_all_currency_poor() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE, 5u128.pow(10))); // DOT
 		assert_ok!(Currencies::deposit(VDOT, &ALICE, 4u128.pow(10))); // vDOT
 		assert_ok!(Currencies::deposit(KSM, &ALICE, 3u128.pow(12))); // KSM CurrencyNotSupport
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 2u128.pow(18))); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 2u128.pow(18))); // ETH
 
 		let asset_order_list_vec: BoundedVec<
 			CurrencyId,
@@ -831,9 +855,9 @@ fn cmp_with_weth_should_work_with_weth() {
 	new_test_ext().execute_with(|| {
 		ini_meta_data();
 
-		assert_ok!(Currencies::deposit(WETH, &ALICE, 10u128.pow(18) - 10)); // ETH
+		assert_ok!(Currencies::deposit(ETH, &ALICE, 10u128.pow(18) - 10)); // ETH
 
-		let ordering = FlexibleFee::cmp_with_weth(&ALICE, &WETH, 10u128.pow(18)).unwrap();
+		let ordering = FlexibleFee::cmp_with_weth(&ALICE, &ETH, 10u128.pow(18)).unwrap();
 		assert_eq!(ordering, Less);
 	});
 }

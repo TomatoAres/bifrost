@@ -25,7 +25,7 @@ pub trait BbBNCInterface<AccountId, CurrencyId, Balance, BlockNumber> {
 	fn deposit_for(_who: &AccountId, position: u128, value: Balance) -> DispatchResult;
 	fn withdraw_inner(who: &AccountId, position: u128) -> DispatchResult;
 	fn balance_of(who: &AccountId, time: Option<BlockNumber>) -> Result<Balance, DispatchError>;
-	fn total_supply(t: BlockNumber) -> Result<Balance, DispatchError>;
+	fn total_supply(time: Option<BlockNumber>) -> Result<Balance, DispatchError>;
 	fn supply_at(
 		point: Point<Balance, BlockNumber>,
 		t: BlockNumber,
@@ -116,7 +116,7 @@ where
 		U256::zero()
 	}
 
-	fn total_supply(_t: BlockNumber) -> Result<Balance, DispatchError> {
+	fn total_supply(_time: Option<BlockNumber>) -> Result<Balance, DispatchError> {
 		Ok(Zero::zero())
 	}
 

@@ -171,6 +171,7 @@ impl VtokenMintingInterface<AccountId, CurrencyId, Balance> for SimpleVtokenMint
 
 	fn slpx_redeem(
 		_exchanger: AccountId,
+		_currency_id: Option<CurrencyId>,
 		_vtoken_id: CurrencyId,
 		_vtoken_amount: Balance,
 		_redeem: RedeemType<AccountId>,

@@ -87,13 +87,14 @@ type StakingAgentBoxType<T> = Box<
 pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 	<T as frame_system::Config>::AccountId,
 >>::CurrencyId;
-const SIX_MONTHS: u32 = 5 * 60 * 24 * 180;
+const SIX_MONTHS: u32 = 5 * 60 * 24 * 180 * 2;
 const ITERATE_LENGTH: usize = 100;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use crate::agents::{AstarAgent, FilecoinAgent, ParachainStakingAgent, PhalaAgent};
+	use bifrost_primitives::{SlpxOperator, TargetChain};
 	use frame_support::dispatch::GetDispatchInfo;
 	use orml_traits::XcmTransfer;
 	use pallet_xcm::ensure_response;
@@ -170,6 +171,15 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type TreasuryAccount: Get<Self::AccountId>;
+
+		/// Slpx operator
+		type BifrostSlpx: SlpxOperator<
+			AccountIdOf<Self>,
+			BalanceOf<Self>,
+			BlockNumberFor<Self>,
+			OriginFor<Self>,
+			TargetChain<AccountIdOf<Self>>,
+		>;
 	}
 
 	#[pallet::error]
@@ -257,6 +267,8 @@ pub mod pallet {
 		ExceedLimit,
 		InvalidPageNumber,
 		NoMoreValidatorBoostListForCurrency,
+		/// Hyperbridge price feed failed.
+		HandleHyperbridgeOracleError,
 	}
 
 	#[pallet::event]
@@ -527,7 +539,7 @@ pub mod pallet {
 
 	/// The current storage version, we set to 3 our new version(after migrate stroage from vec t
 	/// boundedVec).
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 	/// One operate origin(can be a multisig account) for a currency. An operating origins are
 	/// normal account in Bifrost chain.

@@ -20,10 +20,10 @@ use crate::chain_spec::{get_account_id_from_seed, get_from_seed, RelayExtensions
 use bifrost_parachain_staking::{InflationInfo, Range};
 use bifrost_polkadot_runtime::{AccountId, Balance, BlockNumber, SS58Prefix};
 use bifrost_primitives::{
-	currency::{BNCS, DED, IBTC, INTR, PEN, PINK, USDC, WETH},
-	BifrostPolkadotChainId, CurrencyId,
-	CurrencyId::*,
-	TokenInfo, TokenSymbol, ASTR, BNC, DOT, DOT_TOKEN_ID, DOT_U, FIL, GLMR, MANTA,
+	currency::{BNCS, DED, IBTC, INTR, PEN, PINK, USDC, WAVE, WETH},
+	BifrostPolkadotChainId,
+	CurrencyId::{self, *},
+	TokenInfo, TokenSymbol, ASTR, BNC, DOT, DOT_TOKEN_ID, DOT_U, ETH, FIL, GLMR, MANTA,
 };
 use bifrost_runtime_common::{
 	constants::{currency::DOLLARS, time::HOURS},
@@ -159,6 +159,7 @@ pub fn bifrost_polkadot_genesis(
 			"emergencyPrice": vec![
 				(DOT, FixedU128::from_inner(6_000_000_000_000_000_000u128)),
 				(WETH, FixedU128::from_inner(3000_000_000_000_000_000_000u128)),
+				(ETH, FixedU128::from_inner(3000_000_000_000_000_000_000u128)),
 				(BNC, FixedU128::from_inner(250_000_000_000_000_000u128)),
 			]
 		},
@@ -203,6 +204,7 @@ pub fn local_testnet_config() -> ChainSpec {
 			vec![
 				(x.clone(), DOT, ENDOWMENT() * 4_000_000),
 				(x.clone(), WETH, ENDOWMENT() * 4_000_000),
+				(x.clone(), ETH, ENDOWMENT() * 4_000_000),
 			]
 		})
 		.collect();
@@ -300,6 +302,16 @@ pub fn local_testnet_config() -> ChainSpec {
 			WETH,
 			100_000_000,
 			Some((String::from("SnowBridge WETH"), String::from("SWETH"), 18u8)),
+		),
+		(
+			WAVE,
+			100_000_000,
+			Some((String::from("Wave"), String::from("WAVE"), 18u8)),
+		),
+		(
+			ETH,
+			100_000_000,
+			Some((String::from("Ethereum"), String::from("ETH"), 18u8)),
 		),
 	];
 	let vcurrency = vec![
