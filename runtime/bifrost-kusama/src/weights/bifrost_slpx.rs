@@ -205,7 +205,7 @@ impl<T: frame_system::Config> bifrost_slpx::WeightInfo for BifrostWeight<T> {
 	// Proof: `Slpx::AsyncMintConfig` (`max_values`: Some(1), `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
 	// Storage: `Slpx::AsyncMintExecutions` (r:1 w:1)
 	// Proof: `Slpx::AsyncMintExecutions` (`max_values`: None, `max_size`: Some(50), added: 2525, mode: `MaxEncodedLen`)
-	fn correct_vtoken_reserves() -> Weight {
+	fn force_increase_hyperbridge_reserve() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `3544`

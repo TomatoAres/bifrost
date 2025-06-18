@@ -34,7 +34,7 @@ use bifrost_polkadot_runtime::{
 	NativeCurrencyId, SubAccountIndexMultiLocationConvertor, VtokenMinting, XcmInterface,
 };
 use bifrost_primitives::{
-	AccountIdToLocation, CurrencyId, PolkadotUniversalLocation, SelfLocation, SlpxOperator,
+	AccountIdToLocation, CurrencyId, PolkadotUniversalLocation, SelfLocation,
 };
 use bifrost_runtime_common::currency_converter::CurrencyIdConvert;
 use pallet_xcm::{QueryStatus, XcmPassthrough};
@@ -273,32 +273,7 @@ impl bifrost_slp::Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = BifrostTreasuryAccount;
 	type BlockNumberProvider = System;
-	type BifrostSlpx = SlpxInterface;
-}
-
-pub struct SlpxInterface;
-impl
-	SlpxOperator<
-		AccountId,
-		Balance,
-		BlockNumber,
-		RuntimeOrigin,
-		bifrost_primitives::TargetChain<AccountId>,
-	> for SlpxInterface
-{
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
-		unreachable!()
-	}
-	fn handle_hyperbridge_oracle(
-		_current_block_number: Option<BlockNumber>, // None means processing all currency
-		_target_currency: Option<CurrencyId>,
-		_weight: &mut Weight,
-	) -> DispatchResult {
-		unreachable!()
-	}
+	type BifrostSlpx = ();
 }
 
 impl bifrost_asset_registry::Config for Runtime {

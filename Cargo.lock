@@ -1258,7 +1258,7 @@ dependencies = [
 
 [[package]]
 name = "bifrost-cli"
-version = "0.19.0"
+version = "0.19.1"
 dependencies = [
  "bifrost-primitives",
  "bifrost-service",
@@ -11801,6 +11801,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex",
  "ismp",
  "log",
  "orml-traits",

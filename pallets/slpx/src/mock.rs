@@ -19,7 +19,7 @@
 
 use crate as slpx;
 use bifrost_asset_registry::AssetIdMaps;
-pub use bifrost_primitives::{CurrencyId, MockXcmExecutor, SlpxOperator, TokenSymbol, BNC, KSM};
+pub use bifrost_primitives::{CurrencyId, MockXcmExecutor, TokenSymbol, BNC, KSM};
 use bifrost_primitives::{MockXcmTransfer, MoonbeamChainId};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
@@ -29,7 +29,7 @@ use frame_support::{
 	traits::{Contains, Everything, Nothing},
 	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSignedBy};
+use frame_system::EnsureRoot;
 use hex_literal::hex;
 use ismp::host::StateMachine;
 use ismp::module::IsmpModule;
@@ -127,8 +127,6 @@ impl bifrost_currencies::Config for Test {
 parameter_type_with_key! {
 	pub ExistentialDeposits: |currency_id: CurrencyId| -> u128 {
 		match currency_id {
-			&BNC => 10 * 1_000_000_000,
-			&KSM => 10 * 1_000_000_000,
 			_=> 0
 		}
 	};
@@ -163,52 +161,10 @@ ord_parameter_types! {
 	pub const One: AccountId = ALICE;
 }
 
-pub struct SlpxInterface;
-impl
-	SlpxOperator<
-		AccountId,
-		Balance,
-		BlockNumber,
-		RuntimeOrigin,
-		bifrost_primitives::TargetChain<AccountId>,
-	> for SlpxInterface
-{
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
-		unreachable!()
-	}
-	fn handle_hyperbridge_oracle(
-		_current_block_number: Option<BlockNumber>, // None means processing all currency
-		_target_currency: Option<CurrencyId>,
-		_weight: &mut Weight,
-	) -> sp_runtime::DispatchResult {
-		unreachable!()
-	}
-
-	fn async_mint(
-		_currency_id: CurrencyId,
-		_chain_id: u32,
-		_required_amount: Balance,
-	) -> DispatchResult {
-		Ok(())
-	}
-
-	fn redeem(
-		_origin: RuntimeOrigin,
-		_evm_caller: sp_core::H160,
-		_vtoken_id: CurrencyId,
-		_target_chain: bifrost_primitives::TargetChain<AccountId>,
-	) -> DispatchResult {
-		Ok(())
-	}
-}
-
 impl bifrost_vtoken_minting::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
-	type ControlOrigin = EnsureSignedBy<One, AccountId>;
+	type ControlOrigin = EnsureRoot<AccountId>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
 	type MaximumUnlockIdOfTimeUnit = MaximumUnlockIdOfTimeUnit;
 	type EntranceAccount = BifrostEntranceAccount;
@@ -216,7 +172,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type FeeAccount = BifrostFeeAccount;
 	type RedeemFeeAccount = BifrostFeeAccount;
 	type RelayChainToken = RelayCurrencyId;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
 	type XcmTransfer = MockXcmTransfer;
@@ -406,4 +362,28 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(0));
 	ext
+}
+
+pub(crate) fn last_event() -> RuntimeEvent {
+	frame_system::Pallet::<Test>::events()
+		.pop()
+		.expect("Event expected")
+		.event
+}
+
+pub(crate) fn last_two_events() -> Vec<RuntimeEvent> {
+	let mut events = Vec::new();
+	let mut onchain_events = frame_system::Pallet::<Test>::events();
+	events.push(onchain_events.pop().expect("Event expected").event);
+	events.push(onchain_events.pop().expect("Event expected").event);
+	events.reverse();
+	events
+}
+
+pub(crate) fn expect_two_events<E: Into<RuntimeEvent>>(e1: E, e2: E) {
+	assert_eq!(last_two_events(), vec![e1.into(), e2.into()]);
+}
+
+pub(crate) fn expect_event<E: Into<RuntimeEvent>>(e: E) {
+	assert_eq!(last_event(), e.into());
 }

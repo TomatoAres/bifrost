@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::pallet;
-use bifrost_primitives::CurrencyId;
+use bifrost_primitives::{CurrencyId, TargetChain};
 use ethereum::TransactionAction;
 use orml_traits::MultiCurrency;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -43,44 +43,15 @@ pub const HYDRATION_EMA_ORACLE_CALL_INDEX: u8 = 2;
 pub const HYDRATION_CALL_FEE: u128 = 2_000_000_000_000;
 pub const HYDRATION_CALL_WEIGHT: Weight = Weight::from_parts(10_000_000_000, 300_000);
 
+// Async Mint Remaining Blocks
+pub const ASYNC_MINT_REMAINING_BLOCKS: u8 = 1;
+
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type CurrencyIdOf<T> = <<T as pallet::Config>::MultiCurrency as MultiCurrency<
 	<T as frame_system::Config>::AccountId,
 >>::CurrencyId;
 pub type BalanceOf<T> =
 	<<T as pallet::Config>::MultiCurrency as MultiCurrency<AccountIdOf<T>>>::Balance;
-
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum SupportChain {
-	Astar,
-	Moonbeam,
-	Hydradx,
-	Interlay,
-	Manta,
-}
-
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum TargetChain<AccountId> {
-	Astar(H160),
-	Moonbeam(H160),
-	Hydradx(AccountId),
-	Interlay(AccountId),
-	Manta(AccountId),
-	HyperBridge(u32, H160),
-}
-
-impl<AccountId> TargetChain<AccountId> {
-	pub fn support_chain(self: &TargetChain<AccountId>) -> SupportChain {
-		match self {
-			TargetChain::Astar(_) => SupportChain::Astar,
-			TargetChain::Moonbeam(_) => SupportChain::Moonbeam,
-			TargetChain::Hydradx(_) => SupportChain::Hydradx,
-			TargetChain::Interlay(_) => SupportChain::Interlay,
-			TargetChain::Manta(_) => SupportChain::Manta,
-			_ => unreachable!(),
-		}
-	}
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct EthereumCallConfiguration<BlockNumber> {

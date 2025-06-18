@@ -181,6 +181,7 @@ try-kusama-runtime-upgrade-snap:build-try-runtime
 		--runtime \
 			target/release/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
+		--blocktime 6000 \
 		--disable-idempotency-checks \
 		--checks=all \
 		snap -p bifrost@latest.snap

@@ -26,7 +26,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId, CurrencyIdMapping,
-	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, SlpxOperator, ETH, KUSD, V_ETH, WETH,
+	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, ETH, KUSD, V_ETH, WETH,
 };
 use bifrost_runtime_common::{micro, milli};
 use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::Nothing};
@@ -180,7 +180,7 @@ impl vtoken_minting::Config for Runtime {
 	type FeeAccount = BifrostFeeAccount;
 	type RedeemFeeAccount = BifrostFeeAccount;
 	type IncentivePoolAccount = IncentivePoolAccount;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 	type BbBNC = BbBNC;
 	type RelayChainToken = RelayCurrencyId;
 	type WeightInfo = ();
@@ -200,31 +200,6 @@ impl bifrost_asset_registry::Config for Runtime {
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
-}
-
-pub struct SlpxInterface;
-impl
-	SlpxOperator<
-		AccountId,
-		Balance,
-		BlockNumber,
-		RuntimeOrigin,
-		bifrost_primitives::TargetChain<AccountId>,
-	> for SlpxInterface
-{
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
-		unreachable!()
-	}
-	fn handle_hyperbridge_oracle(
-		_current_block_number: Option<BlockNumber>, // None means processing all currency
-		_target_currency: Option<CurrencyId>,
-		_weight: &mut Weight,
-	) -> DispatchResult {
-		unreachable!()
-	}
 }
 
 pub struct ExtBuilder {

@@ -140,7 +140,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		StateMachine,
 		BoundedVec<Vec<u8>, T::MaxLengthLimit>,
-		OptionQuery,
+		ValueQuery,
 	>;
 
 	/// Pallet events that functions in this pallet can emit.

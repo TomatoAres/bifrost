@@ -41,6 +41,10 @@ pallet-hyperbridge = { workspace = true }
 
 bifrost-primitives = { workspace = true }
 orml-traits = { workspace = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+
 [features]
 default = ["std"]
 std = [
@@ -58,6 +62,7 @@ std = [
     "alloy-primitives/std",
     "pallet-hyperbridge/std",
     "token-gateway-primitives/std",
+    "bifrost-primitives/std",
     "orml-traits/std",
     "pallet-balances/std"
 ]

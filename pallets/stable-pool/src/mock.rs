@@ -19,8 +19,7 @@ use crate as bifrost_stable_pool;
 use bifrost_asset_registry::AssetIdMaps;
 pub use bifrost_primitives::{
 	currency::{MOVR, VMOVR},
-	Balance, CurrencyId, CurrencyIdMapping, SlpxOperator, TokenSymbol, ASTR, BNC, DOT, GLMR, VBNC,
-	VDOT,
+	Balance, CurrencyId, CurrencyIdMapping, TokenSymbol, ASTR, BNC, DOT, GLMR, VBNC, VDOT,
 };
 use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, IncentivePoolAccount, MoonbeamChainId,
@@ -259,25 +258,6 @@ parameter_types! {
 	pub const MaximumUnlockIdOfTimeUnit: u32 = 1_000;
 }
 
-pub struct SlpxInterface;
-impl SlpxOperator<u128, Balance, BlockNumber, RuntimeOrigin, bifrost_primitives::TargetChain<u128>>
-	for SlpxInterface
-{
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(u128, Balance), DispatchError> {
-		unreachable!()
-	}
-	fn handle_hyperbridge_oracle(
-		_current_block_number: Option<BlockNumber>, // None means processing all currency
-		_target_currency: Option<CurrencyId>,
-		_weight: &mut Weight,
-	) -> DispatchResult {
-		unreachable!()
-	}
-}
-
 ord_parameter_types! {
 	pub const RelayCurrencyId: CurrencyId = KSM;
 }
@@ -297,7 +277,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type OnRedeemSuccess = ();
 	type XcmTransfer = XTokens;
 	type MoonbeamChainId = MoonbeamChainId;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 	type ChannelCommission = ();
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;

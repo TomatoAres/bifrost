@@ -22,7 +22,7 @@
 
 use crate::{
 	AssetIds, AssetMetadata, Balance, CurrencyId, DerivativeIndex, LeasePeriod, ParaId, PoolId,
-	RedeemType, TokenId, TokenSymbol, XcmOperationType, H160,
+	RedeemType, TokenId, TokenSymbol, XcmOperationType,
 };
 use frame_support::pallet_prelude::{DispatchResultWithPostInfo, Weight};
 use parity_scale_codec::{Decode, Encode, FullCodec};
@@ -160,28 +160,39 @@ pub trait SlpxOperator<AccountId, Balance, BlockNumber, OriginFor = (), TargetCh
 
 	/// Execute async mint operation for a specific currency to a chain
 	fn async_mint(
+		_caller: AccountId,
 		_currency_id: CurrencyId,
-		_chain_id: u32,
-		_required_amount: Balance,
-	) -> DispatchResult {
-		Ok(())
+		_currency_amount: Balance,
+		_from_chain_id: u32,
+		_slpx_input_v_currency_amount: Balance,
+	) -> DispatchResult;
+}
+
+impl<AccountId, Balance: Zero, BlockNumber, OriginFor, TargetChain>
+	SlpxOperator<AccountId, Balance, BlockNumber, OriginFor, TargetChain> for ()
+{
+	fn get_moonbeam_transfer_to_fee() -> Balance {
+		Zero::zero()
 	}
 
-	/// Execute redeem operation for a specific currency from a chain
-	fn redeem(
-		_origin: OriginFor,
-		_evm_caller: H160,
-		_vtoken_id: CurrencyId,
-		_target_chain: TargetChain,
-	) -> DispatchResult {
-		Ok(())
+	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
+		unreachable!()
 	}
 
-	/// Execute redeem operation for a specific currency from a chain without ensuring the origin
-	fn redeem_without_ensure_origin(
-		_bifrost_chain_caller: AccountId,
-		_vtoken_id: CurrencyId,
-		_target_chain: TargetChain,
+	fn handle_hyperbridge_oracle(
+		_current_block_number: Option<BlockNumber>,
+		_target_currency: Option<CurrencyId>,
+		_weight: &mut Weight,
+	) -> DispatchResult {
+		unreachable!()
+	}
+
+	fn async_mint(
+		_caller: AccountId,
+		_currency_id: CurrencyId,
+		_currency_amount: Balance,
+		_from_chain_id: u32,
+		_slpx_input_v_currency_amount: Balance,
 	) -> DispatchResult {
 		Ok(())
 	}
@@ -295,7 +306,7 @@ pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
 		token_amount: Balance,
 		remark: BoundedVec<u8, ConstU32<32>>,
 		channel_id: Option<u32>,
-	) -> Result<Balance, DispatchError>;
+	) -> Result<(CurrencyId, Balance), DispatchError>;
 	fn redeem(
 		exchanger: AccountId,
 		vtoken_id: CurrencyId,
@@ -323,8 +334,8 @@ pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
 	fn get_moonbeam_parachain_id() -> u32;
 }
 
-impl<AccountId, CurrencyId, Balance: Zero> VtokenMintingInterface<AccountId, CurrencyId, Balance>
-	for ()
+impl<AccountId, CurrencyId: Default, Balance: Zero>
+	VtokenMintingInterface<AccountId, CurrencyId, Balance> for ()
 {
 	fn mint(
 		_exchanger: AccountId,
@@ -332,8 +343,8 @@ impl<AccountId, CurrencyId, Balance: Zero> VtokenMintingInterface<AccountId, Cur
 		_token_amount: Balance,
 		_remark: BoundedVec<u8, ConstU32<32>>,
 		_channel_id: Option<u32>,
-	) -> Result<Balance, DispatchError> {
-		Ok(Zero::zero())
+	) -> Result<(CurrencyId, Balance), DispatchError> {
+		Ok((CurrencyId::default(), Zero::zero()))
 	}
 
 	fn redeem(

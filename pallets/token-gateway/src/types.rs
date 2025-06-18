@@ -21,6 +21,9 @@ use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
 use ismp::host::StateMachine;
 use primitive_types::{H160, H256};
+use sp_core::Hasher;
+use sp_runtime::traits::BlakeTwo256;
+use sp_runtime::AccountId32;
 
 pub const ETHEREUM_MESSAGE_PREFIX: &'static str = "\x19Ethereum Signed Message:\n";
 
@@ -90,11 +93,12 @@ alloy_sol_macro::sol! {
 pub struct SubstrateCalldata {
 	/// A scale encoded encoded [MultiSignature](sp_runtime::MultiSignature) of the beneficiary's
 	/// account nonce and the encoded runtime call
-	pub signature: Vec<u8>,
+	pub signature: Option<Vec<u8>>,
 	/// Encoded Runtime call that should be executed
 	pub runtime_call: Vec<u8>,
 }
 /// Type that encapsulates both types of token gateway request bodies
+#[derive(Debug)]
 pub struct RequestBody {
 	pub amount: alloy_primitives::U256,
 	pub asset_id: alloy_primitives::FixedBytes<32>,
@@ -147,11 +151,12 @@ pub trait EvmToSubstrate<T: frame_system::Config> {
 }
 impl<T: frame_system::Config> EvmToSubstrate<T> for ()
 where
-	<T as frame_system::Config>::AccountId: From<[u8; 32]>,
+	<T as frame_system::Config>::AccountId:
+		From<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
 	fn convert(addr: H160) -> <T as frame_system::Config>::AccountId {
-		let mut account = [0u8; 32];
-		account[12..].copy_from_slice(&addr.0);
-		account.into()
+		let payload = (b"AccountId32:", addr);
+		let bytes = payload.using_encoded(BlakeTwo256::hash).0;
+		AccountId32::new(bytes).into()
 	}
 }

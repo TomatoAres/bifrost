@@ -19,7 +19,7 @@
 #![allow(non_upper_case_globals)]
 
 use bifrost_asset_registry::AssetIdMaps;
-pub use bifrost_primitives::{currency::*, CurrencyId, SlpxOperator};
+pub use bifrost_primitives::{currency::*, CurrencyId};
 use bifrost_primitives::{
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, FarmingBoostPalletId,
 	FarmingGaugeRewardIssuerPalletId, FarmingKeeperPalletId, FarmingRewardIssuerPalletId,
@@ -193,7 +193,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type ExitAccount = BifrostExitAccount;
 	type FeeAccount = BifrostFeeAccount;
 	type RedeemFeeAccount = BifrostFeeAccount;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 	type RelayChainToken = RelayCurrencyId;
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
@@ -230,48 +230,6 @@ parameter_types! {
 	pub const MaxLengthLimit: u32 = 100;
 }
 
-pub struct SlpxInterface;
-impl
-	SlpxOperator<
-		AccountId,
-		Balance,
-		BlockNumber,
-		RuntimeOrigin,
-		bifrost_primitives::TargetChain<AccountId>,
-	> for SlpxInterface
-{
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
-		unreachable!()
-	}
-	fn handle_hyperbridge_oracle(
-		_current_block_number: Option<BlockNumber>, // None means processing all currency
-		_target_currency: Option<CurrencyId>,
-		_weight: &mut Weight,
-	) -> DispatchResult {
-		unreachable!()
-	}
-
-	fn async_mint(
-		_currency_id: CurrencyId,
-		_chain_id: u32,
-		_required_amount: Balance,
-	) -> DispatchResult {
-		Ok(())
-	}
-
-	fn redeem(
-		_origin: RuntimeOrigin,
-		_evm_caller: sp_core::H160,
-		_vtoken_id: CurrencyId,
-		_target_chain: bifrost_primitives::TargetChain<AccountId>,
-	) -> DispatchResult {
-		Ok(())
-	}
-}
-
 impl bifrost_slp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -293,7 +251,7 @@ impl bifrost_slp::Config for Runtime {
 	type AssetIdMaps = AssetIdMaps<Runtime>;
 	type TreasuryAccount = TreasuryAccount;
 	type BlockNumberProvider = System;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 }
 
 parameter_types! {

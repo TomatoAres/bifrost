@@ -25,7 +25,7 @@ use bifrost_primitives::{
 	Amount, Balance, BifrostCrowdloanId, BifrostEntranceAccount, BifrostExitAccount,
 	BuybackPalletId,
 	CurrencyId::{self, *},
-	IncentivePoolAccount, MessageId, MockXcmExecutor, ParaId, SlpOperator, SlpxOperator,
+	IncentivePoolAccount, MessageId, MockXcmExecutor, ParaId, SlpOperator,
 	StableAssetPalletId,
 	TokenSymbol::{self, *},
 	ZenlinkPalletId, ASG, KSM, KUSD, VKSM,
@@ -364,16 +364,6 @@ parameter_types! {
 	pub const MaximumUnlockIdOfTimeUnit: u32 = 1_000;
 }
 
-pub struct SlpxInterface;
-impl SlpxOperator<AccountId, Balance> for SlpxInterface {
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
-		unreachable!()
-	}
-}
-
 parameter_type_with_key! {
 	pub ParachainMinFee: |_location: Location| -> Option<u128> {
 		Some(u128::MAX)
@@ -427,7 +417,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type OnRedeemSuccess = ();
 	type XcmTransfer = XTokens;
 	type MoonbeamChainId = MoonbeamChainId;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 	type ChannelCommission = ();
 	type MaxLockRecords = ConstU32<100>;
 	type IncentivePoolAccount = IncentivePoolAccount;

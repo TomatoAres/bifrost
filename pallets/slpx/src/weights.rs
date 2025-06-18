@@ -65,7 +65,7 @@ pub trait WeightInfo {
 	fn async_mint() -> Weight;
 	fn update_async_mint_whitelist() -> Weight;
 	fn update_async_mint_config() -> Weight;
-	fn correct_vtoken_reserves() -> Weight;
+	fn force_increase_hyperbridge_reserve() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -215,7 +215,7 @@ impl WeightInfo for () {
 	}
 	/// Storage: `Slpx::CorrectVTokenReserves` (r:0 w:1)
 	/// Proof: `Slpx::CorrectVTokenReserves` (`max_values`: None, `max_size`: Some(24), added: 519, mode: `MaxEncodedLen`)
-	fn correct_vtoken_reserves() -> Weight {
+	fn force_increase_hyperbridge_reserve() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`

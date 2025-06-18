@@ -168,7 +168,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bifrost"),
 	impl_name: create_runtime_str!("bifrost"),
 	authoring_version: 1,
-	spec_version: 19000,
+	spec_version: 19001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1823,10 +1823,6 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
-parameter_types! {
-	pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
-	pub const MerkleDistributorName: &'static str = "MerkleDistributor";
-}
 /// The runtime migrations per release.
 pub mod migrations {
 	#![allow(unused_imports)]
@@ -1836,11 +1832,6 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<MerkleDistributorName, RocksDbWeight>,
-		bifrost_system_staking::migrations::v3::MigrateToV3<Runtime>,
-		bifrost_slpx::migration::v3::MigrateToV3<Runtime>,
-		bifrost_slp::migrations::v4::SlpMigration<Runtime>,
 	);
 }
 

@@ -145,67 +145,7 @@ impl bifrost_channel_commission::Config for Runtime {
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
 	type BlockNumberProvider = System;
-	type VtokenMintingInterface = SimpleVtokenMintingInterface;
-}
-
-pub struct SimpleVtokenMintingInterface;
-
-impl VtokenMintingInterface<AccountId, CurrencyId, Balance> for SimpleVtokenMintingInterface {
-	fn mint(
-		_exchanger: AccountId,
-		_token_id: CurrencyId,
-		_token_amount: Balance,
-		_remark: BoundedVec<u8, ConstU32<32>>,
-		_channel_id: Option<u32>,
-	) -> Result<Balance, DispatchError> {
-		unimplemented!("method do not need to be implemented yet");
-	}
-
-	fn redeem(
-		_exchanger: AccountId,
-		_vtoken_id: CurrencyId,
-		_vtoken_amount: Balance,
-	) -> DispatchResultWithPostInfo {
-		unimplemented!("method do not need to be implemented yet");
-	}
-
-	fn slpx_redeem(
-		_exchanger: AccountId,
-		_currency_id: Option<CurrencyId>,
-		_vtoken_id: CurrencyId,
-		_vtoken_amount: Balance,
-		_redeem: RedeemType<AccountId>,
-	) -> DispatchResultWithPostInfo {
-		unimplemented!("method do not need to be implemented yet");
-	}
-
-	fn get_v_currency_amount_by_currency_amount(
-		_token_id: CurrencyId,
-		_vtoken_id: CurrencyId,
-		token_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		Ok(token_amount.checked_div(2u64).unwrap())
-	}
-
-	fn get_currency_amount_by_v_currency_amount(
-		_token_id: CurrencyId,
-		_vtoken_id: CurrencyId,
-		_vtoken_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		unimplemented!("method do not need to be implemented yet");
-	}
-
-	fn get_token_pool(_currency_id: CurrencyId) -> Balance {
-		unimplemented!("method do not need to be implemented yet");
-	}
-
-	fn get_minimums_redeem(_vtoken_id: CurrencyId) -> Balance {
-		unimplemented!("method do not need to be implemented yet");
-	}
-
-	fn get_moonbeam_parachain_id() -> u32 {
-		unimplemented!("method do not need to be implemented yet");
-	}
+	type VtokenMintingInterface = ();
 }
 
 pub struct ExtBuilder {

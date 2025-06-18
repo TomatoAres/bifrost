@@ -636,7 +636,7 @@ impl<T: Config> Pallet<T> {
 		currency_amount: BalanceOf<T>,
 		remark: BoundedVec<u8, ConstU32<32>>,
 		channel_id: Option<u32>,
-	) -> Result<BalanceOf<T>, DispatchError> {
+	) -> Result<(CurrencyIdOf<T>, BalanceOf<T>), DispatchError> {
 		ensure!(
 			currency_amount >= MinimumMint::<T>::get(currency_id),
 			Error::<T>::BelowMinimumMint
@@ -673,7 +673,7 @@ impl<T: Config> Pallet<T> {
 			remark,
 			channel_id,
 		});
-		Ok(v_currency_amount.into())
+		Ok((v_currency_id, v_currency_amount))
 	}
 
 	pub fn do_redeem(
@@ -1080,7 +1080,7 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 		currency_amount: BalanceOf<T>,
 		remark: BoundedVec<u8, ConstU32<32>>,
 		channel_id: Option<u32>,
-	) -> Result<BalanceOf<T>, DispatchError> {
+	) -> Result<(CurrencyIdOf<T>, BalanceOf<T>), DispatchError> {
 		Self::do_mint(exchanger, currency_id, currency_amount, remark, channel_id)
 	}
 

@@ -994,7 +994,7 @@ pub mod pallet {
 			);
 
 			// mint vtoken
-			let vtoken_minted = Self::do_mint(
+			let (_, vtoken_minted) = Self::do_mint(
 				minter.clone(),
 				currency_id,
 				currency_amount,

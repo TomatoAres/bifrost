@@ -278,7 +278,7 @@ pub mod v1 {
 
 pub mod slpx_migrates_whitelist {
 	use super::*;
-	use bifrost_slpx::types::SupportChain;
+	use bifrost_primitives::SupportChain;
 	use sp_core::crypto::Ss58Codec;
 
 	pub struct UpdateWhitelist;

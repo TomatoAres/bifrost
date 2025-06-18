@@ -19,7 +19,7 @@
 
 use crate::*;
 use bifrost_asset_registry::CurrencyIdToLocations;
-use bifrost_primitives::{KSM, VKSM};
+use bifrost_primitives::{TimeUnit, KSM, VKSM};
 use bifrost_vtoken_minting;
 use frame_benchmarking::v2::account;
 use frame_benchmarking::v2::*;
@@ -44,6 +44,18 @@ fn init_whitelist<T: Config + bifrost_asset_registry::Config>() -> (T::AccountId
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		VKSM,
 		&evm_caller_account_id,
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+	));
+
+	assert_ok!(<T as Config>::MultiCurrency::deposit(
+		KSM,
+		&caller,
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+	));
+
+	assert_ok!(<T as Config>::MultiCurrency::deposit(
+		VKSM,
+		&caller,
 		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
 	));
 
@@ -110,13 +122,28 @@ mod benchmarks {
 	fn mint() {
 		let (caller, receiver) = init_whitelist::<T>();
 
+		// Set up HyperBridgeOracle
+		HyperBridgeOracle::<T>::insert(
+			1,
+			HyperBridgeOracleConfig {
+				to: H160::default(),
+				timeout: 60,
+				period: 5u32.into(),
+				last_block: 0u32.into(),
+				tokens: BoundedVec::try_from(vec![(KSM, H160::default())]).unwrap(),
+				payer: caller.clone(),
+				fee: 0u32.into(),
+			},
+		);
+
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(caller),
-			receiver,
 			KSM,
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000u128),
 			TargetChain::Astar(receiver),
 			BoundedVec::default(),
+			0,
 		);
 	}
 
@@ -138,11 +165,25 @@ mod benchmarks {
 	#[benchmark]
 	fn redeem() {
 		let (caller, receiver) = init_whitelist::<T>();
+
+		assert_ok!(bifrost_vtoken_minting::Pallet::<T>::set_ongoing_time_unit(
+			RawOrigin::Root.into(),
+			KSM,
+			TimeUnit::Era(1)
+		));
+
+		assert_ok!(bifrost_vtoken_minting::Pallet::<T>::set_unlock_duration(
+			RawOrigin::Root.into(),
+			KSM,
+			TimeUnit::Era(1)
+		));
+
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(caller),
-			receiver,
+			None,
 			VKSM,
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000u128),
 			TargetChain::Astar(receiver),
 		);
 	}
@@ -165,41 +206,8 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn substrate_create_order(l: Linear<0, { T::MaxOrderSize::get() - 1 }>) {
-		let receiver = H160::default();
-
-		for index in 0..l {
-			let caller = account("caller", index, index);
-			Pallet::<T>::substrate_create_order(
-				RawOrigin::Signed(caller).into(),
-				OrderType::Mint,
-				KSM,
-				VKSM,
-				BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
-				TargetChain::Astar(receiver),
-				BoundedVec::default(),
-				0,
-			)
-			.unwrap();
-		}
-
-		let caller = account("caller", 1, 1);
-		#[extrinsic_call]
-		_(
-			RawOrigin::Signed(caller),
-			OrderType::Mint,
-			KSM,
-			VKSM,
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
-			TargetChain::Astar(receiver),
-			BoundedVec::default(),
-			0,
-		);
-	}
-
-	#[benchmark]
 	fn async_mint() -> Result<(), BenchmarkError> {
-		let (caller, _) = init_whitelist::<T>();
+		init_whitelist::<T>();
 
 		// Set up AsyncMintConfig
 		let config = AsyncMintConfiguration {
@@ -208,52 +216,18 @@ mod benchmarks {
 		};
 		AsyncMintConfig::<T>::put(config);
 
-		// Initialize token pool using mint instead of increase_token_pool
-		#[cfg(feature = "runtime-benchmarks")]
-		{
-			let token_amount = bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(
-				10_000_000_000_000u128,
-			);
-
-			// Ensure KSM balance for caller
-			assert_ok!(<T as Config>::MultiCurrency::deposit(
-				KSM,
-				&caller,
-				BalanceOf::<T>::unique_saturated_from(20_000_000_000_000u128)
-			));
-
-			assert_ok!(bifrost_vtoken_minting::Pallet::<T>::mint(
-				RawOrigin::Signed(caller.clone()).into(),
-				KSM.into(),
-				token_amount,
-				BoundedVec::default(),
-				None
-			));
-		}
-
-		// Set up HyperBridgeOracle
-		HyperBridgeOracle::<T>::insert(
-			1,
-			HyperBridgeOracleConfig {
-				to: H160::default(),
-				timeout: 60,
-				period: 5u32.into(),
-				last_block: 0u32.into(),
-				tokens: BoundedVec::try_from(vec![(KSM, H160::default())]).unwrap(),
-				payer: caller.clone(),
-				fee: 5u32.into(),
-			},
-		);
-
-		// Set a past execution time to avoid AsyncMintTooFrequent error
-		let current_block = <T as pallet::Config>::BlockNumberProvider::current_block_number();
-		let past_block = current_block.saturating_sub(100u32.into());
-		AsyncMintExecutions::<T>::insert((KSM, 1), past_block);
+		// Ensure KSM balance for caller
+		assert_ok!(<T as Config>::MultiCurrency::deposit(
+			KSM,
+			&Pallet::<T>::reserve_account(),
+			BalanceOf::<T>::unique_saturated_from(20_000_000_000_000u128)
+		));
 
 		#[extrinsic_call]
 		_(
 			RawOrigin::Root,
-			VKSM,           // Use VKSM instead of KSM
+			KSM, // Use VKSM instead of KSM
+			1000u32.into(),
 			1,              // chain_id
 			1000u32.into(), // required_vtoken_amount
 		);
@@ -273,7 +247,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn correct_vtoken_reserves() -> Result<(), BenchmarkError> {
+	fn force_increase_hyperbridge_reserve() -> Result<(), BenchmarkError> {
 		// Set up AsyncMintConfig
 		let config = AsyncMintConfiguration {
 			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
@@ -305,31 +279,17 @@ mod benchmarks {
 			));
 		}
 
-		// Set up HyperBridgeOracle
-		HyperBridgeOracle::<T>::insert(
-			1,
-			HyperBridgeOracleConfig {
-				to: H160::default(),
-				timeout: 60,
-				period: 5u32.into(),
-				last_block: 0u32.into(),
-				tokens: BoundedVec::try_from(vec![(KSM, H160::default())]).unwrap(),
-				payer: account("payer", 0, 0),
-				fee: 5u32.into(),
-			},
-		);
-
 		// Set a past execution time to avoid AsyncMintTooFrequent error
 		let current_block = <T as pallet::Config>::BlockNumberProvider::current_block_number();
 		let past_block = current_block.saturating_sub(100u32.into());
-		AsyncMintExecutions::<T>::insert((KSM, 1), past_block);
+		AsyncMintExecutions::<T>::insert((VKSM, 1), (past_block, ASYNC_MINT_REMAINING_BLOCKS));
 
 		#[extrinsic_call]
 		_(
 			RawOrigin::Root,
-			1,              // chain_id
-			VKSM,           // Use VKSM instead of KSM
-			1000u32.into(), // amount
+			1,                  // chain_id
+			KSM,                // Use VKSM instead of KSM
+			10000000u32.into(), // amount
 		);
 
 		Ok(())

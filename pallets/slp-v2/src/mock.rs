@@ -21,7 +21,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::DOT, Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount,
 	BlockNumber, CommissionPalletId, CurrencyId, IncentivePoolAccount, MockXcmRouter,
-	MockXcmTransfer, SlpxOperator, BNC,
+	MockXcmTransfer, BNC,
 };
 use frame_support::{
 	derive_impl,
@@ -216,26 +216,6 @@ parameter_types! {
 	pub const RelayCurrencyId: CurrencyId = DOT;
 }
 
-pub struct SlpxInterface;
-impl
-	SlpxOperator<AccountId, Balance, u64, RuntimeOrigin, bifrost_primitives::TargetChain<AccountId>>
-	for SlpxInterface
-{
-	fn get_moonbeam_transfer_to_fee() -> Balance {
-		Default::default()
-	}
-	fn get_hyperbridge_payer_and_fee(_dest: u32) -> Result<(AccountId, Balance), DispatchError> {
-		unreachable!()
-	}
-	fn handle_hyperbridge_oracle(
-		_current_block_number: Option<u64>, // None means processing all currency
-		_target_currency: Option<CurrencyId>,
-		_weight: &mut Weight,
-	) -> DispatchResult {
-		unreachable!()
-	}
-}
-
 impl bifrost_vtoken_minting::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
@@ -247,7 +227,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type FeeAccount = BifrostFeeAccount;
 	type RedeemFeeAccount = BifrostFeeAccount;
 	type RelayChainToken = RelayCurrencyId;
-	type BifrostSlpx = SlpxInterface;
+	type BifrostSlpx = ();
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
 	type XcmTransfer = MockXcmTransfer;

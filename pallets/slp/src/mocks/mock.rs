@@ -417,18 +417,11 @@ impl
 	}
 
 	fn async_mint(
+		_caller: AccountId,
 		_currency_id: CurrencyId,
+		_currency_amount: Balance,
 		_chain_id: u32,
 		_required_amount: Balance,
-	) -> DispatchResult {
-		Ok(())
-	}
-
-	fn redeem(
-		_origin: RuntimeOrigin,
-		_evm_caller: sp_core::H160,
-		_vtoken_id: CurrencyId,
-		_target_chain: bifrost_primitives::TargetChain<AccountId>,
 	) -> DispatchResult {
 		Ok(())
 	}
