@@ -85,6 +85,7 @@ pub struct DollarStandardInfo<BlockNumberFor, AccountIdOf> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::ExistenceRequirement;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	#[pallet::pallet]
@@ -520,6 +521,7 @@ pub mod pallet {
 								&infos.fee_share_account_id,
 								&account_to_send,
 								withdraw_amount,
+								ExistenceRequirement::AllowDeath,
 							)
 						},
 					)
@@ -565,6 +567,7 @@ pub mod pallet {
 						&infos.fee_share_account_id,
 						&target_account_id,
 						amount,
+						ExistenceRequirement::AllowDeath,
 					)
 				})
 		}

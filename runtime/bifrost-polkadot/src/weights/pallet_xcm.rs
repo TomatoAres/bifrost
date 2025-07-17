@@ -77,7 +77,9 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for BifrostWeight<T> {
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 18_446_744_073_709_551 nanoseconds.
-		Weight::from_parts(18_446_744_073_709_551_000, 0)
+		Weight::from_parts(120_8880_000, 3593)
+			.saturating_add(T::DbWeight::get().reads(7))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	// Storage: `System::Account` (r:1 w:1)
 	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
@@ -124,7 +126,7 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for BifrostWeight<T> {
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 18_446_744_073_709_551 nanoseconds.
-		Weight::from_parts(18_446_744_073_709_551_000, 0)
+		Weight::from_parts(9_370_000, 3914)
 	}
 	// Storage: `PolkadotXcm::SupportedVersion` (r:0 w:1)
 	// Proof: `PolkadotXcm::SupportedVersion` (`max_values`: None, `max_size`: None, mode: `Measured`)

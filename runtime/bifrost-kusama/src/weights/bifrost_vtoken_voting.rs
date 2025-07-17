@@ -320,4 +320,58 @@ impl<T: frame_system::Config> bifrost_vtoken_voting::WeightInfo for BifrostWeigh
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
+	// Storage: `Tokens::Accounts` (r:1 w:1)
+	// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
+	// Storage: `Tokens::TotalIssuance` (r:1 w:0)
+	// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	// Storage: `VtokenMinting::TokenPool` (r:1 w:0)
+	// Proof: `VtokenMinting::TokenPool` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	// Storage: `VtokenVoting::VotingForV2` (r:2 w:2)
+	// Proof: `VtokenVoting::VotingForV2` (`max_values`: None, `max_size`: Some(18293), added: 20768, mode: `MaxEncodedLen`)
+	// Storage: `VtokenVoting::ReferendumInfoFor` (r:255 w:0)
+	// Proof: `VtokenVoting::ReferendumInfoFor` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
+	// Storage: `VtokenVoting::ClassLocksFor` (r:1 w:1)
+	// Proof: `VtokenVoting::ClassLocksFor` (`max_values`: None, `max_size`: Some(7722), added: 10197, mode: `MaxEncodedLen`)
+	// Storage: `Tokens::Locks` (r:1 w:1)
+	// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1271), added: 3746, mode: `MaxEncodedLen`)
+	// Storage: `AssetRegistry::CurrencyMetadatas` (r:1 w:0)
+	// Proof: `AssetRegistry::CurrencyMetadatas` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `v` is `[0, 256]`.
+	fn delegate(v: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1503 + v * (60 ±0)`
+		//  Estimated: `42526 + v * (2489 ±0)`
+		// Minimum execution time: 57_000 nanoseconds.
+		Weight::from_parts(60_913_188, 42526)
+			// Standard Error: 4_521
+			.saturating_add(Weight::from_parts(3_054_319, 0).saturating_mul(v.into()))
+			.saturating_add(T::DbWeight::get().reads(7))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(v.into())))
+			.saturating_add(T::DbWeight::get().writes(5))
+			.saturating_add(Weight::from_parts(0, 2489).saturating_mul(v.into()))
+	}
+	// Storage: `VtokenVoting::VotingForV2` (r:2 w:2)
+	// Proof: `VtokenVoting::VotingForV2` (`max_values`: None, `max_size`: Some(18293), added: 20768, mode: `MaxEncodedLen`)
+	// Storage: `Tokens::TotalIssuance` (r:1 w:0)
+	// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	// Storage: `VtokenMinting::TokenPool` (r:1 w:0)
+	// Proof: `VtokenMinting::TokenPool` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	// Storage: `VtokenVoting::ReferendumInfoFor` (r:255 w:0)
+	// Proof: `VtokenVoting::ReferendumInfoFor` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
+	// Storage: `VtokenVoting::VoteLockingPeriod` (r:1 w:0)
+	// Proof: `VtokenVoting::VoteLockingPeriod` (`max_values`: None, `max_size`: Some(26), added: 2501, mode: `MaxEncodedLen`)
+	/// The range of component `v` is `[1, 256]`.
+	fn undelegate(v: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `883 + v * (60 ±0)`
+		//  Estimated: `42526 + v * (2474 ±2)`
+		// Minimum execution time: 32_000 nanoseconds.
+		Weight::from_parts(31_387_846, 42526)
+			// Standard Error: 3_729
+			.saturating_add(Weight::from_parts(3_046_900, 0).saturating_mul(v.into()))
+			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(v.into())))
+			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 2474).saturating_mul(v.into()))
+	}
 }

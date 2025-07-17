@@ -110,10 +110,10 @@ impl pallet_evm::Config for Runtime {
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
-	type SuicideQuickClearLimit = SuicideQuickClearLimit;
 	type Timestamp = Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Self>;
 	type AccountProvider = pallet_evm::FrameSystemAccountProvider<Self>;
+	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 }
 
 impl pallet_evm_chain_id::Config for Runtime {}

@@ -30,6 +30,7 @@ use bifrost_primitives::{
 pub use bifrost_runtime_common::constants::time::DAYS;
 use bifrost_slp::QueryId;
 pub use cumulus_primitives_core::ParaId;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	derive_impl, ord_parameter_types,
 	pallet_prelude::Get,
@@ -45,7 +46,7 @@ use sp_runtime::{
 	AccountId32, BuildStorage, FixedU128, SaturatedConversion,
 };
 use sp_std::marker::PhantomData;
-use xcm::{v3::Weight, v4::prelude::*};
+use xcm::{v3::Weight, v5::prelude::*};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
 use zenlink_protocol::{
@@ -137,6 +138,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -340,6 +342,7 @@ where
 			&origin,
 			&target,
 			amount.unique_saturated_into(),
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		Ok(())
@@ -361,7 +364,12 @@ where
 		amount: AssetBalance,
 	) -> Result<AssetBalance, DispatchError> {
 		let currency_id: CurrencyId = asset_id.try_into().unwrap();
-		Local::withdraw(currency_id, &origin, amount.unique_saturated_into())?;
+		Local::withdraw(
+			currency_id,
+			&origin,
+			amount.unique_saturated_into(),
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok(amount)
 	}

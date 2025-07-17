@@ -27,7 +27,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 extern crate alloc;
-
+use alloc::borrow::Cow;
 use bifrost_primitives::{
 	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
 	VBNC, VKSM,
@@ -42,8 +42,9 @@ use bifrost_primitives::{
 	FarmingRewardIssuerPalletId, FeeSharePalletId, FlexibleFeePalletId, IncentivePoolAccount,
 	LendMarketPalletId, LocalBncLocation, OraclePalletId, ParachainStakingPalletId,
 	SlpEntrancePalletId, SlpExitPalletId, SlpxPalletId, SystemMakerPalletId, SystemStakingPalletId,
-	TreasuryPalletId, VBNCConvertPalletId,
+	TreasuryPalletId, VBNCConvertPalletId, VtokenVotingPalletId,
 };
+use frame_support::traits::ExistenceRequirement;
 pub use frame_support::{
 	construct_runtime, match_types, parameter_types,
 	traits::{
@@ -65,7 +66,7 @@ use sp_api::impl_runtime_apis;
 use sp_arithmetic::Percent;
 use sp_core::{ConstBool, OpaqueMetadata};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, StaticLookup, Zero,
 	},
@@ -129,8 +130,8 @@ use zenlink_protocol::{
 // Governance configurations.
 pub mod governance;
 use governance::{
-	custom_origins, CoreAdmin, CoreAdminOrRoot, LiquidStaking, SALPAdmin, Spender, TechAdmin,
-	TechAdminOrRoot,
+	custom_origins, CoreAdmin, CoreAdminOrRoot, DelegatedVotingAdmin, LiquidStaking, SALPAdmin,
+	Spender, TechAdmin, TechAdminOrRoot,
 };
 
 // xcm config
@@ -143,7 +144,7 @@ use pallet_xcm::EnsureResponse;
 use sp_core::H256;
 use sp_runtime::traits::{IdentityLookup, Verify};
 use xcm::{
-	v3::MultiLocation, v4::prelude::*, IntoVersion, Version as XcmVersion, VersionedAssetId,
+	v3::MultiLocation, v5::prelude::*, IntoVersion, Version as XcmVersion, VersionedAssetId,
 	VersionedAssets, VersionedLocation, VersionedXcm,
 };
 pub use xcm_config::{
@@ -165,14 +166,14 @@ impl_opaque_keys! {
 /// This runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("bifrost"),
-	impl_name: create_runtime_str!("bifrost"),
+	spec_name: Cow::Borrowed("bifrost"),
+	impl_name: Cow::Borrowed("bifrost"),
 	authoring_version: 1,
-	spec_version: 19001,
+	spec_version: 20000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -367,6 +368,7 @@ impl frame_system::Config for Runtime {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -585,6 +587,7 @@ parameter_types! {
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
 	pub const MaxRegistrars: u32 = 20;
+	pub UsernameDeposit: Balance = deposit::<Runtime>(0, 32);
 }
 
 impl pallet_identity::Config for Runtime {
@@ -606,6 +609,8 @@ impl pallet_identity::Config for Runtime {
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<7>;
 	type MaxUsernameLength = ConstU32<32>;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
 }
 
 parameter_types! {
@@ -649,6 +654,7 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -687,6 +693,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type SpendPeriod = SpendPeriod;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -696,6 +703,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = ConstU8<5>;
 	type WeightToFee = WeightToFee;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_transaction_payment::weights::SubstrateWeight<Runtime>;
 }
 
 /// Calls that can bypass the tx-pause pallet.
@@ -724,15 +732,14 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
 where
 	RuntimeCall: From<LocalCall>,
 {
-	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+	fn create_signed_transaction<
+		C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>,
+	>(
 		call: RuntimeCall,
 		public: <Signature as sp_runtime::traits::Verify>::Signer,
 		account: AccountId,
 		nonce: Nonce,
-	) -> Option<(
-		RuntimeCall,
-		<UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
-	)> {
+	) -> Option<UncheckedExtrinsic> {
 		// take the biggest period possible.
 		let period = BlockHashCount::get()
 			.checked_next_power_of_two()
@@ -763,7 +770,8 @@ where
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
 		let address = AccountIdLookup::unlookup(account);
 		let (call, extra, _) = raw_payload.deconstruct();
-		Some((call, (address, signature, extra)))
+		let transaction = UncheckedExtrinsic::new_signed(call, address, signature, extra);
+		Some(transaction)
 	}
 }
 
@@ -772,12 +780,12 @@ impl frame_system::offchain::SigningTypes for Runtime {
 	type Signature = Signature;
 }
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
 where
 	RuntimeCall: From<C>,
 {
-	type OverarchingCall = RuntimeCall;
 	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
 }
 
 // culumus runtime start
@@ -806,6 +814,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
 	type ConsensusHook = ConsensusHook;
 	type WeightInfo = cumulus_pallet_parachain_system::weights::SubstrateWeight<Runtime>;
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -1245,6 +1254,9 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
 	type RelayVCurrency = RelayVCurrencyId;
+	type DelegatedVotingTrackOrigin = DelegatedVotingAdmin;
+	type PalletId = VtokenVotingPalletId;
+	type MaxVotesPerDelegate = ConstU32<10>;
 }
 
 // Bifrost modules end
@@ -1578,6 +1590,7 @@ where
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local transfer"))?,
+				ExistenceRequirement::AllowDeath,
 			)
 		} else {
 			Err(DispatchError::Other("unknown asset in local transfer"))
@@ -1616,6 +1629,7 @@ where
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local withdraw"))?,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		} else {
 			return Err(DispatchError::Other("unknown asset in local transfer"));
@@ -1644,10 +1658,10 @@ impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
 
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	#[cfg(not(any(feature = "try-runtime", feature = "runtime-benchmarks")))]
-	type Migrations = ();
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = pallet_identity::migration::v2::LazyMigrationV1ToV2<Runtime>;
 	// Benchmarks need mocked migrations to guarantee that they succeed.
-	#[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
+	#[cfg(feature = "runtime-benchmarks")]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
 	type CursorMaxLen = ConstU32<65_536>;
 	type IdentifierMaxLen = ConstU32<256>;
@@ -1832,6 +1846,9 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_vtoken_minting::migration::InitializeVtokenIssuance<Runtime, ConstBool<true>>,
+		bifrost_asset_registry::migrations::v2::MigrateToV2<Runtime>,
+		bifrost_cross_in_out::migrations::v4::MigrateToV4<Runtime>,
 	);
 }
 
@@ -2011,9 +2028,9 @@ impl_runtime_apis! {
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
 			let asset = asset
-				.into_version(4)
+				.into_version(5)
 				.map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
-			let bnc_asset = VersionedAssetId::V4(LocalBncLocation::get().into());
+			let bnc_asset = VersionedAssetId::V5(LocalBncLocation::get().into());
 
 			if asset == bnc_asset {
 				// for native token
@@ -2200,7 +2217,7 @@ impl_runtime_apis! {
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
 			use frame_support::traits::TrackedStorageKey;
 

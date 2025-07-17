@@ -156,6 +156,12 @@ fn payout_should_work() {
 		.execute_with(|| {
 			asset_registry();
 
+			assert_ok!(VtokenMinting::set_v_currency_issuance(
+				RuntimeOrigin::root(),
+				VKSM,
+				Tokens::total_issuance(VKSM).try_into().unwrap()
+			));
+
 			assert_ok!(VtokenMinting::set_minimum_mint(
 				RuntimeOrigin::signed(ALICE),
 				KSM,

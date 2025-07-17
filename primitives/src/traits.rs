@@ -141,6 +141,12 @@ pub trait VtokenMintingOperator<CurrencyId, Balance, AccountId, TimeUnit> {
 		vtoken_id: CurrencyId,
 		token_amount: Balance,
 	) -> Result<Balance, DispatchError>;
+
+	/// Get the v_currency issuance for rate calculation
+	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Balance;
+
+	/// Set the v_currency issuance adjustment for rate calculation
+	fn set_v_currency_issuance(v_currency_id: CurrencyId, adjustment: i128) -> DispatchResult;
 }
 
 /// Trait for Vtoken-Minting module to check whether accept redeeming or not.
@@ -332,6 +338,8 @@ pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
 	fn get_token_pool(currency_id: CurrencyId) -> Balance;
 	fn get_minimums_redeem(vtoken_id: CurrencyId) -> Balance;
 	fn get_moonbeam_parachain_id() -> u32;
+	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Balance;
+	fn set_v_currency_issuance(v_currency_id: CurrencyId, adjustment: i128) -> DispatchResult;
 }
 
 impl<AccountId, CurrencyId: Default, Balance: Zero>
@@ -391,6 +399,14 @@ impl<AccountId, CurrencyId: Default, Balance: Zero>
 
 	fn get_moonbeam_parachain_id() -> u32 {
 		0
+	}
+
+	fn get_v_currency_issuance(_v_currency_id: CurrencyId) -> Balance {
+		Zero::zero()
+	}
+
+	fn set_v_currency_issuance(_v_currency_id: CurrencyId, _adjustment: i128) -> DispatchResult {
+		Ok(())
 	}
 }
 

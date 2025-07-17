@@ -74,8 +74,6 @@ parameter_types! {
 	/// The amount of gas per storage (in bytes): BLOCK_GAS_LIMIT / BLOCK_STORAGE_LIMIT
 	/// The current definition of BLOCK_STORAGE_LIMIT is 40 KB, resulting in a value of 366.
 	pub GasLimitStorageGrowthRatio: u64 = 366;
-
-	pub const SuicideQuickClearLimit: u32 = 0;
 }
 
 impl pallet_evm::Config for Runtime {
@@ -110,10 +108,10 @@ impl pallet_evm::Config for Runtime {
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
-	type SuicideQuickClearLimit = SuicideQuickClearLimit;
 	type Timestamp = Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Self>;
 	type AccountProvider = pallet_evm::FrameSystemAccountProvider<Self>;
+	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 }
 
 impl pallet_evm_chain_id::Config for Runtime {}

@@ -30,7 +30,7 @@
 //! WASM-EXECUTION: Compiled, CHAIN: Some("bifrost-kusama-local"), DB CACHE: 1024
 
 // Executed Command:
-// target/release/bifrost
+// ./target/release/bifrost
 // benchmark
 // pallet
 // --chain=bifrost-kusama-local
@@ -66,6 +66,8 @@ pub trait WeightInfo {
 	fn notify_remove_delegator_vote() -> Weight;
 	fn set_vote_cap_ratio() -> Weight;
 	fn update_referendum_vote_status() -> Weight;
+	fn delegate(v: u32, ) -> Weight;
+	fn undelegate(v: u32, ) -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -335,5 +337,59 @@ impl WeightInfo for () {
 		Weight::from_parts(38_305_000, 3553)
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: `Tokens::Accounts` (r:1 w:1)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:0)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenMinting::TokenPool` (r:1 w:0)
+	/// Proof: `VtokenMinting::TokenPool` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenVoting::VotingForV2` (r:2 w:2)
+	/// Proof: `VtokenVoting::VotingForV2` (`max_values`: None, `max_size`: Some(18293), added: 20768, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenVoting::ReferendumInfoFor` (r:255 w:0)
+	/// Proof: `VtokenVoting::ReferendumInfoFor` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenVoting::ClassLocksFor` (r:1 w:1)
+	/// Proof: `VtokenVoting::ClassLocksFor` (`max_values`: None, `max_size`: Some(7722), added: 10197, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Locks` (r:1 w:1)
+	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1271), added: 3746, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::CurrencyMetadatas` (r:1 w:0)
+	/// Proof: `AssetRegistry::CurrencyMetadatas` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `v` is `[0, 256]`.
+	fn delegate(v: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1503 + v * (60 ±0)`
+		//  Estimated: `42526 + v * (2489 ±0)`
+		// Minimum execution time: 56_000_000 picoseconds.
+		Weight::from_parts(57_082_295, 42526)
+			// Standard Error: 10_138
+			.saturating_add(Weight::from_parts(3_076_001, 0).saturating_mul(v.into()))
+			.saturating_add(RocksDbWeight::get().reads(7_u64))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(v.into())))
+			.saturating_add(RocksDbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 2489).saturating_mul(v.into()))
+	}
+	/// Storage: `VtokenVoting::VotingForV2` (r:2 w:2)
+	/// Proof: `VtokenVoting::VotingForV2` (`max_values`: None, `max_size`: Some(18293), added: 20768, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:0)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenMinting::TokenPool` (r:1 w:0)
+	/// Proof: `VtokenMinting::TokenPool` (`max_values`: None, `max_size`: Some(38), added: 2513, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenVoting::ReferendumInfoFor` (r:255 w:0)
+	/// Proof: `VtokenVoting::ReferendumInfoFor` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
+	/// Storage: `VtokenVoting::VoteLockingPeriod` (r:1 w:0)
+	/// Proof: `VtokenVoting::VoteLockingPeriod` (`max_values`: None, `max_size`: Some(26), added: 2501, mode: `MaxEncodedLen`)
+	/// The range of component `v` is `[1, 256]`.
+	fn undelegate(v: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `883 + v * (60 ±0)`
+		//  Estimated: `42526 + v * (2474 ±2)`
+		// Minimum execution time: 31_000_000 picoseconds.
+		Weight::from_parts(32_841_270, 42526)
+			// Standard Error: 4_497
+			.saturating_add(Weight::from_parts(3_019_705, 0).saturating_mul(v.into()))
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(v.into())))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+			.saturating_add(Weight::from_parts(0, 2474).saturating_mul(v.into()))
 	}
 }

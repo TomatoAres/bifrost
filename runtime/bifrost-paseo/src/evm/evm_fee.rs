@@ -21,7 +21,7 @@ use bifrost_primitives::{
 	AccountFeeCurrency, Balance, CurrencyId, OraclePriceProvider, Price, ETH,
 };
 use fp_evm::AccountProvider;
-use frame_support::traits::TryDrop;
+use frame_support::traits::{ExistenceRequirement, TryDrop};
 use orml_traits::MultiCurrency;
 use pallet_evm::{AddressMapping, Error, OnChargeEVMTransaction};
 use sp_core::{H160, U256};
@@ -105,8 +105,13 @@ where
 			fee_amount
 		);
 
-		MC::withdraw(fee_currency, &account_id, fee_amount)
-			.map_err(|_| Error::<T>::WithdrawFailed)?;
+		MC::withdraw(
+			fee_currency,
+			&account_id,
+			fee_amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|_| Error::<T>::WithdrawFailed)?;
 
 		Ok(Some(EvmPaymentInfo {
 			fee_amount,

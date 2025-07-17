@@ -183,4 +183,34 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	pub(crate) fn unpaid_execution() -> Weight {
 		Weight::from_parts(1_551_000_u64, 0)
 	}
+	pub fn pay_fees() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `7_186`
+		// Minimum execution time: 13_124_000 picoseconds.
+		Weight::from_parts(13_124_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	pub fn execute_with_origin() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 676_000 picoseconds.
+		Weight::from_parts(738_000, 0)
+	}
+	pub fn asset_claimer() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 658_000 picoseconds.
+		Weight::from_parts(706_000, 0)
+	}
+	pub fn alias_origin() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 830_000 picoseconds.
+		Weight::from_parts(900_000, 0)
+	}
 }

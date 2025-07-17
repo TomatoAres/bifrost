@@ -10,13 +10,15 @@ use bifrost_primitives::{CurrencyIdMapping, TokenInfo};
 use codec::Decode;
 use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
+use frame_support::traits::ExistenceRequirement;
 use ismp::module::IsmpModule;
 use ismp::{
 	events::Meta,
 	router::{PostRequest, Request, Response, Timeout},
 };
 use orml_traits::MultiCurrency;
-use primitive_types::{H160, H256, U256};
+use primitive_types::{H160, H256};
+use sp_core::U256;
 use sp_runtime::traits::{Dispatchable, UniqueSaturatedFrom};
 use token_gateway_primitives::token_gateway_id;
 
@@ -107,6 +109,7 @@ where
 				&Pallet::<T>::pallet_account(),
 				&beneficiary,
 				amount,
+				ExistenceRequirement::AllowDeath,
 			)
 			.map_err(|_| ismp::error::Error::ModuleDispatchError {
 				msg: "Token Gateway: Failed to complete asset transfer".to_string(),
@@ -153,7 +156,7 @@ where
 					"caller: {:?},
 					currency_id: {:?},
 					currency_amount: {:?},
-					from_chain_id: {:?}, 
+					from_chain_id: {:?},
 					slpx_input_v_currency_amount: {:?}",
 					Pallet::<T>::pallet_account(),
 					local_asset_id,
@@ -265,6 +268,7 @@ where
 						&Pallet::<T>::pallet_account(),
 						&beneficiary,
 						amount,
+						ExistenceRequirement::AllowDeath,
 					)
 					.map_err(|_| ismp::error::Error::ModuleDispatchError {
 						msg: "Token Gateway: Failed to complete asset transfer".to_string(),
@@ -323,15 +327,20 @@ fn decode_body(data: &[u8]) -> Result<(u32, U256), anyhow::Error> {
 		.try_into()
 		.map_err(|_| anyhow!("Invalid number of parameters"))?;
 
+	let eth_u256 = amount_token
+		.into_uint()
+		.ok_or_else(|| anyhow!("Failed to decode data"))?;
+	let mut buf = [0u8; 32];
+	eth_u256.to_big_endian(&mut buf);
+	let sp_u256 = U256::from_big_endian(&buf);
+
 	Ok((
 		chain_id
 			.into_uint()
 			.ok_or_else(|| anyhow!("Failed to decode data"))?
 			.try_into()
 			.map_err(|_| anyhow!("Failed to decode data"))?,
-		amount_token
-			.into_uint()
-			.ok_or_else(|| anyhow!("Failed to decode data"))?,
+		sp_u256,
 	))
 }
 

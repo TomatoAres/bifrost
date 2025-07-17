@@ -18,6 +18,7 @@
 
 use crate::{Config, ExtraFeeByCall, Pallet};
 use bifrost_primitives::{Balance, CurrencyId, OraclePriceProvider, Price, BNC};
+use frame_support::traits::ExistenceRequirement;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::OnChargeTransaction;
 use parity_scale_codec::Encode;
@@ -61,8 +62,13 @@ where
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 		// withdraw normal extrinsic fee
-		T::MultiCurrency::withdraw(fee_currency, who, fee_amount)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		T::MultiCurrency::withdraw(
+			fee_currency,
+			who,
+			fee_amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 		for (call_name, (extra_fee_currency, extra_fee_amount, extra_fee_receiver)) in
 			ExtraFeeByCall::<T>::iter()
@@ -98,6 +104,26 @@ where
 				fee_currency_price,
 			)))
 		}
+	}
+	/// Check if the predicted fee from the transaction origin can be withdrawn.
+	///
+	/// Note: The `fee` already includes the `ti
+	/// Check if the predicted fee from the transaction origin can be withdrawn.
+	/// Note: The fee already includes the tip.
+	fn can_withdraw_fee(
+		who: &T::AccountId,
+		_call: &T::RuntimeCall,
+		_info: &DispatchInfoOf<T::RuntimeCall>,
+		fee: Self::Balance,
+		_tip: Self::Balance,
+	) -> Result<(), TransactionValidityError> {
+		if fee.is_zero() {
+			return Ok(());
+		}
+
+		T::MultiCurrency::ensure_can_withdraw(BNC, who, fee)
+			.map(|_| ())
+			.map_err(|_| InvalidTransaction::Payment.into())
 	}
 
 	/// Hand the fee and the tip over to the `[OnUnbalanced]` implementation.
@@ -162,5 +188,15 @@ where
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 		}
 		Ok(())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn endow_account(who: &T::AccountId, amount: Self::Balance) {
+		let _ = T::MultiCurrency::deposit(BNC, who, amount);
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn minimum_balance() -> Self::Balance {
+		T::MultiCurrency::minimum_balance(BNC)
 	}
 }

@@ -35,6 +35,7 @@ use bifrost_primitives::{
 };
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
+use frame_support::traits::ExistenceRequirement;
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
 pub use pallet::*;
@@ -42,10 +43,9 @@ use sp_core::H160;
 use sp_runtime::traits::{Convert, UniqueSaturatedInto};
 use sp_std::{convert::From, prelude::*, vec, vec::Vec};
 use xcm::{
-	v4::{prelude::*, Asset, Location},
+	v5::{prelude::*, Asset, Location},
 	DoubleEncoded,
 };
-
 type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 	<T as frame_system::Config>::AccountId,
 >>::Balance;
@@ -183,7 +183,12 @@ pub mod pallet {
 				fun: Fungible(UniqueSaturatedInto::<u128>::unique_saturated_into(xcm_fee)),
 			};
 
-			T::MultiCurrency::withdraw(currency_id, &who, amount)?;
+			T::MultiCurrency::withdraw(
+				currency_id,
+				&who,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			let remote_call: DoubleEncoded<()> =
 				AssetHubCall::PolkadotXcm(PolkadotXcmCall::LimitedReserveTransferAssets(
@@ -213,7 +218,7 @@ pub mod pallet {
 				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
-					require_weight_at_most,
+					fallback_max_weight: Some(require_weight_at_most),
 					call: remote_call,
 				},
 				RefundSurplus,

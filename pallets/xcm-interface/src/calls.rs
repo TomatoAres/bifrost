@@ -19,7 +19,7 @@
 use parity_scale_codec::{Decode, Encode};
 use sp_runtime::RuntimeDebug;
 use sp_std::boxed::Box;
-use xcm::{v4::WeightLimit, VersionedAssets, VersionedLocation};
+use xcm::{v5::WeightLimit, VersionedAssets, VersionedLocation};
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
 pub enum PolkadotXcmCall {

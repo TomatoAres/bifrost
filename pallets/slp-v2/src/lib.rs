@@ -37,7 +37,7 @@ use orml_traits::{MultiCurrency, XcmTransfer};
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_runtime::traits::AccountIdConversion;
 pub use weights::WeightInfo;
-use xcm::v4::{Location, SendXcm};
+use xcm::v5::{Location, SendXcm};
 
 pub use pallet::*;
 

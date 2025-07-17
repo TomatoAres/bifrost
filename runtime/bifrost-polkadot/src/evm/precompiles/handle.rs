@@ -64,9 +64,6 @@ impl EvmDataWriter {
 	/// Add offseted data at the end of this writer's data, updating the offsets.
 	fn bake_offsets(output: &mut Vec<u8>, offsets: Vec<OffsetDatum>) {
 		for mut offset_datum in offsets {
-			let offset_position = offset_datum.offset_position;
-			let offset_position_end = offset_position + 32;
-
 			// The offset is the distance between the start of the data and the
 			// start of the pointed data (start of a struct, length of an array).
 			// Offsets in inner data are relative to the start of their respective "container".
@@ -75,8 +72,7 @@ impl EvmDataWriter {
 			let free_space_offset = output.len() - offset_datum.offset_shift;
 
 			// Override dummy offset to the offset it will be in the final output.
-			U256::from(free_space_offset)
-				.to_big_endian(&mut output[offset_position..offset_position_end]);
+			U256::from(free_space_offset).to_big_endian();
 
 			// Append this data at the end of the current output.
 			output.append(&mut offset_datum.data);
@@ -151,8 +147,7 @@ impl EvmData for U256 {
 	}
 
 	fn write(writer: &mut EvmDataWriter, value: Self) {
-		let mut buffer = [0u8; 32];
-		value.to_big_endian(&mut buffer);
+		let buffer = value.to_big_endian();
 		writer.data.extend_from_slice(&buffer);
 	}
 

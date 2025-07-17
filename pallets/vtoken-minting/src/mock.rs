@@ -109,6 +109,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -128,7 +129,6 @@ orml_traits::parameter_type_with_key! {
 			&V_ETH => 0,
 			&ETH => 0,
 			&WETH => 0,
-			&VFIL => 0,
 			&MOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
 			&VMOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
 			&VBNC => 10 * milli::<Runtime>(NativeCurrencyId::get()),  // 0.01 BNC
@@ -278,7 +278,18 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		t.into()
+		let mut ext: sp_io::TestExternalities = t.into();
+		ext.execute_with(|| {
+			// Initialize VtokenIssuance with current total issuance for all vtokens
+			let vtokens = [VKSM, VBNC, VMOVR, VFIL, V_ETH];
+			for vtoken in vtokens.iter() {
+				let total_issuance = Tokens::total_issuance(*vtoken);
+				if total_issuance > 0 {
+					crate::VtokenIssuance::<Runtime>::insert(vtoken, total_issuance);
+				}
+			}
+		});
+		ext
 	}
 }
 

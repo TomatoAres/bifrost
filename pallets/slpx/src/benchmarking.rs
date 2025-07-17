@@ -59,8 +59,8 @@ fn init_whitelist<T: Config + bifrost_asset_registry::Config>() -> (T::AccountId
 		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
 	));
 
-	CurrencyIdToLocations::<T>::insert(KSM, xcm::v4::Location::default());
-	CurrencyIdToLocations::<T>::insert(VKSM, xcm::v4::Location::default());
+	CurrencyIdToLocations::<T>::insert(KSM, xcm::v5::Location::default());
+	CurrencyIdToLocations::<T>::insert(VKSM, xcm::v5::Location::default());
 
 	(caller, receiver)
 }
@@ -177,6 +177,15 @@ mod benchmarks {
 			KSM,
 			TimeUnit::Era(1)
 		));
+
+		let vtoken_issuance = <T as Config>::MultiCurrency::total_issuance(VKSM);
+		assert_ok!(
+			bifrost_vtoken_minting::Pallet::<T>::set_v_currency_issuance(
+				RawOrigin::Root.into(),
+				VKSM,
+				vtoken_issuance.saturated_into::<u128>().try_into().unwrap()
+			)
+		);
 
 		#[extrinsic_call]
 		_(

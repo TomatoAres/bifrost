@@ -40,7 +40,7 @@ pub use crate::vote::{
 use crate::{
 	agents::{BifrostAgent, RelaychainAgent},
 	traits::VotingAgent,
-	vote::{Casting, Tally, Voting},
+	vote::{Casting, Delegating, Tally, Voting},
 };
 use bifrost_primitives::{
 	currency::{BNC, DOT, KSM, VBNC, VDOT, VKSM},
@@ -70,7 +70,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::v4::{prelude::*, Location, Weight as XcmWeight};
+use xcm::v5::{prelude::*, Location, Weight as XcmWeight};
 
 const CONVICTION_VOTING_ID: LockIdentifier = *b"vtvoting";
 type PollIndex = u32;
@@ -96,6 +96,9 @@ type VotingAgentBoxType<T> = Box<dyn VotingAgent<T>>;
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::CallerTrait;
+	use frame_support::PalletId;
+	use pallet_conviction_voting::Delegations;
+	use sp_runtime::traits::AccountIdConversion;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
@@ -163,6 +166,17 @@ pub mod pallet {
 		/// Relay currency
 		#[pallet::constant]
 		type RelayVCurrency: Get<CurrencyId>;
+		/// The origin used for voting on delegated tracks in the Bifrost system.
+		/// This origin is intended exclusively for the delegated voting system,
+		/// allowing only authorized addresses to cast votes on behalf of others.
+		type DelegatedVotingTrackOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+		/// The PalletId used to derive the dedicated account for the delegation system.
+		/// This account acts as the system-level address for managing delegated voting.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+		/// The maximum number of proposals a delegator can vote on.
+		#[pallet::constant]
+		type MaxVotesPerDelegate: Get<u32>;
 	}
 
 	#[pallet::event]
@@ -299,6 +313,13 @@ pub mod pallet {
 			poll_index: PollIndex,
 			new_status: ReferendumVoteStatus,
 		},
+		/// An account has delegated their vote to another account. \[who, target\]
+		Delegated {
+			who: AccountIdOf<T>,
+			target: AccountIdOf<T>,
+		},
+		/// An \[account\] has cancelled a previous delegation operation.
+		Undelegated(T::AccountId),
 	}
 
 	#[pallet::error]
@@ -345,6 +366,17 @@ pub mod pallet {
 		OutOfRange,
 		InvalidCallDispatch,
 		CallDecodeFailed,
+		/// Delegation to oneself makes no sense.
+		Nonsense,
+		/// The account currently has votes attached to it and the operation cannot succeed until
+		/// these are removed through `remove_vote`.
+		AlreadyVoting,
+		/// The account is not currently delegating.
+		NotDelegating,
+		/// Try access poll Failure
+		AccessPollFailure,
+		/// Too many votes for a delegate.
+		TooManyVotes,
 	}
 
 	/// Information concerning any given referendum.
@@ -574,69 +606,7 @@ pub mod pallet {
 			vtoken_vote: AccountVote<BalanceOf<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::ensure_vtoken(&vtoken)?;
-			ensure!(
-				UndecidingTimeout::<T>::contains_key(vtoken),
-				Error::<T>::NoData
-			);
-			Self::ensure_no_pending_vote(vtoken, poll_index)?;
-
-			let token_vote = Self::compute_token_vote(vtoken, vtoken_vote)?;
-
-			// create referendum if not exist
-			let mut submitted = false;
-			if !ReferendumInfoFor::<T>::contains_key(vtoken, poll_index) {
-				ReferendumInfoFor::<T>::insert(
-					vtoken,
-					poll_index,
-					ReferendumInfo::Ongoing(ReferendumStatus {
-						submitted: None,
-						tally: TallyOf::<T>::from_parts(Zero::zero(), Zero::zero(), Zero::zero()),
-					}),
-				);
-			} else {
-				Self::ensure_referendum_ongoing(vtoken, poll_index)?;
-				submitted = true;
-			}
-
-			// record vote info
-			let (maybe_old_vote, maybe_total_vote) =
-				Self::try_vote(&who, vtoken, poll_index, token_vote, vtoken_vote.balance())?;
-
-			let delegator_total_vote = Self::compute_delegator_total_vote(
-				vtoken,
-				maybe_total_vote.ok_or(Error::<T>::NoData)?,
-			)?;
-			let new_delegator_votes =
-				Self::allocate_delegator_votes(vtoken, poll_index, delegator_total_vote)?;
-
-			PendingDelegatorVotes::<T>::try_mutate(vtoken, poll_index, |item| -> DispatchResult {
-				for (derivative_index, vote) in new_delegator_votes.iter() {
-					item.try_push((*derivative_index, *vote))
-						.map_err(|_| Error::<T>::TooMany)?;
-				}
-				Ok(())
-			})?;
-
-			let voting_agent = Self::get_voting_agent(&vtoken)?;
-			voting_agent.delegate_vote(
-				who.clone(),
-				vtoken,
-				poll_index,
-				submitted,
-				new_delegator_votes.clone(),
-				maybe_old_vote,
-			)?;
-
-			Self::deposit_event(Event::<T>::Voted {
-				who,
-				vtoken,
-				poll_index,
-				token_vote,
-				delegator_vote: new_delegator_votes[0].1,
-			});
-
-			Ok(())
+			Self::common_vote(&who, vtoken, poll_index, vtoken_vote)
 		}
 
 		#[pallet::call_index(1)]
@@ -951,6 +921,60 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::delegate(T::MaxVotes::get()) + <T as Config>::WeightInfo::notify_vote())]
+		pub fn delegate(
+			origin: OriginFor<T>,
+			vtoken: CurrencyIdOf<T>,
+			to: AccountIdOf<T>,
+			conviction: Conviction,
+			vtoken_balance: BalanceOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Self::ensure_vtoken(&vtoken)?;
+			let votes = Self::try_delegate(who, to, vtoken, conviction, vtoken_balance)?;
+
+			Ok(Some(
+				<T as Config>::WeightInfo::delegate(votes)
+					+ <T as Config>::WeightInfo::notify_vote() * votes as u64,
+			)
+			.into())
+		}
+
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::undelegate(T::MaxVotes::get()) + <T as Config>::WeightInfo::notify_vote())]
+		pub fn undelegate(
+			origin: OriginFor<T>,
+			vtoken: CurrencyIdOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Self::ensure_vtoken(&vtoken)?;
+			let votes = Self::try_undelegate(who, vtoken)?;
+
+			Ok(Some(
+				<T as Config>::WeightInfo::undelegate(votes)
+					+ <T as Config>::WeightInfo::notify_vote() * votes as u64,
+			)
+			.into())
+		}
+
+		#[pallet::call_index(15)]
+		#[pallet::weight(
+			<T as Config>::WeightInfo::vote_new().max(<T as Config>::WeightInfo::vote_existing())
+			+ <T as Config>::WeightInfo::notify_vote()
+		)]
+		pub fn delegate_vote(
+			origin: OriginFor<T>,
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+			vtoken_vote: AccountVote<BalanceOf<T>>,
+		) -> DispatchResult {
+			T::DelegatedVotingTrackOrigin::ensure_origin(origin)?;
+			let delegated_account: <T as frame_system::Config>::AccountId =
+				T::PalletId::get().into_account_truncating();
+			Self::common_vote(&delegated_account, vtoken, poll_index, vtoken_vote)
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -1132,12 +1156,12 @@ pub mod pallet {
 			let now = T::LocalBlockNumberProvider::current_block_number();
 			let timeout = now.saturating_add(T::QueryTimeout::get());
 			let notify_runtime_call = <T as Config>::RuntimeCall::from(notify_call);
-			let notify_call_weight = notify_runtime_call.get_dispatch_info().weight;
+			let notify_call_weight = notify_runtime_call.get_dispatch_info().call_weight;
 			let query_id = pallet_xcm::Pallet::<T>::new_notify_query(
 				responder_location.clone(),
 				notify_runtime_call,
 				timeout,
-				xcm::v4::Junctions::Here,
+				xcm::v5::Junctions::Here,
 			);
 			f(query_id);
 
@@ -1149,7 +1173,7 @@ pub mod pallet {
 				query_id,
 			)?;
 
-			xcm::v4::send_xcm::<T::XcmRouter>(responder_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(responder_location, xcm_message)
 				.map_err(|_| Error::<T>::XcmFailure)?;
 
 			Ok(())
@@ -1177,7 +1201,7 @@ pub mod pallet {
 				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
-					require_weight_at_most: transact_weight,
+					fallback_max_weight: Some(transact_weight),
 					call: call.into(),
 				},
 				ReportTransactStatus(QueryResponseInfo {
@@ -1227,7 +1251,9 @@ pub mod pallet {
 							Ok(i) => {
 								// Shouldn't be possible to fail, but we handle it gracefully.
 								tally.remove(votes[i].1).ok_or(ArithmeticError::Underflow)?;
-								old_vote = Some((votes[i].1, votes[i].3));
+								let old_token_balance =
+									Self::compute_token_balance(vtoken, votes[i].3)?;
+								old_vote = Some((votes[i].1, old_token_balance));
 								if let Some(approve) = votes[i].1.as_standard() {
 									tally.reduce(approve, *delegations);
 								}
@@ -1484,7 +1510,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 		) -> Result<Location, DispatchError> {
 			let responder = T::ResponseOrigin::ensure_origin(origin.clone()).or_else(|_| {
-				T::ControlOrigin::ensure_origin(origin).map(|_| xcm::v4::Junctions::Here.into())
+				T::ControlOrigin::ensure_origin(origin).map(|_| xcm::v5::Junctions::Here.into())
 			})?;
 			Ok(responder)
 		}
@@ -1525,6 +1551,23 @@ pub mod pallet {
 				.and_then(|_| new_vote.checked_div(vtoken_supply))?;
 
 			Ok(new_vote)
+		}
+
+		fn compute_token_balance(
+			vtoken: CurrencyIdOf<T>,
+			vtoken_balance: BalanceOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let token = CurrencyId::to_token(&vtoken).map_err(|_| Error::<T>::NoData)?;
+			let vtoken_supply =
+				T::VTokenSupplyProvider::get_vtoken_supply(vtoken).ok_or(Error::<T>::NoData)?;
+			let token_supply =
+				T::VTokenSupplyProvider::get_token_supply(token).ok_or(Error::<T>::NoData)?;
+			let token_balance = vtoken_balance
+				.checked_mul(&token_supply)
+				.and_then(|value| value.checked_div(&vtoken_supply))
+				.ok_or(Error::<T>::NoData)?;
+
+			Ok(token_balance)
 		}
 
 		pub(crate) fn vote_cap(vtoken: CurrencyIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {
@@ -1786,6 +1829,318 @@ pub mod pallet {
 					}
 				}
 			}
+		}
+
+		/// Attempt to delegate `balance` times `conviction` of voting power from `who` to `target`.
+		fn try_delegate(
+			who: AccountIdOf<T>,
+			target: AccountIdOf<T>,
+			vtoken: CurrencyIdOf<T>,
+			conviction: Conviction,
+			vtoken_balance: BalanceOf<T>,
+		) -> Result<u32, DispatchError> {
+			ensure!(who != target, Error::<T>::Nonsense);
+			ensure!(
+				vtoken_balance <= T::MultiCurrency::total_balance(vtoken, &who),
+				Error::<T>::InsufficientFunds
+			);
+			let token_balance = Self::compute_token_balance(vtoken, vtoken_balance)?;
+			let votes = VotingForV2::<T>::try_mutate(
+				vtoken,
+				&who,
+				|voting| -> Result<u32, DispatchError> {
+					let old = core::mem::replace(
+						voting,
+						Voting::Delegating(Delegating {
+							balance: vtoken_balance,
+							target: target.clone(),
+							conviction,
+							delegations: Default::default(),
+							prior: Default::default(),
+						}),
+					);
+					match old {
+						Voting::Delegating(Delegating { .. }) => {
+							return Err(Error::<T>::AlreadyDelegating.into())
+						}
+						Voting::Casting(Casting {
+							votes,
+							delegations,
+							prior,
+						}) => {
+							// here we just ensure that we're currently idling with no votes recorded.
+							ensure!(votes.is_empty(), Error::<T>::AlreadyVoting);
+							voting.set_common(delegations, prior);
+						}
+					}
+
+					let votes = Self::increase_upstream_delegation(
+						&target,
+						vtoken,
+						conviction.votes(token_balance),
+					);
+					// Extend the lock to `balance` (rather than setting it) since we don't know what
+					// other votes are in place.
+					Self::set_lock(&who, vtoken, vtoken_balance)?;
+					votes
+				},
+			)?;
+			Self::deposit_event(Event::<T>::Delegated { who, target });
+			Ok(votes)
+		}
+
+		/// Return the number of votes for `who`.
+		fn increase_upstream_delegation(
+			who: &T::AccountId,
+			vtoken: CurrencyIdOf<T>,
+			token_amount: Delegations<BalanceOf<T>>,
+		) -> Result<u32, DispatchError> {
+			VotingForV2::<T>::mutate(vtoken, who, |voting| match voting {
+				Voting::Delegating(Delegating { delegations, .. }) => {
+					// We don't support second level delegating, so we don't need to do anything more.
+					*delegations = delegations.saturating_add(token_amount);
+					Ok(1)
+				}
+				Voting::Casting(Casting {
+					votes, delegations, ..
+				}) => {
+					// Ensure that the number of votes to be appended does not exceed the maximum allowed per delegate.
+					// If the limit is exceeded, return the TooManyVotes error.
+					ensure!(
+						votes.len() <= T::MaxVotesPerDelegate::get() as usize,
+						Error::<T>::TooManyVotes
+					);
+
+					*delegations = delegations.saturating_add(token_amount);
+					for &(poll_index, account_vote, _index, vtoken_balance) in votes.iter() {
+						if let AccountVote::Standard { vote, .. } = account_vote {
+							Self::try_access_poll(vtoken, poll_index, |poll_status| {
+								if let PollStatus::Ongoing(tally) = poll_status {
+									tally.increase(vote.aye, token_amount);
+
+									let token_balance =
+										Self::compute_token_balance(vtoken, vtoken_balance)?;
+									let maybe_old_vote = Some((account_vote, token_balance));
+									let maybe_total_vote =
+										Some(tally.account_vote(Conviction::Locked1x));
+
+									Self::do_vote(
+										&who,
+										vtoken,
+										poll_index,
+										true,
+										maybe_total_vote,
+										maybe_old_vote,
+									)?;
+								};
+								Ok(())
+							})
+							.map_err(|_| Error::<T>::AccessPollFailure)?;
+						}
+					}
+					Ok(votes.len() as u32)
+				}
+			})
+		}
+
+		/// Attempt to end the current delegation.
+		///
+		/// Return the number of votes of upstream.
+		fn try_undelegate(
+			who: T::AccountId,
+			vtoken: CurrencyIdOf<T>,
+		) -> Result<u32, DispatchError> {
+			let votes = VotingForV2::<T>::try_mutate(
+				&vtoken,
+				&who,
+				|voting| -> Result<u32, DispatchError> {
+					match core::mem::replace(voting, Voting::default()) {
+						Voting::Delegating(Delegating {
+							balance: vtoken_balance,
+							target,
+							conviction,
+							delegations,
+							mut prior,
+						}) => {
+							let token_balance =
+								Self::compute_token_balance(vtoken, vtoken_balance)?;
+							// remove any delegation votes to our current target.
+							let votes = Self::reduce_upstream_delegation(
+								&target,
+								vtoken,
+								conviction.votes(token_balance),
+							)?;
+							let now = frame_system::Pallet::<T>::block_number();
+							let lock_periods = conviction.lock_periods().into();
+							prior.accumulate(
+								now.saturating_add(
+									VoteLockingPeriod::<T>::get(vtoken)
+										.ok_or(Error::<T>::NoData)?
+										.saturating_mul(lock_periods),
+								),
+								vtoken_balance,
+							);
+							voting.set_common(delegations, prior);
+
+							Ok(votes)
+						}
+						Voting::Casting(_) => Err(Error::<T>::NotDelegating.into()),
+					}
+				},
+			)?;
+			Self::deposit_event(Event::<T>::Undelegated(who));
+			Ok(votes)
+		}
+
+		/// Return the number of votes for `who`.
+		fn reduce_upstream_delegation(
+			who: &T::AccountId,
+			vtoken: CurrencyIdOf<T>,
+			token_amount: Delegations<BalanceOf<T>>,
+		) -> Result<u32, Error<T>> {
+			VotingForV2::<T>::try_mutate(vtoken, who, |voting| match voting {
+				Voting::Delegating(Delegating { delegations, .. }) => {
+					*delegations = delegations.saturating_sub(token_amount);
+					Ok(1)
+				}
+				Voting::Casting(Casting {
+					votes, delegations, ..
+				}) => {
+					// Ensure that the number of votes to be appended does not exceed the maximum allowed per delegate.
+					// If the limit is exceeded, return the TooManyVotes error.
+					ensure!(
+						votes.len() <= T::MaxVotesPerDelegate::get() as usize,
+						Error::<T>::TooManyVotes
+					);
+
+					*delegations = delegations.saturating_sub(token_amount);
+					for &(poll_index, account_vote, _index, vtoken_balance) in votes.iter() {
+						if let AccountVote::Standard { vote, .. } = account_vote {
+							Self::try_access_poll(vtoken, poll_index, |poll_status| {
+								if let PollStatus::Ongoing(tally) = poll_status {
+									tally.reduce(vote.aye, token_amount);
+
+									let token_balance =
+										Self::compute_token_balance(vtoken, vtoken_balance)?;
+									let maybe_old_vote = Some((account_vote, token_balance));
+									let maybe_total_vote =
+										Some(tally.account_vote(Conviction::Locked1x));
+
+									Self::do_vote(
+										&who,
+										vtoken,
+										poll_index,
+										true,
+										maybe_total_vote,
+										maybe_old_vote,
+									)?;
+								}
+								Ok(())
+							})
+							.map_err(|_| Error::<T>::AccessPollFailure)?;
+						}
+					}
+					Ok(votes.len() as u32)
+				}
+			})
+		}
+
+		/// Processes a delegation vote on a specific poll for a given vToken.
+		///
+		/// This function computes the delegator's total voting power, allocates it across
+		/// derivatives, records the pending votes, and delegates the vote to the assigned voting agent.
+		fn do_vote(
+			who: &T::AccountId,
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+			submitted: bool,
+			maybe_total_vote: Option<AccountVote<BalanceOf<T>>>,
+			maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+		) -> Result<Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>, DispatchError> {
+			let delegator_total_vote = Self::compute_delegator_total_vote(
+				vtoken,
+				maybe_total_vote.ok_or(Error::<T>::NoData)?,
+			)?;
+			let new_delegator_votes =
+				Self::allocate_delegator_votes(vtoken, poll_index, delegator_total_vote)?;
+
+			PendingDelegatorVotes::<T>::try_mutate(vtoken, poll_index, |item| -> DispatchResult {
+				for (derivative_index, vote) in new_delegator_votes.iter() {
+					item.try_push((*derivative_index, *vote))
+						.map_err(|_| Error::<T>::TooMany)?;
+				}
+				Ok(())
+			})?;
+
+			let voting_agent = Self::get_voting_agent(&vtoken)?;
+			voting_agent.delegate_vote(
+				who.clone(),
+				vtoken,
+				poll_index,
+				submitted,
+				new_delegator_votes.clone(),
+				maybe_old_vote,
+			)?;
+
+			Ok(new_delegator_votes)
+		}
+
+		/// A general-purpose voting function used by both regular users and the Delegated Voting Track system.
+		/// This method handles vote submissions for a given poll or referendum, regardless of whether the vote
+		/// originates from an individual user or the delegated voting mechanism.
+		fn common_vote(
+			who: &T::AccountId,
+			vtoken: CurrencyIdOf<T>,
+			poll_index: PollIndex,
+			vtoken_vote: AccountVote<BalanceOf<T>>,
+		) -> DispatchResult {
+			Self::ensure_vtoken(&vtoken)?;
+			ensure!(
+				UndecidingTimeout::<T>::contains_key(vtoken),
+				Error::<T>::NoData
+			);
+			Self::ensure_no_pending_vote(vtoken, poll_index)?;
+
+			let token_vote = Self::compute_token_vote(vtoken, vtoken_vote)?;
+
+			// create referendum if not exist
+			let mut submitted = false;
+			if !ReferendumInfoFor::<T>::contains_key(vtoken, poll_index) {
+				ReferendumInfoFor::<T>::insert(
+					vtoken,
+					poll_index,
+					ReferendumInfo::Ongoing(ReferendumStatus {
+						submitted: None,
+						tally: TallyOf::<T>::from_parts(Zero::zero(), Zero::zero(), Zero::zero()),
+					}),
+				);
+			} else {
+				Self::ensure_referendum_ongoing(vtoken, poll_index)?;
+				submitted = true;
+			}
+
+			// record vote info
+			let (maybe_old_vote, maybe_total_vote) =
+				Self::try_vote(&who, vtoken, poll_index, token_vote, vtoken_vote.balance())?;
+
+			let new_delegator_votes = Self::do_vote(
+				&who,
+				vtoken,
+				poll_index,
+				submitted,
+				maybe_total_vote,
+				maybe_old_vote,
+			)?;
+
+			Self::deposit_event(Event::<T>::Voted {
+				who: who.clone(),
+				vtoken,
+				poll_index,
+				token_vote,
+				delegator_vote: new_delegator_votes[0].1,
+			});
+
+			Ok(())
 		}
 	}
 }

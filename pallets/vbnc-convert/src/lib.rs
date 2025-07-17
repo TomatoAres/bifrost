@@ -29,6 +29,7 @@ use bifrost_primitives::{
 	currency::{VBNC, VBNC_P},
 	CurrencyId,
 };
+use frame_support::traits::ExistenceRequirement;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -141,10 +142,16 @@ pub mod pallet {
 
 			// transfer vBNC-p from pool to user
 			let vbnc_pool_account = Self::vbnc_p_pool_account();
-			T::MultiCurrency::transfer(VBNC_P, &vbnc_pool_account, &who, vbnc_p_amount)?;
+			T::MultiCurrency::transfer(
+				VBNC_P,
+				&vbnc_pool_account,
+				&who,
+				vbnc_p_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			// burn currency
-			T::MultiCurrency::withdraw(currency, &who, value)?;
+			T::MultiCurrency::withdraw(currency, &who, value, ExistenceRequirement::AllowDeath)?;
 
 			// deposit event
 			Self::deposit_event(Event::VBNCPConverted {
@@ -175,7 +182,13 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::NotEnoughBalance)?;
 
 			let vbnc_pool_account = Self::vbnc_p_pool_account();
-			T::MultiCurrency::transfer(VBNC_P, &who, &vbnc_pool_account, amount)?;
+			T::MultiCurrency::transfer(
+				VBNC_P,
+				&who,
+				&vbnc_pool_account,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			// deposit event
 			Self::deposit_event(Event::VbncPCharged { who, value: amount });

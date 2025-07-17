@@ -23,7 +23,7 @@ use crate::{BalanceOf, DerivativeAccountHandler, DerivativeIndex, DispatchResult
 use bifrost_primitives::{
 	currency::{DOT, KSM, VBNC, VDOT, VKSM},
 	traits::XcmDestWeightAndFeeHandler,
-	CurrencyId, MockXcmRouter, VTokenSupplyProvider, XcmOperationType, BNC,
+	CurrencyId, MockXcmRouter, VTokenSupplyProvider, VtokenVotingPalletId, XcmOperationType, BNC,
 };
 use cumulus_primitives_core::ParaId;
 use frame_support::{
@@ -123,6 +123,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -459,6 +460,9 @@ impl vtoken_voting::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
 	type RelayVCurrency = RelayVCurrencyId;
+	type DelegatedVotingTrackOrigin = EnsureRoot<AccountId>;
+	type PalletId = VtokenVotingPalletId;
+	type MaxVotesPerDelegate = ConstU32<1000>;
 }
 
 impl pallet_preimage::Config for Runtime {

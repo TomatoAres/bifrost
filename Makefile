@@ -26,27 +26,50 @@ build-all-release: copy-genesis-config-release
 	cargo build -p bifrost-cli --locked --features "with-all-runtime" --release
 
 .PHONY: check-all # cargo check all
-check-all: check-bin check-runtimes
+check-all: format-check check-runtimes check-benchmarks check-bin 
 
 .PHONY: check-bin # cargo check bin
 check-bin:
-		SKIP_WASM_BUILD= cargo check -p bifrost-cli --features "with-all-runtime runtime-benchmarks try-runtime"
+	SKIP_WASM_BUILD= cargo check -p bifrost-cli --features "with-all-runtime"
 
 .PHONY: check-runtimes # cargo check all runtime
 check-runtimes:
-		SKIP_WASM_BUILD= cargo check -p bifrost-polkadot-runtime --features on-chain-release-build
-    	SKIP_WASM_BUILD= cargo check -p bifrost-kusama-runtime --features on-chain-release-build
+	SKIP_WASM_BUILD= cargo check -p bifrost-polkadot-runtime --features "runtime-benchmarks try-runtime on-chain-release-build" --tests
+	SKIP_WASM_BUILD= cargo check -p bifrost-kusama-runtime --features "runtime-benchmarks try-runtime on-chain-release-build" --tests
+
+.PHONY: check-benchmarks
+check-benchmarks:
+	SKIP_WASM_BUILD= cargo check -p bifrost-polkadot-runtime --features "runtime-benchmarks"
+	SKIP_WASM_BUILD= cargo check -p bifrost-kusama-runtime --features "runtime-benchmarks"
+
+.PHONY: check-try-runtime
+check-try-runtime:
+	SKIP_WASM_BUILD= cargo check -p bifrost-polkadot-runtime --features "try-runtime"
+	SKIP_WASM_BUILD= cargo check -p bifrost-kusama-runtime --features "try-runtime"
 
 .PHONY: test-all # cargo test all
-test-all: test-runtimes test-benchmarks test-vtoken-voting-kusama
+test-all: test-runtimes test-benchmarks test-vtoken-voting-kusama integration-tests
 
 .PHONY: test-runtimes
 test-runtimes:
-	SKIP_WASM_BUILD= cargo test --features "with-all-runtime" --lib
+	SKIP_WASM_BUILD= cargo test --workspace \
+		--exclude *emulated* \
+		--exclude *rpc* \
+		--exclude bifrost-cli \
+		--exclude bifrost-service
+
+.PHONY: integration-tests
+integration-tests:
+	cargo test -p bifrost-emulated-integration-tests
 
 .PHONY: test-benchmarks
 test-benchmarks:
-	SKIP_WASM_BUILD= cargo test benchmarking  --features="with-bifrost-runtime, runtime-benchmarks, polkadot"
+	SKIP_WASM_BUILD= cargo test --workspace benchmarking --features="runtime-benchmarks, polkadot" \
+		--exclude *emulated* \
+		--exclude *rpc* \
+		--exclude bifrost-cli \
+		--exclude bifrost-service \
+		--exclude bifrost-primitives
 
 test-vtoken-voting-kusama:
 	SKIP_WASM_BUILD= cargo test -p bifrost-vtoken-voting --features="kusama, runtime-benchmarks"
@@ -65,19 +88,22 @@ format:
 	cargo fmt --all
 
 .PHONY: clippy-all
-clippy-all: format-check runtime-clippy runtime-benchmarks-clippy try-runtime-clippy
+clippy-all: runtime-clippy runtime-benchmarks-clippy try-runtime-clippy
 
 .PHONY: runtime-clippy
 runtime-clippy:
-	SKIP_WASM_BUILD= cargo clippy --features "with-all-runtime,on-chain-release-build" -- -D warnings
+	SKIP_WASM_BUILD= cargo clippy -p bifrost-polkadot-runtime --features "on-chain-release-build" -- -D warnings
+	SKIP_WASM_BUILD= cargo clippy -p bifrost-kusama-runtime --features "on-chain-release-build" -- -D warnings
 
 .PHONY: runtime-benchmarks-clippy
 runtime-benchmarks-clippy:
-	SKIP_WASM_BUILD= cargo clippy --features "with-all-runtime,on-chain-release-build,runtime-benchmarks" -- -D warnings
+	SKIP_WASM_BUILD= cargo clippy -p bifrost-polkadot-runtime --features "runtime-benchmarks" -- -D warnings
+	SKIP_WASM_BUILD= cargo clippy -p bifrost-kusama-runtime --features "runtime-benchmarks" -- -D warnings
 
 .PHONY: try-runtime-clippy
 try-runtime-clippy:
-	SKIP_WASM_BUILD= cargo clippy --features "with-all-runtime,on-chain-release-build,try-runtime" -- -D warnings
+	SKIP_WASM_BUILD= cargo clippy -p bifrost-polkadot-runtime --features "try-runtime" -- -D warnings
+	SKIP_WASM_BUILD= cargo clippy -p bifrost-kusama-runtime --features "try-runtime" -- -D warnings
 
 .PHONY: format-check # cargo fmt check
 format-check:
@@ -140,6 +166,8 @@ try-kusama-runtime-upgrade:build-try-runtime
 			target/release/wbuild/bifrost-kusama-runtime/bifrost_kusama_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
 		--disable-idempotency-checks \
+		--blocktime 6000  --print-storage-diff \
+		--mbm-max-blocks 100 \
 		live \
 		--uri wss://hk.bifrost-rpc.liebi.com:443/ws 
 
@@ -149,9 +177,9 @@ try-polkadot-runtime-upgrade:build-try-runtime
 		--runtime \
 		target/release/wbuild/bifrost-polkadot-runtime/bifrost_polkadot_runtime.compact.compressed.wasm \
 		on-runtime-upgrade \
-		--overwrite-state-version \
-		--blocktime 6000 \
 		--disable-idempotency-checks \
+		--blocktime 6000  --print-storage-diff \
+		--mbm-max-blocks 100 \
 		live \
 		--uri wss://hk.p.bifrost-rpc.liebi.com:443/ws
 

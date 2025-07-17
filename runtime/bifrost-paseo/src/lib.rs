@@ -27,9 +27,10 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 extern crate alloc;
-
+use alloc::borrow::Cow;
 use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
+use frame_support::traits::ExistenceRequirement;
 use pallet_traits::evm::InspectEvmAccounts;
 // A few exports that help ease life for downstream crates.
 pub use bifrost_parachain_staking::{InflationInfo, Range};
@@ -40,7 +41,7 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, OraclePalletId, ParachainStakingPalletId, SlpEntrancePalletId,
 	SlpExitPalletId, SlpxPalletId, SystemMakerPalletId, SystemStakingPalletId, TreasuryPalletId,
-	BNC, BNC_DECIMALS, DOT, VDOT,
+	VtokenVotingPalletId, BNC, BNC_DECIMALS, DOT, VDOT,
 };
 use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
@@ -68,7 +69,7 @@ use sp_api::impl_runtime_apis;
 use sp_arithmetic::Percent;
 use sp_core::{OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Zero},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, DispatchError, DispatchResult, FixedU128, Perbill, Permill, RuntimeDebug,
@@ -102,6 +103,7 @@ use constants::currency::*;
 use cumulus_primitives_core::AggregateMessageOrigin;
 use fp_evm::FeeCalculator;
 use fp_rpc::TransactionStatus;
+use frame_support::migrations::{FailedMigrationHandler, FailedMigrationHandling};
 use frame_support::{
 	dispatch::DispatchClass,
 	genesis_builder_helper::{build_state, get_preset},
@@ -132,7 +134,7 @@ use sp_runtime::{
 	transaction_validity::TransactionValidityError,
 };
 use xcm::{
-	v3::MultiLocation, v4::prelude::*, Version as XcmVersion, VersionedAssetId, VersionedAssets,
+	v3::MultiLocation, v5::prelude::*, Version as XcmVersion, VersionedAssetId, VersionedAssets,
 	VersionedLocation, VersionedXcm,
 };
 pub use xcm_config::{BifrostTreasuryAccount, MultiCurrency};
@@ -145,7 +147,8 @@ use crate::xcm_config::XcmRouter;
 use bifrost_primitives::OraclePriceProvider;
 use frame_support::weights::WeightToFee as _;
 use governance::{
-	custom_origins, CoreAdminOrRoot, LiquidStaking, SALPAdmin, Spender, TechAdmin, TechAdminOrRoot,
+	custom_origins, CoreAdminOrRoot, DelegatedVotingAdmin, LiquidStaking, SALPAdmin, Spender,
+	TechAdmin, TechAdminOrRoot,
 };
 use ismp::{
 	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
@@ -191,14 +194,14 @@ pub mod opaque {
 /// This runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("bifrost_paseo"),
-	impl_name: create_runtime_str!("bifrost_paseo"),
+	spec_name: Cow::Borrowed("bifrost_paseo"),
+	impl_name: Cow::Borrowed("bifrost_paseo"),
 	authoring_version: 0,
-	spec_version: 19001,
+	spec_version: 20000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -298,10 +301,11 @@ impl frame_system::Config for Runtime {
 	type MaxConsumers = ConstU32<16>;
 	type RuntimeTask = ();
 	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = ();
+	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -507,6 +511,8 @@ parameter_types! {
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
 	pub const MaxRegistrars: u32 = 20;
+	pub const UsernameDeposit: Balance = deposit(0, 32);
+
 }
 
 impl pallet_identity::Config for Runtime {
@@ -528,6 +534,8 @@ impl pallet_identity::Config for Runtime {
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<7>;
 	type MaxUsernameLength = ConstU32<32>;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
 }
 
 parameter_types! {
@@ -571,6 +579,7 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -606,6 +615,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type SpendPeriod = SpendPeriod;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -615,6 +625,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = FlexibleFee;
 	type OperationalFeeMultiplier = ConstU8<5>;
 	type WeightToFee = WeightToFee;
+	type WeightInfo = pallet_transaction_payment::weights::SubstrateWeight<Runtime>;
 }
 
 /// Calls that can bypass the tx-pause pallet.
@@ -665,6 +676,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
 	type ConsensusHook = ConsensusHook;
 	type WeightInfo = cumulus_pallet_parachain_system::weights::SubstrateWeight<Runtime>;
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -1146,6 +1158,9 @@ impl bifrost_vtoken_voting::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type LocalBlockNumberProvider = System;
 	type RelayVCurrency = RelayVCurrencyId;
+	type DelegatedVotingTrackOrigin = DelegatedVotingAdmin;
+	type PalletId = VtokenVotingPalletId;
+	type MaxVotesPerDelegate = ConstU32<10>;
 }
 
 // Bifrost modules end
@@ -1440,6 +1455,36 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub MbmServiceWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
+}
+
+/// Unfreeze chain on failed migration and continue with extrinsic execution.
+/// Migration must be tested and make sure it doesn't fail. If it happens, we don't have other
+/// choices but unfreeze chain and continue with extrinsic execution.
+pub struct UnfreezeChainOnFailedMigration;
+impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
+	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
+		log::error!(target: "mbm", "Migration failed at cursor: {migration:?}");
+		FailedMigrationHandling::ForceUnstuck
+	}
+}
+
+impl pallet_migrations::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = pallet_identity::migration::v2::LazyMigrationV1ToV2<Runtime>;
+	// Benchmarks need mocked migrations to guarantee that they succeed.
+	#[cfg(feature = "runtime-benchmarks")]
+	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
+	type CursorMaxLen = ConstU32<65_536>;
+	type IdentifierMaxLen = ConstU32<256>;
+	type MigrationStatusHandler = ();
+	type FailedMigrationHandler = UnfreezeChainOnFailedMigration;
+	type MaxServiceWeight = MbmServiceWeight;
+	type WeightInfo = pallet_migrations::weights::SubstrateWeight<Runtime>;
+}
+
 // Below is the implementation of tokens manipulation functions other than native token.
 pub struct LocalAssetAdaptor<Local>(PhantomData<Local>);
 
@@ -1485,6 +1530,7 @@ where
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local transfer"))?,
+				ExistenceRequirement::AllowDeath,
 			)
 		} else {
 			Err(DispatchError::Other("unknown asset in local transfer"))
@@ -1523,6 +1569,7 @@ where
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local withdraw"))?,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		} else {
 			return Err(DispatchError::Other("unknown asset in local transfer"));
@@ -1566,7 +1613,7 @@ construct_runtime! {
 		ParachainSystem: cumulus_pallet_parachain_system = 5,
 		ParachainInfo: parachain_info = 6,
 		TxPause: pallet_tx_pause = 7,
-		Sudo: pallet_sudo = 8,
+		MultiBlockMigrations: pallet_migrations = 8,
 
 		// Monetary stuff
 		Balances: pallet_balances = 10,
@@ -1580,6 +1627,7 @@ construct_runtime! {
 		ParachainStaking: bifrost_parachain_staking = 25,
 
 		// Governance stuff
+		Sudo: pallet_sudo = 35,
 		ConvictionVoting: pallet_conviction_voting = 36,
 		Referenda: pallet_referenda = 37,
 		Origins: custom_origins = 38,
@@ -1663,7 +1711,7 @@ pub struct TransactionConverter;
 
 impl fp_rpc::ConvertTransaction<UncheckedExtrinsic> for TransactionConverter {
 	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> UncheckedExtrinsic {
-		UncheckedExtrinsic::new_unsigned(
+		UncheckedExtrinsic::new_bare(
 			pallet_ethereum::Call::<Runtime>::transact { transaction }.into(),
 		)
 	}
@@ -1674,7 +1722,7 @@ impl fp_rpc::ConvertTransaction<opaque::UncheckedExtrinsic> for TransactionConve
 		&self,
 		transaction: pallet_ethereum::Transaction,
 	) -> opaque::UncheckedExtrinsic {
-		let extrinsic = UncheckedExtrinsic::new_unsigned(
+		let extrinsic = UncheckedExtrinsic::new_bare(
 			pallet_ethereum::Call::<Runtime>::transact { transaction }.into(),
 		);
 		let encoded = extrinsic.encode();
@@ -1733,11 +1781,6 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 /// upgrades in case governance decides to do so. THE ORDER IS IMPORTANT.
 pub type Migrations = migrations::Unreleased;
 
-parameter_types! {
-	pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
-	pub const MerkleDistributorName: &'static str = "MerkleDistributor";
-}
-
 /// The runtime migrations per release.
 pub mod migrations {
 	#[allow(unused_imports)]
@@ -1747,13 +1790,9 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_buy_back::migration::v1::MigrateToV1<Runtime>,
-		bifrost_buy_back::migration::v2::MigrateToV2<Runtime>,
-		frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<MerkleDistributorName, RocksDbWeight>,
-		bifrost_system_staking::migrations::v3::MigrateToV3<Runtime>,
-		bifrost_slpx::migration::v3::MigrateToV3<Runtime>,
-		bifrost_slp::migrations::v4::SlpMigration<Runtime>,
+		bifrost_vtoken_minting::migration::InitializeVtokenIssuance<Runtime, ConstBool<false>>,
+		bifrost_asset_registry::migrations::v2::MigrateToV2<Runtime>,
+		bifrost_cross_in_out::migrations::v4::MigrateToV4<Runtime>,
 	);
 }
 
@@ -1915,8 +1954,7 @@ impl_runtime_apis! {
 		}
 
 		fn storage_at(address: H160, index: U256) -> H256 {
-			let mut tmp = [0u8; 32];
-			index.to_big_endian(&mut tmp);
+			let tmp = index.to_big_endian();
 			pallet_evm::AccountStorages::<Runtime>::get(address, H256::from_slice(&tmp[..]))
 		}
 
@@ -2146,7 +2184,7 @@ impl_runtime_apis! {
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
 		fn convert_transaction(transaction: Transaction) -> <Block as BlockT>::Extrinsic {
-			UncheckedExtrinsic::new_unsigned(
+			UncheckedExtrinsic::new_bare(
 				pallet_ethereum::Call::<Runtime>::transact { transaction }.into(),
 			)
 		}
@@ -2307,9 +2345,9 @@ impl_runtime_apis! {
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
 			let asset = asset
-				.into_version(4)
+				.into_version(5)
 				.map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
-			let bnc_asset = VersionedAssetId::V4(LocalBncLocation::get().into());
+			let bnc_asset = VersionedAssetId::V5(LocalBncLocation::get().into());
 
 			if asset == bnc_asset {
 				// for native token
@@ -2532,7 +2570,7 @@ impl_runtime_apis! {
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
 			use frame_support::traits::TrackedStorageKey;
 

@@ -28,6 +28,7 @@ use alloc::{string::ToString, vec, vec::Vec};
 use alloy_sol_types::SolValue;
 use bifrost_primitives::{AssetMetadata, CurrencyId, CurrencyIdMapping, TokenInfo};
 use codec::Encode;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::PalletId;
 use frame_support::{pallet_prelude::Weight, traits::tokens::fungible::Mutate as FungibleMutate};
 use frame_support::{pallet_prelude::*, traits::tokens::Preservation};
@@ -41,7 +42,8 @@ use orml_traits::MultiCurrency;
 pub use pallet::*;
 use pallet_hyperbridge::PALLET_HYPERBRIDGE;
 use pallet_hyperbridge::{SubstrateHostParams, VersionedHostParams};
-use primitive_types::{H160, H256};
+use primitive_types::H256;
+use sp_core::H160;
 use sp_core::{Get, U256};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
@@ -439,10 +441,21 @@ impl<T: Config> Pallet<T> {
 		let is_native = NativeAssets::<T>::get(currency_id);
 		let redeem = !is_native;
 		if is_native {
-			T::MultiCurrency::transfer(currency_id, &sender, &Self::pallet_account(), amount)?;
+			T::MultiCurrency::transfer(
+				currency_id,
+				&sender,
+				&Self::pallet_account(),
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 		} else {
 			// Assets that do not originate from this chain are burned
-			T::MultiCurrency::withdraw(currency_id, &sender, amount)?;
+			T::MultiCurrency::withdraw(
+				currency_id,
+				&sender,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 		}
 
 		let to = recepient.0;
@@ -455,8 +468,8 @@ impl<T: Config> Pallet<T> {
 				let body = BodyWithCall {
 					amount: {
 						let amount: u128 = amount.saturated_into::<u128>();
-						let mut bytes = [0u8; 32];
-						convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
+						let bytes =
+							convert_to_erc20(amount, erc_decimals, decimals).to_big_endian();
 						alloy_primitives::U256::from_be_bytes(bytes)
 					},
 					asset_id: asset_id.0.into(),
@@ -474,8 +487,8 @@ impl<T: Config> Pallet<T> {
 				let body = Body {
 					amount: {
 						let amount: u128 = amount.saturated_into::<u128>();
-						let mut bytes = [0u8; 32];
-						convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
+						let bytes =
+							convert_to_erc20(amount, erc_decimals, decimals).to_big_endian();
 						alloy_primitives::U256::from_be_bytes(bytes)
 					},
 					asset_id: asset_id.0.into(),

@@ -56,7 +56,7 @@ pub const DICK: AccountId32 = AccountId32::new([3u8; 32]);
 pub fn info() -> DispatchInfo {
 	// pays_fee: Pays::Yes -- class: DispatchClass::Normal
 	DispatchInfo {
-		weight: Weight::default(),
+		call_weight: Weight::default(),
 		..Default::default()
 	}
 }

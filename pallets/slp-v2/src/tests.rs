@@ -46,7 +46,7 @@ use sp_runtime::{
 use xcm::{
 	latest::{MaybeErrorCode, Parent, Response},
 	prelude::{AccountId32, Parachain},
-	v4::Location,
+	v5::Location,
 };
 
 pub const ASTAR_DAPP_STAKING: StakingProtocol = StakingProtocol::AstarDappStaking;
@@ -764,7 +764,7 @@ fn astar_polkadot_xcm_call() {
 		)
 		.unwrap();
 
-		assert_eq!(to_hex(&calldata, false), "0x330804010100b91f04000101006d6f646c62662f76746b696e0000000000000000000000000000000000000000040400000091010000000000");
+		assert_eq!(to_hex(&calldata, false), "0x330805010100b91f05000101006d6f646c62662f76746b696e0000000000000000000000000000000000000000050400000091010000000000");
 
 		let call_data = SlpV2::wrap_polkadot_xcm_limited_reserve_transfer_assets_call_data(
 			&StakingProtocol::PolkadotStaking,
@@ -772,7 +772,7 @@ fn astar_polkadot_xcm_call() {
 			to
 		)
 		.unwrap();
-		assert_eq!(to_hex(&call_data, false), "0x630804000100b91f04000101006d6f646c62662f76746b696e0000000000000000000000000000000000000000040400000091010000000000");
+		assert_eq!(to_hex(&call_data, false), "0x630805000100b91f05000101006d6f646c62662f76746b696e0000000000000000000000000000000000000000050400000091010000000000");
 	})
 }
 

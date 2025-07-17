@@ -170,6 +170,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -202,13 +203,13 @@ impl bifrost_currencies::Config for Runtime {
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |_location: xcm::v4::Location| -> Option<u128> {
+	pub ParachainMinFee: |_location: xcm::v5::Location| -> Option<u128> {
 		Some(u128::MAX)
 	};
 }
 
 parameter_types! {
-	pub SelfRelativeLocation: xcm::v4::Location = xcm::v4::Location::here();
+	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
 	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
@@ -405,7 +406,8 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 			MANTA => {
 				// get parachain id
 				if let Some(location) = CurrencyIdConvert::convert(currency_id) {
-					let v3_location = xcm::v3::Location::try_from(location).unwrap();
+					let v3_location =
+						xcm::v3::Location::try_from(location.into_versioned()).unwrap();
 					if let Some(Parachain(para_id)) = v3_location.interior().first() {
 						MultiLocation::new(
 							1,
@@ -435,7 +437,8 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 			_ => {
 				// get parachain id
 				if let Some(location) = CurrencyIdConvert::convert(currency_id) {
-					let v3_location = xcm::v3::Location::try_from(location).unwrap();
+					let v3_location =
+						xcm::v3::Location::try_from(location.into_versioned()).unwrap();
 					if let Some(Parachain(para_id)) = v3_location.interior().first() {
 						MultiLocation::new(
 							1,
@@ -488,33 +491,33 @@ parameter_types! {
 }
 
 pub struct CurrencyIdConvert;
-impl Convert<CurrencyId, Option<xcm::v4::Location>> for CurrencyIdConvert {
-	fn convert(id: CurrencyId) -> Option<xcm::v4::Location> {
+impl Convert<CurrencyId, Option<xcm::v5::Location>> for CurrencyIdConvert {
+	fn convert(id: CurrencyId) -> Option<xcm::v5::Location> {
 		use CurrencyId::*;
 		use TokenSymbol::*;
 
 		match id {
-			Token(MOVR) => Some(xcm::v4::Location::new(
+			Token(MOVR) => Some(xcm::v5::Location::new(
 				1,
 				[
-					xcm::v4::Junction::Parachain(2023),
-					xcm::v4::Junction::PalletInstance(10),
+					xcm::v5::Junction::Parachain(2023),
+					xcm::v5::Junction::PalletInstance(10),
 				],
 			)),
-			Token(KSM) => Some(xcm::v4::Location::parent()),
-			Native(BNC) => Some(xcm::v4::Location::new(
+			Token(KSM) => Some(xcm::v5::Location::parent()),
+			Native(BNC) => Some(xcm::v5::Location::new(
 				0,
-				[xcm::v4::Junction::from(
+				[xcm::v5::Junction::from(
 					BoundedVec::try_from("0x0001".encode()).unwrap(),
 				)],
 			)),
-			Token(PHA) => Some(xcm::v4::Location::new(
+			Token(PHA) => Some(xcm::v5::Location::new(
 				1,
-				[xcm::v4::Junction::Parachain(2004)],
+				[xcm::v5::Junction::Parachain(2004)],
 			)),
-			MANTA => Some(xcm::v4::Location::new(
+			MANTA => Some(xcm::v5::Location::new(
 				1,
-				[xcm::v4::Junction::Parachain(2104)],
+				[xcm::v5::Junction::Parachain(2104)],
 			)),
 			_ => None,
 		}
@@ -572,7 +575,7 @@ parameter_types! {
 	// One XCM operation is 200_000_000 XcmWeight, cross-chain transfer ~= 2x of transfer = 3_000_000_000
 	pub UnitWeightCost: Weight = Weight::from_parts(200_000_000, 0);
 	pub const MaxInstructions: u32 = 100;
-	pub UniversalLocation: xcm::v4::InteriorLocation = xcm::v4::Junction::Parachain(2001).into();
+	pub UniversalLocation: xcm::v5::InteriorLocation = xcm::v5::Junction::Parachain(2001).into();
 }
 
 #[cfg(feature = "runtime-benchmarks")]

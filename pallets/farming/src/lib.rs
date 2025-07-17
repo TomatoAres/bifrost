@@ -35,6 +35,7 @@ pub use weights::WeightInfo;
 
 use crate::boost::*;
 use bifrost_primitives::{CurrencyId, FarmingInfo, PoolId};
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
@@ -562,6 +563,7 @@ pub mod pallet {
 						&exchanger,
 						&pool_info.reward_issuer,
 						*reward,
+						ExistenceRequirement::AllowDeath,
 					)
 				})?;
 			if pool_info.state == PoolState::UnCharged {
@@ -618,6 +620,7 @@ pub mod pallet {
 						&exchanger,
 						&pool_info.keeper,
 						*proportion * native_amount,
+						ExistenceRequirement::AllowDeath,
 					)
 				},
 			)?;
@@ -1137,6 +1140,7 @@ pub mod pallet {
 						&exchanger,
 						&T::FarmingBoost::get().into_account_truncating(),
 						*reward,
+						ExistenceRequirement::AllowDeath,
 					)
 				})?;
 			Self::deposit_event(Event::BoostCharged {

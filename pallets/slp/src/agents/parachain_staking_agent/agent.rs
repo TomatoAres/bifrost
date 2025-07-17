@@ -36,6 +36,7 @@ use bifrost_primitives::{
 	CurrencyId, SlpxOperator, VtokenMintingOperator, XcmOperationType,
 };
 use core::marker::PhantomData;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{ensure, traits::Get};
 use orml_traits::MultiCurrency;
 use parity_scale_codec::{alloc::collections::BTreeMap, Encode};
@@ -52,7 +53,7 @@ use xcm::{
 		MultiLocation,
 	},
 	v3::prelude::*,
-	v4::Asset,
+	v5::Asset,
 	VersionedLocation,
 };
 
@@ -335,7 +336,7 @@ impl<T: Config>
 
 			// Send out the xcm message.
 			let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-			xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 				.map_err(|_e| Error::<T>::XcmFailure)?;
 
 			query_index = query_id;
@@ -502,7 +503,7 @@ impl<T: Config>
 
 			// Send out the xcm message.
 			let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-			xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 				.map_err(|_e| Error::<T>::XcmFailure)?;
 			query_index = query_id;
 		}
@@ -679,7 +680,7 @@ impl<T: Config>
 
 			// Send out the xcm message.
 			let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-			xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 				.map_err(|_e| Error::<T>::XcmFailure)?;
 			query_index = query_id;
 		}
@@ -906,7 +907,7 @@ impl<T: Config>
 
 			// Send out the xcm message.
 			let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-			xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 				.map_err(|_e| Error::<T>::XcmFailure)?;
 			query_index = query_id;
 		}
@@ -1063,7 +1064,7 @@ impl<T: Config>
 
 			// Send out the xcm message.
 			let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-			xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 				.map_err(|_e| Error::<T>::XcmFailure)?;
 
 			query_index = query_id;
@@ -1414,7 +1415,7 @@ impl<T: Config>
 
 			// Send out the xcm message.
 			let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-			xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+			xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 				.map_err(|_e| Error::<T>::XcmFailure)?;
 
 			query_index = query_id;
@@ -1457,8 +1458,14 @@ impl<T: Config>
 
 		if currency_id == BNC {
 			let from_account = Pallet::<T>::multilocation_to_account(from)?;
-			T::MultiCurrency::transfer(currency_id, &from_account, &entrance_account, amount)
-				.map_err(|_| Error::<T>::Unexpected)?;
+			T::MultiCurrency::transfer(
+				currency_id,
+				&from_account,
+				&entrance_account,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)
+			.map_err(|_| Error::<T>::Unexpected)?;
 		} else {
 			// Prepare parameter dest and beneficiary.
 			let dest = Box::new(VersionedLocation::V3(MultiLocation {
@@ -1491,11 +1498,11 @@ impl<T: Config>
 					),
 					Box::new(
 						Assets::from(vec![Asset {
-							id: AssetId(xcm::v4::Location::new(
+							id: AssetId(xcm::v5::Location::new(
 								0,
-								xcm::v4::prelude::PalletInstance(10),
+								xcm::v5::prelude::PalletInstance(10),
 							)),
-							fun: xcm::v4::Fungibility::Fungible(amount.unique_saturated_into()),
+							fun: xcm::v5::Fungibility::Fungible(amount.unique_saturated_into()),
 						}])
 						.into(),
 					),
@@ -1558,8 +1565,14 @@ impl<T: Config>
 
 		if currency_id == BNC {
 			let to_account = Pallet::<T>::multilocation_to_account(to)?;
-			T::MultiCurrency::transfer(currency_id, &from_account_id, &to_account, amount)
-				.map_err(|_| Error::<T>::Unexpected)?;
+			T::MultiCurrency::transfer(
+				currency_id,
+				&from_account_id,
+				&to_account,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)
+			.map_err(|_| Error::<T>::Unexpected)?;
 		} else {
 			// transfer supplementary fee from treasury to the "from" account. Return the added up
 			// amount

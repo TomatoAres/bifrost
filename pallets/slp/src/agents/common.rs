@@ -28,6 +28,7 @@ use crate::{
 	BNC, DOT, GLMR, KSM, MANTA, MOVR, PHA,
 };
 use bifrost_primitives::{CurrencyId, VtokenMintingOperator, XcmDestWeightAndFeeHandler};
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{dispatch::GetDispatchInfo, ensure, traits::Len};
 use orml_traits::{MultiCurrency, XcmTransfer};
 use polkadot_parachain_primitives::primitives::Sibling;
@@ -37,9 +38,10 @@ use sp_runtime::{
 		AccountIdConversion, BlockNumberProvider, CheckedAdd, UniqueSaturatedFrom,
 		UniqueSaturatedInto,
 	},
-	DispatchResult, Saturating,
+	DispatchResult, SaturatedConversion, Saturating,
 };
-use xcm::v3::{prelude::*, MultiLocation};
+use xcm::v3::MultiLocation;
+use xcm::v5::prelude::*;
 
 // Some common business functions for all agents
 impl<T: Config> Pallet<T> {
@@ -181,7 +183,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BalanceOf<T>, Error<T>> {
 		ensure!(amount > Zero::zero(), Error::<T>::AmountZero);
 
-		let vtoken_issuance = T::MultiCurrency::total_issuance(vtoken);
+		let vtoken_issuance = T::VtokenMinting::get_v_currency_issuance(vtoken);
 		let token_pool = T::VtokenMinting::get_token_pool(currency_id);
 		// Calculate how much vksm the beneficiary account can get.
 		let amount: u128 = amount.unique_saturated_into();
@@ -208,6 +210,11 @@ impl<T: Config> Pallet<T> {
 		let beneficiary = Self::multilocation_to_account(&to)?;
 		// Issue corresponding vksm to beneficiary account.
 		T::MultiCurrency::deposit(depoist_currency, &beneficiary, charge_amount)?;
+		let adjustment = charge_amount
+			.saturated_into::<u128>()
+			.try_into()
+			.map_err(|_| Error::<T>::OverFlow)?;
+		T::VtokenMinting::set_v_currency_issuance(depoist_currency, adjustment)?;
 
 		Ok(())
 	}
@@ -266,7 +273,12 @@ impl<T: Config> Pallet<T> {
 		let source_account = Self::native_multilocation_to_account(&source_location)?;
 
 		// withdraw. If withdraw fails, issue an event and continue.
-		if let Err(_) = T::MultiCurrency::withdraw(currency_id, &source_account, fee) {
+		if let Err(_) = T::MultiCurrency::withdraw(
+			currency_id,
+			&source_account,
+			fee,
+			ExistenceRequirement::AllowDeath,
+		) {
 			// Deposit event
 			Self::deposit_event(Event::BurnFeeFailed {
 				currency_id,
@@ -280,26 +292,26 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn inner_construct_xcm_message(
 		currency_id: CurrencyId,
 		extra_fee: BalanceOf<T>,
-	) -> Result<Vec<xcm::v4::Instruction<()>>, Error<T>> {
+	) -> Result<Vec<xcm::v5::Instruction<()>>, Error<T>> {
 		let remote_fee_location = Self::convert_currency_to_remote_fee_location(currency_id);
 
-		let asset = xcm::v4::Asset {
-			id: xcm::v4::AssetId(remote_fee_location),
-			fun: xcm::v4::prelude::Fungible(extra_fee.unique_saturated_into()),
+		let asset = xcm::v5::Asset {
+			id: xcm::v5::AssetId(remote_fee_location),
+			fun: xcm::v5::prelude::Fungible(extra_fee.unique_saturated_into()),
 		};
 
 		let refund_receiver = Self::convert_currency_to_refund_receiver(currency_id);
 
 		Ok(vec![
-			xcm::v4::prelude::WithdrawAsset(asset.clone().into()),
-			xcm::v4::prelude::BuyExecution {
+			xcm::v5::prelude::WithdrawAsset(asset.clone().into()),
+			xcm::v5::prelude::BuyExecution {
 				fees: asset,
 				weight_limit: Unlimited,
 			},
-			xcm::v4::prelude::RefundSurplus,
-			xcm::v4::prelude::DepositAsset {
-				assets: xcm::v4::prelude::AllCounted(8).into(),
-				beneficiary: xcm::v4::prelude::Location {
+			xcm::v5::prelude::RefundSurplus,
+			xcm::v5::prelude::DepositAsset {
+				assets: xcm::v5::prelude::AllCounted(8).into(),
+				beneficiary: xcm::v5::prelude::Location {
 					parents: 0,
 					interior: refund_receiver,
 				},
@@ -309,16 +321,16 @@ impl<T: Config> Pallet<T> {
 
 	pub(crate) fn convert_currency_to_refund_receiver(
 		currency_id: CurrencyId,
-	) -> xcm::v4::Junctions {
+	) -> xcm::v5::Junctions {
 		let interior = match currency_id {
-			KSM | DOT => xcm::v4::Junctions::from([xcm::v4::prelude::Parachain(
+			KSM | DOT => xcm::v5::Junctions::from([xcm::v5::prelude::Parachain(
 				T::ParachainId::get().into(),
 			)]),
-			MOVR | GLMR => xcm::v4::Junctions::from([xcm::v4::prelude::AccountKey20 {
+			MOVR | GLMR => xcm::v5::Junctions::from([xcm::v5::prelude::AccountKey20 {
 				network: None,
 				key: Sibling::from(T::ParachainId::get()).into_account_truncating(),
 			}]),
-			_ => xcm::v4::Junctions::from([xcm::v4::prelude::AccountId32 {
+			_ => xcm::v5::Junctions::from([xcm::v5::prelude::AccountId32 {
 				network: None,
 				id: Sibling::from(T::ParachainId::get()).into_account_truncating(),
 			}]),
@@ -363,7 +375,7 @@ impl<T: Config> Pallet<T> {
 		who: &MultiLocation,
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
-	) -> Result<(QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v4::Xcm<()>), Error<T>> {
+	) -> Result<(QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v5::Xcm<()>), Error<T>> {
 		// prepare the query_id for reporting back transact status
 		let now = T::BlockNumberProvider::current_block_number();
 		let timeout = BlockNumberFor::<T>::from(TIMEOUT_BLOCKS).saturating_add(now);
@@ -404,11 +416,11 @@ impl<T: Config> Pallet<T> {
 			| (KSM, &XcmOperationType::Delegate)
 			| (KSM, &XcmOperationType::Undelegate) => {
 				let notify_call = Self::confirm_validators_by_delegator_call();
-				(notify_call.get_dispatch_info().weight, notify_call)
+				(notify_call.get_dispatch_info().call_weight, notify_call)
 			}
 			_ => {
 				let notify_call = Self::confirm_delegator_ledger_call();
-				(notify_call.get_dispatch_info().weight, notify_call)
+				(notify_call.get_dispatch_info().call_weight, notify_call)
 			}
 		};
 
@@ -416,7 +428,7 @@ impl<T: Config> Pallet<T> {
 			responder,
 			callback,
 			timeout,
-			xcm::v4::Junctions::Here,
+			xcm::v5::Junctions::Here,
 		);
 
 		Ok((query_id, notify_call_weight))
@@ -447,7 +459,7 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		let dest_location = Self::convert_currency_to_dest_location(currency_id)?;
-		xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+		xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 			.map_err(|_e| Error::<T>::XcmFailure)?;
 
 		Ok(withdraw_fee)
@@ -457,23 +469,23 @@ impl<T: Config> Pallet<T> {
 		query_id: QueryId,
 		max_weight: Weight,
 		currency_id: CurrencyId,
-	) -> xcm::v4::Instruction<()> {
+	) -> xcm::v5::Instruction<()> {
 		let dest_location = match currency_id {
-			DOT | KSM => xcm::v4::Location::new(
+			DOT | KSM => xcm::v5::Location::new(
 				0,
-				[xcm::v4::prelude::Parachain(
+				[xcm::v5::prelude::Parachain(
 					u32::from(T::ParachainId::get()),
 				)],
 			),
-			_ => xcm::v4::Location::new(
+			_ => xcm::v5::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(
+				[xcm::v5::prelude::Parachain(
 					u32::from(T::ParachainId::get()),
 				)],
 			),
 		};
 
-		xcm::v4::prelude::ReportTransactStatus(xcm::v4::prelude::QueryResponseInfo {
+		xcm::v5::prelude::ReportTransactStatus(xcm::v5::prelude::QueryResponseInfo {
 			destination: dest_location,
 			query_id,
 			max_weight,
@@ -530,8 +542,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(from.parents.is_zero(), Error::<T>::InvalidTransferSource);
 
 		let from_account = Pallet::<T>::multilocation_to_account(from)?;
-		let v4_location = (*to).try_into().map_err(|()| Error::<T>::FailToConvert)?;
-		T::XcmTransfer::transfer(from_account, currency_id, amount, v4_location, Unlimited)
+
+		let v5_location =
+			Location::try_from(to.into_versioned()).map_err(|()| Error::<T>::FailToConvert)?;
+		T::XcmTransfer::transfer(from_account, currency_id, amount, v5_location, Unlimited)
 			.map_err(|_| Error::<T>::TransferToError)?;
 
 		Ok(())
@@ -569,11 +583,11 @@ impl<T: Config> Pallet<T> {
 		currency_id: CurrencyId,
 		query_id: Option<QueryId>,
 		notify_call_weight: Option<Weight>,
-	) -> Result<xcm::v4::Xcm<()>, Error<T>> {
+	) -> Result<xcm::v5::Xcm<()>, Error<T>> {
 		let mut xcm_message = Self::inner_construct_xcm_message(currency_id, extra_fee)?;
-		let transact = xcm::v4::prelude::Transact {
+		let transact = xcm::v5::prelude::Transact {
 			origin_kind: OriginKind::SovereignAccount,
-			require_weight_at_most: transact_weight,
+			fallback_max_weight: Some(transact_weight),
 			call: call.into(),
 		};
 		xcm_message.insert(2, transact);
@@ -588,7 +602,7 @@ impl<T: Config> Pallet<T> {
 			}
 			_ => {}
 		};
-		Ok(xcm::v4::Xcm(xcm_message))
+		Ok(xcm::v5::Xcm(xcm_message))
 	}
 
 	pub(crate) fn get_unlocking_time_unit_from_current(
@@ -664,8 +678,14 @@ impl<T: Config> Pallet<T> {
 		let source_account = Self::native_multilocation_to_account(&source_location)?;
 
 		// transfer supplementary_fee from treasury to "from" account
-		T::MultiCurrency::transfer(currency_id, &source_account, &from, supplementary_fee)
-			.map_err(|_| Error::<T>::Unexpected)?;
+		T::MultiCurrency::transfer(
+			currency_id,
+			&source_account,
+			&from,
+			supplementary_fee,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|_| Error::<T>::Unexpected)?;
 		let added_amount = amount
 			.checked_add(&supplementary_fee)
 			.ok_or(Error::<T>::OverFlow)?;

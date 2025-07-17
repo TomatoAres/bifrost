@@ -78,6 +78,7 @@ impl frame_system::Config for Runtime {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 0;
@@ -96,6 +97,7 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 mock_account!(CallPermit, |_| MockAccount::from_u64(1));
@@ -114,6 +116,7 @@ pub type PCall = CallPermitPrecompileCall<Runtime>;
 parameter_types! {
 	pub PrecompilesValue: Precompiles<Runtime> = Precompiles::new();
 	pub const WeightPerGas: Weight = Weight::from_parts(1, 0);
+	pub GasLimitStorageGrowthRatio: u64 = 366;
 }
 
 impl pallet_evm::Config for Runtime {
@@ -135,10 +138,10 @@ impl pallet_evm::Config for Runtime {
 	type FindAuthor = ();
 	type OnCreate = ();
 	type GasLimitPovSizeRatio = ();
-	type SuicideQuickClearLimit = ConstU32<0>;
 	type Timestamp = Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 	type AccountProvider = pallet_evm::FrameSystemAccountProvider<Self>;
+	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 }
 
 parameter_types! {

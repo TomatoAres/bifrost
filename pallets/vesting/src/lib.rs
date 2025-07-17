@@ -93,16 +93,13 @@ const VESTING_ID: LockIdentifier = *b"vesting ";
 
 // A value placed in storage that represents the current version of the Vesting storage.
 // This value is used by `on_runtime_upgrade` to determine whether we run storage migration logic.
-#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Default, Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 enum Releases {
+	#[default]
 	V0,
 	V1,
-}
-
-impl Default for Releases {
-	fn default() -> Self {
-		Releases::V0
-	}
 }
 
 /// Actions to take against a user's `Vesting` storage entry.
@@ -677,8 +674,8 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Returns a tuple that consists of:
 	/// - Vec of vesting schedules, where completed schedules and those specified
-	/// 	by filter are removed. (Note the vec is not checked for respecting
-	/// 	bounded length.)
+	///   by filter are removed. (Note the vec is not checked for respecting
+	///   bounded length.)
 	/// - The amount locked at the current block number based on the given schedules.
 	///
 	/// NOTE: the amount locked does not include any schedules that are filtered out via `action`.
@@ -738,8 +735,8 @@ impl<T: Config> Pallet<T> {
 			.try_into()
 			.map_err(|_| Error::<T>::AtMaxVestingSchedules)?;
 
-		if schedules.len() == 0 {
-			Vesting::<T>::remove(&who);
+		if schedules.is_empty() {
+			Vesting::<T>::remove(who);
 		} else {
 			Vesting::<T>::insert(who, schedules)
 		}
@@ -812,8 +809,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		debug_assert!(
-			locked_now > Zero::zero() && schedules.len() > 0
-				|| locked_now == Zero::zero() && schedules.len() == 0
+			locked_now > Zero::zero() && !schedules.is_empty()
+				|| locked_now == Zero::zero() && schedules.is_empty()
 		);
 
 		Ok((schedules, locked_now))

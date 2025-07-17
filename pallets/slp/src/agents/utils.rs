@@ -372,28 +372,28 @@ impl<T: Config> Pallet<T> {
 
 	pub fn convert_currency_to_dest_location(
 		currency_id: CurrencyId,
-	) -> Result<xcm::v4::Location, Error<T>> {
+	) -> Result<xcm::v5::Location, Error<T>> {
 		match currency_id {
-			KSM | DOT => Ok(xcm::v4::Location::parent()),
-			MOVR => Ok(xcm::v4::Location::new(
+			KSM | DOT => Ok(xcm::v5::Location::parent()),
+			MOVR => Ok(xcm::v5::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(MoonriverChainId::get())],
+				[xcm::v5::prelude::Parachain(MoonriverChainId::get())],
 			)),
-			GLMR => Ok(xcm::v4::Location::new(
+			GLMR => Ok(xcm::v5::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(MoonbeamChainId::get())],
+				[xcm::v5::prelude::Parachain(MoonbeamChainId::get())],
 			)),
-			ASTR => Ok(xcm::v4::Location::new(
+			ASTR => Ok(xcm::v5::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(AstarChainId::get())],
+				[xcm::v5::prelude::Parachain(AstarChainId::get())],
 			)),
-			MANTA => Ok(xcm::v4::Location::new(
+			MANTA => Ok(xcm::v5::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(MantaChainId::get())],
+				[xcm::v5::prelude::Parachain(MantaChainId::get())],
 			)),
-			PHA => Ok(xcm::v4::Location::new(
+			PHA => Ok(xcm::v5::Location::new(
 				1,
-				[xcm::v4::prelude::Parachain(PhalaChainId::get())],
+				[xcm::v5::prelude::Parachain(PhalaChainId::get())],
 			)),
 			_ => Err(Error::<T>::NotSupportedCurrencyId),
 		}
@@ -419,11 +419,11 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn convert_currency_to_remote_fee_location(currency_id: CurrencyId) -> xcm::v4::Location {
+	pub fn convert_currency_to_remote_fee_location(currency_id: CurrencyId) -> xcm::v5::Location {
 		match currency_id {
-			MOVR => xcm::v4::Location::new(0, [xcm::v4::prelude::PalletInstance(10)]),
-			GLMR => xcm::v4::Location::new(0, [xcm::v4::prelude::PalletInstance(10)]),
-			_ => xcm::v4::Location::here(),
+			MOVR => xcm::v5::Location::new(0, [xcm::v5::prelude::PalletInstance(10)]),
+			GLMR => xcm::v5::Location::new(0, [xcm::v5::prelude::PalletInstance(10)]),
+			_ => xcm::v5::Location::here(),
 		}
 	}
 }

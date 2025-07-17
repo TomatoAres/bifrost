@@ -110,6 +110,7 @@ impl pallet_transaction_payment::Config for Test {
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = IdentityFee<Balance>;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -130,6 +131,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -291,6 +293,7 @@ where
 			&origin,
 			&target,
 			amount.unique_saturated_into(),
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		Ok(())
@@ -312,7 +315,12 @@ where
 		amount: AssetBalance,
 	) -> Result<AssetBalance, DispatchError> {
 		let currency_id: CurrencyId = asset_id.try_into().unwrap();
-		Local::withdraw(currency_id, &origin, amount.unique_saturated_into())?;
+		Local::withdraw(
+			currency_id,
+			&origin,
+			amount.unique_saturated_into(),
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok(amount)
 	}

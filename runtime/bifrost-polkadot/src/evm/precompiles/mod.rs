@@ -21,6 +21,7 @@ use core::marker::PhantomData;
 use crate::evm::precompiles::{
 	erc20_mapping::is_asset_address, multicurrency::MultiCurrencyPrecompile,
 };
+use ethabi::ethereum_types::U256;
 use ethabi::Token;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use hex_literal::hex;
@@ -33,7 +34,7 @@ use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
 use pallet_evm_precompile_modexp::Modexp;
 use pallet_evm_precompile_simple::{ECRecover, Identity, Ripemd160, Sha256};
 use parity_scale_codec::Decode;
-use primitive_types::{H160, U256};
+use primitive_types::H160;
 use sp_runtime::traits::Dispatchable;
 use sp_std::{borrow::ToOwned, vec::Vec};
 

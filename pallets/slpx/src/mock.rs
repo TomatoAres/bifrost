@@ -107,6 +107,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -286,8 +287,8 @@ impl pallet_ismp::Config for Test {
 	type Coprocessor = Coprocessor;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = ();
-	type WeightProvider = ();
 	type OffchainDB = ();
+	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<()>;
 }
 
 impl slpx::Config for Test {

@@ -4,8 +4,8 @@ use bifrost_primitives::{CurrencyId, HyperBridgeSender};
 use ismp::dispatcher::{DispatchPost, DispatchRequest, FeeMetadata, IsmpDispatcher};
 use ismp::host::StateMachine;
 use pallet_ismp::ModuleId;
+use primitive_types::H256;
 use sp_core::H160;
-use sp_core::H256;
 use sp_runtime::DispatchError;
 
 impl<T: Config> HyperBridgeSender<T::AccountId, BalanceOf<T>> for Pallet<T> {

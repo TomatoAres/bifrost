@@ -90,6 +90,7 @@ pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use bifrost_primitives::{CurrencyId, LeasePeriod, MessageId, Nonce, ParaId};
+	use frame_support::traits::ExistenceRequirement;
 	use frame_support::{
 		pallet_prelude::storage::child,
 		sp_runtime::traits::{AccountIdConversion, CheckedAdd, Hash, Saturating, Zero},
@@ -534,8 +535,8 @@ pub mod pallet {
 			T::MultiCurrency::ensure_can_withdraw(vs_bond, &who, value)
 				.map_err(|_e| Error::<T>::NotEnoughFreeAssetsToRedeem)?;
 
-			T::MultiCurrency::withdraw(vs_token, &who, value)?;
-			T::MultiCurrency::withdraw(vs_bond, &who, value)?;
+			T::MultiCurrency::withdraw(vs_token, &who, value, ExistenceRequirement::AllowDeath)?;
+			T::MultiCurrency::withdraw(vs_bond, &who, value, ExistenceRequirement::AllowDeath)?;
 
 			RedeemPool::<T>::set(RedeemPool::<T>::get().saturating_sub(value));
 			let mut fund_new = Funds::<T>::get(index).ok_or(Error::<T>::InvalidParaId)?;
@@ -554,6 +555,7 @@ pub mod pallet {
 				&Self::fund_account_id(index),
 				&who,
 				value,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			Self::deposit_event(Event::Refunded(
@@ -608,8 +610,8 @@ pub mod pallet {
 			T::MultiCurrency::ensure_can_withdraw(vs_bond, &who, value)
 				.map_err(|_e| Error::<T>::NotEnoughFreeAssetsToRedeem)?;
 
-			T::MultiCurrency::withdraw(vs_token, &who, value)?;
-			T::MultiCurrency::withdraw(vs_bond, &who, value)?;
+			T::MultiCurrency::withdraw(vs_token, &who, value, ExistenceRequirement::AllowDeath)?;
+			T::MultiCurrency::withdraw(vs_bond, &who, value, ExistenceRequirement::AllowDeath)?;
 			RedeemPool::<T>::set(RedeemPool::<T>::get().saturating_sub(value));
 
 			fund.raised = fund.raised.saturating_sub(value);
@@ -620,6 +622,7 @@ pub mod pallet {
 				&Self::fund_account_id(index),
 				&who,
 				value,
+				ExistenceRequirement::AllowDeath,
 			)?;
 			Self::deposit_event(Event::Redeemed(
 				who,
@@ -695,12 +698,14 @@ pub mod pallet {
 					from,
 					&T::TreasuryAccount::get(),
 					Percent::from_percent(25) * fund_account_balance,
+					ExistenceRequirement::AllowDeath,
 				)?;
 				T::MultiCurrency::transfer(
 					relay_currency_id,
 					from,
 					&T::BuybackPalletId::get().into_account_truncating(),
 					Percent::from_percent(75) * fund_account_balance,
+					ExistenceRequirement::AllowDeath,
 				)?;
 				Funds::<T>::remove(index);
 				Self::deposit_event(Event::<T>::Dissolved(index));

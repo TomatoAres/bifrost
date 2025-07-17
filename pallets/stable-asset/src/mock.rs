@@ -64,6 +64,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -106,6 +107,7 @@ type AtLeast64BitUnsigned = u128;
 
 pub type AssetId = i64;
 
+use frame_support::traits::ExistenceRequirement;
 use std::{cell::RefCell, collections::HashMap};
 
 pub struct Asset {
@@ -179,9 +181,10 @@ impl MultiCurrency<AccountId> for TestAssets {
 		from: &AccountId,
 		to: &AccountId,
 		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
 		Self::deposit(currency_id, to, amount)?;
-		Self::withdraw(currency_id, from, amount)?;
+		Self::withdraw(currency_id, from, amount, existence_requirement)?;
 		Ok(())
 	}
 
@@ -215,6 +218,7 @@ impl MultiCurrency<AccountId> for TestAssets {
 		asset: Self::CurrencyId,
 		dest: &AccountId,
 		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
 		ASSETS.with(|d| -> DispatchResult {
 			let i =

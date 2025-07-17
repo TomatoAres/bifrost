@@ -26,7 +26,6 @@ use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedFrom};
-use xcm::v2::prelude::*;
 
 use super::*;
 use crate::Pallet as CrossInOut;
@@ -127,8 +126,8 @@ mod benchmarks {
 
 		let location = Box::new(MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 {
-				network: Any,
+			interior: xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
+				network: None,
 				id: T::EntrancePalletId::get().into_account_truncating(),
 			}),
 		});
@@ -170,8 +169,8 @@ mod benchmarks {
 
 		let location = Box::new(MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 {
-				network: Any,
+			interior: xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
+				network: None,
 				id: T::EntrancePalletId::get().into_account_truncating(),
 			}),
 		});
@@ -218,8 +217,8 @@ mod benchmarks {
 
 		let location1 = Box::new(MultiLocation {
 			parents: 0,
-			interior: X1(AccountId32 {
-				network: Any,
+			interior: xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
+				network: None,
 				id: T::EntrancePalletId::get().into_account_truncating(),
 			}),
 		});
@@ -233,8 +232,8 @@ mod benchmarks {
 
 		let location2 = Box::new(MultiLocation {
 			parents: 1,
-			interior: X1(AccountId32 {
-				network: Any,
+			interior: xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
+				network: None,
 				id: T::EntrancePalletId::get().into_account_truncating(),
 			}),
 		});

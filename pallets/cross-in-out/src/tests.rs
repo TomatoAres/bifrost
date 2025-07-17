@@ -23,7 +23,7 @@ use bifrost_primitives::currency::KSM;
 use frame_support::{assert_noop, assert_ok, WeakBoundedVec};
 use sp_runtime::DispatchError::BadOrigin;
 #[allow(deprecated)]
-use xcm::opaque::v2::{Junction, Junctions::X1};
+use xcm::opaque::v3::{Junction, Junctions::X1};
 
 #[allow(deprecated)]
 #[test]
@@ -34,7 +34,10 @@ fn cross_in_and_cross_out_should_work() {
 		.execute_with(|| {
 			let location = MultiLocation {
 				parents: 100,
-				interior: X1(Junction::GeneralKey(WeakBoundedVec::default())),
+				interior: X1(Junction::GeneralKey {
+					length: 32,
+					data: [0; 32],
+				}),
 			};
 			CrossCurrencyRegistry::<Runtime>::insert(KSM, ());
 			CrossingMinimumAmount::<Runtime>::insert(KSM, (1, 1));
@@ -91,12 +94,18 @@ fn register_linked_account_should_work() {
 		.execute_with(|| {
 			let location = MultiLocation {
 				parents: 100,
-				interior: X1(Junction::GeneralKey(WeakBoundedVec::default())),
+				interior: X1(Junction::GeneralKey {
+					length: 32,
+					data: [0; 32],
+				}),
 			};
 
 			let location2 = MultiLocation {
 				parents: 111,
-				interior: X1(Junction::GeneralKey(WeakBoundedVec::default())),
+				interior: X1(Junction::GeneralKey {
+					length: 32,
+					data: [0; 32],
+				}),
 			};
 
 			assert_noop!(
@@ -168,12 +177,18 @@ fn change_outer_linked_account_should_work() {
 		.execute_with(|| {
 			let location = MultiLocation {
 				parents: 100,
-				interior: X1(Junction::GeneralKey(WeakBoundedVec::default())),
+				interior: X1(Junction::GeneralKey {
+					length: 32,
+					data: [0; 32],
+				}),
 			};
 
 			let location2 = MultiLocation {
 				parents: 111,
-				interior: X1(Junction::GeneralKey(WeakBoundedVec::default())),
+				interior: X1(Junction::GeneralKey {
+					length: 32,
+					data: [0; 32],
+				}),
 			};
 
 			AccountToOuterMultilocation::<Runtime>::insert(KSM, BOB, location.clone());

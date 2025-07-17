@@ -30,7 +30,7 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_core::{crypto::Ss58Codec, H160};
 use sp_runtime::{AccountId32 as AccountId, Permill};
-use xcm::v4::MaybeErrorCode;
+use xcm::v5::MaybeErrorCode;
 
 pub const STAKING_PROTOCOL: StakingProtocol = StakingProtocol::AstarDappStaking;
 
@@ -286,7 +286,7 @@ mod benchmarks {
 		_(
 			RawOrigin::Root,
 			0,
-			xcm::v4::Response::DispatchResult(MaybeErrorCode::Success),
+			xcm::v5::Response::DispatchResult(MaybeErrorCode::Success),
 		);
 		Ok(())
 	}

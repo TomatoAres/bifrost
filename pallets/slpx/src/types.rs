@@ -22,11 +22,12 @@ use ethereum::TransactionAction;
 use orml_traits::MultiCurrency;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_core::{H160, H256, U256};
+use sp_core::H160;
+use sp_core::{H256, U256};
 use sp_runtime::{traits::ConstU32, BoundedVec, FixedU128, RuntimeDebug};
 use sp_std::vec::Vec;
 use xcm::prelude::Weight;
-use xcm::v4::Location;
+use xcm::v5::Location;
 
 /// Max. allowed size of 65_536 bytes.
 pub const MAX_ETHEREUM_XCM_INPUT_SIZE: u32 = 2u32.pow(16);

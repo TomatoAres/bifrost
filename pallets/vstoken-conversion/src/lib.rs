@@ -32,6 +32,7 @@ pub mod primitives;
 pub mod weights;
 
 use bifrost_primitives::{CurrencyId, CurrencyIdConversion, TokenSymbol};
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::{AccountIdConversion, CheckedSub},
@@ -216,6 +217,7 @@ pub mod pallet {
 				&exchanger,
 				&T::VsbondAccount::get().into_account_truncating(),
 				vsbond_amount,
+				ExistenceRequirement::AllowDeath,
 			)?;
 			T::MultiCurrency::deposit(
 				T::CurrencyIdConversion::convert_to_vstoken(T::RelayCurrencyId::get())
@@ -307,8 +309,14 @@ pub mod pallet {
 				&T::VsbondAccount::get().into_account_truncating(),
 				&exchanger,
 				vsbond_balance,
+				ExistenceRequirement::AllowDeath,
 			)?;
-			T::MultiCurrency::withdraw(vs_token_currency_id, &exchanger, vstoken_amount)?;
+			T::MultiCurrency::withdraw(
+				vs_token_currency_id,
+				&exchanger,
+				vstoken_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			T::MultiCurrency::deposit(
 				vs_token_currency_id,
 				&T::TreasuryAccount::get(),

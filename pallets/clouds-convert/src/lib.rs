@@ -27,6 +27,7 @@ use bifrost_primitives::{
 	currency::{CLOUD, VBNC},
 	CurrencyId,
 };
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -142,11 +143,17 @@ pub mod pallet {
 			);
 
 			// burn clouds
-			T::MultiCurrency::withdraw(CLOUD, &who, value)?;
+			T::MultiCurrency::withdraw(CLOUD, &who, value, ExistenceRequirement::AllowDeath)?;
 
 			// transfer vBNC from pool to user
 			let vbnc_pool_account = Self::clouds_pool_account();
-			T::MultiCurrency::transfer(VBNC, &vbnc_pool_account, &who, can_get_vbnc)?;
+			T::MultiCurrency::transfer(
+				VBNC,
+				&vbnc_pool_account,
+				&who,
+				can_get_vbnc,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			// mint veBNC for user
 			T::BbBNC::create_lock_inner(&who, can_get_vbnc, T::LockedBlocks::get())?;
@@ -167,8 +174,14 @@ pub mod pallet {
 
 			// Transfer vBNC from user to clouds pool
 			let vbnc_pool_account = Self::clouds_pool_account();
-			T::MultiCurrency::transfer(VBNC, &who, &vbnc_pool_account, amount)
-				.map_err(|_| Error::<T>::NotEnoughBalance)?;
+			T::MultiCurrency::transfer(
+				VBNC,
+				&who,
+				&vbnc_pool_account,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)
+			.map_err(|_| Error::<T>::NotEnoughBalance)?;
 
 			// deposit event
 			Self::deposit_event(Event::VbncCharged { vbnc: amount });

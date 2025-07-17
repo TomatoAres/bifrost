@@ -18,7 +18,7 @@
 
 use crate::{evm::precompiles, ExtrinsicBaseWeight, Runtime};
 use bifrost_primitives::{AccountId, EvmPermit};
-use evm::ExitReason;
+use fp_evm::ExitReason;
 use fp_evm::FeeCalculator;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo, RawOrigin},

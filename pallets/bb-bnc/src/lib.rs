@@ -33,6 +33,7 @@ pub mod traits;
 pub mod weights;
 
 use bifrost_primitives::{Balance, CurrencyId, FarmingInfo, PoolId, VtokenMintingInterface};
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::{
@@ -1656,6 +1657,7 @@ pub mod pallet {
 						&T::BuyBackAccount::get().into_account_truncating(),
 						fast.checked_mul_int(value)
 							.ok_or(ArithmeticError::Overflow)?,
+						ExistenceRequirement::AllowDeath,
 					)?;
 				}
 			}
@@ -2131,6 +2133,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 				who,
 				&T::IncentivePalletId::get().into_account_truncating(),
 				reward,
+				ExistenceRequirement::AllowDeath,
 			)
 		})
 	}

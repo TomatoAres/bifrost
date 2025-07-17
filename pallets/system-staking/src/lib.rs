@@ -22,6 +22,7 @@ pub use weights::WeightInfo;
 pub mod migration;
 
 use bifrost_primitives::{CurrencyId, FarmingInfo, VtokenMintingInterface};
+use frame_support::traits::ExistenceRequirement;
 pub use frame_support::weights::Weight;
 use frame_support::{dispatch::DispatchResultWithPostInfo, traits::Get, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -603,6 +604,7 @@ impl<T: Config> Pallet<T> {
 			&pallet_account,
 			&T::BenefitReceivingAccount::get(),
 			vtoken_amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|_| Error::<T>::PayoutFailed)?;
 
@@ -646,7 +648,12 @@ impl<T: Config> Pallet<T> {
 			.saturating_sub(token_amount);
 
 		// Destroy token
-		match T::MultiCurrency::withdraw(token_id, &to, token_amount) {
+		match T::MultiCurrency::withdraw(
+			token_id,
+			&to,
+			token_amount,
+			ExistenceRequirement::AllowDeath,
+		) {
 			Ok(_) => {
 				Self::deposit_event(Event::WithdrawSuccess {
 					token: token_id,

@@ -63,8 +63,8 @@ impl pallet_ismp::Config for Runtime {
 	type Coprocessor = Coprocessor;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
-	type WeightProvider = ();
 	type OffchainDB = ();
+	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<()>;
 }
 
 impl ismp_parachain::Config for Runtime {

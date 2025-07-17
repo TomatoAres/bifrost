@@ -1,0 +1,22 @@
+[package]
+name = "bifrost-kusama-emulated-chain"
+description = "Bifrost Kusama emulated chain"
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
+edition = "2021"
+
+[dependencies]
+sp-core.workspace = true
+sp-keyring.workspace = true
+frame-support.workspace = true
+parachains-common.workspace = true
+parachains-common.default-features = true
+cumulus-primitives-core.workspace = true
+emulated-integration-tests-common.workspace = true
+bifrost-kusama-runtime.workspace = true
+bifrost-kusama-runtime.default-features = true
+bifrost-primitives.workspace = true
+bifrost-primitives.default-features = true
+westend-emulated-chain.workspace = true
+testnet-parachains-constants = { features = ["westend"], workspace = true, default-features = true }
+xcm.workspace = true
+bp-bridge-hub-westend.workspace = true

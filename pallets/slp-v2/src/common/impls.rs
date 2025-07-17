@@ -43,7 +43,7 @@ use sp_std::{vec, vec::Vec};
 use xcm::{
 	latest::{OriginKind, QueryId, QueryResponseInfo, WeightLimit, WildAsset},
 	prelude::{AccountId32, Fungible, Here, ReportTransactStatus},
-	v4::{opaque::Xcm, Asset, AssetFilter, AssetId, Assets, Location, SendXcm},
+	v5::{opaque::Xcm, Asset, AssetFilter, AssetId, Assets, Location, SendXcm},
 	DoubleEncoded, VersionedAssets, VersionedLocation,
 };
 
@@ -282,12 +282,12 @@ impl<T: Config> Pallet<T> {
 		let mut calldata = xcm_pallet_index.encode();
 		calldata.extend(LIMITED_RESERVE_TRANSFER_ASSETS_CALL_INDEX.encode());
 		// bifrost_dest_location
-		calldata.extend(VersionedLocation::V4(bifrost_dest_location).encode());
+		calldata.extend(VersionedLocation::V5(bifrost_dest_location).encode());
 		// beneficiary
-		calldata.extend(VersionedLocation::V4(beneficiary).encode());
+		calldata.extend(VersionedLocation::V5(beneficiary).encode());
 		// native asset + amount
 		calldata.extend(
-			VersionedAssets::V4(Assets::from(vec![Asset {
+			VersionedAssets::V5(Assets::from(vec![Asset {
 				id: AssetId(Location::here()),
 				fun: Fungible(amount),
 			}]))
@@ -336,7 +336,7 @@ impl<T: Config> Pallet<T> {
 		notify_call: <T as Config>::RuntimeCall,
 		mut_query_id: &mut Option<QueryId>,
 	) -> Result<Xcm, Error<T>> {
-		let notify_call_weight = notify_call.get_dispatch_info().weight;
+		let notify_call_weight = notify_call.get_dispatch_info().call_weight;
 		let now = frame_system::Pallet::<T>::block_number();
 		let timeout = now.saturating_add(T::QueryTimeout::get());
 		let responder = staking_protocol.info().remote_dest_location;

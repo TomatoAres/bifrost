@@ -101,8 +101,8 @@ mod benchmarks {
 			decimals: 12,
 			minimal_balance: BalanceOf::<T>::unique_saturated_from(0u128),
 		};
-		let versioned_location = VersionedLocation::V4(Location::new(1, [Parachain(2001)]));
-		let location: xcm::v4::Location = versioned_location.clone().try_into().unwrap();
+		let versioned_location = VersionedLocation::V5(Location::new(1, [Parachain(2001)]));
+		let location: xcm::v5::Location = versioned_location.clone().try_into().unwrap();
 
 		assert_ok!(AssetRegistry::<T>::register_token_metadata(
 			origin.clone(),
@@ -142,7 +142,7 @@ mod benchmarks {
 			decimals: 12,
 			minimal_balance: BalanceOf::<T>::unique_saturated_from(0u128),
 		};
-		let versioned_location = VersionedLocation::V4(Location::new(1, [Parachain(2001)]));
+		let versioned_location = VersionedLocation::V5(Location::new(1, [Parachain(2001)]));
 
 		assert_ok!(AssetRegistry::<T>::register_token_metadata(
 			origin.clone(),

@@ -341,6 +341,7 @@ std = [
 	"pallet-hyperbridge/std",
 	"pallet-token-gateway/std",
 	"anyhow/std",
+	"parachains-common/std",
 ]
 with-tracing = ["frame-executive/with-tracing"]
 
@@ -382,6 +383,7 @@ runtime-benchmarks = [
 	"bifrost-stable-pool/runtime-benchmarks",
 	"bifrost-vtoken-voting/runtime-benchmarks",
 	"bifrost-xcm-interface/runtime-benchmarks",
+	"bifrost-flexible-fee/runtime-benchmarks",
 	"sp-api/disable-logging",
 	"lend-market/runtime-benchmarks",
 	"bifrost-channel-commission/runtime-benchmarks",

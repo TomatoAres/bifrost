@@ -168,13 +168,13 @@ impl xcm_executor::Config for XcmConfig {
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |_location: xcm::v4::Location| -> Option<u128> {
+	pub ParachainMinFee: |_location: xcm::v5::Location| -> Option<u128> {
 		Some(u128::MAX)
 	};
 }
 
 parameter_types! {
-	pub SelfRelativeLocation: xcm::v4::Location = xcm::v4::Location::here();
+	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
 	// pub const BaseXcmWeight: Weight = Weight::from_ref_time(1000_000_000u64);
 	pub const MaxAssetsForTransfer: usize = 2;
 	// pub UniversalLocation: InteriorLocation = Parachain(2001).into();
@@ -217,6 +217,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ConstU32<0>;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type DoneSlashHandler = ();
 }
 
 ord_parameter_types! {

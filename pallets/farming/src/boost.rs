@@ -18,6 +18,7 @@
 
 use crate::*;
 use bb_bnc::BbBNCInterface;
+use frame_support::traits::ExistenceRequirement;
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, Default)]
 pub struct BoostPoolInfo<Balance, BlockNumber> {
@@ -202,6 +203,7 @@ impl<T: Config> Pallet<T> {
 							&T::FarmingBoost::get().into_account_truncating(),
 							&T::RewardIssuer::get().into_sub_account_truncating(pid),
 							transfer_balance,
+							ExistenceRequirement::AllowDeath,
 						)
 					})?;
 

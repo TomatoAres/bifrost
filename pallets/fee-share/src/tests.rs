@@ -21,6 +21,7 @@
 #![cfg(test)]
 
 use crate::{mock::*, *};
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{assert_err, assert_ok};
 use sp_arithmetic::per_things::Perbill;
 
@@ -46,7 +47,11 @@ fn on_initialize() {
 			System::set_block_number(current_block_number);
 			FeeShare::on_initialize(current_block_number);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
-				KSM, &ALICE, &keeper, 100,
+				KSM,
+				&ALICE,
+				&keeper,
+				100,
+				ExistenceRequirement::AllowDeath,
 			));
 			let current_block_number = System::block_number() + 1;
 			System::set_block_number(current_block_number);
@@ -82,7 +87,11 @@ fn edit_delete_distribution() {
 			assert_ok!(FeeShare::set_era_length(RuntimeOrigin::signed(ALICE), 1));
 			FeeShare::on_initialize(<frame_system::Pallet<Runtime>>::block_number() + 1);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
-				KSM, &ALICE, &keeper, 100,
+				KSM,
+				&ALICE,
+				&keeper,
+				100,
+				ExistenceRequirement::AllowDeath,
 			));
 			FeeShare::on_initialize(<frame_system::Pallet<Runtime>>::block_number() + 2);
 			assert_eq!(Tokens::free_balance(KSM, &keeper), 10100);
@@ -138,7 +147,11 @@ fn set_usd_config_should_work() {
 			System::set_block_number(current_block_number);
 			FeeShare::on_initialize(current_block_number);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
-				KSM, &ALICE, &keeper, 100,
+				KSM,
+				&ALICE,
+				&keeper,
+				100,
+				ExistenceRequirement::AllowDeath,
 			));
 			assert_eq!(Tokens::free_balance(KSM, &BOB), 10100);
 			assert_eq!(
@@ -155,7 +168,11 @@ fn set_usd_config_should_work() {
 				10000
 			);
 			assert_ok!(<Tokens as MultiCurrency<AccountId>>::transfer(
-				KSM, &ALICE, &keeper, 100,
+				KSM,
+				&ALICE,
+				&keeper,
+				100,
+				ExistenceRequirement::AllowDeath,
 			));
 			let current_block_number = System::block_number() + 8;
 			System::set_block_number(current_block_number);

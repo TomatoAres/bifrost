@@ -18,6 +18,7 @@
 
 use crate::{traits::BbBNCInterface, *};
 use bifrost_primitives::{PoolId, BNC};
+use frame_support::traits::ExistenceRequirement;
 pub use pallet::*;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -231,6 +232,7 @@ impl<T: Config> Pallet<T> {
 						&T::IncentivePalletId::get().into_account_truncating(),
 						who,
 						reward,
+						ExistenceRequirement::AllowDeath,
 					)?;
 					if currency == &BNC {
 						let _vtoken_value = T::VtokenMinting::mint(

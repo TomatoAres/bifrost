@@ -84,7 +84,7 @@ pub mod pallet {
 	};
 
 	/// [`IsmpModule`] module identifier for incoming requests from hyperbridge
-	pub const PALLET_BIFROST_ID: &'static [u8] = b"ismp-bnc";
+	pub const PALLET_BIFROST_ID: &[u8] = b"ismp-bnc";
 
 	/// [`PalletId`] where protocol fees will be collected
 	pub const PALLET_ID: ModuleId = ModuleId::Pallet(PalletId(*b"ismp-bnc"));

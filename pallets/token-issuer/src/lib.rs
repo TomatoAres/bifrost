@@ -23,6 +23,7 @@ extern crate alloc;
 
 use alloc::{vec, vec::Vec};
 use bifrost_primitives::CurrencyId;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{ensure, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
@@ -284,7 +285,13 @@ pub mod pallet {
 			let balance = T::MultiCurrency::free_balance(currency_id, &transferrer);
 			ensure!(balance >= amount, Error::<T>::NotEnoughBalance);
 
-			T::MultiCurrency::transfer(currency_id, &transferrer, &dest, amount)?;
+			T::MultiCurrency::transfer(
+				currency_id,
+				&transferrer,
+				&dest,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			Self::deposit_event(Event::Transferred(transferrer, dest, currency_id, amount));
 			Ok(())

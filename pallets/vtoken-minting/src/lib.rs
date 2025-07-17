@@ -37,13 +37,16 @@ pub use weights::WeightInfo;
 use crate::impls::Operation;
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	CurrencyId, HyperBridgeSender, RedeemType, SlpxOperator, TargetChain, TimeUnit,
+	CurrencyId, CurrencyIdExt, HyperBridgeSender, RedeemType, SlpxOperator, TargetChain, TimeUnit,
 	VTokenMintRedeemProvider,
 };
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
 	sp_runtime::{
-		traits::{BlockNumberProvider, CheckedAdd, CheckedSub, Saturating, Zero},
+		traits::{
+			BlockNumberProvider, CheckedAdd, CheckedSub, Saturating, UniqueSaturatedInto, Zero,
+		},
 		DispatchError, Permill,
 	},
 	traits::LockIdentifier,
@@ -71,7 +74,11 @@ const INCENTIVE_LOCK_ID: LockIdentifier = *b"vmincntv";
 pub mod pallet {
 	use super::*;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -308,6 +315,11 @@ pub mod pallet {
 		SupportedEthSet {
 			eths: BoundedVec<CurrencyId, ConstU32<10>>,
 		},
+		/// VToken issuance adjusted.
+		VtokenIssuanceSet {
+			v_currency_id: CurrencyIdOf<T>,
+			issuance: BalanceOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -360,6 +372,8 @@ pub mod pallet {
 		BalanceZero,
 		/// IncentiveLockBlocksNotSet
 		IncentiveLockBlocksNotSet,
+		/// VtokenIssuanceNotSet
+		VtokenIssuanceNotSet,
 	}
 
 	/// The mint fee and redeem fee.
@@ -463,6 +477,13 @@ pub mod pallet {
 	/// The total amount of tokens that are currently unlocking.
 	#[pallet::storage]
 	pub type UnlockingTotal<T: Config> =
+		StorageMap<_, Twox64Concat, CurrencyIdOf<T>, BalanceOf<T>, ValueQuery>;
+
+	/// VToken issuance for exchange rate calculation
+	/// This tracks the actual vtoken issuance that should be used for rate calculation
+	/// to avoid issues when vtokens are burned on Bifrost chain
+	#[pallet::storage]
+	pub type VtokenIssuance<T: Config> =
 		StorageMap<_, Twox64Concat, CurrencyIdOf<T>, BalanceOf<T>, ValueQuery>;
 
 	/// The hook iteration limit
@@ -1016,6 +1037,7 @@ pub mod pallet {
 				incentive_pool_account,
 				&minter,
 				incentive_amount,
+				ExistenceRequirement::AllowDeath,
 			)
 			.map_err(|_| Error::<T>::NotEnoughBalance)?;
 
@@ -1193,5 +1215,72 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Set VToken issuance for exchange rate calculation.
+		/// This allows adjustment of the tracked vtoken issuance to handle cases where
+		/// vtokens might be burned on the Bifrost chain.
+		/// Parameters:
+		/// - `v_currency_id`: The v_currency to set issuance for.
+		/// - `adjustment`: The amount to adjust (positive to increase, negative to decrease).
+		#[pallet::call_index(19)]
+		#[pallet::weight(T::DbWeight::get().reads_writes(1u64, 1u64))]
+		pub fn set_v_currency_issuance(
+			origin: OriginFor<T>,
+			v_currency_id: CurrencyIdOf<T>,
+			adjustment: i128,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			Self::set_v_currency_issuance_inner(v_currency_id, adjustment)?;
+
+			Ok(())
+		}
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	/// Get the v_currency issuance for rate calculation
+	pub fn get_v_currency_issuance_inner(v_currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
+		let tracked_issuance = VtokenIssuance::<T>::get(v_currency_id);
+		if tracked_issuance.is_zero() {
+			// If VtokenIssuance is not set (zero), fallback to total issuance
+			T::MultiCurrency::total_issuance(v_currency_id)
+		} else {
+			tracked_issuance
+		}
+	}
+
+	pub fn set_v_currency_issuance_inner(
+		v_currency_id: CurrencyIdOf<T>,
+		adjustment: i128,
+	) -> DispatchResult {
+		// Check if the currency is a vtoken, skip if not
+		if !v_currency_id.is_vtoken() {
+			return Ok(());
+		}
+
+		VtokenIssuance::<T>::mutate(v_currency_id, |issuance| -> DispatchResult {
+			if adjustment >= 0 {
+				// Positive adjustment - increase issuance
+				let adjustment_positive = adjustment as u128;
+				*issuance = issuance
+					.checked_add(&adjustment_positive.unique_saturated_into())
+					.ok_or(Error::<T>::CalculationOverflow)?;
+			} else {
+				// Negative adjustment - decrease issuance
+				let adjustment_abs = (-adjustment) as u128;
+				*issuance = issuance
+					.checked_sub(&adjustment_abs.unique_saturated_into())
+					.ok_or(Error::<T>::CalculationOverflow)?;
+			}
+			Ok(())
+		})?;
+
+		let new_issuance = VtokenIssuance::<T>::get(v_currency_id);
+		Self::deposit_event(Event::VtokenIssuanceSet {
+			v_currency_id,
+			issuance: new_issuance,
+		});
+		Ok(())
 	}
 }

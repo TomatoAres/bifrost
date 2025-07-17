@@ -24,7 +24,7 @@ use crate::{
 };
 use bifrost_primitives::{XcmOperationType, BNC};
 use frame_support::assert_ok;
-use xcm::v4::Weight;
+use xcm::v5::Weight;
 
 #[test]
 fn update_xcm_dest_weight_and_fee() {

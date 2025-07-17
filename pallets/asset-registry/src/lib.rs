@@ -43,7 +43,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, vec::Vec};
 use xcm::{
-	v4::{prelude::*, Location},
+	v5::{prelude::*, Location},
 	VersionedLocation,
 };
 
@@ -235,7 +235,7 @@ pub mod pallet {
 		}
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -307,7 +307,7 @@ pub mod pallet {
 				.try_into()
 				.map_err(|()| Error::<T>::BadLocation)?;
 
-			let v4_location =
+			let v5_location =
 				Location::try_from(location.clone()).map_err(|_| Error::<T>::BadLocation)?;
 
 			ensure!(
@@ -315,8 +315,8 @@ pub mod pallet {
 				Error::<T>::CurrencyIdNotExists
 			);
 
-			LocationToCurrencyIds::<T>::insert(v4_location.clone(), currency_id);
-			CurrencyIdToLocations::<T>::insert(currency_id, v4_location);
+			LocationToCurrencyIds::<T>::insert(v5_location.clone(), currency_id);
+			CurrencyIdToLocations::<T>::insert(currency_id, v5_location);
 			CurrencyIdToWeights::<T>::insert(currency_id, weight);
 
 			Pallet::<T>::deposit_event(Event::<T>::LocationSet {
@@ -415,7 +415,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_register_location(currency_id: CurrencyId, location: &Location) -> DispatchResult {
-		let v4_location =
+		let v5_location =
 			Location::try_from(location.clone()).map_err(|_| Error::<T>::BadLocation)?;
 
 		ensure!(
@@ -423,7 +423,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::CurrencyIdNotExists
 		);
 		ensure!(
-			LocationToCurrencyIds::<T>::get(v4_location.clone()).is_none(),
+			LocationToCurrencyIds::<T>::get(v5_location.clone()).is_none(),
 			Error::<T>::CurrencyIdExisted
 		);
 		ensure!(
@@ -431,8 +431,8 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::LocationExisted
 		);
 
-		LocationToCurrencyIds::<T>::insert(v4_location.clone(), currency_id);
-		CurrencyIdToLocations::<T>::insert(currency_id, v4_location);
+		LocationToCurrencyIds::<T>::insert(v5_location.clone(), currency_id);
+		CurrencyIdToLocations::<T>::insert(currency_id, v5_location);
 
 		Ok(())
 	}

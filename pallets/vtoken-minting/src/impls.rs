@@ -31,6 +31,7 @@ use bifrost_primitives::{
 	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, FIL, HYPERBRIDGE_TIMEOUT,
 	V_ETH,
 };
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	pallet_prelude::{DispatchResultWithPostInfo, *},
 	sp_runtime::{
@@ -47,7 +48,7 @@ use sp_core::U256;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{helpers_128bit::multiply_by_rational_with_rounding, Rounding};
 use sp_std::{vec, vec::Vec};
-use xcm::{prelude::*, v4::Location};
+use xcm::{prelude::*, v5::Location};
 
 // incentive lock id for vtoken minted by user
 const INCENTIVE_LOCK_ID: LockIdentifier = *b"vmincntv";
@@ -343,7 +344,13 @@ impl<T: Config> Pallet<T> {
 		let (mint_rate, _) = Fees::<T>::get();
 		let mint_fee = mint_rate.mul_floor(currency_amount);
 		// Charging fees
-		T::MultiCurrency::transfer(currency_id, minter, &T::FeeAccount::get(), mint_fee)?;
+		T::MultiCurrency::transfer(
+			currency_id,
+			minter,
+			&T::FeeAccount::get(),
+			mint_fee,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		let currency_amount = currency_amount
 			.checked_sub(&mint_fee)
@@ -358,6 +365,12 @@ impl<T: Config> Pallet<T> {
 		T::MultiCurrency::deposit(v_currency_id, minter, v_currency_amount)?;
 		// Increase the token pool amount.
 		Self::update_token_pool(&currency_id, &currency_amount, Operation::Add)?;
+		// Increase the vtoken issuance amount.
+		let adjustment: i128 = v_currency_amount
+			.saturated_into::<u128>()
+			.try_into()
+			.map_err(|_| Error::<T>::CalculationOverflow)?;
+		Self::set_v_currency_issuance_inner(v_currency_id, adjustment)?;
 
 		Ok((currency_amount, v_currency_amount, mint_fee))
 	}
@@ -444,6 +457,7 @@ impl<T: Config> Pallet<T> {
 						&entrance_account,
 						&redeemer,
 						redeem_currency_amount,
+						ExistenceRequirement::AllowDeath,
 					)?;
 				}
 				return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
@@ -566,6 +580,7 @@ impl<T: Config> Pallet<T> {
 						&entrance_account,
 						&redeemer,
 						redeem_currency_amount,
+						ExistenceRequirement::AllowDeath,
 					)?;
 					return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
 				}
@@ -659,6 +674,7 @@ impl<T: Config> Pallet<T> {
 			&minter,
 			&T::EntranceAccount::get().into_account_truncating(),
 			currency_amount_excluding_fee,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// record the minting information for ChannelCommission module
@@ -711,6 +727,7 @@ impl<T: Config> Pallet<T> {
 			&redeemer,
 			&T::RedeemFeeAccount::get(),
 			redeem_fee,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// Calculate the currency amount by v_currency_amount
@@ -724,7 +741,18 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// Withdraw the token from redeemer
-		T::MultiCurrency::withdraw(v_currency_id, &redeemer, v_currency_amount)?;
+		T::MultiCurrency::withdraw(
+			v_currency_id,
+			&redeemer,
+			v_currency_amount,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		// Decrease the vtoken issuance amount.
+		let adjustment: i128 = -(v_currency_amount
+			.saturated_into::<u128>()
+			.try_into()
+			.map_err(|_| Error::<T>::CalculationOverflow)?);
+		Self::set_v_currency_issuance_inner(v_currency_id, adjustment)?;
 
 		// Calculate the time to be locked
 		let ongoing_time_unit =
@@ -924,8 +952,8 @@ impl<T: Config> Pallet<T> {
 			sqrt_percentage.into_inner(),
 			1_000_000_000_000_000_000u128.into(),
 		);
-		// get the total issuance of the vtoken
-		let v_currency_total_issuance = T::MultiCurrency::total_issuance(v_currency_id);
+		// get the total issuance of the vtoken for rate calculation
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
 
 		// get the incentive coef for the vtoken
 		let incentive_coef = VtokenIncentiveCoef::<T>::get(v_currency_id)
@@ -933,7 +961,7 @@ impl<T: Config> Pallet<T> {
 
 		// calculate the incentive amount, but mind the overflow
 		// incentive_amount = vtoken_pool_balance * incentive_coef * v_currency_amount *
-		// sqrt_percentage / v_currency_total_issuance
+		// sqrt_percentage / v_currency_issuance
 		let incentive_amount = U256::from(
 			percentage
 				.mul_ceil(vtoken_pool_balance)
@@ -942,11 +970,7 @@ impl<T: Config> Pallet<T> {
 		.checked_mul(U256::from(incentive_coef))
 		.and_then(|x| x.checked_mul(U256::from(v_currency_amount.saturated_into::<u128>())))
 		// .and_then(|x| x.checked_mul(percentage))
-		.and_then(|x| {
-			x.checked_div(U256::from(
-				v_currency_total_issuance.saturated_into::<u128>(),
-			))
-		})
+		.and_then(|x| x.checked_div(U256::from(v_currency_issuance.saturated_into::<u128>())))
 		// first turn into u128，then use unique_saturated_into BalanceOf<T>
 		.map(|x| x.saturated_into::<u128>())
 		.map(|x| x.unique_saturated_into())
@@ -1054,20 +1078,28 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 			AccountIdOf<T>,
 			TimeUnit,
 		>>::get_token_pool(currency_id);
-		let v_currency_total_issuance = T::MultiCurrency::total_issuance(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
 
 		if BalanceOf::<T>::zero().eq(&token_pool_amount) {
 			Ok(currency_amount)
 		} else {
 			Ok(multiply_by_rational_with_rounding(
 				currency_amount.saturated_into::<u128>(),
-				v_currency_total_issuance.saturated_into::<u128>(),
+				v_currency_issuance.saturated_into::<u128>(),
 				token_pool_amount.saturated_into::<u128>(),
 				Rounding::Down,
 			)
 			.ok_or(Error::<T>::CalculationOverflow)?
 			.unique_saturated_into())
 		}
+	}
+
+	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> BalanceOf<T> {
+		Self::get_v_currency_issuance_inner(v_currency_id)
+	}
+
+	fn set_v_currency_issuance(v_currency_id: CurrencyId, adjustment: i128) -> DispatchResult {
+		Self::set_v_currency_issuance_inner(v_currency_id, adjustment)
 	}
 }
 
@@ -1124,14 +1156,14 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 			CurrencyIdOf<T>,
 			BalanceOf<T>,
 		>>::get_token_pool(currency_id);
-		let v_currency_total_issuance = T::MultiCurrency::total_issuance(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
 
 		if BalanceOf::<T>::zero().eq(&token_pool_amount) {
 			Ok(currency_amount)
 		} else {
 			Ok(multiply_by_rational_with_rounding(
 				currency_amount.saturated_into::<u128>(),
-				v_currency_total_issuance.saturated_into::<u128>(),
+				v_currency_issuance.saturated_into::<u128>(),
 				token_pool_amount.saturated_into::<u128>(),
 				Rounding::Down,
 			)
@@ -1157,15 +1189,15 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 			CurrencyIdOf<T>,
 			BalanceOf<T>,
 		>>::get_token_pool(currency_id);
-		let v_currency_total_issuance = T::MultiCurrency::total_issuance(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
 
-		if BalanceOf::<T>::zero().eq(&v_currency_total_issuance) {
+		if BalanceOf::<T>::zero().eq(&v_currency_issuance) {
 			Ok(v_currency_amount)
 		} else {
 			Ok(multiply_by_rational_with_rounding(
 				v_currency_amount.saturated_into::<u128>(),
 				token_pool_amount.saturated_into::<u128>(),
-				v_currency_total_issuance.saturated_into::<u128>(),
+				v_currency_issuance.saturated_into::<u128>(),
 				Rounding::Down,
 			)
 			.ok_or(Error::<T>::CalculationOverflow)?
@@ -1173,11 +1205,11 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 		}
 	}
 
-	fn get_minimums_redeem(v_currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
-		MinimumRedeem::<T>::get(v_currency_id)
+	fn get_minimums_redeem(vtoken_id: CurrencyIdOf<T>) -> BalanceOf<T> {
+		MinimumRedeem::<T>::get(vtoken_id)
 	}
 
-	fn get_token_pool(currency_id: CurrencyId) -> BalanceOf<T> {
+	fn get_token_pool(currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
 		if SupportedEth::<T>::get().contains(&currency_id) {
 			let mut token_pool_amount = BalanceOf::<T>::zero();
 			SupportedEth::<T>::get().iter().for_each(|&currency_id| {
@@ -1192,12 +1224,20 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 	fn get_moonbeam_parachain_id() -> u32 {
 		T::MoonbeamChainId::get()
 	}
+
+	fn get_v_currency_issuance(v_currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
+		Self::get_v_currency_issuance_inner(v_currency_id)
+	}
+
+	fn set_v_currency_issuance(v_currency_id: CurrencyIdOf<T>, adjustment: i128) -> DispatchResult {
+		Self::set_v_currency_issuance_inner(v_currency_id, adjustment)
+	}
 }
 
 impl<T: Config> VTokenSupplyProvider<CurrencyIdOf<T>, BalanceOf<T>> for Pallet<T> {
 	fn get_vtoken_supply(vtoken: CurrencyIdOf<T>) -> Option<BalanceOf<T>> {
 		if CurrencyId::is_vtoken(&vtoken) {
-			Some(T::MultiCurrency::total_issuance(vtoken))
+			Some(Self::get_v_currency_issuance_inner(vtoken))
 		} else {
 			None
 		}

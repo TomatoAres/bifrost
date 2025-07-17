@@ -39,6 +39,7 @@ pub use bifrost_stable_asset::{
 	RedeemSingleResult, StableAsset, StableAssetPoolId, StableAssetPoolInfo, SwapResult,
 	TokenRateHardcap,
 };
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{self, pallet_prelude::*, sp_runtime::traits::Zero, transactional};
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
@@ -420,7 +421,7 @@ impl<T: Config> Pallet<T> {
 			if T::CurrencyIdConversion::convert_to_token(token_in).ok() == Some(token_out) {
 				return Some((
 					token_in,
-					T::MultiCurrency::total_issuance(token_in).into(),
+					T::VtokenMinting::get_v_currency_issuance(token_in).into(),
 					T::VtokenMinting::get_token_pool(token_out).into(),
 					hardcap,
 				));
@@ -429,7 +430,7 @@ impl<T: Config> Pallet<T> {
 			if T::CurrencyIdConversion::convert_to_token(token_out).ok() == Some(token_in) {
 				return Some((
 					token_out,
-					T::MultiCurrency::total_issuance(token_out).into(),
+					T::VtokenMinting::get_v_currency_issuance(token_out).into(),
 					T::VtokenMinting::get_token_pool(token_in).into(),
 					hardcap,
 				));
@@ -566,6 +567,7 @@ impl<T: Config> Pallet<T> {
 				who,
 				&pool_info.account_id,
 				amounts_old[i],
+				ExistenceRequirement::AllowDeath,
 			)?;
 		}
 		if fee_amount > Zero::zero() {
@@ -647,6 +649,7 @@ impl<T: Config> Pallet<T> {
 				&pool_info.account_id,
 				who,
 				amounts[i],
+				ExistenceRequirement::AllowDeath,
 			)?;
 		}
 		if fee_amount > zero {
@@ -655,12 +658,14 @@ impl<T: Config> Pallet<T> {
 				who,
 				&pool_info.fee_recipient,
 				fee_amount,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		}
 		<T as bifrost_stable_asset::Config>::Assets::withdraw(
 			pool_info.pool_asset,
 			who,
 			redeem_amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		pool_info.total_supply = total_supply;
@@ -731,6 +736,7 @@ impl<T: Config> Pallet<T> {
 				who,
 				&pool_info.fee_recipient,
 				fee_amount,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		}
 		for (idx, amount) in amounts.iter().enumerate() {
@@ -740,6 +746,7 @@ impl<T: Config> Pallet<T> {
 					&pool_info.account_id,
 					who,
 					*amount,
+					ExistenceRequirement::AllowDeath,
 				)?;
 			}
 		}
@@ -747,6 +754,7 @@ impl<T: Config> Pallet<T> {
 			pool_info.pool_asset,
 			who,
 			burn_amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		pool_info.total_supply = total_supply;
@@ -821,10 +829,22 @@ impl<T: Config> Pallet<T> {
 				who,
 				&pool_info.fee_recipient,
 				fee_amount,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		}
-		T::MultiCurrency::transfer(pool_info.assets[i_usize], &pool_info.account_id, who, dy)?;
-		T::MultiCurrency::withdraw(pool_info.pool_asset, who, redeem_amount)?;
+		T::MultiCurrency::transfer(
+			pool_info.assets[i_usize],
+			&pool_info.account_id,
+			who,
+			dy,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		T::MultiCurrency::withdraw(
+			pool_info.pool_asset,
+			who,
+			redeem_amount,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		pool_info.total_supply = total_supply;
 		pool_info.balances = balances;
@@ -903,12 +923,14 @@ impl<T: Config> Pallet<T> {
 			who,
 			&pool_info.account_id,
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		<T as bifrost_stable_asset::Config>::Assets::transfer(
 			pool_info.assets[j_usize],
 			&pool_info.account_id,
 			who,
 			downscale_out,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		let asset_i = pool_info.assets[i_usize];
 		let asset_j = pool_info.assets[j_usize];

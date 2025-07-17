@@ -23,13 +23,14 @@ extern crate alloc;
 
 use alloc::vec;
 use bifrost_primitives::CurrencyId;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{ensure, pallet_prelude::*, PalletId};
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
 use sp_std::boxed::Box;
 pub use weights::WeightInfo;
 #[allow(deprecated)]
-use xcm::v2::MultiLocation;
+use xcm::v3::MultiLocation;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -129,7 +130,7 @@ pub mod pallet {
 
 	/// The current storage version, we set to 2 our new version(after migrate stroage from vec t
 	/// boundedVec).
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 	/// To store currencies that support indirect cross-in and cross-out.
 	#[pallet::storage]
@@ -212,7 +213,12 @@ pub mod pallet {
 			let location = AccountToOuterMultilocation::<T>::get(currency_id, &crosser)
 				.ok_or(Error::<T>::NoMultilocationMapping)?;
 
-			T::MultiCurrency::withdraw(currency_id, &crosser, amount)?;
+			T::MultiCurrency::withdraw(
+				currency_id,
+				&crosser,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			Self::deposit_event(Event::CrossedOut {
 				currency_id,

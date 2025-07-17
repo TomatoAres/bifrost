@@ -1,7 +1,8 @@
 use crate::CurrencyId;
 use ismp::host::StateMachine;
 use pallet_ismp::ModuleId;
-use sp_core::{H160, H256};
+use primitive_types::H256;
+use sp_core::H160;
 use sp_runtime::DispatchError;
 use sp_std::vec::Vec;
 
@@ -16,7 +17,7 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 	/// - `timeout`: Timeout for the message
 	/// - `payer`: Account id of the payer
 	/// - `fee`: Fee for the message
-	/// Returns
+	///   Returns
 	/// - `H256`: Message hash
 	fn send_msg(
 		from: ModuleId,
@@ -38,7 +39,7 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 	/// - `data`: Call data
 	/// - `payer`: Account id of the payer
 	/// - `fee`: Fee for the message
-	/// Returns
+	///   Returns
 	/// - `H256`: Message hash
 	fn send_and_call(
 		currency_id: CurrencyId,

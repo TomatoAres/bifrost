@@ -1,0 +1,13 @@
+[package]
+name = "rococo-system-emulated-network"
+description = "Rococo System emulated network"
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
+edition = "2021"
+
+[dependencies]
+emulated-integration-tests-common.workspace = true
+rococo-emulated-chain.workspace = true
+asset-hub-rococo-emulated-chain.workspace = true
+bridge-hub-rococo-emulated-chain.workspace = true
+penpal-emulated-chain.workspace = true
+bifrost-polkadot-emulated-chain = { path = "../../../integration-tests/chains/bifrost-polkadot" }

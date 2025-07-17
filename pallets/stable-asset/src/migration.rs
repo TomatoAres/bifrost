@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use super::{Config, Weight, *};
-use frame_support::traits::Get;
+use frame_support::traits::{ExistenceRequirement, Get};
 
 pub fn update_pallet_id<T: Config>() -> Weight {
 	let pool_count: u32 = PoolCount::<T>::get();
@@ -32,7 +32,13 @@ pub fn update_pallet_id<T: Config>() -> Weight {
 				if balance == Zero::zero() {
 					continue;
 				}
-				T::Assets::transfer(asset_id, &pool_info.account_id, &to, balance)?;
+				T::Assets::transfer(
+					asset_id,
+					&pool_info.account_id,
+					&to,
+					balance,
+					ExistenceRequirement::AllowDeath,
+				)?;
 			}
 			let pool_asset_balance =
 				T::Assets::free_balance(pool_info.pool_asset, &pool_info.account_id);
@@ -41,6 +47,7 @@ pub fn update_pallet_id<T: Config>() -> Weight {
 				&pool_info.account_id,
 				&to,
 				pool_asset_balance,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			pool_info.account_id = to;

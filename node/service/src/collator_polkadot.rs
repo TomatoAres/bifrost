@@ -58,6 +58,7 @@ use sc_network::{service::traits::NetworkBackend, NetworkBlock};
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
+use sc_transaction_pool::{BasicPool, FullChainApi};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_keystore::KeystorePtr;
 use substrate_prometheus_endpoint::Registry;
@@ -75,6 +76,7 @@ pub type FullBackend = TFullBackend<Block>;
 pub type FullClient = TFullClient<Block, RuntimeApi, WasmExecutor<HostFunctions>>;
 pub type MaybeFullSelectChain = Option<LongestChain<FullBackend, Block>>;
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<FullClient>, FullBackend>;
+type FullPool = BasicPool<FullChainApi<FullClient, Block>, Block>;
 
 pub fn new_partial(
 	config: &Configuration,
@@ -85,7 +87,7 @@ pub fn new_partial(
 		FullBackend,
 		MaybeFullSelectChain,
 		sc_consensus::import_queue::BasicQueue<Block>,
-		sc_transaction_pool::FullPool<Block, FullClient>,
+		FullPool,
 		(
 			eth::BlockImport<Block, ParachainBlockImport, FullClient>,
 			Option<Telemetry>,
@@ -143,13 +145,14 @@ pub fn new_partial(
 
 	let registry = config.prometheus_registry();
 
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-		config.transaction_pool.clone(),
+	// FIXME: The `config.transaction_pool.options` field is private, so for now use its default value
+	let transaction_pool = Arc::from(sc_transaction_pool::BasicPool::new_full(
+		Default::default(),
 		config.role.is_authority().into(),
 		registry,
 		task_manager.spawn_essential_handle(),
 		client.clone(),
-	);
+	));
 
 	let select_chain = if dev {
 		Some(LongestChain::new(backend.clone()))
@@ -257,7 +260,7 @@ fn start_consensus(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
-	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
+	transaction_pool: Arc<FullPool>,
 	_sync_oracle: Arc<SyncingService<Block>>,
 	keystore: KeystorePtr,
 	relay_chain_slot_duration: Duration,
@@ -388,12 +391,23 @@ where
 			.as_ref()
 			.map(|cfg| cfg.registry.clone()),
 	);
+
+	let sc_transaction_pool = Arc::from(
+		sc_transaction_pool::Builder::new(
+			task_manager.spawn_essential_handle(),
+			client.clone(),
+			parachain_config.role.is_authority().into(),
+		)
+		.with_options(parachain_config.transaction_pool.clone())
+		.with_prometheus(parachain_config.prometheus_registry())
+		.build(),
+	);
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
 			net_config,
 			client: client.clone(),
-			transaction_pool: transaction_pool.clone(),
+			transaction_pool: sc_transaction_pool,
 			para_id,
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
@@ -419,7 +433,7 @@ where
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
-			})
+			})?
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
 		);

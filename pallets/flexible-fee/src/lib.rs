@@ -27,6 +27,7 @@ use bifrost_primitives::{
 use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
 use cumulus_primitives_core::ParaId;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	dispatch::PostDispatchInfo,
 	pallet_prelude::{ValidateUnsigned, *},
@@ -52,7 +53,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, cmp::Ordering, vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::{prelude::Unlimited, v4::prelude::*};
+use xcm::{prelude::Unlimited, v5::prelude::*};
 use zenlink_protocol::{AssetId, ExportZenlink};
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -459,6 +460,7 @@ impl<T: Config> Pallet<T> {
 				T::RelaychainCurrencyId::get(),
 				&fee_receiver,
 				fee_receiver_balance,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			let asset: Asset = Asset {
@@ -507,7 +509,7 @@ impl<T: Config> Pallet<T> {
 				},
 				Transact {
 					origin_kind: OriginKind::SovereignAccount,
-					require_weight_at_most,
+					fallback_max_weight: Some(require_weight_at_most),
 					call: remote_call,
 				},
 				DepositAsset {
@@ -535,6 +537,7 @@ impl<T: Config> Pallet<T> {
 				T::RelaychainCurrencyId::get(),
 				&fee_receiver,
 				fee_receiver_balance,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			Self::deposit_event(Event::TransferTo {
@@ -642,8 +645,14 @@ impl<T: Config> Pallet<T> {
 		match fee_info {
 			Some((fee_currency, fee_amount)) => {
 				if fee_currency == extra_fee_currency {
-					T::MultiCurrency::transfer(fee_currency, who, extra_fee_receiver, fee_amount)
-						.map_err(|_| Error::<T>::NotEnoughBalance)?;
+					T::MultiCurrency::transfer(
+						fee_currency,
+						who,
+						extra_fee_receiver,
+						fee_amount,
+						ExistenceRequirement::AllowDeath,
+					)
+					.map_err(|_| Error::<T>::NotEnoughBalance)?;
 					Ok(())
 				} else {
 					let from_asset_id = Self::get_currency_asset_id(fee_currency)?;

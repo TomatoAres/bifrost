@@ -19,7 +19,7 @@
 use crate::*;
 use bifrost_primitives::{CurrencyId, DerivativeIndex};
 use frame_support::{ensure, pallet_prelude::*};
-use xcm::v4::Location;
+use xcm::v5::Location;
 
 use crate::{agents::relaychain_agent::call::*, pallet::Error, traits::*};
 

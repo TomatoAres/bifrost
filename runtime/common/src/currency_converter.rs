@@ -25,7 +25,7 @@ use sp_std::marker::PhantomData;
 use xcm::{
 	latest::{AssetId, Location},
 	prelude::Fungible,
-	v4::Asset,
+	v5::Asset,
 };
 
 pub struct CurrencyIdConvert<T, R>(PhantomData<(T, R)>);

@@ -40,7 +40,7 @@ use sp_runtime::{
 };
 use xcm::{
 	prelude::Parachain,
-	v4::{InteriorLocation, Weight},
+	v5::{InteriorLocation, Weight},
 };
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
@@ -93,6 +93,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 impl bifrost_asset_registry::Config for Test {

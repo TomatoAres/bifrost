@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::AccountId;
+use crate::{AccountId, CurrencyId, ETH, VDOT, VKSM};
 use frame_support::{
 	parameter_types,
 	traits::{ContainsPair, Get},
@@ -26,7 +26,7 @@ use sp_std::marker::PhantomData;
 use xcm::{
 	latest::Asset,
 	prelude::{AccountId32, Ethereum, Fungible, GeneralKey, GlobalConsensus, Parachain},
-	v4::{AssetId, InteriorLocation, Location, NetworkId, Parent},
+	v5::{AssetId, InteriorLocation, Location, NetworkId, Parent},
 };
 
 // Parachain Id
@@ -68,6 +68,14 @@ parameter_types! {
 			0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0
 		],
+	}]);
+	pub LocalVdotLocation: Location = Location::new(0, [GeneralKey {
+		length: 2,
+		data: [9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	}]);
+	pub LocalVksmLocation: Location = Location::new(0, [GeneralKey {
+		length: 2,
+		data: [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 	}]);
 
 	pub const KusamaNetwork: NetworkId = NetworkId::Kusama;
@@ -117,10 +125,21 @@ impl Convert<AccountId, Location> for AccountIdToLocation {
 	}
 }
 
+// CurrencyId
+parameter_types! {
+	pub const EthCurrencyId: CurrencyId = ETH;
+	pub const VdotCurrencyId: CurrencyId = VDOT;
+	pub const VksmCurrencyId: CurrencyId = VKSM;
+}
+
+pub type EthFungible<Runtime> = orml_tokens::CurrencyAdapter<Runtime, EthCurrencyId>;
+pub type VdotFungible<Runtime> = orml_tokens::CurrencyAdapter<Runtime, VdotCurrencyId>;
+pub type VksmFungible<Runtime> = orml_tokens::CurrencyAdapter<Runtime, VksmCurrencyId>;
+
 #[cfg(test)]
 mod test {
 	use super::*;
-	use xcm::v4::Junctions;
+	use xcm::v5::Junctions;
 
 	#[test]
 	fn parachain_location() {

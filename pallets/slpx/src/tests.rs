@@ -51,6 +51,13 @@ fn init_vtoken_minting() {
 	// assert_eq!(<bifrost_vtoken_minting::Pallet<Test> as VtokenMintingInterface>::get_token_pool(KSM), 161_005_739_527_156_331);
 	assert_eq!(Currencies::total_issuance(VKSM), 100_899_255_647_845_019);
 
+	// Set VtokenIssuance to match the total issuance for correct exchange rate calculation
+	assert_ok!(VtokenMinting::set_v_currency_issuance(
+		RuntimeOrigin::root(),
+		VKSM,
+		Currencies::total_issuance(VKSM).try_into().unwrap()
+	));
+
 	assert_ok!(VtokenMinting::set_minimum_mint(
 		RuntimeOrigin::root(),
 		KSM,
@@ -324,7 +331,7 @@ fn test_ethereum_call() {
 		let addr: [u8; 20] = hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"];
 		let r = EthereumXcmTransaction::V2(EthereumXcmTransactionV2 {
 			gas_limit: U256::from(720000),
-			action: TransactionAction::Call(H160::from(addr)),
+			action: TransactionAction::Call(ethabi::ethereum_types::H160(addr)),
 			value: U256::zero(),
 			input: Slpx::encode_ethereum_call(BNC, 123u128, 456u128).try_into().unwrap(),
 			access_list: None,
@@ -458,13 +465,13 @@ fn test_mint_with_channel_id() {
 fn test_abi_encode() {
 	new_test_ext().execute_with(|| {
 		let expect_hex_string = "000000000000000000000000000000000000000000000000000000000000500400000000000000000000000000000000000000000000000000000000000007d00000000000000000000000000000000000000000000000000000000000000bb8";
-		let expect_address = H160::from_slice(&hex!["0000000000000000000000000000000000005004"]);
+		let expect_address = ethabi::ethereum_types::H160::from_slice(&hex!["0000000000000000000000000000000000005004"]);
 		let expect_toke_pool = 2000u128;
 		let expect_vtoken_supply = 3000u128;
 		let data = ethabi::encode(&[
 			ethabi::Token::Address(expect_address),
-			ethabi::Token::Uint(U256::from(expect_toke_pool)),
-			ethabi::Token::Uint(U256::from(expect_vtoken_supply)),
+			ethabi::Token::Uint(expect_toke_pool.into()),
+			ethabi::Token::Uint(expect_vtoken_supply.into()),
 		]);
 		assert_eq!(expect_hex_string, hex::encode(data));
 	})
@@ -558,6 +565,11 @@ fn substrate_create_mint_order() {
 #[test]
 fn substrate_create_redeem_order() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(VtokenMinting::set_v_currency_issuance(
+			RuntimeOrigin::root(),
+			V_ETH,
+			Tokens::total_issuance(V_ETH).try_into().unwrap()
+		));
 		DelayBlock::<Test>::set(2u32.into());
 		assert_ok!(VtokenMinting::set_minimum_mint(
 			RuntimeOrigin::root(),

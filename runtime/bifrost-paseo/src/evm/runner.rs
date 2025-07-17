@@ -115,7 +115,7 @@ where
 		is_transactional: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
-		evm_config: &evm::Config,
+		evm_config: &fp_evm::Config,
 	) -> Result<(), RunnerError<Self::Error>> {
 		let (base_fee, mut weight) = T::FeeCalculator::min_gas_price();
 
@@ -187,7 +187,7 @@ where
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
-		config: &evm::Config,
+		config: &fp_evm::Config,
 	) -> Result<CallInfo, RunnerError<Self::Error>> {
 		if validate {
 			Self::validate(
@@ -238,7 +238,7 @@ where
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
-		config: &evm::Config,
+		config: &fp_evm::Config,
 	) -> Result<CreateInfo, RunnerError<Self::Error>> {
 		if validate {
 			Self::validate(
@@ -289,7 +289,7 @@ where
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
-		config: &evm::Config,
+		config: &fp_evm::Config,
 	) -> Result<CreateInfo, RunnerError<Self::Error>> {
 		if validate {
 			Self::validate(

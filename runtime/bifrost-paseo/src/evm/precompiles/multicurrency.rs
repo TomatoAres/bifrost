@@ -30,7 +30,7 @@ use crate::{
 };
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{Balance, CurrencyId, CurrencyIdMapping};
-use frame_support::traits::OriginTrait;
+use frame_support::traits::{ExistenceRequirement, OriginTrait};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{
@@ -227,6 +227,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,

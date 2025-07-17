@@ -1099,6 +1099,9 @@ fn config_vtoken_auto_refresh_should_work() {
 				vec![(coin0, (1, 1)), (coin1, (1, 1))]
 			));
 			assert_ok!(Currencies::deposit(VDOT, &3, 100));
+			assert_ok!(
+				<Test as crate::Config>::VtokenMinting::set_v_currency_issuance_inner(VDOT, 100)
+			);
 			assert_ok!(StablePool::on_swap(&3u128, 0, 0, 1, 5000000u128, 0));
 			assert_eq!(
 				bifrost_stable_asset::TokenRateCaches::<Test>::iter_prefix(0).collect::<Vec<(

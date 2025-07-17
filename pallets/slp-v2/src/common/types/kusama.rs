@@ -31,7 +31,7 @@ use sp_core::H160;
 use sp_runtime::traits::AccountIdConversion;
 use xcm::{
 	prelude::{AccountId32, AccountKey20, PalletInstance, Parachain},
-	v4::Location,
+	v5::Location,
 };
 
 /// Supported staking protocols.

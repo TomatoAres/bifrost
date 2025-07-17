@@ -126,10 +126,8 @@ pub type PoolToken = u128;
 /// Index of a transaction in the chain. 32-bit should be plenty.
 pub type Nonce = u32;
 
-///
 pub type BiddingOrderId = u64;
 
-///
 pub type EraId = u32;
 
 /// Signed version of Balance
@@ -206,6 +204,7 @@ parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"bf/trsry");
 	pub const VBNCConvertPalletId: PalletId = PalletId(*b"bf/vbncc");
 	pub const VeMintingPalletId: PalletId = PalletId(*b"bf/vemnt");
+	pub const VtokenVotingPalletId: PalletId = PalletId(*b"bf/vtvot");
 	// unused after vsbond_auction pallet removed
 	pub const VsbondAuctionPalletId: PalletId = PalletId(*b"bf/vsbnd");
 	pub const ZenlinkPalletId: PalletId = PalletId(*b"/zenlink");

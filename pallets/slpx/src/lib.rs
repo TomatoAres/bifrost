@@ -35,6 +35,7 @@ use bifrost_primitives::{
 };
 use cumulus_primitives_core::ParaId;
 use ethereum::TransactionAction;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	dispatch::{DispatchResult, DispatchResultWithPostInfo},
 	ensure,
@@ -53,7 +54,8 @@ pub use pallet::*;
 use pallet_ismp::ModuleId;
 use parity_scale_codec::{Decode, Encode};
 use polkadot_parachain_primitives::primitives::{Id, Sibling};
-use sp_core::{Hasher, H160, U256};
+use sp_core::H160;
+use sp_core::{Hasher, U256};
 use sp_runtime::{
 	traits::{
 		AccountIdConversion, BlakeTwo256, BlockNumberProvider, CheckedSub, Saturating,
@@ -63,7 +65,7 @@ use sp_runtime::{
 };
 use sp_std::{vec, vec::Vec};
 use token_gateway_primitives::token_gateway_id;
-use xcm::v4::{prelude::*, Location};
+use xcm::v5::{prelude::*, Location};
 #[cfg(feature = "polkadot")]
 use xcm::{DoubleEncoded, VersionedLocation};
 use xcm_builder::{DescribeAllTerminal, DescribeFamily, HashedDescription};
@@ -979,6 +981,12 @@ pub mod pallet {
 				&Self::reserve_account(),
 				additional_v_currency_amount,
 			)?;
+			// Update VtokenIssuance when issuing new vtokens
+			let adjustment = additional_v_currency_amount
+				.saturated_into::<u128>()
+				.try_into()
+				.map_err(|_| Error::<T>::ErrorArguments)?;
+			T::VtokenMintingInterface::set_v_currency_issuance(v_currency_id, adjustment)?;
 
 			// Emit event
 			Self::deposit_event(Event::<T>::AsyncMintExecuted {
@@ -1216,7 +1224,7 @@ impl<T: Config> Pallet<T> {
 			},
 			Transact {
 				origin_kind: OriginKind::SovereignAccount,
-				require_weight_at_most: xcm_weight,
+				fallback_max_weight: Some(xcm_weight),
 				call: call.into(),
 			},
 			RefundSurplus,
@@ -1247,13 +1255,11 @@ impl<T: Config> Pallet<T> {
 		vtoken_amount: BalanceOf<T>,
 	) -> Vec<u8> {
 		let bytes2_currency_id: Vec<u8> = currency_id.encode()[..2].to_vec();
-		let uint256_token_amount = U256::from(token_amount.saturated_into::<u128>());
-		let uint256_vtoken_amount = U256::from(vtoken_amount.saturated_into::<u128>());
 
 		let mut call = ethabi::encode(&[
 			ethabi::Token::FixedBytes(bytes2_currency_id),
-			ethabi::Token::Uint(uint256_token_amount),
-			ethabi::Token::Uint(uint256_vtoken_amount),
+			ethabi::Token::Uint(token_amount.saturated_into::<u128>().into()),
+			ethabi::Token::Uint(vtoken_amount.saturated_into::<u128>().into()),
 		]);
 
 		call.splice(0..0, EVM_FUNCTION_SELECTOR);
@@ -1266,10 +1272,12 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		vtoken_amount: BalanceOf<T>,
 	) -> Result<Vec<u8>, Error<T>> {
+		let eth_h160 = ethabi::ethereum_types::H160::from(contract.0);
+
 		let ethereum_call = Self::encode_ethereum_call(currency_id, token_amount, vtoken_amount);
 		let transaction = EthereumXcmTransaction::V2(EthereumXcmTransactionV2 {
 			gas_limit: U256::from(MAX_GAS_LIMIT),
-			action: TransactionAction::Call(contract),
+			action: TransactionAction::Call(eth_h160),
 			value: U256::zero(),
 			input: BoundedVec::try_from(ethereum_call).map_err(|_| Error::<T>::ErrorEncode)?,
 			access_list: None,
@@ -1324,6 +1332,7 @@ impl<T: Config> Pallet<T> {
 			evm_caller_account_id,
 			&T::TreasuryAccount::get(),
 			execution_fee,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		let balance_exclude_fee = currency_amount
@@ -1426,7 +1435,13 @@ impl<T: Config> Pallet<T> {
 			} else {
 				let fee_amount = Self::get_moonbeam_transfer_to_fee();
 				let payer = Self::get_moonbeam_transfer_payer()?;
-				T::MultiCurrency::transfer(BNC, &payer, &caller, fee_amount)?;
+				T::MultiCurrency::transfer(
+					BNC,
+					&payer,
+					&caller,
+					fee_amount,
+					ExistenceRequirement::AllowDeath,
+				)?;
 				let assets = vec![(currency_id, amount), (BNC, fee_amount)];
 				T::XcmTransfer::transfer_multicurrencies(caller, assets, 1, dest, Unlimited)?;
 			}
@@ -1582,7 +1597,8 @@ impl<T: Config> Pallet<T> {
 			let v_currency_id = currency_id
 				.to_vtoken()
 				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
-			let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
+			let v_currency_total_supply =
+				T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id);
 
 			if config.last_block + config.period < current_block_number {
 				let encoded_call = Self::encode_transact_call(
@@ -1614,6 +1630,7 @@ impl<T: Config> Pallet<T> {
 					target_fee_currency_id,
 					&T::TreasuryAccount::get(),
 					BalanceOf::<T>::unique_saturated_from(config.xcm_fee),
+					ExistenceRequirement::AllowDeath,
 				)
 				.is_err()
 				{
@@ -1675,7 +1692,8 @@ impl<T: Config> Pallet<T> {
 						.to_vtoken()
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
-					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
+					let v_currency_total_supply =
+						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id);
 					log::debug!(
 						"staking_currency_amount: {:?}, v_currency_total_supply: {:?}",
 						staking_currency_amount,
@@ -1683,8 +1701,8 @@ impl<T: Config> Pallet<T> {
 					);
 					let mut call_data = HYDRATION_EMA_ORACLE_PALLET_INDEX.encode();
 					call_data.extend(HYDRATION_EMA_ORACLE_CALL_INDEX.encode());
-					call_data.extend(VersionedLocation::V4(location_a).encode());
-					call_data.extend(VersionedLocation::V4(location_b).encode());
+					call_data.extend(VersionedLocation::V5(location_a).encode());
+					call_data.extend(VersionedLocation::V5(location_b).encode());
 					call_data.extend(
 						(
 							staking_currency_amount.saturated_into::<u128>(),
@@ -1764,11 +1782,22 @@ impl<T: Config> Pallet<T> {
 			) {
 				Ok(()) => {
 					// Issue additional v_currency amount to the reserve account
-					T::MultiCurrency::deposit(
-						v_currency_id,
-						&Self::reserve_account(),
-						additional_v_currency_amount,
-					)?;
+					if !additional_v_currency_amount.is_zero() {
+						T::MultiCurrency::deposit(
+							v_currency_id,
+							&Self::reserve_account(),
+							additional_v_currency_amount,
+						)?;
+						// Update VtokenIssuance when issuing new vtokens
+						let adjustment = additional_v_currency_amount
+							.saturated_into::<u128>()
+							.try_into()
+							.map_err(|_| Error::<T>::ErrorArguments)?;
+						T::VtokenMintingInterface::set_v_currency_issuance(
+							v_currency_id,
+							adjustment,
+						)?;
+					}
 				}
 				Err(_) => {
 					Self::deposit_event(Event::<T>::AsyncMintExecutionFailed {
@@ -1894,17 +1923,17 @@ impl<T: Config>
 						.to_vtoken()
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
-					let v_currency_total_supply = T::MultiCurrency::total_issuance(v_currency_id);
-
-					let uint256_token_amount =
-						U256::from(staking_currency_amount.saturated_into::<u128>());
-					let uint256_vtoken_amount =
-						U256::from(v_currency_total_supply.saturated_into::<u128>());
+					let v_currency_total_supply =
+						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id);
 
 					let body = ethabi::encode(&[
-						ethabi::Token::Address(*token),
-						ethabi::Token::Uint(uint256_token_amount),
-						ethabi::Token::Uint(uint256_vtoken_amount),
+						ethabi::Token::Address(ethabi::ethereum_types::H160::from(token.0)),
+						ethabi::Token::Uint(
+							staking_currency_amount.saturated_into::<u128>().into(),
+						),
+						ethabi::Token::Uint(
+							v_currency_total_supply.saturated_into::<u128>().into(),
+						),
 					]);
 
 					T::HyperBridgeSender::send_msg(

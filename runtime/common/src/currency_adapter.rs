@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::traits::Get;
+use frame_support::traits::{ExistenceRequirement, Get};
 use orml_xcm_support::UnknownAsset as UnknownAssetT;
 use parity_scale_codec::FullCodec;
 use sp_runtime::{
@@ -30,10 +30,7 @@ use sp_std::{
 	prelude::*,
 	result,
 };
-use xcm::{
-	v3::{Error as XcmError, Result, Weight},
-	v4::Asset,
-};
+use xcm::v5::{Asset, Error as XcmError, Location, Result, Weight, XcmContext};
 use xcm_builder::TakeRevenue;
 use xcm_executor::{
 	traits::{ConvertLocation, DropAssets, MatchesFungible, TransactAsset},
@@ -81,7 +78,7 @@ pub trait OnDepositFail<CurrencyId, AccountId, Balance> {
 	fn on_deposit_unknown_asset_fail(
 		err: DispatchError,
 		_asset: &Asset,
-		_location: &xcm::v4::Location,
+		_location: &Location,
 	) -> Result {
 		Err(XcmError::FailedToTransactAsset(err.into()))
 	}
@@ -172,11 +169,7 @@ impl<
 		DepositFailureHandler,
 	>
 {
-	fn deposit_asset(
-		asset: &Asset,
-		location: &xcm::v4::Location,
-		_context: Option<&xcm::v4::XcmContext>,
-	) -> Result {
+	fn deposit_asset(asset: &Asset, location: &Location, _context: Option<&XcmContext>) -> Result {
 		match (
 			AccountIdConvert::convert_location(location),
 			CurrencyIdConvert::convert(asset.clone()),
@@ -201,8 +194,8 @@ impl<
 
 	fn withdraw_asset(
 		asset: &Asset,
-		location: &xcm::v4::Location,
-		_maybe_context: Option<&xcm::v4::XcmContext>,
+		location: &Location,
+		_maybe_context: Option<&XcmContext>,
 	) -> result::Result<AssetsInHolding, XcmError> {
 		UnknownAsset::withdraw(asset, location).or_else(|_| {
 			let who = AccountIdConvert::convert_location(location)
@@ -212,7 +205,7 @@ impl<
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 				.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 				.saturated_into();
-			MultiCurrency::withdraw(currency_id, &who, amount)
+			MultiCurrency::withdraw(currency_id, &who, amount, ExistenceRequirement::AllowDeath)
 				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 		})?;
 
@@ -221,9 +214,9 @@ impl<
 
 	fn transfer_asset(
 		asset: &Asset,
-		from: &xcm::v4::Location,
-		to: &xcm::v4::Location,
-		_context: &xcm::v4::XcmContext,
+		from: &Location,
+		to: &Location,
+		_context: &XcmContext,
 	) -> result::Result<AssetsInHolding, XcmError> {
 		let from_account = AccountIdConvert::convert_location(from)
 			.ok_or(XcmError::from(Error::AccountIdConversionFailed))?;
@@ -234,8 +227,14 @@ impl<
 		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 			.saturated_into();
-		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount)
-			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
+		MultiCurrency::transfer(
+			currency_id,
+			&from_account,
+			&to_account,
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
 		Ok(asset.clone().into())
 	}
@@ -246,11 +245,7 @@ impl<T> DropAssets for BifrostDropAssets<T>
 where
 	T: TakeRevenue,
 {
-	fn drop_assets(
-		_origin: &xcm::v4::Location,
-		assets: AssetsInHolding,
-		_context: &xcm::v4::XcmContext,
-	) -> Weight {
+	fn drop_assets(_origin: &Location, assets: AssetsInHolding, _context: &XcmContext) -> Weight {
 		let multi_assets: Vec<Asset> = assets.into();
 		for asset in multi_assets {
 			T::take_revenue(asset);

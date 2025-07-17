@@ -32,7 +32,9 @@ use frame_support::{
 };
 use frame_system::EnsureSignedBy;
 use sp_core::ConstU32;
-use sp_runtime::{traits::AccountIdConversion, AccountId32, BuildStorage, DispatchError};
+use sp_runtime::{
+	traits::AccountIdConversion, AccountId32, BuildStorage, DispatchError, DispatchResult,
+};
 
 pub type BlockNumber = u64;
 pub type Amount = i128;
@@ -100,6 +102,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -145,7 +148,75 @@ impl bifrost_channel_commission::Config for Runtime {
 	type ClearingDuration = ClearingDuration;
 	type NameLengthLimit = NameLengthLimit;
 	type BlockNumberProvider = System;
-	type VtokenMintingInterface = ();
+	type VtokenMintingInterface = SimpleVTokenSupplyProvider;
+}
+
+pub struct SimpleVTokenSupplyProvider;
+
+impl VtokenMintingInterface<AccountId, CurrencyId, Balance> for SimpleVTokenSupplyProvider {
+	fn mint(
+		_exchanger: AccountId,
+		_token_id: CurrencyId,
+		_token_amount: Balance,
+		_remark: BoundedVec<u8, ConstU32<32>>,
+		_channel_id: Option<u32>,
+	) -> Result<(CurrencyId, Balance), DispatchError> {
+		Ok((CurrencyId::default(), 0u64))
+	}
+
+	fn redeem(
+		_exchanger: AccountId,
+		_vtoken_id: CurrencyId,
+		_vtoken_amount: Balance,
+	) -> DispatchResultWithPostInfo {
+		Ok(().into())
+	}
+
+	fn slpx_redeem(
+		_exchanger: AccountId,
+		_currency_id: Option<CurrencyId>,
+		_vtoken_id: CurrencyId,
+		_vtoken_amount: Balance,
+		_redeem_type: RedeemType<AccountId>,
+	) -> DispatchResultWithPostInfo {
+		Ok(().into())
+	}
+
+	fn get_v_currency_amount_by_currency_amount(
+		_token_id: CurrencyId,
+		_vtoken_id: CurrencyId,
+		token_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		Ok(token_amount / 10 * 11)
+	}
+
+	fn get_currency_amount_by_v_currency_amount(
+		_token_id: CurrencyId,
+		_vtoken_id: CurrencyId,
+		_vtoken_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		Ok(0u64)
+	}
+
+	fn get_token_pool(_currency_id: CurrencyId) -> Balance {
+		0u64
+	}
+
+	fn get_minimums_redeem(_vtoken_id: CurrencyId) -> Balance {
+		0u64
+	}
+
+	fn get_moonbeam_parachain_id() -> u32 {
+		0
+	}
+
+	fn get_v_currency_issuance(_v_currency_id: CurrencyId) -> Balance {
+		11000u64
+	}
+
+	fn set_v_currency_issuance(_v_currency_id: CurrencyId, _adjustment: i128) -> DispatchResult {
+		Ok(())
+	}
 }
 
 pub struct ExtBuilder {

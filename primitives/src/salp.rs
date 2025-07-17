@@ -55,11 +55,7 @@ where
 	BalanceOf: frame_support::sp_runtime::traits::Zero + Clone + Copy,
 {
 	pub fn is_contributing(&self) -> bool {
-		match self {
-			Self::Contributing(_) => true,
-			Self::Unlocked => true,
-			_ => false,
-		}
+		matches!(self, Self::Contributing(_) | Self::Unlocked)
 	}
 
 	pub fn contributing(&self) -> BalanceOf {

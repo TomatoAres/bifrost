@@ -26,6 +26,7 @@ use bifrost_primitives::{
 	CurrencyId, CurrencyIdExt, SlpHostingFeeProvider, VTokenMintRedeemProvider,
 	VtokenMintingInterface,
 };
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{pallet_prelude::*, PalletId};
 use frame_system::pallet_prelude::*;
 use orml_traits::MultiCurrency;
@@ -537,7 +538,7 @@ pub mod pallet {
 				PeriodClearedCommissions::<T>::insert(vtoken, BalanceOf::<T>::zero());
 
 				// set VtokenIssuanceSnapshots for the vtoken
-				let issuance = T::MultiCurrency::total_issuance(vtoken);
+				let issuance = T::VtokenMintingInterface::get_v_currency_issuance(vtoken);
 				let zero_balance: BalanceOf<T> = Zero::zero();
 				VtokenIssuanceSnapshots::<T>::insert(vtoken, (zero_balance, issuance));
 
@@ -662,7 +663,7 @@ impl<T: Config> Pallet<T> {
 				issuance.0 = issuance.1;
 
 				// get the vtoken new issuance amount from Tokens module issuance storage
-				let new_issuance = T::MultiCurrency::total_issuance(vtoken);
+				let new_issuance = T::VtokenMintingInterface::get_v_currency_issuance(vtoken);
 
 				issuance.1 = new_issuance;
 
@@ -898,6 +899,7 @@ impl<T: Config> Pallet<T> {
 				&Self::account_id(),
 				&T::BifrostCommissionReceiver::get(),
 				bifrost_commission,
+				ExistenceRequirement::AllowDeath,
 			) {
 				log::error!(
 					"Failed to transfer bifrost commission for token: {:?}",
@@ -954,6 +956,7 @@ impl<T: Config> Pallet<T> {
 				&Self::account_id(),
 				&receiver_account,
 				amount,
+				ExistenceRequirement::AllowDeath,
 			)
 			.map_err(|_| Error::<T>::TransferError)?;
 

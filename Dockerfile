@@ -15,7 +15,7 @@
 # along with Bifrost.  If not, see <http:#www.gnu.org/licenses/>.
 
 # syntax=docker/dockerfile:1
-FROM rust:buster as builder
+FROM rust:bookworm AS builder
 
 RUN apt-get update && apt-get install time cmake clang libclang-dev llvm protobuf-compiler -y
 RUN rustup toolchain install 1.82.0
@@ -29,21 +29,17 @@ RUN export PATH="$PATH:$HOME/.cargo/bin" && \
 
 # ===== SECOND STAGE ======
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 RUN rm -rf /usr/share  && \
   rm -rf /usr/lib/python* && \
-  useradd -m -u 1000 -U -s /bin/sh -d /bifrost bifrost && \
-  chown -R bifrost:bifrost /bifrost && \
   mkdir -p /bifrost/.local/share && \
   mkdir /data && \
-  chown -R bifrost:bifrost /data && \
-  ln -s /data /bifrost/.local/share/bifrost && \
   mkdir /spec && \
-  chown -R bifrost:bifrost /spec && \
+  ln -s /data /bifrost/.local/share/bifrost && \
   ln -s /spec /bifrost/.local/share/spec
 
-USER bifrost
+USER ubuntu
 COPY --from=builder /app/target/production/bifrost /usr/local/bin
 COPY ./node/service/res/bifrost-kusama.json /spec/bifrost.json
 COPY ./node/service/res/bifrost-kusama.json /spec
@@ -53,7 +49,7 @@ COPY ./node/service/res/bifrost-polkadot.json /spec
 RUN ldd /usr/local/bin/bifrost && \
   /usr/local/bin/bifrost --version
 
-USER bifrost
+USER ubuntu
 EXPOSE 30333 9933 9944
 
 VOLUME ["/data"]

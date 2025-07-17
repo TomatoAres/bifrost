@@ -33,6 +33,7 @@ pub mod weights;
 pub mod migration;
 
 pub use crate::traits::StableAsset;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;
@@ -2061,7 +2062,13 @@ impl<T: Config> StableAsset for Pallet<T> {
 				if *amount == Zero::zero() {
 					continue;
 				}
-				T::Assets::transfer(pool_info.assets[i], who, &pool_info.account_id, *amount)?;
+				T::Assets::transfer(
+					pool_info.assets[i],
+					who,
+					&pool_info.account_id,
+					*amount,
+					ExistenceRequirement::AllowDeath,
+				)?;
 			}
 			let zero: T::Balance = Zero::zero();
 			if fee_amount > zero {
@@ -2125,8 +2132,8 @@ impl<T: Config> StableAsset for Pallet<T> {
 				let j_usize = j as usize;
 				balances[i_usize] = balance_i;
 				balances[j_usize] = y;
-				T::Assets::transfer(pool_info.assets[i_usize], who, &pool_info.account_id, dx)?;
-				T::Assets::transfer(pool_info.assets[j_usize], &pool_info.account_id, who, dy)?;
+				T::Assets::transfer(pool_info.assets[i_usize], who, &pool_info.account_id, dx, ExistenceRequirement::AllowDeath)?;
+				T::Assets::transfer(pool_info.assets[j_usize], &pool_info.account_id, who, dy, ExistenceRequirement::AllowDeath)?;
 				let asset_i = pool_info.assets[i_usize];
 				let asset_j = pool_info.assets[j_usize];
 
@@ -2191,7 +2198,13 @@ impl<T: Config> StableAsset for Pallet<T> {
 					amounts[i] >= min_redeem_amounts[i],
 					Error::<T>::RedeemUnderMin
 				);
-				T::Assets::transfer(pool_info.assets[i], &pool_info.account_id, who, amounts[i])?;
+				T::Assets::transfer(
+					pool_info.assets[i],
+					&pool_info.account_id,
+					who,
+					amounts[i],
+					ExistenceRequirement::AllowDeath,
+				)?;
 			}
 			if fee_amount > zero {
 				T::Assets::transfer(
@@ -2199,9 +2212,15 @@ impl<T: Config> StableAsset for Pallet<T> {
 					who,
 					&pool_info.fee_recipient,
 					fee_amount,
+					ExistenceRequirement::AllowDeath,
 				)?;
 			}
-			T::Assets::withdraw(pool_info.pool_asset, who, redeem_amount)?;
+			T::Assets::withdraw(
+				pool_info.pool_asset,
+				who,
+				redeem_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			pool_info.total_supply = total_supply;
 			pool_info.balances = balances;
@@ -2266,10 +2285,10 @@ impl<T: Config> StableAsset for Pallet<T> {
 				ensure!(asset_length_usize == pool_size, Error::<T>::ArgumentsError);
 				ensure!(dy >= min_redeem_amount, Error::<T>::RedeemUnderMin);
 				if fee_amount > Zero::zero() {
-					T::Assets::transfer(pool_info.pool_asset, who, &pool_info.fee_recipient, fee_amount)?;
+					T::Assets::transfer(pool_info.pool_asset, who, &pool_info.fee_recipient, fee_amount, ExistenceRequirement::AllowDeath)?;
 				}
-				T::Assets::transfer(pool_info.assets[i_usize], &pool_info.account_id, who, dy)?;
-				T::Assets::withdraw(pool_info.pool_asset, who, redeem_amount)?;
+				T::Assets::transfer(pool_info.assets[i_usize], &pool_info.account_id, who, dy, ExistenceRequirement::AllowDeath)?;
+				T::Assets::withdraw(pool_info.pool_asset, who, redeem_amount, ExistenceRequirement::AllowDeath)?;
 				let mut amounts: Vec<T::Balance> = Vec::new();
 				for idx in 0..pool_size {
 					if idx == i_usize {
@@ -2342,6 +2361,7 @@ impl<T: Config> StableAsset for Pallet<T> {
 					who,
 					&pool_info.fee_recipient,
 					fee_amount,
+					ExistenceRequirement::AllowDeath,
 				)?;
 			}
 			for (idx, amount) in amounts.iter().enumerate() {
@@ -2351,10 +2371,16 @@ impl<T: Config> StableAsset for Pallet<T> {
 						&pool_info.account_id,
 						who,
 						amounts[idx],
+						ExistenceRequirement::AllowDeath,
 					)?;
 				}
 			}
-			T::Assets::withdraw(pool_info.pool_asset, who, burn_amount)?;
+			T::Assets::withdraw(
+				pool_info.pool_asset,
+				who,
+				burn_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			pool_info.total_supply = total_supply;
 			pool_info.balances = balances;

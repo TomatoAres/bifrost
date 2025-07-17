@@ -2043,3 +2043,87 @@ fn update_referendum_vote_status_with_origin_signed_should_fail() {
 		});
 	}
 }
+
+#[test]
+fn voting_with_delegate() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let poll_index = 3;
+			let locking_period = 10;
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				locking_period,
+			));
+
+			assert_eq!(usable_balance(vtoken, &BOB), 20);
+			assert_ok!(VtokenVoting::delegate(
+				RuntimeOrigin::signed(BOB),
+				vtoken,
+				ALICE,
+				Conviction::Locked5x,
+				2
+			));
+			assert_eq!(usable_balance(vtoken, &BOB), 18);
+			assert_eq!(
+				VoteLockingPeriod::<Runtime>::get(vtoken),
+				Some(locking_period)
+			);
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index,
+				aye(2, 5)
+			));
+			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(40, 0, 8));
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				0,
+				response_success()
+			));
+			assert_eq!(usable_balance(vtoken, &ALICE), 8);
+			assert_eq!(usable_balance(vtoken, &BOB), 18);
+
+			assert_ok!(VtokenVoting::try_remove_vote(
+				&ALICE,
+				vtoken,
+				poll_index,
+				UnvoteScope::Any
+			));
+			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
+
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
+			assert_eq!(usable_balance(vtoken, &ALICE), 10);
+
+			assert_ok!(VtokenVoting::undelegate(RuntimeOrigin::signed(BOB), vtoken));
+		});
+	}
+}
+
+#[test]
+fn delegate_then_undelegate() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let locking_period = 10;
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				locking_period,
+			));
+			assert_eq!(usable_balance(vtoken, &BOB), 20);
+			assert_ok!(VtokenVoting::delegate(
+				RuntimeOrigin::signed(BOB),
+				vtoken,
+				ALICE,
+				Conviction::Locked5x,
+				2
+			));
+			assert_eq!(usable_balance(vtoken, &BOB), 18);
+
+			assert_ok!(VtokenVoting::undelegate(RuntimeOrigin::signed(BOB), vtoken));
+		});
+	}
+}

@@ -26,6 +26,7 @@ use crate::{
 use bifrost_primitives::{CurrencyId, VtokenMintingOperator};
 use core::marker::PhantomData;
 use frame_support::ensure;
+use frame_support::traits::ExistenceRequirement;
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::{
@@ -421,8 +422,13 @@ impl<T: Config>
 		ensure!(validator_vec.contains(to), Error::<T>::ValidatorNotExist);
 
 		// burn the amount
-		T::MultiCurrency::withdraw(currency_id, &entrance_account, amount)
-			.map_err(|_e| Error::<T>::NotEnoughBalance)?;
+		T::MultiCurrency::withdraw(
+			currency_id,
+			&entrance_account,
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|_e| Error::<T>::NotEnoughBalance)?;
 
 		Ok(())
 	}

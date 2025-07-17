@@ -21,7 +21,7 @@ use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::H160;
 use sp_runtime::Permill;
-use xcm::v4::{Location, Weight};
+use xcm::v5::{Location, Weight};
 
 /// Sovereign addresses generate subaccounts via DelegatorIndex
 pub type DelegatorIndex = u16;

@@ -31,7 +31,7 @@ use bifrost_primitives::VtokenMintingOperator;
 use frame_support::{dispatch::DispatchResultWithPostInfo, ensure};
 use parity_scale_codec::Encode;
 use sp_std::{cmp::Ordering, vec::Vec};
-use xcm::v4::{opaque::Xcm, Location, QueryId};
+use xcm::v5::{opaque::Xcm, Location, QueryId};
 
 pub const ASTAR_DAPP_STAKING: StakingProtocol = StakingProtocol::AstarDappStaking;
 

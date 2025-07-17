@@ -100,7 +100,8 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	// Storage: `Benchmark::Override` (r:0 w:0)
 	// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	pub(crate) fn receive_teleported_asset() -> Weight {
-		Weight::from_parts(18_446_744_073_709_551_000_u64, 0)
+		Weight::from_parts(3_300_000_u64, 0)
+		.saturating_add(Weight::from_parts(0, 0))
 	}
 	// Storage: `System::Account` (r:1 w:1)
 	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
@@ -121,5 +122,55 @@ impl<T: frame_system::Config> WeightInfo<T> {
 		Weight::from_parts(89_929_000_u64, 0)
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
+	/// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `ParachainSystem::UpwardDeliveryFeeFactor` (r:1 w:0)
+	/// Proof: `ParachainSystem::UpwardDeliveryFeeFactor` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `PolkadotXcm::SupportedVersion` (r:1 w:0)
+	/// Proof: `PolkadotXcm::SupportedVersion` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:1 w:0)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `ParachainSystem::HostConfiguration` (r:1 w:0)
+	/// Proof: `ParachainSystem::HostConfiguration` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `ParachainSystem::PendingUpwardMessages` (r:1 w:1)
+	/// Proof: `ParachainSystem::PendingUpwardMessages` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	pub(crate) fn initiate_teleport() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `74`
+		//  Estimated: `3593`
+		// Minimum execution time: 37_170_000 picoseconds.
+		Weight::from_parts(37_830_000, 0)
+			.saturating_add(T::DbWeight::get().reads(6))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	// Storage: `Assets::Asset` (r:1 w:1)
+	// Proof: `Assets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
+	// Storage: `Assets::Account` (r:1 w:1)
+	// Proof: `Assets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
+	// Storage: `System::Account` (r:2 w:2)
+	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
+	// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	// Storage: `ParachainSystem::UpwardDeliveryFeeFactor` (r:1 w:0)
+	// Proof: `ParachainSystem::UpwardDeliveryFeeFactor` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::SupportedVersion` (r:1 w:0)
+	// Proof: `PolkadotXcm::SupportedVersion` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::VersionDiscoveryQueue` (r:1 w:1)
+	// Proof: `PolkadotXcm::VersionDiscoveryQueue` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::SafeXcmVersion` (r:1 w:0)
+	// Proof: `PolkadotXcm::SafeXcmVersion` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `ParachainSystem::HostConfiguration` (r:1 w:0)
+	// Proof: `ParachainSystem::HostConfiguration` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `ParachainSystem::PendingUpwardMessages` (r:1 w:1)
+	// Proof: `ParachainSystem::PendingUpwardMessages` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	pub fn initiate_transfer() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `425`
+		//  Estimated: `6196`
+		// Minimum execution time: 87_707_000 picoseconds.
+		Weight::from_parts(92_810_000, 0)
+			.saturating_add(T::DbWeight::get().reads(9))
+			.saturating_add(T::DbWeight::get().writes(5))
 	}
 }

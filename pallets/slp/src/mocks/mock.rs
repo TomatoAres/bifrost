@@ -120,6 +120,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -152,13 +153,13 @@ impl bifrost_currencies::Config for Runtime {
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |_location: xcm::v4::Location| -> Option<u128> {
+	pub ParachainMinFee: |_location: xcm::v5::Location| -> Option<u128> {
 		Some(u128::MAX)
 	};
 }
 
 parameter_types! {
-	pub SelfRelativeLocation: xcm::v4::Location = xcm::v4::Location::here();
+	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
 	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
@@ -474,7 +475,7 @@ parameter_types! {
 	// One XCM operation is 200_000_000 XcmWeight, cross-chain transfer ~= 2x of transfer = 3_000_000_000
 	pub UnitWeightCost: Weight = Weight::from_parts(200_000_000, 0);
 	pub const MaxInstructions: u32 = 100;
-	pub UniversalLocation: xcm::v4::InteriorLocation = xcm::v4::Junction::Parachain(2001).into();
+	pub UniversalLocation: xcm::v5::InteriorLocation = xcm::v5::Junction::Parachain(2001).into();
 }
 
 pub struct XcmConfig;

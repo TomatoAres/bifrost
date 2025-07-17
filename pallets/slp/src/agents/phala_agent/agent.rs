@@ -181,7 +181,7 @@ impl<T: Config>
 
 		// Send out the xcm message.
 		let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-		xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+		xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 			.map_err(|_e| Error::<T>::XcmFailure)?;
 
 		Ok(query_id)
@@ -301,7 +301,7 @@ impl<T: Config>
 
 		// Send out the xcm message.
 		let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-		xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+		xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 			.map_err(|_e| Error::<T>::XcmFailure)?;
 
 		Ok(query_id)
@@ -546,7 +546,7 @@ impl<T: Config>
 
 		// Send out the xcm message.
 		let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-		xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+		xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 			.map_err(|_e| Error::<T>::XcmFailure)?;
 
 		Ok(query_id)
@@ -627,8 +627,8 @@ impl<T: Config>
 		)?;
 
 		let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-		let dest_location =
-			xcm::v3::Location::try_from(dest_location).map_err(|_| Error::<T>::FailToConvert)?;
+		let dest_location = xcm::v3::Location::try_from(dest_location.into_versioned())
+			.map_err(|_| Error::<T>::FailToConvert)?;
 		// Prepare parameter assets.
 		let asset = MultiAsset {
 			fun: Fungible(amount.unique_saturated_into()),
@@ -739,7 +739,7 @@ impl<T: Config>
 
 		// Send out the xcm message.
 		let dest_location = Pallet::<T>::convert_currency_to_dest_location(currency_id)?;
-		xcm::v4::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
+		xcm::v5::send_xcm::<T::XcmRouter>(dest_location, xcm_message)
 			.map_err(|_e| Error::<T>::XcmFailure)?;
 
 		Ok(query_id)

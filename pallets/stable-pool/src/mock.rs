@@ -155,13 +155,13 @@ impl xcm_executor::Config for XcmConfig {
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |_location: xcm::v4::Location| -> Option<u128> {
+	pub ParachainMinFee: |_location: xcm::v5::Location| -> Option<u128> {
 		Some(u128::MAX)
 	};
 }
 
 parameter_types! {
-	pub SelfRelativeLocation: xcm::v4::Location = xcm::v4::Location::here();
+	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
 	// pub const BaseXcmWeight: Weight = Weight::from_ref_time(1000_000_000u64);
 	pub const MaxAssetsForTransfer: usize = 2;
 	// pub UniversalLocation: InteriorLocation = Parachain(2001).into();
@@ -206,6 +206,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 ord_parameter_types! {
@@ -399,7 +400,18 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		t.into()
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| {
+			// Initialize VtokenIssuance with current total issuance for all vtokens
+			let vtokens = [VDOT, VMOVR];
+			for vtoken in vtokens.iter() {
+				let total_issuance = Tokens::total_issuance(*vtoken);
+				if total_issuance > 0 {
+					bifrost_vtoken_minting::VtokenIssuance::<Test>::insert(vtoken, total_issuance);
+				}
+			}
+		});
+		ext
 	}
 }
 

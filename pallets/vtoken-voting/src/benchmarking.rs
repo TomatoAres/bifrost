@@ -61,6 +61,7 @@ fn init_vote<T: Config>(vtoken: CurrencyIdOf<T>) -> Result<(), BenchmarkError> {
 	T::DerivativeAccount::add_delegator(token, derivative_index, xcm::v3::Parent.into());
 	T::DerivativeAccount::new_delegator_ledger(token, xcm::v3::Parent.into());
 	Pallet::<T>::set_undeciding_timeout(RawOrigin::Root.into(), vtoken, Zero::zero())?;
+	Pallet::<T>::set_vote_locking_period(RawOrigin::Root.into(), vtoken, Zero::zero())?;
 	Pallet::<T>::add_delegator(RawOrigin::Root.into(), vtoken, derivative_index)?;
 	Pallet::<T>::set_vote_cap_ratio(RawOrigin::Root.into(), vtoken, Perbill::from_percent(10))?;
 
@@ -438,6 +439,123 @@ mod benchmarks {
 			poll_index,
 			status,
 		);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn delegate(v: Linear<0, 256>) -> Result<(), BenchmarkError> {
+		let max_votes = T::MaxVotes::get();
+		let r: u32 = v.min(max_votes).into();
+
+		let voter = funded_account::<T>("voter", 0);
+		let caller = funded_account::<T>("caller", 0);
+		whitelist_account!(caller);
+
+		let vtoken = VKSM;
+		let delegated_balance: BalanceOf<T> = 1000u32.into();
+		let delegate_vote = account_vote::<T>(delegated_balance);
+		let control_origin =
+			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
+
+		init_vote::<T>(vtoken)?;
+		let response = Response::DispatchResult(MaybeErrorCode::Success);
+		for (i, index) in (0..r).collect::<Vec<_>>().iter().skip(1).enumerate() {
+			Pallet::<T>::vote(
+				RawOrigin::Signed(voter.clone()).into(),
+				vtoken,
+				*index,
+				delegate_vote,
+			)?;
+			Pallet::<T>::set_referendum_status(
+				RawOrigin::Root.into(),
+				vtoken,
+				*index,
+				ReferendumInfo::Completed(0u32.into()),
+			)?;
+			Pallet::<T>::notify_vote(
+				control_origin.clone() as <T as frame_system::Config>::RuntimeOrigin,
+				i as QueryId,
+				response.clone(),
+			)?;
+		}
+
+		match VotingForV2::<T>::get(vtoken, &voter) {
+			Voting::Casting(Casting { votes, .. }) => votes,
+			_ => return Err("Votes are not direct".into()),
+		};
+
+		#[extrinsic_call]
+		Pallet::<T>::delegate(
+			RawOrigin::Signed(caller.clone()),
+			vtoken,
+			voter,
+			Conviction::Locked1x,
+			delegated_balance,
+		);
+
+		assert_matches!(
+			VotingForV2::<T>::get(vtoken, &caller),
+			Voting::Delegating(_)
+		);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn undelegate(v: Linear<1, 256>) -> Result<(), BenchmarkError> {
+		let max_votes = T::MaxVotes::get();
+		let r: u32 = v.min(max_votes).into();
+
+		let voter = funded_account::<T>("voter", 0);
+		let caller = funded_account::<T>("caller", 0);
+		whitelist_account!(caller);
+
+		let vtoken = VKSM;
+		let delegated_balance: BalanceOf<T> = 1000u32.into();
+		let delegate_vote = account_vote::<T>(delegated_balance);
+		let control_origin =
+			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
+
+		init_vote::<T>(vtoken)?;
+		let response = Response::DispatchResult(MaybeErrorCode::Success);
+		for (i, index) in (0..r).collect::<Vec<_>>().iter().skip(1).enumerate() {
+			Pallet::<T>::vote(
+				RawOrigin::Signed(voter.clone()).into(),
+				vtoken,
+				*index,
+				delegate_vote,
+			)?;
+			Pallet::<T>::set_referendum_status(
+				RawOrigin::Root.into(),
+				vtoken,
+				*index,
+				ReferendumInfo::Completed(0u32.into()),
+			)?;
+			Pallet::<T>::notify_vote(
+				control_origin.clone() as <T as frame_system::Config>::RuntimeOrigin,
+				i as QueryId,
+				response.clone(),
+			)?;
+		}
+
+		Pallet::<T>::delegate(
+			RawOrigin::Signed(caller.clone()).into(),
+			vtoken,
+			voter.clone(),
+			Conviction::Locked1x,
+			delegated_balance,
+		)?;
+
+		match VotingForV2::<T>::get(vtoken, &voter) {
+			Voting::Casting(Casting { votes, .. }) => votes,
+			_ => return Err("Votes are not direct".into()),
+		};
+
+		#[extrinsic_call]
+		Pallet::<T>::undelegate(RawOrigin::Signed(caller.clone()), vtoken);
+
+		assert_matches!(VotingForV2::<T>::get(vtoken, &caller), Voting::Casting(_));
 
 		Ok(())
 	}

@@ -29,7 +29,7 @@ use mock::{
 #[test]
 fn versioned_multi_location_convert_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let versioned_location = VersionedLocation::V4(Location::from([Parachain(1000)]));
+		let versioned_location = VersionedLocation::V5(Location::from([Parachain(1000)]));
 		let location: Location = versioned_location.try_into().unwrap();
 		assert_eq!(location, Location::new(0, [Parachain(1000)]));
 	});
@@ -107,7 +107,7 @@ fn register_multilocation_should_work() {
 			minimal_balance: 0,
 		};
 
-		let versioned_location = VersionedLocation::V4(Location::new(1, [Parachain(2001)]));
+		let versioned_location = VersionedLocation::V5(Location::new(1, [Parachain(2001)]));
 		let location: Location = versioned_location.clone().try_into().unwrap();
 
 		assert_noop!(
@@ -166,7 +166,7 @@ fn force_set_multilocation_should_work() {
 			decimals: 12,
 			minimal_balance: 0,
 		};
-		let versioned_location = VersionedLocation::V4(Location::new(1, [Parachain(2001)]));
+		let versioned_location = VersionedLocation::V5(Location::new(1, [Parachain(2001)]));
 		let location: Location = versioned_location.clone().try_into().unwrap();
 
 		assert_noop!(

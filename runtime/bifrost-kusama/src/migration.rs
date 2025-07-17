@@ -421,6 +421,7 @@ pub mod opengov {
 pub mod system_maker {
 	use super::*;
 	pub use bifrost_primitives::currency::{KSM, VKSM};
+	use frame_support::traits::ExistenceRequirement;
 	use frame_support::{pallet_prelude::PhantomData, traits::OnRuntimeUpgrade};
 	use sp_core::Get;
 	pub struct SystemMakerClearPalletId<T>(PhantomData<T>);
@@ -444,6 +445,7 @@ pub mod system_maker {
 				&account_id,
 				&TreasuryPalletId::get().into_account_truncating(),
 				ksm_balance,
+				ExistenceRequirement::AllowDeath,
 			)
 			.ok();
 			let vksm_balance = T::MultiCurrency::free_balance(VKSM, &account_id);
@@ -452,6 +454,7 @@ pub mod system_maker {
 				&account_id,
 				&TreasuryPalletId::get().into_account_truncating(),
 				vksm_balance,
+				ExistenceRequirement::AllowDeath,
 			)
 			.ok();
 			log::info!("KSM balance: {:?}", ksm_balance);
@@ -480,6 +483,7 @@ pub mod vsbond_auction {
 	use super::*;
 	pub use bifrost_primitives::currency::{BNC, KSM};
 	use bifrost_primitives::VsbondAuctionPalletId;
+	use frame_support::traits::ExistenceRequirement;
 	use frame_support::{pallet_prelude::PhantomData, traits::OnRuntimeUpgrade};
 	use sp_core::Get;
 
@@ -505,6 +509,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					bnc_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -525,6 +530,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					ksm_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -546,6 +552,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_1_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -574,6 +581,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_2_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -602,6 +610,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_3_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -630,6 +639,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_4_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -658,6 +668,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_5_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -686,6 +697,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_6_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;
@@ -714,6 +726,7 @@ pub mod vsbond_auction {
 					&account_id,
 					&TreasuryPalletId::get().into_account_truncating(),
 					vs_bond_7_balance,
+					ExistenceRequirement::AllowDeath,
 				) {
 					Ok(_) => {
 						count += 1;

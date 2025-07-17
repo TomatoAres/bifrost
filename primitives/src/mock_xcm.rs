@@ -23,7 +23,7 @@ use sp_std::vec::Vec;
 use xcm::{
 	latest::Asset,
 	prelude::{ExecuteXcm, Fungible, Outcome, PreparedMessage, SendResult, Xcm, XcmResult},
-	v4::{AssetId, Assets, Location, SendError, SendXcm, Weight, WeightLimit, XcmHash},
+	v5::{AssetId, Assets, Location, SendError, SendXcm, Weight, WeightLimit, XcmHash},
 };
 use xcm_executor::traits::{AssetTransferError, TransferType, XcmAssetTransfers};
 

@@ -18,6 +18,7 @@
 
 use crate::*;
 use frame_support::pallet_prelude::*;
+use frame_support::traits::ExistenceRequirement;
 use parity_scale_codec::HasCompact;
 use scale_info::TypeInfo;
 use sp_core::U256;
@@ -408,6 +409,7 @@ impl<T: Config> Pallet<T> {
 									&pool_info.reward_issuer,
 									&account_to_send,
 									reward_to_withdraw,
+									ExistenceRequirement::AllowDeath,
 								)
 							},
 						)?;
@@ -464,6 +466,7 @@ impl<T: Config> Pallet<T> {
 											&pool_info.keeper,
 											&account_to_send,
 											withdraw_amount,
+											ExistenceRequirement::AllowDeath,
 										)
 									},
 								)?;

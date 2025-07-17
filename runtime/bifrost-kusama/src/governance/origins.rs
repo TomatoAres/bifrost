@@ -84,6 +84,9 @@ pub mod custom_origins {
 		CoreAdmin,
 		/// Origin able to execute treasury.spend.
 		TreasurySpend,
+		/// This track can be understood as a dedicated lane for voting through Bifrost’s proxy system address.
+		#[strum(serialize = "delegated_voting_admin")]
+		DelegatedVotingAdmin,
 	}
 
 	macro_rules! decl_unit_ensures {
@@ -130,6 +133,7 @@ pub mod custom_origins {
 		TechAdmin,
 		CoreAdmin,
 		TreasurySpend,
+		DelegatedVotingAdmin,
 	);
 
 	macro_rules! decl_ensure {

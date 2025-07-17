@@ -958,6 +958,10 @@ fn mint_with_lock_should_work() {
 				100000000000000000000
 			));
 
+			// Set a reasonable VtokenIssuance for testing (simulating a larger vtoken pool)
+			assert_eq!(Tokens::total_issuance(VKSM), 100000000000000001000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 100000000000000001000u128);
+
 			// incentive lock blocks not set
 			assert_noop!(
 				VtokenMinting::mint_with_lock(
@@ -1036,6 +1040,10 @@ fn unlock_incentive_minted_vtoken_should_work() {
 				&VtokenMinting::incentive_pool_account(),
 				100000000000000000000
 			));
+
+			// Set a reasonable VtokenIssuance for testing (simulating a larger vtoken pool)
+			VtokenIssuance::<Runtime>::insert(VKSM, 100000000000000000000u128);
+
 			// set incentive lock blocks
 			assert_ok!(VtokenMinting::set_vtoken_incentive_lock_blocks(
 				RuntimeOrigin::signed(ALICE),

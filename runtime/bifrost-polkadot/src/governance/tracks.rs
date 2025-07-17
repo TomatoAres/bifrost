@@ -29,7 +29,7 @@ const fn permill(x: i32) -> sp_runtime::FixedI64 {
 }
 
 use pallet_referenda::Curve;
-const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 8] = [
+const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9] = [
 	(
 		0,
 		pallet_referenda::TrackInfo {
@@ -158,6 +158,24 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 8]
 			min_enactment_period: 10 * MINUTES,
 			min_approval: Curve::make_linear(23, 28, percent(50), percent(100)),
 			min_support: Curve::make_reciprocal(16, 28, percent(1), percent(0), percent(50)),
+		},
+	),
+	(
+		14,
+		pallet_referenda::TrackInfo {
+			name: "delegated_voting_admin",
+			max_deciding: 100,
+			decision_deposit: 2_500 * BNCS,
+			prepare_period: 2 * HOURS,
+			decision_period: 7 * DAYS,
+			confirm_period: 1 * DAYS,
+			min_enactment_period: 1 * DAYS,
+			// Minimum aye votes as percentage of overall conviction-weighted votes needed for
+			// approval as a function of time into decision period.
+			min_approval: Curve::make_reciprocal(4, 28, percent(80), percent(50), percent(100)),
+			// Minimum pre-conviction aye-votes ("support") as percentage of overall population that
+			// is needed for approval as a function of time into decision period.
+			min_support: Curve::make_linear(28, 28, permill(0), percent(50)),
 		},
 	),
 ];

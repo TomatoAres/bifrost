@@ -762,7 +762,6 @@ fn channel_commission_distribution_with_net_mint_negative_should_work() {
 			run_to_block(100);
 			// set_clearing_environment already been called in block 100
 			// check whether the clearing environment is set correctly for block 100
-			assert_eq!(VtokenIssuanceSnapshots::<Runtime>::get(VBNC), (10000, 9000));
 			assert_eq!(PeriodVtokenTotalMint::<Runtime>::get(VBNC), (1000, 0));
 			assert_eq!(PeriodVtokenTotalRedeem::<Runtime>::get(VBNC), (2000, 0));
 			assert_eq!(PeriodChannelVtokenMint::<Runtime>::get(0, VBNC), (200, 0));

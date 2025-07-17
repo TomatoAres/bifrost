@@ -21,8 +21,9 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_currencies::BasicCurrencyAdapter;
 use bifrost_primitives::{
 	currency::WETH_TOKEN_ID, AccountId, AccountIdToLocation, AssetHubLocation, AssetPrefixFrom,
-	CurrencyId, CurrencyIdMapping, EthereumLocation, NativeAssetFrom, PolkadotNetwork,
-	PolkadotUniversalLocation, SelfLocation, TokenSymbol, DOT_TOKEN_ID,
+	CurrencyId, CurrencyIdMapping, EthereumLocation, LocalVdotLocation, NativeAssetFrom,
+	PolkadotNetwork, PolkadotUniversalLocation, SelfLocation, TokenSymbol, VdotFungible,
+	DOT_TOKEN_ID,
 };
 use bifrost_runtime_common::{
 	currency_adapter::{BifrostDropAssets, DepositToAlternative, MultiCurrencyAdapter},
@@ -40,17 +41,17 @@ use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 pub use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
-use xcm::v4::{Asset, AssetId, Location};
+use xcm::v5::{Asset, AssetId, Location};
 pub use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds,
-	IsConcrete, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
+	FungibleAdapter, IsConcrete, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
 };
 use xcm_builder::{
-	DescribeAllTerminal, DescribeFamily, FrameTransactionalProcessor, HashedDescription,
-	TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+	AliasChildLocation, DescribeAllTerminal, DescribeFamily, FrameTransactionalProcessor,
+	HashedDescription, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
 
 parameter_types! {
@@ -129,16 +130,33 @@ pub type Barrier = TrailingSetTopicAsId<(
 	>,
 )>;
 
-pub type BifrostAssetTransactor = MultiCurrencyAdapter<
-	Currencies,
-	UnknownTokens,
-	IsNativeConcrete<CurrencyId, CurrencyIdConvert<ParachainInfo, Runtime>>,
-	AccountId,
+/// Means for transacting the native currency on this chain.
+pub type FungibleTransactor = FungibleAdapter<
+	// Use this currency:
+	VdotFungible<Runtime>,
+	// Use this currency when it is a fungible asset matching the given location or name:
+	IsConcrete<LocalVdotLocation>,
+	// Convert an XCM `Location` into a local account ID:
 	LocationToAccountId,
-	CurrencyId,
-	CurrencyIdConvert<ParachainInfo, Runtime>,
-	DepositToAlternative<BifrostTreasuryAccount, Currencies, CurrencyId, AccountId, Balance>,
+	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+	AccountId,
+	// We don't track any teleports of `Tokens`.
+	(),
 >;
+
+pub type BifrostAssetTransactor = (
+	MultiCurrencyAdapter<
+		Currencies,
+		UnknownTokens,
+		IsNativeConcrete<CurrencyId, CurrencyIdConvert<ParachainInfo, Runtime>>,
+		AccountId,
+		LocationToAccountId,
+		CurrencyId,
+		CurrencyIdConvert<ParachainInfo, Runtime>,
+		DepositToAlternative<BifrostTreasuryAccount, Currencies, CurrencyId, AccountId, Balance>,
+	>,
+	FungibleTransactor,
+);
 
 pub struct ToTreasury;
 impl TakeRevenue for ToTreasury {
@@ -157,96 +175,8 @@ impl TakeRevenue for ToTreasury {
 	}
 }
 
-/// A call filter for the XCM Transact instruction. This is a temporary measure until we properly
-/// account for proof size weights.
-///
-/// Calls that are allowed through this filter must:
-/// 1. Have a fixed weight;
-/// 2. Cannot lead to another call being made;
-/// 3. Have a defined proof size weight, e.g. no unbounded vecs in call parameters.
-pub struct SafeCallFilter;
-impl Contains<RuntimeCall> for SafeCallFilter {
-	fn contains(call: &RuntimeCall) -> bool {
-		#[cfg(feature = "runtime-benchmarks")]
-		{
-			if matches!(
-				call,
-				RuntimeCall::System(frame_system::Call::remark_with_event { .. })
-			) {
-				return true;
-			}
-		}
-
-		match call {
-			RuntimeCall::System(
-				frame_system::Call::kill_prefix { .. } | frame_system::Call::set_heap_pages { .. },
-			) |
-			RuntimeCall::Timestamp(..) |
-			RuntimeCall::Indices(..) |
-			RuntimeCall::Balances(..) |
-			RuntimeCall::Session(pallet_session::Call::purge_keys { .. }) |
-			RuntimeCall::Treasury(..) |
-			RuntimeCall::Utility(pallet_utility::Call::as_derivative { .. }) |
-			RuntimeCall::Identity(
-				pallet_identity::Call::add_registrar { .. } |
-				pallet_identity::Call::set_identity { .. } |
-				pallet_identity::Call::clear_identity { .. } |
-				pallet_identity::Call::request_judgement { .. } |
-				pallet_identity::Call::cancel_request { .. } |
-				pallet_identity::Call::set_fee { .. } |
-				pallet_identity::Call::set_account_id { .. } |
-				pallet_identity::Call::set_fields { .. } |
-				pallet_identity::Call::provide_judgement { .. } |
-				pallet_identity::Call::kill_identity { .. } |
-				pallet_identity::Call::add_sub { .. } |
-				pallet_identity::Call::rename_sub { .. } |
-				pallet_identity::Call::remove_sub { .. } |
-				pallet_identity::Call::quit_sub { .. },
-			) |
-			RuntimeCall::Vesting(..) |
-			RuntimeCall::PolkadotXcm(pallet_xcm::Call::limited_reserve_transfer_assets { .. }) |
-			RuntimeCall::Proxy(..) |
-			RuntimeCall::Tokens(
-				orml_tokens::Call::transfer { .. } |
-				orml_tokens::Call::transfer_all { .. } |
-				orml_tokens::Call::transfer_keep_alive { .. }
-			) |
-			// Bifrost moudule
-			RuntimeCall::Farming(
-				bifrost_farming::Call::claim { .. } |
-				bifrost_farming::Call::deposit { .. } |
-				bifrost_farming::Call::withdraw { .. } |
-				bifrost_farming::Call::withdraw_claim { .. }
-			) |
-			RuntimeCall::Salp(
-				bifrost_salp::Call::redeem { .. }
-			) |
-			RuntimeCall::TokenConversion(
-				bifrost_vstoken_conversion::Call::vsbond_convert_to_vstoken { .. } |
-				bifrost_vstoken_conversion::Call::vstoken_convert_to_vsbond { .. }
-			) |
-			RuntimeCall::BbBNC(
-				bb_bnc::Call::increase_amount { .. } |
-				bb_bnc::Call::increase_unlock_time { .. } |
-				bb_bnc::Call::withdraw { .. } |
-				bb_bnc::Call::get_rewards { .. }
-			) |
-			RuntimeCall::VtokenMinting(
-				bifrost_vtoken_minting::Call::mint { .. } |
-				bifrost_vtoken_minting::Call::rebond { .. } |
-				bifrost_vtoken_minting::Call::rebond_by_unlock_id { .. } |
-				bifrost_vtoken_minting::Call::redeem { .. }
-			) |
-			RuntimeCall::Slpx(..) |
-			RuntimeCall::ZenlinkProtocol(
-				zenlink_protocol::Call::add_liquidity { .. } |
-				zenlink_protocol::Call::remove_liquidity { .. } |
-				zenlink_protocol::Call::transfer { .. }
-			) => true,
-			_ => false,
-		}
-	}
-}
+/// We allow locations to alias into their own child locations.
+pub type Aliasers = AliasChildLocation;
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
@@ -260,7 +190,8 @@ impl xcm_executor::Config for XcmConfig {
 		AssetPrefixFrom<EthereumLocation, AssetHubLocation>,
 		MultiNativeAsset<RelativeReserveProvider>,
 	);
-	type IsTeleporter = ();
+	/// Only allow teleportation of vDOT from AssetHub.
+	type IsTeleporter = AssetPrefixFrom<LocalVdotLocation, AssetHubLocation>;
 	type UniversalLocation = PolkadotUniversalLocation;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
 	type ResponseHandler = PolkadotXcm;
@@ -273,12 +204,12 @@ impl xcm_executor::Config for XcmConfig {
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = SafeCallFilter;
+	type SafeCallFilter = Everything;
 	type AssetLocker = ();
 	type AssetExchanger = ();
 	type FeeManager = ();
 	type MessageExporter = ();
-	type Aliasers = Nothing;
+	type Aliasers = Aliasers;
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type HrmpNewChannelOpenRequestHandler = ();
 	type HrmpChannelAcceptedHandler = ();
@@ -310,11 +241,11 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type Weigher =
 		WeightInfoBounds<weights::xcm::BifrostXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
-	type XcmExecuteFilter = Nothing;
+	type XcmExecuteFilter = Everything;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmReserveTransferFilter = Everything;
 	type XcmRouter = XcmRouter;
-	type XcmTeleportFilter = Nothing;
+	type XcmTeleportFilter = Everything;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;

@@ -60,6 +60,7 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::ExistenceRequirement;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 	#[pallet::pallet]
@@ -423,6 +424,7 @@ pub mod pallet {
 				&exchanger,
 				&T::BuyBackAccount::get().into_account_truncating(),
 				value,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			Self::deposit_event(Event::Charged {
@@ -476,11 +478,22 @@ pub mod pallet {
 			if let Some(ratio) = info.destruction_ratio {
 				let bnc_balance_before_burn = T::MultiCurrency::free_balance(BNC, &buyback_address);
 				let destruction_amount = ratio * bnc_balance_before_burn;
-				T::MultiCurrency::withdraw(BNC, &buyback_address, destruction_amount)?;
+				T::MultiCurrency::withdraw(
+					BNC,
+					&buyback_address,
+					destruction_amount,
+					ExistenceRequirement::AllowDeath,
+				)?;
 			}
 			let bnc_balance_after_burn = T::MultiCurrency::free_balance(BNC, &buyback_address);
 			let buyback_to = T::BuyBackAccount::get().into_sub_account_truncating(1);
-			T::MultiCurrency::transfer(BNC, &buyback_address, &buyback_to, bnc_balance_after_burn)
+			T::MultiCurrency::transfer(
+				BNC,
+				&buyback_address,
+				&buyback_to,
+				bnc_balance_after_burn,
+				ExistenceRequirement::AllowDeath,
+			)
 		}
 
 		#[transactional]

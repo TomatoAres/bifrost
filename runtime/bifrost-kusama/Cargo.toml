@@ -271,6 +271,7 @@ std = [
 	"bifrost-channel-commission/std",
 	"bifrost-vbnc-convert/std",
 	"ismp/std",
+	"parachains-common/std",
 
 	"substrate-wasm-builder"
 ]
