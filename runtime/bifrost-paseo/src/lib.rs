@@ -197,7 +197,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_paseo"),
 	impl_name: Cow::Borrowed("bifrost_paseo"),
 	authoring_version: 0,
-	spec_version: 20000,
+	spec_version: 20001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1473,7 +1473,7 @@ impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Migrations = pallet_identity::migration::v2::LazyMigrationV1ToV2<Runtime>;
+	type Migrations = ();
 	// Benchmarks need mocked migrations to guarantee that they succeed.
 	#[cfg(feature = "runtime-benchmarks")]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
@@ -1790,9 +1790,6 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_vtoken_minting::migration::InitializeVtokenIssuance<Runtime, ConstBool<false>>,
-		bifrost_asset_registry::migrations::v2::MigrateToV2<Runtime>,
-		bifrost_cross_in_out::migrations::v4::MigrateToV4<Runtime>,
 	);
 }
 
