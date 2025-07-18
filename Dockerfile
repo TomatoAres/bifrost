@@ -41,6 +41,7 @@ RUN rm -rf /usr/share  && \
 
 USER ubuntu
 COPY --from=builder /app/target/production/bifrost /usr/local/bin
+COPY --from=builder /etc/ssl/ /etc/ssl/
 COPY ./node/service/res/bifrost-kusama.json /spec/bifrost.json
 COPY ./node/service/res/bifrost-kusama.json /spec
 COPY ./node/service/res/bifrost-polkadot.json /spec
@@ -49,7 +50,6 @@ COPY ./node/service/res/bifrost-polkadot.json /spec
 RUN ldd /usr/local/bin/bifrost && \
   /usr/local/bin/bifrost --version
 
-USER ubuntu
 EXPOSE 30333 9933 9944
 
 VOLUME ["/data"]
