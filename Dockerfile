@@ -31,11 +31,6 @@ RUN export PATH="$PATH:$HOME/.cargo/bin" && \
 
 FROM ubuntu:24.04
 
-# need to install ca-certificates for /etc/ssl/certs/ca-certificates.crt
-RUN apt-get update
-RUN apt-get install -y ca-certificates
-RUN apt-get clean
-
 RUN rm -rf /usr/share  && \
   rm -rf /usr/lib/python* && \
   mkdir -p /bifrost/.local/share && \
@@ -46,6 +41,7 @@ RUN rm -rf /usr/share  && \
 
 USER ubuntu
 COPY --from=builder /app/target/production/bifrost /usr/local/bin
+COPY --from=builder /etc/ssl/ /etc/ssl/
 COPY ./node/service/res/bifrost-kusama.json /spec/bifrost.json
 COPY ./node/service/res/bifrost-kusama.json /spec
 COPY ./node/service/res/bifrost-polkadot.json /spec
@@ -54,7 +50,6 @@ COPY ./node/service/res/bifrost-polkadot.json /spec
 RUN ldd /usr/local/bin/bifrost && \
   /usr/local/bin/bifrost --version
 
-USER ubuntu
 EXPOSE 30333 9933 9944
 
 VOLUME ["/data"]
