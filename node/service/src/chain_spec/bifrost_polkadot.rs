@@ -204,7 +204,6 @@ pub fn local_testnet_config() -> ChainSpec {
 			vec![
 				(x.clone(), DOT, ENDOWMENT() * 4_000_000),
 				(x.clone(), WETH, ENDOWMENT() * 4_000_000),
-				(x.clone(), ETH, ENDOWMENT() * 4_000_000),
 			]
 		})
 		.collect();
@@ -307,11 +306,6 @@ pub fn local_testnet_config() -> ChainSpec {
 			WAVE,
 			100_000_000,
 			Some((String::from("Wave"), String::from("WAVE"), 18u8)),
-		),
-		(
-			ETH,
-			100_000_000,
-			Some((String::from("Ethereum"), String::from("ETH"), 18u8)),
 		),
 	];
 	let vcurrency = vec![
