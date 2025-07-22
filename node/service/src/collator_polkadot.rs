@@ -397,7 +397,7 @@ where
 			parachain_config: &parachain_config,
 			net_config,
 			client: client.clone(),
-			transaction_pool,
+			transaction_pool: transaction_pool.clone(),
 			para_id,
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
@@ -474,7 +474,7 @@ where
 			let eth_deps = crate::rpc::EthDeps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
-				graph: transaction_pool.pool().clone(),
+				graph: transaction_pool.clone(),
 				converter: Some(TransactionConverter),
 				is_authority,
 				enable_dev_signer: eth_config.enable_dev_signer,
