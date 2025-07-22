@@ -1788,7 +1788,10 @@ pub mod migrations {
 	use super::*;
 
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>);
+	pub type Unreleased = (
+		// permanent migration, do not remove
+		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
