@@ -36,13 +36,13 @@ use sc_client_api::{
 use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_rpc::SubscriptionTaskExecutor;
-use sc_transaction_pool::{ChainApi, Pool};
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 
+type HashFor<Block> = <Block as BlockT>::Hash;
 pub struct BifrostEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
 
 impl<C, BE> fc_rpc::EthConfig<Block, C> for BifrostEthConfig<C, BE>
@@ -56,13 +56,13 @@ where
 }
 
 /// Extra dependencies for Ethereum compatibility.
-pub struct EthDeps<C, P, A: ChainApi, CT> {
+pub struct EthDeps<C, P, CT> {
 	/// The client instance to use.
 	pub client: Arc<C>,
 	/// Transaction pool instance.
 	pub pool: Arc<P>,
 	/// Graph pool instance.
-	pub graph: Arc<Pool<A>>,
+	pub graph: Arc<P>,
 	/// Ethereum transaction converter.
 	pub converter: Option<CT>,
 	/// The Node authority flag
@@ -93,9 +93,9 @@ pub struct EthDeps<C, P, A: ChainApi, CT> {
 }
 
 /// Instantiate Ethereum-compatible RPC extensions.
-pub fn create_eth<C, BE, P, A, CT>(
+pub fn create_eth<C, BE, P, CT>(
 	mut io: RpcModule<()>,
-	deps: EthDeps<C, P, A, CT>,
+	deps: EthDeps<C, P, CT>,
 	subscription_task_executor: SubscriptionTaskExecutor,
 	pubsub_notification_sinks: Arc<
 		fc_mapping_sync::EthereumBlockNotificationSinks<
@@ -114,8 +114,7 @@ where
 	C: CallApiAt<Block>,
 	BE: Backend<Block> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
-	P: TransactionPool<Block = Block> + 'static,
-	A: ChainApi<Block = Block> + 'static,
+	P: TransactionPool<Block = Block, Hash = HashFor<Block>> + Sync + Send + 'static,
 	CT: ConvertTransaction<<Block as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use fc_rpc::{
@@ -173,7 +172,7 @@ where
 	};
 
 	io.merge(
-		Eth::<_, _, _, _, _, _, _, BifrostEthConfig<_, _>>::new(
+		Eth::<_, _, _, _, _, _, BifrostEthConfig<_, _>>::new(
 			client.clone(),
 			pool.clone(),
 			graph.clone(),
