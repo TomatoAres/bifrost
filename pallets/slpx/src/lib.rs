@@ -1699,10 +1699,17 @@ impl<T: Config> Pallet<T> {
 						staking_currency_amount,
 						v_currency_total_supply
 					);
+
+					let location_a_v4 = location_a
+						.try_into()
+						.map_err(|_| Error::<T>::ErrorArguments)?;
+					let location_b_v4 = location_b
+						.try_into()
+						.map_err(|_| Error::<T>::ErrorArguments)?;
 					let mut call_data = HYDRATION_EMA_ORACLE_PALLET_INDEX.encode();
 					call_data.extend(HYDRATION_EMA_ORACLE_CALL_INDEX.encode());
-					call_data.extend(VersionedLocation::V5(location_a).encode());
-					call_data.extend(VersionedLocation::V5(location_b).encode());
+					call_data.extend(VersionedLocation::V4(location_a_v4).encode());
+					call_data.extend(VersionedLocation::V4(location_b_v4).encode());
 					call_data.extend(
 						(
 							staking_currency_amount.saturated_into::<u128>(),
@@ -1718,6 +1725,7 @@ impl<T: Config> Pallet<T> {
 						.refund_surplus()
 						.deposit_asset(AssetFilter::Wild(WildAsset::All), refund_location)
 						.build();
+					log::debug!("xcm_message: {:?}", xcm_message);
 					let dest_location = Location::new(1, [Parachain(HydrationChainId::get())]);
 					let (ticket, _price) =
 						T::XcmSender::validate(&mut Some(dest_location), &mut Some(xcm_message))

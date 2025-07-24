@@ -197,7 +197,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_paseo"),
 	impl_name: Cow::Borrowed("bifrost_paseo"),
 	authoring_version: 0,
-	spec_version: 20001,
+	spec_version: 20002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

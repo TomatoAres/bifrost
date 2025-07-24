@@ -121,9 +121,12 @@ where
 			return Ok(());
 		}
 
-		T::MultiCurrency::ensure_can_withdraw(BNC, who, fee)
-			.map(|_| ())
-			.map_err(|_| InvalidTransaction::Payment.into())
+		match Self::get_fee_currency_and_fee_amount(who, fee) {
+			Ok(_) => Ok(()),
+			Err(_) => Err(TransactionValidityError::Invalid(
+				InvalidTransaction::Payment,
+			)),
+		}
 	}
 
 	/// Hand the fee and the tip over to the `[OnUnbalanced]` implementation.
