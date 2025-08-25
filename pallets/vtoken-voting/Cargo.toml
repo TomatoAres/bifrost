@@ -30,7 +30,6 @@ pallet-referenda = { workspace = true }
 orml-tokens = { workspace = true }
 bifrost-currencies = { workspace = true }
 pallet-balances = { workspace = true }
-sp-core = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 pallet-scheduler = { workspace = true }

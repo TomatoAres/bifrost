@@ -12,7 +12,6 @@ hex-literal = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true }
-static_assertions = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
 serde = { workspace = true }
@@ -119,7 +118,6 @@ num_enum = { workspace = true }
 primitive-types = { workspace = true }
 ethabi = { workspace = true }
 module-evm-utility-macro = { workspace = true }
-evm = { workspace = true, features = ["with-codec"] }
 fp-account = { workspace = true, features = ["serde"] }
 fp-evm = { workspace = true, features = ["serde"] }
 fp-rpc = { workspace = true }
@@ -139,6 +137,7 @@ pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-traits = { workspace = true }
+ethereum = { workspace = true }
 
 # Bifrost
 bifrost-asset-registry = { workspace = true }

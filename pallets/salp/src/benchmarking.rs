@@ -248,43 +248,43 @@ mod benchmarks {
 		let fee_account: T::AccountId = account("seed", 1, 1);
 		let buyback_account: T::AccountId = T::BuybackPalletId::get().into_account_truncating();
 
-		let amounts1: AtLeast64BitUnsignedOf<T> = 1_000_000_000_000u128.into();
+		let amounts1: AtLeast64BitUnsignedOf<T> = 1_000_000_000_000_u128.into();
 		let amounts: <T as bifrost_stable_asset::pallet::Config>::Balance = amounts1.into();
 		assert_ok!(bifrost_stable_pool::Pallet::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![KSM.into(), VSKSM.into()],
 			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 		assert_ok!(bifrost_stable_pool::Pallet::<T>::edit_token_rate(
 			RawOrigin::Root.into(),
 			0,
 			vec![
 				(VSKSM.into(), (1u128.into(), 1u128.into())),
-				(KSM.into(), (10u128.into(), 30u128.into()))
+				(KSM.into(), (10_u128.into(), 30_u128.into()))
 			]
 		));
 
 		assert_ok!(<T as pallet::Config>::MultiCurrency::deposit(
 			KSM,
 			&buyback_account,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000u128)
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000_u128)
 		));
 		assert_ok!(<T as pallet::Config>::MultiCurrency::deposit(
 			KSM,
 			&caller,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000u128)
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000_u128)
 		));
 		assert_ok!(<T as pallet::Config>::MultiCurrency::deposit(
 			VSKSM,
 			&caller,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000u128)
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000_u128)
 		));
 
 		assert_ok!(bifrost_stable_pool::Pallet::<T>::add_liquidity(
@@ -294,9 +294,9 @@ mod benchmarks {
 			amounts
 		));
 		let minimum_mint_value =
-			bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(0u128);
+			bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(0_u128);
 		let token_amount =
-			bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(1_000_000_000_000u128);
+			bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_u128);
 		assert_ok!(bifrost_vtoken_minting::Pallet::<T>::set_minimum_mint(
 			RawOrigin::Root.into(),
 			KSM,

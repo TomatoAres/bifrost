@@ -114,6 +114,8 @@ impl pallet_evm::Config for Runtime {
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Self>;
 	type AccountProvider = pallet_evm::FrameSystemAccountProvider<Self>;
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
+	type CreateOriginFilter = ();
+	type CreateInnerOriginFilter = ();
 }
 
 impl pallet_evm_chain_id::Config for Runtime {}

@@ -51,7 +51,14 @@ pub struct Payload<AccountId, Balance> {
 
 /// Extrisnic params for evm dispatch
 #[derive(
-	Clone, codec::Encode, codec::Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug,
+	Clone,
+	codec::Encode,
+	codec::Decode,
+	codec::DecodeWithMemTracking,
+	scale_info::TypeInfo,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
 )]
 pub struct EvmParams {
 	/// Destination module

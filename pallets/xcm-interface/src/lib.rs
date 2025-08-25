@@ -251,7 +251,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			// If param weight_and_fee is a none, it will delete the storage. Otherwise, revise the
 			// storage to the new value if exists, or insert a new record if not exists before.
-			XcmWeightAndFee::<T>::mutate_exists(currency_id, &operation, |wt_n_f| {
+			XcmWeightAndFee::<T>::mutate_exists(currency_id, operation, |wt_n_f| {
 				*wt_n_f = weight_and_fee;
 			});
 

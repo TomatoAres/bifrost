@@ -26,7 +26,6 @@ bifrost-currencies = { workspace = true }
 orml-tokens = { workspace = true }
 sp-io = { workspace = true }
 pallet-balances = { workspace = true }
-xcm-executor = { workspace = true }
 
 [features]
 default = ["std"]

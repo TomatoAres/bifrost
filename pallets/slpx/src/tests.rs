@@ -250,22 +250,22 @@ fn test_execution_fee_work() {
 #[test]
 fn test_get_default_fee() {
 	new_test_ext().execute_with(|| {
-		assert_eq!(Slpx::get_default_fee(BNC), 10_000_000_000u128);
+		assert_eq!(Slpx::get_default_fee(BNC), 10_000_000_000_u128);
 		assert_eq!(
 			Slpx::get_default_fee(CurrencyId::Token(TokenSymbol::KSM)),
-			10_000_000_000u128
+			10_000_000_000_u128
 		);
 		assert_eq!(
 			Slpx::get_default_fee(CurrencyId::Token(TokenSymbol::MOVR)),
-			10_000_000_000_000_000u128
+			10_000_000_000_000_000_u128
 		);
 		assert_eq!(
 			Slpx::get_default_fee(CurrencyId::VToken(TokenSymbol::KSM)),
-			10_000_000_000u128
+			10_000_000_000_u128
 		);
 		assert_eq!(
 			Slpx::get_default_fee(CurrencyId::VToken(TokenSymbol::MOVR)),
-			10_000_000_000_000_000u128
+			10_000_000_000_000_000_u128
 		);
 	});
 }
@@ -331,7 +331,7 @@ fn test_ethereum_call() {
 		let addr: [u8; 20] = hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"];
 		let r = EthereumXcmTransaction::V2(EthereumXcmTransactionV2 {
 			gas_limit: U256::from(720000),
-			action: TransactionAction::Call(ethabi::ethereum_types::H160(addr)),
+			action: TransactionAction::Call(H160::from(addr)),
 			value: U256::zero(),
 			input: Slpx::encode_ethereum_call(BNC, 123u128, 456u128).try_into().unwrap(),
 			access_list: None,
@@ -361,7 +361,7 @@ fn test_set_ethereum_call_configration() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Slpx::set_xcm_oracle_configuration(
 			RuntimeOrigin::root(),
-			1_000_000_000_000_000_000u128,
+			1_000_000_000_000_000_000_u128,
 			Weight::default(),
 			5u32.into(),
 			H160::from(hex!["ae0daa9bfc50f03ce23d30c796709a58470b5f42"])
@@ -432,7 +432,7 @@ fn test_add_order() {
 		assert_ok!(Slpx::mint(
 			RuntimeOrigin::signed(ALICE),
 			DOT,
-			1u128 * 10000000000,
+			1u128 * 10_000_000_000,
 			TargetChain::Astar(source_chain_caller),
 			BoundedVec::default(),
 			0
@@ -887,6 +887,130 @@ fn force_increase_hyperbridge_reserve_should_work() {
 		assert_noop!(
 			Slpx::force_increase_hyperbridge_reserve(RuntimeOrigin::root(), 1, DOT, 1_000),
 			Error::<Test>::AsyncMintTooFrequent
+		);
+	});
+}
+
+#[test]
+fn test_set_hyperbridge_fee_exempt_accounts() {
+	new_test_ext().execute_with(|| {
+		assert_eq!(HyperBridgeFeeExemptAccounts::<Test>::get(), vec![]);
+
+		assert_ok!(Slpx::set_hyperbridge_fee_exempt_accounts(
+			RuntimeOrigin::root(),
+			vec![ALICE].try_into().unwrap()
+		));
+		assert_eq!(HyperBridgeFeeExemptAccounts::<Test>::get(), vec![ALICE]);
+
+		assert_ok!(Slpx::set_hyperbridge_fee_exempt_accounts(
+			RuntimeOrigin::root(),
+			vec![ALICE, BOB].try_into().unwrap()
+		));
+		assert_eq!(
+			HyperBridgeFeeExemptAccounts::<Test>::get(),
+			vec![ALICE, BOB]
+		);
+
+		assert_noop!(
+			Slpx::set_hyperbridge_fee_exempt_accounts(
+				RuntimeOrigin::root(),
+				vec![ALICE, ALICE].try_into().unwrap()
+			),
+			Error::<Test>::DuplicateAccount
+		);
+	});
+}
+
+#[test]
+fn slpx_use_hyperbridge_should_fail_when_not_set_oracle() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Slpx::mint(
+				RuntimeOrigin::signed(ALICE),
+				DOT,
+				1u128 * 10_000_000_000,
+				TargetChain::HyperBridge(1, H160::default()),
+				BoundedVec::default(),
+				0
+			),
+			Error::<Test>::Unsupported
+		);
+	});
+}
+
+#[test]
+fn slpx_use_hyperbridge() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Slpx::set_hyperbridge_oracle(
+			RuntimeOrigin::root(),
+			1,
+			H160::default(),
+			60,
+			5u32.into(),
+			BoundedVec::try_from(vec![]).unwrap(),
+			BOB,
+			1000000u32.into(),
+		));
+
+		assert_ok!(Slpx::mint(
+			RuntimeOrigin::signed(ALICE),
+			DOT,
+			1u128 * 10_000_000_000,
+			TargetChain::HyperBridge(1, H160::default()),
+			BoundedVec::default(),
+			0
+		));
+
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE),
+			1000 * 10_000_000_000 - 1 * 10_000_000_000
+		);
+		assert_eq!(
+			Currencies::free_balance(VDOT, &ALICE),
+			1000 * 10_000_000_000 + 8_000_000_000
+		);
+		assert_eq!(
+			Currencies::free_balance(DOT, &BifrostFeeAccount::get()),
+			2_000_000_000
+		);
+	});
+}
+
+#[test]
+fn slpx_use_hyperbridge_with_fee_exempt_account() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Slpx::set_hyperbridge_fee_exempt_accounts(
+			RuntimeOrigin::root(),
+			vec![ALICE].try_into().unwrap()
+		));
+
+		assert_ok!(Slpx::set_hyperbridge_oracle(
+			RuntimeOrigin::root(),
+			1,
+			H160::default(),
+			60,
+			5u32.into(),
+			BoundedVec::try_from(vec![]).unwrap(),
+			BOB,
+			1000000u32.into(),
+		));
+
+		assert_ok!(Slpx::mint(
+			RuntimeOrigin::signed(ALICE),
+			DOT,
+			1u128 * 10_000_000_000,
+			TargetChain::HyperBridge(1, H160::default()),
+			BoundedVec::default(),
+			0
+		));
+
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE),
+			1000 * 10_000_000_000 - 1 * 10_000_000_000
+		);
+		assert_eq!(
+			Currencies::free_balance(VDOT, &ALICE),
+			1000 * 10_000_000_000 + 1 * 10_000_000_000
 		);
 	});
 }

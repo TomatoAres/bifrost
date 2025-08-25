@@ -28,9 +28,8 @@ use bifrost_primitives::{
 	IncentivePalletId, IncentivePoolAccount, LiquidityAccount, MoonbeamChainId, ZenlinkPalletId,
 };
 pub use bifrost_runtime_common::constants::time::DAYS;
-use bifrost_slp::QueryId;
 pub use cumulus_primitives_core::ParaId;
-use frame_support::traits::ExistenceRequirement;
+use frame_support::traits::{Disabled, ExistenceRequirement};
 use frame_support::{
 	derive_impl, ord_parameter_types,
 	pallet_prelude::Get,
@@ -235,7 +234,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub SelfRelativeLocation: Location = Location::here();
-	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
+	pub const BaseXcmWeight: Weight = Weight::from_parts( 1_000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
 
@@ -413,6 +412,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -444,6 +444,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 parameter_types! {
@@ -525,6 +526,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == BNC)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

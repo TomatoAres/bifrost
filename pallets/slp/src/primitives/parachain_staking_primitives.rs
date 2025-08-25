@@ -17,13 +17,13 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_primitives::{CurrencyId, TimeUnit};
-use parity_scale_codec::{alloc::collections::BTreeMap, Decode, Encode};
+use parity_scale_codec::{alloc::collections::BTreeMap, Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::vec::Vec;
 use xcm::v3::MultiLocation;
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct OneToManyLedger<Balance> {
 	pub account: MultiLocation,
 	pub delegations: BTreeMap<MultiLocation, Balance>,
@@ -36,27 +36,49 @@ pub struct OneToManyLedger<Balance> {
 	pub status: OneToManyDelegatorStatus,
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub enum OneToManyDelegatorStatus {
 	Active,
 	Leaving(TimeUnit),
 }
 
-#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, PartialOrd, Ord)]
+#[derive(
+	Clone,
+	Eq,
+	PartialEq,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	TypeInfo,
+	PartialOrd,
+	Ord,
+)]
 pub struct OneToManyScheduledRequest<Balance> {
 	pub validator: MultiLocation,
 	pub when_executable: TimeUnit,
 	pub action: OneToManyDelegationAction<Balance>,
 }
 
-#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, PartialOrd, Ord)]
+#[derive(
+	Clone,
+	Eq,
+	PartialEq,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	TypeInfo,
+	PartialOrd,
+	Ord,
+)]
 pub enum OneToManyDelegationAction<Balance> {
 	Revoke(Balance),
 	Decrease(Balance),
 }
 
 /// A type for ParachainStaking ledger updating entries
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct ParachainStakingLedgerUpdateEntry<Balance> {
 	/// The currency id of the delegator that needs to be update
 	pub currency_id: CurrencyId,
@@ -74,7 +96,7 @@ pub struct ParachainStakingLedgerUpdateEntry<Balance> {
 	pub unlock_time: Option<TimeUnit>,
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub enum ParachainStakingLedgerUpdateOperation {
 	Bond,
 	BondLess,

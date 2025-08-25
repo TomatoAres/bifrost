@@ -37,14 +37,12 @@ impl<T: Config> OnRuntimeUpgrade for CrossInOutMigration<T> {
 				|k: CurrencyId, value: Vec<AccountIdOf<T>>| {
 					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
 
-					let target_bounded_vec: BoundedVec<AccountIdOf<T>, T::MaxLengthLimit>;
-
-					if value.len() != 0 {
-						target_bounded_vec = BoundedVec::try_from(value).unwrap();
-					} else {
-						target_bounded_vec =
-							BoundedVec::<AccountIdOf<T>, T::MaxLengthLimit>::default();
-					}
+					let target_bounded_vec: BoundedVec<AccountIdOf<T>, T::MaxLengthLimit> =
+						if !value.is_empty() {
+							BoundedVec::try_from(value).unwrap()
+						} else {
+							BoundedVec::<AccountIdOf<T>, T::MaxLengthLimit>::default()
+						};
 
 					Some(target_bounded_vec)
 				},
@@ -55,7 +53,7 @@ impl<T: Config> OnRuntimeUpgrade for CrossInOutMigration<T> {
 
 			// Return the consumed weight
 			let count = IssueWhiteList::<T>::iter().count();
-			Weight::from(T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1))
+			T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

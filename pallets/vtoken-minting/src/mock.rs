@@ -119,21 +119,20 @@ orml_traits::parameter_type_with_key! {
 		log::debug!(
 			"{:?}",currency_id
 		);
-		match currency_id {
-			&BNC => 10 * milli::<Runtime>(NativeCurrencyId::get()),   // 0.01 BNC
-			&KSM => 0,
-			&VKSM => 0,
-			&FIL => 0,
-			&VFIL => 0,
-			&V_WETH => 0,
-			&V_ETH => 0,
-			&ETH => 0,
-			&WETH => 0,
-			&MOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
-			&VMOVR => 1 * micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
-			&VBNC => 10 * milli::<Runtime>(NativeCurrencyId::get()),  // 0.01 BNC
+		match *currency_id {
+			BNC => 10 * milli::<Runtime>(NativeCurrencyId::get()),   // 0.01 BNC
+			KSM => 0,
+			VKSM => 0,
+			FIL => 0,
+			VFIL => 0,
+			V_ETH => 0,
+			ETH => 0,
+			WETH => 0,
+			MOVR => micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
+			VMOVR => micro::<Runtime>(MOVR),	// MOVR has a decimals of 10e18
+			VBNC => 10 * milli::<Runtime>(NativeCurrencyId::get()),  // 0.01 BNC
 			_ => AssetIdMaps::<Runtime>::get_currency_metadata(*currency_id)
-				.map_or(Balance::max_value(), |metatata| metatata.minimal_balance)
+				.map_or(Balance::MAX, |metadata| metadata.minimal_balance)
 		}
 	};
 }
@@ -250,6 +249,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == BNC)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -387,7 +387,7 @@ impl BbBNCInterface<AccountId, CurrencyId, Balance, BlockNumber> for BbBNC {
 	fn add_reward(
 		_addr: &AccountId,
 		_conf: &mut IncentiveConfig<CurrencyId, Balance, BlockNumber, AccountId>,
-		_rewards: &Vec<CurrencyId>,
+		_rewards: &[CurrencyId],
 		_remaining: Balance,
 	) -> DispatchResult {
 		Ok(())

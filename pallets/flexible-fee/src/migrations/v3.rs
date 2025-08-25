@@ -47,7 +47,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 			StorageVersion::new(3).put::<Pallet<T>>();
 
 			// Return the consumed weight
-			Weight::from(T::DbWeight::get().reads_writes(count + 1, count + 1))
+			T::DbWeight::get().reads_writes(count + 1, count + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()
@@ -129,7 +129,7 @@ impl<T: Config> OnRuntimeUpgrade for PolkadotMigrateToV3<T> {
 			StorageVersion::new(3).put::<Pallet<T>>();
 
 			// Return the consumed weight
-			Weight::from(T::DbWeight::get().reads_writes(1, 1))
+			T::DbWeight::get().reads_writes(1, 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

@@ -142,6 +142,8 @@ impl pallet_evm::Config for Runtime {
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 	type AccountProvider = pallet_evm::FrameSystemAccountProvider<Self>;
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
+	type CreateOriginFilter = ();
+	type CreateInnerOriginFilter = ();
 }
 
 parameter_types! {
@@ -178,6 +180,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self.balances,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.expect("Pallet balances storage can be assimilated");
@@ -185,15 +188,12 @@ impl ExtBuilder {
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| {
 			System::set_block_number(1);
-			pallet_evm::Pallet::<Runtime>::create_account(
+			let _ = pallet_evm::Pallet::<Runtime>::create_account(
 				Revert.into(),
 				hex_literal::hex!("1460006000fd").to_vec(),
+				None,
 			);
 		});
 		ext
 	}
 }
-
-// pub fn balance(account: impl Into<Account>) -> Balance {
-// 	pallet_balances::Pallet::<Runtime>::usable_balance(account.into())
-// }

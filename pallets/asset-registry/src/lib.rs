@@ -22,6 +22,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use bifrost_primitives::CurrencyConversionError;
 pub use bifrost_primitives::{
 	AssetIds, AssetMetadata, CurrencyId,
 	CurrencyId::{Native, Token, Token2},
@@ -61,6 +62,8 @@ pub use weights::WeightInfo;
 /// Type alias for currency balance.
 pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+type CurrencyInfo<T> = (CurrencyId, BalanceOf<T>, Option<(String, String, u8)>);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -176,7 +179,7 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub currency: Vec<(CurrencyId, BalanceOf<T>, Option<(String, String, u8)>)>,
+		pub currency: Vec<CurrencyInfo<T>>,
 		pub vcurrency: Vec<CurrencyId>,
 		pub vsbond: Vec<(CurrencyId, u32, u32, u32)>,
 		pub phantom: PhantomData<T>,
@@ -307,8 +310,7 @@ pub mod pallet {
 				.try_into()
 				.map_err(|()| Error::<T>::BadLocation)?;
 
-			let v5_location =
-				Location::try_from(location.clone()).map_err(|_| Error::<T>::BadLocation)?;
+			let v5_location: Location = location.clone();
 
 			ensure!(
 				CurrencyMetadatas::<T>::get(currency_id).is_some(),
@@ -415,8 +417,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_register_location(currency_id: CurrencyId, location: &Location) -> DispatchResult {
-		let v5_location =
-			Location::try_from(location.clone()).map_err(|_| Error::<T>::BadLocation)?;
+		let v5_location: Location = location.clone();
 
 		ensure!(
 			CurrencyMetadatas::<T>::get(currency_id).is_some(),
@@ -450,7 +451,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn asset_ids() -> Vec<AssetId> {
 		LocationToCurrencyIds::<T>::iter_keys()
-			.map(|key| AssetId(key))
+			.map(AssetId)
 			.collect()
 	}
 }
@@ -480,7 +481,7 @@ impl<T: Config> CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<T>>> for A
 }
 
 impl<T: Config> CurrencyIdConversion<CurrencyId> for AssetIdMaps<T> {
-	fn convert_to_token(currency_id: CurrencyId) -> Result<CurrencyId, ()> {
+	fn convert_to_token(currency_id: CurrencyId) -> Result<CurrencyId, CurrencyConversionError> {
 		match currency_id {
 			CurrencyId::VSBond(TokenSymbol::BNC, 2001, 13, 20) => {
 				Ok(CurrencyId::Token(TokenSymbol::KSM))
@@ -492,25 +493,25 @@ impl<T: Config> CurrencyIdConversion<CurrencyId> for AssetIdMaps<T> {
 			CurrencyId::VToken2(token_id)
 			| CurrencyId::VSToken2(token_id)
 			| CurrencyId::VSBond2(token_id, ..) => Ok(CurrencyId::Token2(token_id)),
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::ConversionFailed),
 		}
 	}
 
-	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyId, ()> {
+	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyId, CurrencyConversionError> {
 		match currency_id {
 			CurrencyId::Token(token_symbol) | CurrencyId::Native(token_symbol) => {
 				Ok(CurrencyId::VToken(token_symbol))
 			}
 			CurrencyId::Token2(token_id) => Ok(CurrencyId::VToken2(token_id)),
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::ConversionFailed),
 		}
 	}
 
-	fn convert_to_vstoken(currency_id: CurrencyId) -> Result<CurrencyId, ()> {
+	fn convert_to_vstoken(currency_id: CurrencyId) -> Result<CurrencyId, CurrencyConversionError> {
 		match currency_id {
 			CurrencyId::Token(token_symbol) => Ok(CurrencyId::VSToken(token_symbol)),
 			CurrencyId::Token2(token_id) => Ok(CurrencyId::VSToken2(token_id)),
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::ConversionFailed),
 		}
 	}
 
@@ -519,7 +520,7 @@ impl<T: Config> CurrencyIdConversion<CurrencyId> for AssetIdMaps<T> {
 		index: ParaId,
 		first_slot: LeasePeriod,
 		last_slot: LeasePeriod,
-	) -> Result<CurrencyId, ()> {
+	) -> Result<CurrencyId, CurrencyConversionError> {
 		match currency_id {
 			CurrencyId::Token(token_symbol) => {
 				let mut vs_bond = CurrencyId::VSBond(token_symbol, index, first_slot, last_slot);
@@ -532,7 +533,7 @@ impl<T: Config> CurrencyIdConversion<CurrencyId> for AssetIdMaps<T> {
 			CurrencyId::Token2(token_id) => {
 				Ok(CurrencyId::VSBond2(token_id, index, first_slot, last_slot))
 			}
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::ConversionFailed),
 		}
 	}
 }
@@ -569,7 +570,7 @@ impl<T: Config> CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<T>>> for 
 		if let Some(token_metadata) = CurrencyMetadatas::<T>::get(CurrencyId::Token(token_symbol)) {
 			let vtoken_metadata = Pallet::<T>::convert_to_vtoken_metadata(token_metadata);
 			Pallet::<T>::do_register_metadata(CurrencyId::VToken(token_symbol), &vtoken_metadata)?;
-			return Ok(());
+			Ok(())
 		} else if let Some(token_metadata) =
 			CurrencyMetadatas::<T>::get(CurrencyId::Native(token_symbol))
 		{
@@ -594,9 +595,9 @@ impl<T: Config> CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<T>>> for 
 			let vtoken_metadata = Pallet::<T>::convert_to_vtoken_metadata(token_metadata);
 			Pallet::<T>::do_register_metadata(CurrencyId::VToken2(token_id), &vtoken_metadata)?;
 
-			return Ok(());
+			Ok(())
 		} else {
-			return Err(Error::<T>::CurrencyIdNotExists.into());
+			Err(Error::<T>::CurrencyIdNotExists.into())
 		}
 	}
 

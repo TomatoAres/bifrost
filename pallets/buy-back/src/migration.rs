@@ -37,6 +37,7 @@ pub struct InfoV0<BalanceOf, BlockNumberFor> {
 }
 
 impl<BalanceOf, BlockNumberFor> InfoV1<BalanceOf, BlockNumberFor> {
+	#[allow(clippy::too_many_arguments)]
 	pub fn new(
 		min_swap_value: BalanceOf,
 		if_auto: bool,

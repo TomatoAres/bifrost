@@ -257,7 +257,7 @@ impl<T: Config>
 	fn delegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		_weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -301,7 +301,7 @@ impl<T: Config>
 	fn undelegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		_weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -469,7 +469,7 @@ impl<T: Config>
 		let current_time_unit = T::VtokenMinting::get_ongoing_time_unit(currency_id)
 			.ok_or(Error::<T>::TimeUnitNotExist)?;
 		// Get DelegatorLatestTuneRecord for the currencyId.
-		let latest_time_unit_op = DelegatorLatestTuneRecord::<T>::get(currency_id, &who);
+		let latest_time_unit_op = DelegatorLatestTuneRecord::<T>::get(currency_id, who);
 		// ensure each delegator can only tune once per TimeUnit at most.
 		ensure!(
 			latest_time_unit_op != Some(current_time_unit.clone()),

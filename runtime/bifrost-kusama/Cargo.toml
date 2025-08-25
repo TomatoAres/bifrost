@@ -12,7 +12,6 @@ hex-literal = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true }
-static_assertions = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
 serde = { workspace = true }

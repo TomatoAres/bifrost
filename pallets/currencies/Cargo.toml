@@ -23,7 +23,6 @@ orml-utilities = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true }
-sp-core = { workspace = true }
 
 orml-tokens = { workspace = true }
 

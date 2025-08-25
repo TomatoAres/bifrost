@@ -19,11 +19,13 @@
 // Ensure we're `no_std` when compiling for Wasm.
 
 use frame_support::pallet_prelude::Weight;
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use sp_core::H160;
 use sp_runtime::RuntimeDebug;
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
+#[derive(
+	PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, scale_info::TypeInfo,
+)]
 pub enum RedeemTo<AccountId> {
 	/// Native chain.
 	Native(AccountId),

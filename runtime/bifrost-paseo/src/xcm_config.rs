@@ -31,6 +31,7 @@ use bifrost_runtime_common::{
 };
 use cumulus_primitives_core::AggregateMessageOrigin;
 pub use cumulus_primitives_core::ParaId;
+use frame_support::traits::Disabled;
 use frame_support::{
 	sp_runtime::traits::Convert,
 	traits::{Get, TransformOrigin},
@@ -61,7 +62,7 @@ parameter_types! {
 	// Maximum weight assigned to MessageQueue pallet to execute messages when the block is on_idle
 	pub MessageQueueIdleServiceWeight: Weight = Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
 	// XTokens pallet BaseXcmWeight, Actually weight for an XCM message is `T::BaseXcmWeight + T::Weigher::weight(&msg)`.
-	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
+	pub const BaseXcmWeight: Weight = Weight::from_parts( 1_000_000_000u64, 0);
 	// XTokens pallet supports maximum number of assets to be transferred at a time
 	pub const MaxAssetsForTransfer: usize = 2;
 	// One XCM operation is 200_000_000 weight, cross-chain transfer ~= 2x of transfer = 3_000_000_000
@@ -213,6 +214,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 /// Local origins on this chain are allowed to dispatch XCM sends/executions.
@@ -260,6 +262,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -317,13 +320,13 @@ parameter_type_with_key! {
 			&CurrencyId::Token2(WETH_TOKEN_ID) => 15_000_000_000_000,   // 0.000015 WETH
 			&CurrencyId::Native(TokenSymbol::BNC) => 10 * milli::<Runtime>(NativeCurrencyId::get()),   // 0.01 BNC
 			&CurrencyId::Token2(DOT_TOKEN_ID) => 1_000_000,  // DOT
-			&CurrencyId::LPToken(..) => 1 * micro::<Runtime>(NativeCurrencyId::get()),
+			&CurrencyId::LPToken(..) => micro::<Runtime>(NativeCurrencyId::get()),
 			CurrencyId::ForeignAsset(foreign_asset_id) => {
 				AssetIdMaps::<Runtime>::get_asset_metadata(AssetIds::ForeignAssetId(*foreign_asset_id)).
-					map_or(Balance::max_value(), |metatata| metatata.minimal_balance)
+					map_or(Balance::MAX, |metadata| metadata.minimal_balance)
 			},
 			_ => AssetIdMaps::<Runtime>::get_currency_metadata(*currency_id)
-				.map_or(Balance::max_value(), |metatata| metatata.minimal_balance)
+				.map_or(Balance::MAX, |metadata| metadata.minimal_balance)
 		}
 	};
 }

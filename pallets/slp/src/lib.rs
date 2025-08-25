@@ -1358,7 +1358,6 @@ pub mod pallet {
 		/// *****************************
 		/// ****** Storage Setters ******
 		/// *****************************
-
 		/// Update storage OperateOrigins<T>.
 		#[pallet::call_index(22)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_operate_origin())]
@@ -1568,7 +1567,7 @@ pub mod pallet {
 			Self::ensure_authorized(origin, currency_id)?;
 
 			// Update the ledger.
-			DelegatorLedgers::<T>::mutate_exists(currency_id, &*who, |old_ledger| {
+			DelegatorLedgers::<T>::mutate_exists(currency_id, *who, |old_ledger| {
 				*old_ledger = *ledger.clone();
 			});
 
@@ -1722,7 +1721,7 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			let multi_hash = T::Hashing::hash(&who.encode());
-			if !SupplementFeeAccountWhitelist::<T>::contains_key(&currency_id) {
+			if !SupplementFeeAccountWhitelist::<T>::contains_key(currency_id) {
 				SupplementFeeAccountWhitelist::<T>::insert(
 					currency_id,
 					vec![(who.clone(), multi_hash)],
@@ -1768,7 +1767,7 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 
 			let multi_hash = T::Hashing::hash(&who.encode());
-			if !SupplementFeeAccountWhitelist::<T>::contains_key(&currency_id) {
+			if !SupplementFeeAccountWhitelist::<T>::contains_key(currency_id) {
 				Err(Error::<T>::WhiteListNotExist)?;
 			} else {
 				SupplementFeeAccountWhitelist::<T>::mutate_exists(
@@ -2379,7 +2378,7 @@ impl<T: Config, F: Contains<CurrencyIdOf<T>>>
 	fn new_delegator_ledger(currency_id: CurrencyIdOf<T>, who: MultiLocation) {
 		DelegatorLedgers::<T>::insert(
 			currency_id,
-			&who,
+			who,
 			Ledger::Substrate(SubstrateLedger {
 				account: xcm::v3::Parent.into(),
 				total: u32::MAX.into(),

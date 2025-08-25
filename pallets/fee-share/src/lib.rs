@@ -58,7 +58,7 @@ pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T>>>::Balance;
 
 /// Distribution information
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub struct Info<AccountIdOf> {
 	/// Account id used for distribution
 	pub fee_share_account_id: AccountIdOf,
@@ -69,7 +69,7 @@ pub struct Info<AccountIdOf> {
 }
 
 /// USD Standard Accumulation Logic Configuration
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub struct DollarStandardInfo<BlockNumberFor, AccountIdOf> {
 	/// The target value of the USD standard
 	pub target_value: u128,
@@ -319,8 +319,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::DistributionNotExist)?;
 			if let Some(tokens_proportion) = tokens_proportion {
 				// Clear the original proportion
-				let res =
-					TokensProportions::<T>::clear_prefix(distribution_id, u32::max_value(), None);
+				let res = TokensProportions::<T>::clear_prefix(distribution_id, u32::MAX, None);
 				ensure!(
 					res.maybe_cursor.is_none(),
 					Error::<T>::TokensProportionsNotCleared

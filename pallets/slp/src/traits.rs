@@ -90,7 +90,7 @@ pub trait StakingAgent<
 	fn delegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, Balance)>,
 	) -> Result<QueryId, Error>;
@@ -99,7 +99,7 @@ pub trait StakingAgent<
 	fn undelegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, Balance)>,
 	) -> Result<QueryId, Error>;
@@ -200,7 +200,6 @@ pub trait StakingAgent<
 	/// ************************************
 	/// Abstraction over a QueryResponseChecker.
 	/// ************************************
-
 	fn check_delegator_ledger_query_response(
 		&self,
 		query_id: QueryId,

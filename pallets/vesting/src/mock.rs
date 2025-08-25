@@ -122,6 +122,7 @@ impl ExtBuilder {
 				(12, 30 * self.existential_deposit),
 				(13, 9999 * self.existential_deposit),
 			],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

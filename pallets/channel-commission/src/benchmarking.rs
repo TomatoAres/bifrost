@@ -18,8 +18,6 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 
-#![cfg(feature = "runtime-benchmarks")]
-
 use bifrost_primitives::{CurrencyId, KSM, VKSM};
 use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller, BenchmarkError};
 use frame_support::assert_ok;

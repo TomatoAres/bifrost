@@ -25,7 +25,7 @@
 //!
 //! At the start of every round,
 //! * issuance is calculated for collators (and their delegators) for block authoring
-//! `T::RewardPaymentDelay` rounds ago
+//!   `T::RewardPaymentDelay` rounds ago
 //! * a new set of collators is chosen from the candidates
 //!
 //! Immediately following a round change, payments are made once-per-block until all payments have
@@ -1294,11 +1294,11 @@ pub mod pallet {
 			ensure!(candidates.len() < 100, <Error<T>>::InsufficientBalance);
 			for candidate in &candidates {
 				ensure!(
-					<CandidateInfo<T>>::get(&candidate).is_none(),
+					<CandidateInfo<T>>::get(candidate).is_none(),
 					<Error<T>>::CandidateNotLeaving
 				);
 				ensure!(
-					<DelegationScheduledRequests<T>>::get(&candidate).is_empty(),
+					<DelegationScheduledRequests<T>>::get(candidate).is_empty(),
 					<Error<T>>::CandidateNotLeaving
 				);
 			}
@@ -1712,7 +1712,7 @@ pub mod pallet {
 				let CountedDelegations {
 					uncounted_stake,
 					rewardable_delegations,
-				} = Self::get_rewardable_delegators(&account);
+				} = Self::get_rewardable_delegators(account);
 				let total_counted = state.total_counted.saturating_sub(uncounted_stake);
 
 				let snapshot = CollatorSnapshot {
@@ -1794,7 +1794,7 @@ pub mod pallet {
 
 			let mut candidate_delegation_count = 0;
 			if let Some(state) = <CandidateInfo<T>>::get(&candidate) {
-				candidate_delegation_count = state.delegation_count as u32;
+				candidate_delegation_count = state.delegation_count;
 			}
 
 			(delegation_count, candidate_delegation_count)

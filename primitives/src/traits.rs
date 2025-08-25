@@ -21,8 +21,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::{
-	AssetIds, AssetMetadata, Balance, CurrencyId, DerivativeIndex, LeasePeriod, ParaId, PoolId,
-	RedeemType, TokenId, TokenSymbol, XcmOperationType,
+	AssetIds, AssetMetadata, Balance, CurrencyConversionError, CurrencyId, DerivativeIndex,
+	LeasePeriod, ParaId, PoolId, RedeemType, TokenId, TokenSymbol, XcmOperationType,
 };
 use frame_support::pallet_prelude::{DispatchResultWithPostInfo, Weight};
 use parity_scale_codec::{Decode, Encode, FullCodec};
@@ -143,7 +143,7 @@ pub trait VtokenMintingOperator<CurrencyId, Balance, AccountId, TimeUnit> {
 	) -> Result<Balance, DispatchError>;
 
 	/// Get the v_currency issuance for rate calculation
-	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Balance;
+	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Result<Balance, DispatchError>;
 
 	/// Set the v_currency issuance adjustment for rate calculation
 	fn set_v_currency_issuance(v_currency_id: CurrencyId, adjustment: i128) -> DispatchResult;
@@ -219,15 +219,15 @@ pub trait CurrencyIdMapping<CurrencyId, AssetMetadata> {
 }
 
 pub trait CurrencyIdConversion<CurrencyId> {
-	fn convert_to_token(currency_id: CurrencyId) -> Result<CurrencyId, ()>;
-	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyId, ()>;
-	fn convert_to_vstoken(currency_id: CurrencyId) -> Result<CurrencyId, ()>;
+	fn convert_to_token(currency_id: CurrencyId) -> Result<CurrencyId, CurrencyConversionError>;
+	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyId, CurrencyConversionError>;
+	fn convert_to_vstoken(currency_id: CurrencyId) -> Result<CurrencyId, CurrencyConversionError>;
 	fn convert_to_vsbond(
 		currency_id: CurrencyId,
 		index: crate::ParaId,
 		first_slot: crate::LeasePeriod,
 		last_slot: crate::LeasePeriod,
-	) -> Result<CurrencyId, ()>;
+	) -> Result<CurrencyId, CurrencyConversionError>;
 }
 
 pub trait CurrencyIdRegister<CurrencyId, AssetMetadata> {
@@ -338,7 +338,7 @@ pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
 	fn get_token_pool(currency_id: CurrencyId) -> Balance;
 	fn get_minimums_redeem(vtoken_id: CurrencyId) -> Balance;
 	fn get_moonbeam_parachain_id() -> u32;
-	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Balance;
+	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Result<Balance, DispatchError>;
 	fn set_v_currency_issuance(v_currency_id: CurrencyId, adjustment: i128) -> DispatchResult;
 }
 
@@ -401,8 +401,8 @@ impl<AccountId, CurrencyId: Default, Balance: Zero>
 		0
 	}
 
-	fn get_v_currency_issuance(_v_currency_id: CurrencyId) -> Balance {
-		Zero::zero()
+	fn get_v_currency_issuance(_v_currency_id: CurrencyId) -> Result<Balance, DispatchError> {
+		Ok(Zero::zero())
 	}
 
 	fn set_v_currency_issuance(_v_currency_id: CurrencyId, _adjustment: i128) -> DispatchResult {

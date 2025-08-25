@@ -477,7 +477,7 @@ impl<T: Config>
 	fn delegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -552,7 +552,7 @@ impl<T: Config>
 	fn undelegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -579,7 +579,7 @@ impl<T: Config>
 		}
 
 		// Ensure new set is not empty.
-		ensure!(new_set.len() > 0, Error::<T>::VectorEmpty);
+		ensure!(!new_set.is_empty(), Error::<T>::VectorEmpty);
 
 		// Convert new targets into account vec.
 		let mut accounts = vec![];

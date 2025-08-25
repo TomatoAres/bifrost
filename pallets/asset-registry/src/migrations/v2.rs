@@ -49,7 +49,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
 			let migrated_items: Vec<_> = LocationToCurrencyIds::<T>::drain()
 				.map(|(v4_location, value)| {
 					log::info!(target: LOG_TARGET, "LocationToCurrencyIds Migrated to xcm::v5::Location for {:?}...", value);
-					let v5_location = xcm::v5::Location::try_from(v4_location).unwrap();
+					let v5_location: Location = v4_location;
 
 					count += 1;
 					(v5_location, value)
@@ -63,7 +63,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
 			in_code_version.put::<Pallet<T>>();
 
 			// Return the consumed weight
-			Weight::from(T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1))
+			T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

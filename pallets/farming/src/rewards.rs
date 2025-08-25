@@ -83,6 +83,7 @@ where
 	BalanceOf: Default + HasCompact,
 	CurrencyIdOf: Ord,
 {
+	#[allow(clippy::too_many_arguments)]
 	pub fn new(
 		keeper: AccountIdOf,
 		reward_issuer: AccountIdOf,
@@ -114,6 +115,8 @@ where
 			withdraw_limit_count,
 		}
 	}
+
+	#[allow(clippy::too_many_arguments)]
 	pub fn new_gauge(
 		keeper: AccountIdOf,
 		reward_issuer: AccountIdOf,
@@ -245,7 +248,7 @@ impl<T: Config> Pallet<T> {
 					.or_insert(reward_inflation);
 			});
 		SharesAndWithdrawnRewards::<T>::insert(pid, who, share_info);
-		PoolInfos::<T>::insert(&pid, pool_info);
+		PoolInfos::<T>::insert(pid, pool_info);
 	}
 
 	pub fn remove_share(
@@ -394,7 +397,7 @@ impl<T: Config> Pallet<T> {
 								let mut account_to_send = who.clone();
 
 								if reward_to_withdraw < ed {
-									let receiver_balance = T::MultiCurrency::total_balance(*reward_currency, &who);
+									let receiver_balance = T::MultiCurrency::total_balance(*reward_currency, who);
 
 									let receiver_balance_after =
 										receiver_balance.checked_add(&reward_to_withdraw).ok_or(ArithmeticError::Overflow)?;
@@ -452,7 +455,7 @@ impl<T: Config> Pallet<T> {
 
 										if withdraw_amount < ed {
 											let receiver_balance =
-												T::MultiCurrency::total_balance(*token, &who);
+												T::MultiCurrency::total_balance(*token, who);
 
 											let receiver_balance_after = receiver_balance
 												.checked_add(&withdraw_amount)
@@ -494,30 +497,30 @@ impl<T: Config> Pallet<T> {
 
 	pub fn refresh_inner(exchanger: &T::AccountId, pid: PoolId) -> DispatchResult {
 		let gauge_pid = pid + GAUGE_BASE_ID;
-		if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger) {
+		if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(pid, exchanger) {
 			if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
-				let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+				let gauge_new_value = T::BbBNC::balance_of(exchanger, None)?
 					.checked_mul(&share_info.share)
 					.ok_or(ArithmeticError::Overflow)?;
-				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
+				if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(gauge_pid, exchanger)
 				{
 					Self::update_gauge_share(
-						&exchanger,
+						exchanger,
 						gauge_pid,
 						gauge_new_value,
 						share_info.share,
 						&mut gauge_pool_info,
 					)?;
 				} else {
-					Self::add_share(&exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
+					Self::add_share(exchanger, gauge_pid, &mut gauge_pool_info, gauge_new_value);
 				}
 			}
 		} else {
 			// If `SharesAndWithdrawnRewards` returns `None`, remove the `pid` from `UserFarmingPool`.
-			UserFarmingPool::<T>::mutate(&exchanger, |pids| {
+			UserFarmingPool::<T>::mutate(exchanger, |pids| {
 				pids.retain(|&x| x != pid);
 			});
-			SharesAndWithdrawnRewards::<T>::remove(gauge_pid, &exchanger);
+			SharesAndWithdrawnRewards::<T>::remove(gauge_pid, exchanger);
 		}
 
 		Ok(())

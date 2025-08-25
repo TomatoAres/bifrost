@@ -17,8 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Ensure we're `no_std` when compiling for Wasm.
-#![cfg(feature = "runtime-benchmarks")]
-
 use bifrost_primitives::{CurrencyId, TokenSymbol};
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_support::assert_ok;
@@ -44,7 +42,7 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let tokens_proportion = vec![(caller.clone(), Perbill::from_percent(100))];
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
-		let token_type = vec![KSM];
+		let token_type = [KSM];
 		assert_ok!(FeeShare::<T>::create_distribution(
 			RawOrigin::Root.into(),
 			BoundedVec::try_from(vec![KSM]).unwrap(),
@@ -61,7 +59,7 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let tokens_proportion = vec![(caller.clone(), Perbill::from_percent(100))];
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
-		let token_type = vec![KSM];
+		let token_type = [KSM];
 		assert_ok!(FeeShare::<T>::create_distribution(
 			RawOrigin::Root.into(),
 			BoundedVec::try_from(vec![KSM]).unwrap(),
@@ -73,7 +71,7 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let tokens_proportion = vec![(caller.clone(), Perbill::from_percent(100))];
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
-		let token_type = vec![KSM];
+		let token_type = [KSM];
 		assert_ok!(FeeShare::<T>::create_distribution(
 			RawOrigin::Root.into(),
 			BoundedVec::try_from(vec![KSM]).unwrap(),
@@ -85,7 +83,7 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let tokens_proportion = vec![(caller.clone(), Perbill::from_percent(100))];
 		const KSM: CurrencyId = CurrencyId::Token(TokenSymbol::KSM);
-		let token_type = vec![KSM];
+		let token_type = [KSM];
 		assert_ok!(FeeShare::<T>::create_distribution(
 			RawOrigin::Root.into(),
 			BoundedVec::try_from(vec![KSM]).unwrap(),

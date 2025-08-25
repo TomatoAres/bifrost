@@ -218,7 +218,7 @@ impl MultiCurrency<AccountId> for TestAssets {
 		asset: Self::CurrencyId,
 		dest: &AccountId,
 		amount: Self::Balance,
-		existence_requirement: ExistenceRequirement,
+		_existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
 		ASSETS.with(|d| -> DispatchResult {
 			let i =

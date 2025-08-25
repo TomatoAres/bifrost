@@ -27,7 +27,9 @@ use crate::{
 	MinimumsAndMaximums, Pallet, TimeUnit, Validators, Vec, Weight, XcmOperationType, Zero, ASTR,
 	BNC, DOT, GLMR, KSM, MANTA, MOVR, PHA,
 };
-use bifrost_primitives::{CurrencyId, VtokenMintingOperator, XcmDestWeightAndFeeHandler};
+use bifrost_primitives::{
+	CurrencyId, CurrencyIdExt, VtokenMintingOperator, XcmDestWeightAndFeeHandler,
+};
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{dispatch::GetDispatchInfo, ensure, traits::Len};
 use orml_traits::{MultiCurrency, XcmTransfer};
@@ -42,6 +44,8 @@ use sp_runtime::{
 };
 use xcm::v3::MultiLocation;
 use xcm::v5::prelude::*;
+
+type QueryDetails<T> = (QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v5::Xcm<()>);
 
 // Some common business functions for all agents
 impl<T: Config> Pallet<T> {
@@ -183,7 +187,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BalanceOf<T>, Error<T>> {
 		ensure!(amount > Zero::zero(), Error::<T>::AmountZero);
 
-		let vtoken_issuance = T::VtokenMinting::get_v_currency_issuance(vtoken);
+		let vtoken_issuance = T::VtokenMinting::get_v_currency_issuance(vtoken)
+			.map_err(|_| Error::<T>::Unexpected)?;
 		let token_pool = T::VtokenMinting::get_token_pool(currency_id);
 		// Calculate how much vksm the beneficiary account can get.
 		let amount: u128 = amount.unique_saturated_into();
@@ -207,14 +212,16 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		ensure!(charge_amount > Zero::zero(), Error::<T>::AmountZero);
 
-		let beneficiary = Self::multilocation_to_account(&to)?;
+		let beneficiary = Self::multilocation_to_account(to)?;
 		// Issue corresponding vksm to beneficiary account.
 		T::MultiCurrency::deposit(depoist_currency, &beneficiary, charge_amount)?;
-		let adjustment = charge_amount
-			.saturated_into::<u128>()
-			.try_into()
-			.map_err(|_| Error::<T>::OverFlow)?;
-		T::VtokenMinting::set_v_currency_issuance(depoist_currency, adjustment)?;
+		if depoist_currency.is_vtoken() {
+			let adjustment = charge_amount
+				.saturated_into::<u128>()
+				.try_into()
+				.map_err(|_| Error::<T>::OverFlow)?;
+			T::VtokenMinting::set_v_currency_issuance(depoist_currency, adjustment)?;
+		}
 
 		Ok(())
 	}
@@ -226,7 +233,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), Error<T>> {
 		// ensure who is a valid delegator
 		ensure!(
-			DelegatorsMultilocation2Index::<T>::contains_key(currency_id, &who),
+			DelegatorsMultilocation2Index::<T>::contains_key(currency_id, who),
 			Error::<T>::DelegatorNotExist
 		);
 
@@ -234,7 +241,7 @@ impl<T: Config> Pallet<T> {
 		let current_time_unit = T::VtokenMinting::get_ongoing_time_unit(currency_id)
 			.ok_or(Error::<T>::TimeUnitNotExist)?;
 		// Get DelegatorLatestTuneRecord for the currencyId.
-		let latest_time_unit_op = DelegatorLatestTuneRecord::<T>::get(currency_id, &who);
+		let latest_time_unit_op = DelegatorLatestTuneRecord::<T>::get(currency_id, who);
 		// ensure each delegator can only tune once per TimeUnit.
 		ensure!(
 			latest_time_unit_op != Some(current_time_unit.clone()),
@@ -273,12 +280,14 @@ impl<T: Config> Pallet<T> {
 		let source_account = Self::native_multilocation_to_account(&source_location)?;
 
 		// withdraw. If withdraw fails, issue an event and continue.
-		if let Err(_) = T::MultiCurrency::withdraw(
+		if T::MultiCurrency::withdraw(
 			currency_id,
 			&source_account,
 			fee,
 			ExistenceRequirement::AllowDeath,
-		) {
+		)
+		.is_err()
+		{
 			// Deposit event
 			Self::deposit_event(Event::BurnFeeFailed {
 				currency_id,
@@ -322,7 +331,7 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn convert_currency_to_refund_receiver(
 		currency_id: CurrencyId,
 	) -> xcm::v5::Junctions {
-		let interior = match currency_id {
+		match currency_id {
 			KSM | DOT => xcm::v5::Junctions::from([xcm::v5::prelude::Parachain(
 				T::ParachainId::get().into(),
 			)]),
@@ -334,9 +343,7 @@ impl<T: Config> Pallet<T> {
 				network: None,
 				id: Sibling::from(T::ParachainId::get()).into_account_truncating(),
 			}]),
-		};
-
-		return interior;
+		}
 	}
 
 	pub(crate) fn prepare_send_as_subaccount_call(
@@ -375,7 +382,7 @@ impl<T: Config> Pallet<T> {
 		who: &MultiLocation,
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
-	) -> Result<(QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v5::Xcm<()>), Error<T>> {
+	) -> Result<QueryDetails<T>, Error<T>> {
 		// prepare the query_id for reporting back transact status
 		let now = T::BlockNumberProvider::current_block_number();
 		let timeout = BlockNumberFor::<T>::from(TIMEOUT_BLOCKS).saturating_add(now);
@@ -591,17 +598,16 @@ impl<T: Config> Pallet<T> {
 			call: call.into(),
 		};
 		xcm_message.insert(2, transact);
-		match (query_id, notify_call_weight) {
-			(Some(query_id), Some(notify_call_weight)) => {
-				let report_transact_status_instruct = Self::get_report_transact_status_instruct(
-					query_id,
-					notify_call_weight,
-					currency_id,
-				);
-				xcm_message.insert(3, report_transact_status_instruct);
-			}
-			_ => {}
+
+		if let (Some(query_id), Some(notify_call_weight)) = (query_id, notify_call_weight) {
+			let report_transact_status_instruct = Self::get_report_transact_status_instruct(
+				query_id,
+				notify_call_weight,
+				currency_id,
+			);
+			xcm_message.insert(3, report_transact_status_instruct);
 		};
+
 		Ok(xcm::v5::Xcm(xcm_message))
 	}
 

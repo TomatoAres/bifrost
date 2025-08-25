@@ -18,8 +18,8 @@
 FROM rust:bookworm AS builder
 
 RUN apt-get update && apt-get install time cmake clang libclang-dev llvm protobuf-compiler -y
-RUN rustup toolchain install 1.82.0
-RUN rustup target add wasm32-unknown-unknown --toolchain 1.82.0
+RUN rustup toolchain install 1.84.1
+RUN rustup target add wasm32v1-none --toolchain 1.84.1
 
 WORKDIR /app
 COPY . /app

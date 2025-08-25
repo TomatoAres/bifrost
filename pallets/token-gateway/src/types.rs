@@ -25,10 +25,12 @@ use sp_core::Hasher;
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::AccountId32;
 
-pub const ETHEREUM_MESSAGE_PREFIX: &'static str = "\x19Ethereum Signed Message:\n";
+pub const ETHEREUM_MESSAGE_PREFIX: &str = "\x19Ethereum Signed Message:\n";
 
 /// Asset teleportation parameters
-#[derive(Debug, Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq)]
+#[derive(
+	Debug, Clone, Encode, Decode, DecodeWithMemTracking, scale_info::TypeInfo, PartialEq, Eq,
+)]
 pub struct TeleportParams<AssetId, Balance> {
 	/// Asset Id registered on Hyperbridge
 	pub asset_id: AssetId,
@@ -51,7 +53,9 @@ pub struct TeleportParams<AssetId, Balance> {
 }
 
 /// Local asset Id and its corresponding token gateway asset id
-#[derive(Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug)]
+#[derive(
+	Clone, Encode, Decode, DecodeWithMemTracking, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug,
+)]
 pub struct AssetRegistration<AssetId> {
 	/// Local Asset Id should already exist
 	pub local_id: AssetId,

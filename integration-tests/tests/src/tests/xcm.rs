@@ -246,7 +246,7 @@ fn transfer_and_mint() {
 				RuntimeEvent::VtokenMinting(
 					bifrost_vtoken_minting::Event::Minted { minter, currency_id, .. }
 				) => {
-					minter: *minter == receiver,
+					minter: *minter == sov_account_of_sender_on_bifrost_polkadot,
 					currency_id: *currency_id == DOT,
 				},
 			]

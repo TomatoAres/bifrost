@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Ensure we're `no_std` when compiling for Wasm.
-#![cfg(feature = "runtime-benchmarks")]
 
 use crate::{Config, Pallet as Farming, *};
 use bifrost_primitives::DOT;
@@ -71,7 +70,7 @@ mod benchmarks {
 		let default_currency_id: CurrencyIdOf<T> = DOT.into();
 		let tokens_proportion = vec![(default_currency_id, Perbill::from_percent(100))];
 		let basic_rewards = vec![(default_currency_id, token_amount)];
-		let _gauge_basic_rewards = vec![(default_currency_id, token_amount)];
+		let _gauge_basic_rewards = [(default_currency_id, token_amount)];
 		assert_ok!(Farming::<T>::create_farming_pool(
 			RawOrigin::Root.into(),
 			tokens_proportion.clone(),
@@ -380,7 +379,7 @@ mod benchmarks {
 		let basic_rewards = vec![(default_currency_id, token_amount)];
 		let gauge_basic_rewards = vec![(default_currency_id, token_amount)];
 		let pid = 0;
-		let _charge_rewards = vec![(
+		let _charge_rewards = [(
 			default_currency_id,
 			BalanceOf::<T>::unique_saturated_from(300000u128),
 		)];
@@ -598,7 +597,7 @@ mod benchmarks {
 		let default_currency_id = DOT.into();
 		let charge_list = vec![(
 			default_currency_id,
-			BalanceOf::<T>::unique_saturated_from(1_000_0000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(10_000_000_000_000_u128),
 		)];
 		assert_ok!(Farming::<T>::add_boost_pool_whitelist(
 			RawOrigin::Root.into(),

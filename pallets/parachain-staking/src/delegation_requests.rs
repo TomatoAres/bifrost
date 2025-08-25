@@ -17,7 +17,7 @@
 //! Scheduled requests functionality for delegators
 
 use frame_support::{dispatch::DispatchResultWithPostInfo, ensure, traits::Get};
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Saturating, RuntimeDebug};
 use sp_std::{vec, vec::Vec};
@@ -31,7 +31,18 @@ use crate::{
 };
 
 /// An action that can be performed upon a delegation
-#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, PartialOrd, Ord)]
+#[derive(
+	Clone,
+	Eq,
+	PartialEq,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	TypeInfo,
+	PartialOrd,
+	Ord,
+)]
 pub enum DelegationAction<Balance> {
 	Revoke(Balance),
 	Decrease(Balance),
@@ -57,7 +68,7 @@ pub struct ScheduledRequest<AccountId, Balance> {
 }
 
 /// Represents a cancelled scheduled request for emitting an event.
-#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Eq, PartialEq, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct CancelledScheduledRequest<Balance> {
 	pub when_executable: RoundIndex,
 	pub action: DelegationAction<Balance>,

@@ -53,7 +53,6 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::*;
-use log;
 use orml_traits::{MultiCurrency, MultiLockableCurrency, XcmTransfer};
 pub use pallet::*;
 use sp_std::vec;
@@ -657,7 +656,7 @@ pub mod pallet {
 				currency_amount,
 			)?;
 
-			TokenToRebond::<T>::mutate(&currency_id, |maybe_value| -> Result<(), Error<T>> {
+			TokenToRebond::<T>::mutate(currency_id, |maybe_value| -> Result<(), Error<T>> {
 				match maybe_value {
 					Some(rebonded_amount) => {
 						*rebonded_amount = rebonded_amount
@@ -714,7 +713,7 @@ pub mod pallet {
 			let (currency_amount, v_currency_amount, fee) =
 				Self::mint_without_transfer(&rebonder, v_currency_id, currency_id, unlock_amount)?;
 
-			TokenToRebond::<T>::mutate(&currency_id, |maybe_value| -> Result<(), Error<T>> {
+			TokenToRebond::<T>::mutate(currency_id, |maybe_value| -> Result<(), Error<T>> {
 				match maybe_value {
 					Some(rebonded_amount) => {
 						*rebonded_amount = rebonded_amount
@@ -928,7 +927,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			MinTimeUnit::<T>::mutate(&currency_id, |old_time_unit| {
+			MinTimeUnit::<T>::mutate(currency_id, |old_time_unit| {
 				*old_time_unit = time_unit.clone()
 			});
 
@@ -952,7 +951,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			OngoingTimeUnit::<T>::mutate(&currency_id, |old_time_unit| {
+			OngoingTimeUnit::<T>::mutate(currency_id, |old_time_unit| {
 				*old_time_unit = Some(time_unit.clone())
 			});
 
@@ -1007,7 +1006,7 @@ pub mod pallet {
 			// check whether the pool has balance of v_currency_id
 			let incentive_pool_account = &Self::incentive_pool_account();
 			let vtoken_pool_balance =
-				T::MultiCurrency::free_balance(v_currency_id, &incentive_pool_account);
+				T::MultiCurrency::free_balance(v_currency_id, incentive_pool_account);
 
 			ensure!(
 				vtoken_pool_balance > BalanceOf::<T>::zero(),
@@ -1240,24 +1239,20 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	/// Get the v_currency issuance for rate calculation
-	pub fn get_v_currency_issuance_inner(v_currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
-		let tracked_issuance = VtokenIssuance::<T>::get(v_currency_id);
-		if tracked_issuance.is_zero() {
-			// If VtokenIssuance is not set (zero), fallback to total issuance
-			T::MultiCurrency::total_issuance(v_currency_id)
-		} else {
-			tracked_issuance
-		}
+	pub fn get_v_currency_issuance_inner(
+		v_currency_id: CurrencyIdOf<T>,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		// Verify the currency is a vtoken
+		ensure!(v_currency_id.is_vtoken(), Error::<T>::NotSupportTokenType);
+
+		Ok(VtokenIssuance::<T>::get(v_currency_id))
 	}
 
 	pub fn set_v_currency_issuance_inner(
 		v_currency_id: CurrencyIdOf<T>,
 		adjustment: i128,
 	) -> DispatchResult {
-		// Check if the currency is a vtoken, skip if not
-		if !v_currency_id.is_vtoken() {
-			return Ok(());
-		}
+		ensure!(v_currency_id.is_vtoken(), Error::<T>::NotSupportTokenType);
 
 		VtokenIssuance::<T>::mutate(v_currency_id, |issuance| -> DispatchResult {
 			if adjustment >= 0 {

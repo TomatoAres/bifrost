@@ -995,6 +995,12 @@ fn update_token_exchange_rate_should_work() {
 		));
 		Currencies::set_balance(VASTR, &AccountId::from([0u8; 32]), vtoken_total_issuance);
 		assert_eq!(Currencies::total_issuance(VASTR), vtoken_total_issuance);
+		assert_ok!(VtokenMinting::set_v_currency_issuance(
+			RuntimeOrigin::root(),
+			VASTR,
+			vtoken_total_issuance.try_into().unwrap()
+		));
+
 		assert_ok!(VtokenMinting::increase_token_pool(currency_id, token_pool));
 
 		set_protocol_configuration();
@@ -1093,6 +1099,14 @@ fn eth_update_token_exchange_rate_should_work() {
 		));
 		Currencies::set_balance(V_ETH, &AccountId::from([0u8; 32]), vtoken_total_issuance);
 		assert_eq!(Currencies::total_issuance(V_ETH), vtoken_total_issuance);
+		let total_issuance = Currencies::total_issuance(V_ETH);
+		if total_issuance > 0 {
+			assert_ok!(VtokenMinting::set_v_currency_issuance(
+				RuntimeOrigin::root(),
+				V_ETH,
+				total_issuance.try_into().unwrap()
+			));
+		}
 		assert_ok!(VtokenMinting::increase_token_pool(currency_id, token_pool));
 
 		set_protocol_configuration();

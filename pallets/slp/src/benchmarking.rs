@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Ensure we're `no_std` when compiling for Wasm.
-#![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
 use bifrost_primitives::{DOT, VDOT};
@@ -91,8 +90,8 @@ fn init_stable_asset_pool<
 	let coin0 = DOT;
 	let coin1 = VDOT;
 	let amounts = vec![
-		<T as bifrost_stable_asset::Config>::Balance::from(unit(100u128).into()),
-		<T as bifrost_stable_asset::Config>::Balance::from(unit(100u128).into()),
+		<T as bifrost_stable_asset::Config>::Balance::from(unit(100_u128).into()),
+		<T as bifrost_stable_asset::Config>::Balance::from(unit(100_u128).into()),
 	];
 
 	let origin = <T as Config>::ControlOrigin::try_successful_origin()
@@ -102,20 +101,23 @@ fn init_stable_asset_pool<
 		origin.clone() as <T as frame_system::Config>::RuntimeOrigin,
 		vec![coin0.into(), coin1.into()],
 		vec![1u128.into(), 1u128.into()],
-		0u128.into(),
-		0u128.into(),
-		0u128.into(),
-		220u128.into(),
+		0_u128.into(),
+		0_u128.into(),
+		0_u128.into(),
+		220_u128.into(),
 		fee_account.clone(),
 		fee_account.clone(),
-		1000000000000u128.into()
+		1000000000000_u128.into()
 	));
 	assert_ok!(bifrost_stable_pool::Pallet::<T>::edit_token_rate(
 		origin.clone() as <T as frame_system::Config>::RuntimeOrigin,
 		0,
 		vec![
 			(DOT.into(), (1u128.into(), 1u128.into())),
-			(VDOT.into(), (90_000_000u128.into(), 100_000_000u128.into()))
+			(
+				VDOT.into(),
+				(90_000_000_u128.into(), 100_000_000_u128.into())
+			)
 		]
 	));
 	assert_ok!(bifrost_stable_pool::Pallet::<T>::add_liquidity(
@@ -176,7 +178,7 @@ pub fn init_bond<T: Config>(origin: <T as frame_system::Config>::RuntimeOrigin) 
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		KSM,
 		&whitelisted_caller(),
-		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 	));
 
 	T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -265,7 +267,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&whitelisted_caller(),
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -485,7 +487,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&whitelisted_caller(),
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -526,7 +528,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&whitelisted_caller(),
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -592,7 +594,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&whitelisted_caller(),
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -637,7 +639,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&whitelisted_caller(),
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -680,7 +682,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			PHA,
 			&whitelisted_caller(),
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
@@ -792,9 +794,13 @@ mod benchmarks {
 		orml_tokens::Pallet::<T>::deposit(
 			VKSM,
 			&whitelisted_caller(),
-			<T as orml_tokens::Config>::Balance::saturated_from(1_000_000_000_000u128),
+			<T as orml_tokens::Config>::Balance::saturated_from(1_000_000_000_000_u128),
 		)
 		.unwrap();
+		assert_ok!(<T as Config>::VtokenMinting::set_v_currency_issuance(
+			VKSM,
+			1_000_000_000_000i128
+		));
 
 		#[extrinsic_call]
 		_(
@@ -1284,7 +1290,7 @@ mod benchmarks {
 		let treasury_account = PalletId(*b"bf/trsry").into_account_truncating();
 		assert_eq!(
 			<T as Config>::MultiCurrency::free_balance(VDOT, &treasury_account),
-			TokenBalanceOf::<T>::unique_saturated_from(1_000_0000_0000_0000_000u128)
+			TokenBalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000_000_u128)
 		);
 		assert_eq!(
 			<T as Config>::MultiCurrency::free_balance(DOT, &treasury_account),
@@ -1315,7 +1321,7 @@ mod benchmarks {
 		// get the VDOT balance of treasury account
 		assert_eq!(
 			<T as Config>::MultiCurrency::free_balance(VDOT, &treasury_account),
-			TokenBalanceOf::<T>::unique_saturated_from(999_999_999_999_999_990u128)
+			TokenBalanceOf::<T>::unique_saturated_from(999_999_999_999_999_990_u128)
 		);
 		assert_eq!(
 			<T as Config>::MultiCurrency::free_balance(DOT, &treasury_account),

@@ -58,6 +58,7 @@ pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T>>>::Balance;
 
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::ExistenceRequirement;
@@ -170,7 +171,9 @@ pub mod pallet {
 	pub type AddLiquiditySwapOutMin<T: Config> = StorageMap<_, Twox64Concat, CurrencyIdOf<T>, u128>;
 
 	/// Information on buybacks and add liquidity
-	#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+	#[derive(
+		Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo,
+	)]
 	pub struct Info<BalanceOf, BlockNumberFor> {
 		/// The minimum value of the token to be swapped.
 		min_swap_value: BalanceOf,
@@ -283,8 +286,7 @@ pub mod pallet {
 									block_number: n,
 								});
 							}
-							info.last_add_liquidity =
-								info.last_add_liquidity + info.add_liquidity_duration;
+							info.last_add_liquidity += info.add_liquidity_duration;
 							Infos::<T>::insert(currency_id, info.clone());
 							AddLiquiditySwapOutMin::<T>::remove(currency_id);
 						}
@@ -462,7 +464,7 @@ pub mod pallet {
 			info: &Info<BalanceOf<T>, BlockNumberFor<T>>,
 			swap_out_min: u128,
 		) -> DispatchResult {
-			let balance = T::MultiCurrency::free_balance(currency_id, &buyback_address);
+			let balance = T::MultiCurrency::free_balance(currency_id, buyback_address);
 			ensure!(balance >= info.min_swap_value, Error::<T>::NotEnoughBalance);
 			let path = Self::get_path(currency_id)?;
 			let amount_out_min = swap_out_min.saturating_sub(info.bias * swap_out_min);
@@ -472,24 +474,24 @@ pub mod pallet {
 				info.min_swap_value.saturated_into(),
 				amount_out_min,
 				&path,
-				&buyback_address,
+				buyback_address,
 			)?;
 
 			if let Some(ratio) = info.destruction_ratio {
-				let bnc_balance_before_burn = T::MultiCurrency::free_balance(BNC, &buyback_address);
+				let bnc_balance_before_burn = T::MultiCurrency::free_balance(BNC, buyback_address);
 				let destruction_amount = ratio * bnc_balance_before_burn;
 				T::MultiCurrency::withdraw(
 					BNC,
-					&buyback_address,
+					buyback_address,
 					destruction_amount,
 					ExistenceRequirement::AllowDeath,
 				)?;
 			}
-			let bnc_balance_after_burn = T::MultiCurrency::free_balance(BNC, &buyback_address);
+			let bnc_balance_after_burn = T::MultiCurrency::free_balance(BNC, buyback_address);
 			let buyback_to = T::BuyBackAccount::get().into_sub_account_truncating(1);
 			T::MultiCurrency::transfer(
 				BNC,
-				&buyback_address,
+				buyback_address,
 				&buyback_to,
 				bnc_balance_after_burn,
 				ExistenceRequirement::AllowDeath,
@@ -504,7 +506,7 @@ pub mod pallet {
 			swap_out_min: u128,
 		) -> DispatchResult {
 			let path = Self::get_path(currency_id)?;
-			let balance = T::MultiCurrency::free_balance(currency_id, &liquidity_address);
+			let balance = T::MultiCurrency::free_balance(currency_id, liquidity_address);
 			let token_balance = info.proportion * balance;
 			ensure!(token_balance > Zero::zero(), Error::<T>::NotEnoughBalance);
 			let amount_out_min = swap_out_min.saturating_sub(info.bias * swap_out_min);
@@ -514,10 +516,10 @@ pub mod pallet {
 				token_balance.saturated_into(),
 				amount_out_min,
 				&path,
-				&liquidity_address,
+				liquidity_address,
 			)?;
-			let remaining_balance = T::MultiCurrency::free_balance(currency_id, &liquidity_address);
-			let bnc_balance = T::MultiCurrency::free_balance(BNC, &liquidity_address);
+			let remaining_balance = T::MultiCurrency::free_balance(currency_id, liquidity_address);
+			let bnc_balance = T::MultiCurrency::free_balance(BNC, liquidity_address);
 
 			let amount_0_min = 0;
 			let amount_1_min = 0;
@@ -607,7 +609,7 @@ pub mod pallet {
 			info: &Info<BalanceOf<T>, BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let path = Self::get_path(currency_id)?;
-			let balance = T::MultiCurrency::free_balance(currency_id, &liquidity_address);
+			let balance = T::MultiCurrency::free_balance(currency_id, liquidity_address);
 			let token_balance = info.proportion * balance;
 			ensure!(token_balance > Zero::zero(), Error::<T>::NotEnoughBalance);
 			let amounts =

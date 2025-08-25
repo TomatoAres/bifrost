@@ -59,7 +59,6 @@ use sp_runtime::{
 };
 use sp_std::{result::Result, vec::Vec};
 
-use log;
 use sp_io::hashing::blake2_256;
 pub use types::{BorrowSnapshot, Deposits, EarnedSnapshot, Market, MarketState, RewardMarketState};
 pub use weights::WeightInfo;
@@ -91,6 +90,7 @@ pub type BalanceOf<T> =
 	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 
 	use super::*;
@@ -2117,9 +2117,9 @@ impl<T: Config> Pallet<T> {
 		Self::ensure_active_market(asset_id)?;
 		Self::accrue_interest(asset_id)?;
 		let exchange_rate = Self::exchange_rate_stored(asset_id)?;
-		Self::update_earned_stored(&who, asset_id, exchange_rate)?;
-		let deposits = AccountDeposits::<T>::get(asset_id, &who);
-		let redeem_amount = Self::do_redeem_voucher(&who, asset_id, deposits.voucher_balance)?;
+		Self::update_earned_stored(who, asset_id, exchange_rate)?;
+		let deposits = AccountDeposits::<T>::get(asset_id, who);
+		let redeem_amount = Self::do_redeem_voucher(who, asset_id, deposits.voucher_balance)?;
 		Self::deposit_event(Event::<T>::Redeemed(who.clone(), asset_id, redeem_amount));
 		Ok(redeem_amount)
 	}

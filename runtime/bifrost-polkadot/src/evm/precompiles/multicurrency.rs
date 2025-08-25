@@ -74,10 +74,7 @@ where
 		if let Some(asset_id) = BifrostErc20Mapping::decode_evm_address(address) {
 			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);
 
-			let selector = match handle.read_selector() {
-				Ok(selector) => selector,
-				Err(e) => return Err(e),
-			};
+			let selector = handle.read_selector()?;
 
 			handle.check_function_modifier(match selector {
 				Action::Transfer => FunctionModifier::NonPayable,

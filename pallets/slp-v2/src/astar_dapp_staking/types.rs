@@ -18,6 +18,7 @@
 
 use crate::{common::types::Delegator, Config};
 use bifrost_primitives::{Balance, TimeUnit};
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use frame_support::{
 	pallet_prelude::{Decode, Encode, MaxEncodedLen, TypeInfo},
 	BoundedVec,
@@ -26,7 +27,18 @@ use sp_core::{ConstU32, H160};
 use sp_runtime::Saturating;
 
 /// Multi-VM pointer to smart contract instance.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Copy, MaxEncodedLen, TypeInfo)]
+#[derive(
+	PartialEq,
+	Eq,
+	Clone,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Debug,
+	Copy,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub enum AstarValidator<AccountId> {
 	/// EVM smart contract instance.
 	Evm(H160),
@@ -35,7 +47,18 @@ pub enum AstarValidator<AccountId> {
 }
 
 /// Dapp staking extrinsic call.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum DappStaking<AccountId> {
 	#[codec(index = 7)]
 	Lock(#[codec(compact)] Balance),
@@ -63,14 +86,27 @@ pub enum AstarCall<T: Config> {
 }
 
 /// Astar unlocking record.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo,
+)]
 pub struct AstarUnlockingRecord {
 	pub amount: Balance,
 	pub unlock_time: TimeUnit,
 }
 
 /// Astar dapp staking ledger.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, Default, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Debug,
+	Default,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct AstarDappStakingLedger {
 	/// How much active locked amount an account has. This can be used for staking.
 	#[codec(compact)]
@@ -93,7 +129,18 @@ impl AstarDappStakingLedger {
 }
 
 /// PendingStatus in slp protocol.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum AstarDappStakingPendingStatus<AccountId> {
 	Lock(Delegator<AccountId>, Balance),
 	UnLock(Delegator<AccountId>, Balance),

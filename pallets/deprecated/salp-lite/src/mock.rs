@@ -165,7 +165,7 @@ parameter_types! {
 	pub const SlotLength: BlockNumber = 8u32 as BlockNumber;
 	pub const LeasePeriod: BlockNumber = 6 * WEEKS;
 	pub const VSBondValidPeriod: BlockNumber = 30 * DAYS;
-	pub const ReleaseCycle: BlockNumber = 1 * DAYS;
+	pub const ReleaseCycle: BlockNumber = DAYS;
 	pub const ReleaseRatio: Percent = Percent::from_percent(50);
 	pub PrimaryAccount: AccountId = ALICE;
 	pub ConfirmMuitiSigAccount: AccountId = Multisig::multi_account_id(&vec![

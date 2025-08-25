@@ -214,12 +214,12 @@ fn get_foreign_token_price_work() {
 #[test]
 fn fixed_u128() {
 	new_test_ext().execute_with(|| {
-		let bnc_decimal = 10u128.pow(12);
-		let bnc_amount = 100 * 10u128.pow(12);
+		let bnc_decimal = 10_u128.pow(12);
+		let bnc_amount = 100 * 10_u128.pow(12);
 		let bnc_price = FixedU128::from_inner(200_000_000_000_000_000);
 		// 100 * 0.2 = 20 U
-		let dot_decimal = 10u128.pow(10);
-		let dot_amount = 5 * 10u128.pow(10);
+		let dot_decimal = 10_u128.pow(10);
+		let dot_amount = 5 * 10_u128.pow(10);
 		let dot_price = FixedU128::from(4);
 
 		let bnc_total_value =
@@ -244,11 +244,11 @@ fn get_oracle_amount_by_currency_and_amount_in() {
 				name: b"Manta".to_vec(),
 				symbol: b"Manta".to_vec(),
 				decimals: 18,
-				minimal_balance: 1_000_000_000_000_000u128,
+				minimal_balance: 1_000_000_000_000_000_u128,
 			}
 		));
 		// 100 * 0.2 = 20u
-		let bnc_amount = 100 * 10u128.pow(12);
+		let bnc_amount = 100 * 10_u128.pow(12);
 		// 0.2 DOT
 		assert_eq!(
 			Some((
@@ -278,7 +278,7 @@ fn get_oracle_amount_by_currency_and_amount_in() {
 		);
 
 		// 0.01 * 0.2 = 0.002 U
-		let bnc_amount = 10u128.pow(10);
+		let bnc_amount = 10_u128.pow(10);
 		// 0.00002 DOT * 100 =  0.002 U
 		assert_eq!(
 			Some((

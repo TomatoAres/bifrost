@@ -66,7 +66,7 @@ impl<T: Config> PolkadotCall<T> {
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
 pub enum SystemCall {
 	#[codec(index = 7)]
-	RemarkWithEvent(Box<Vec<u8>>),
+	RemarkWithEvent(Vec<u8>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
@@ -83,7 +83,7 @@ pub enum KusamaUtilityCall<KusamaCall> {
 	#[codec(index = 1)]
 	AsDerivative(u16, Box<KusamaCall>),
 	#[codec(index = 2)]
-	BatchAll(Box<Vec<Box<KusamaCall>>>),
+	BatchAll(Vec<Box<KusamaCall>>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
@@ -91,7 +91,7 @@ pub enum PolkadotUtilityCall<PolkadotCall> {
 	#[codec(index = 1)]
 	AsDerivative(u16, Box<PolkadotCall>),
 	#[codec(index = 2)]
-	BatchAll(Box<Vec<Box<PolkadotCall>>>),
+	BatchAll(Vec<Box<PolkadotCall>>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]

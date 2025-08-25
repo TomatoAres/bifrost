@@ -21,14 +21,19 @@ pub mod v0 {
 		BalanceOf, BoundedCallOf, Config, Deposit, Pallet, PalletsOriginOf, ReferendumIndex,
 		ReferendumStatus, ScheduleAddressOf, TallyOf, TrackIdOf,
 	};
+	use sp_runtime::traits::BlockNumberProvider;
+
 	// ReferendumStatus and its dependency types referenced from the latest version while staying
 	// unchanged. [`super::test::referendum_status_v0()`] checks its immutability between v0 and
 	// latest version.
 
+	pub type BlockNumberFor<T, I> =
+		<<T as Config<I>>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
+
 	pub type ReferendumInfoOf<T, I> = ReferendumInfo<
 		TrackIdOf<T, I>,
 		PalletsOriginOf<T>,
-		frame_system::pallet_prelude::BlockNumberFor<T>,
+		BlockNumberFor<T, I>,
 		BoundedCallOf<T, I>,
 		BalanceOf<T, I>,
 		TallyOf<T, I>,

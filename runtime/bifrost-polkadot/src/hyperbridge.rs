@@ -72,6 +72,7 @@ impl ismp_parachain::Config for Runtime {
 	type IsmpHost = Ismp;
 	// type WeightInfo = weights::ismp_parachain::WeightInfo<Runtime>;
 	type WeightInfo = ismp_parachain_weight::WeightInfo<Runtime>;
+	type RootOrigin = TechAdminOrRoot;
 }
 
 #[derive(Default)]
@@ -83,7 +84,7 @@ impl IsmpRouter for Router {
 			pallet_hyperbridge::PALLET_HYPERBRIDGE_ID => {
 				Ok(Box::new(pallet_hyperbridge::Pallet::<Runtime>::default()))
 			}
-			id if TokenGateway::is_token_gateway(&id) => {
+			id if TokenGateway::is_token_gateway(id) => {
 				Ok(Box::new(pallet_token_gateway::Pallet::<Runtime>::default()))
 			}
 			_ => Err(ismp::Error::ModuleNotFound(id))?,

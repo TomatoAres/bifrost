@@ -69,6 +69,7 @@ use sp_std::fmt::Debug;
 
 const GAUGE_BASE_ID: u32 = 10000000;
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 
@@ -494,7 +495,7 @@ pub mod pallet {
 			let keeper: AccountIdOf<T> = T::Keeper::get().into_sub_account_truncating(pid);
 			let reward_issuer: AccountIdOf<T> =
 				T::RewardIssuer::get().into_sub_account_truncating(pid);
-			let basic_token = *tokens_proportion.get(0).ok_or(Error::<T>::NotNullable)?;
+			let basic_token = *tokens_proportion.first().ok_or(Error::<T>::NotNullable)?;
 			let tokens_proportion_map: BTreeMap<CurrencyIdOf<T>, Perbill> =
 				tokens_proportion.into_iter().collect();
 			let basic_rewards_map: BTreeMap<CurrencyIdOf<T>, BalanceOf<T>> =
@@ -549,7 +550,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let exchanger = ensure_signed(origin)?;
 
-			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let mut pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 
 			ensure!(
 				pool_info.state == PoolState::UnCharged || pool_info.state == PoolState::Ongoing,
@@ -569,7 +570,7 @@ pub mod pallet {
 			if pool_info.state == PoolState::UnCharged {
 				pool_info.state = PoolState::Charged
 			}
-			PoolInfos::<T>::insert(&pid, pool_info);
+			PoolInfos::<T>::insert(pid, pool_info);
 
 			Self::deposit_event(Event::Charged {
 				who: exchanger,
@@ -597,7 +598,7 @@ pub mod pallet {
 			// Check origin
 			let exchanger = ensure_signed(origin)?;
 
-			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let mut pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Ongoing || pool_info.state == PoolState::Charged,
 				Error::<T>::InvalidPoolState
@@ -681,14 +682,14 @@ pub mod pallet {
 			// Check origin
 			let exchanger = ensure_signed(origin)?;
 
-			let pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Ongoing
 					|| pool_info.state == PoolState::Charged
 					|| pool_info.state == PoolState::Dead,
 				Error::<T>::InvalidPoolState
 			);
-			let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
+			let share_info = SharesAndWithdrawnRewards::<T>::get(pid, &exchanger)
 				.ok_or(Error::<T>::ShareInfoNotExists)?;
 			ensure!(
 				share_info.withdraw_list.len() < pool_info.withdraw_limit_count.into(),
@@ -736,7 +737,7 @@ pub mod pallet {
 			// Check origin
 			let exchanger = ensure_signed(origin)?;
 
-			let pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Ongoing || pool_info.state == PoolState::Dead,
 				Error::<T>::InvalidPoolState
@@ -744,7 +745,7 @@ pub mod pallet {
 
 			let current_block_number: BlockNumberFor<T> =
 				T::BlockNumberProvider::current_block_number();
-			let share_info = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger)
+			let share_info = SharesAndWithdrawnRewards::<T>::get(pid, &exchanger)
 				.ok_or(Error::<T>::ShareInfoNotExists)?;
 			ensure!(
 				share_info
@@ -777,7 +778,7 @@ pub mod pallet {
 			// Check origin
 			let exchanger = ensure_signed(origin)?;
 
-			let pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			Self::process_withdraw_list(&exchanger, pid, &pool_info, false)?;
 			Self::refresh_inner(&exchanger, pid)?;
 
@@ -799,7 +800,7 @@ pub mod pallet {
 		pub fn force_retire_pool(origin: OriginFor<T>, pid: PoolId) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let mut pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Dead,
 				Error::<T>::InvalidPoolState
@@ -821,7 +822,7 @@ pub mod pallet {
 			if all_retired {
 				pool_info.state = PoolState::Retired;
 				pool_info.gauge = None;
-				PoolInfos::<T>::insert(&pid, pool_info);
+				PoolInfos::<T>::insert(pid, pool_info);
 				Self::deposit_event(Event::AllRetired { pid });
 			} else {
 				Self::deposit_event(Event::PartiallyRetired { pid });
@@ -855,13 +856,13 @@ pub mod pallet {
 		pub fn close_pool(origin: OriginFor<T>, pid: PoolId) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let mut pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Ongoing,
 				Error::<T>::InvalidPoolState
 			);
 			pool_info.state = PoolState::Dead;
-			PoolInfos::<T>::insert(&pid, pool_info);
+			PoolInfos::<T>::insert(pid, pool_info);
 
 			Self::deposit_event(Event::FarmingPoolClosed { pid });
 			Ok(())
@@ -892,7 +893,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let mut pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Retired,
 				Error::<T>::InvalidPoolState
@@ -944,12 +945,12 @@ pub mod pallet {
 		pub fn kill_pool(origin: OriginFor<T>, pid: PoolId) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Retired || pool_info.state == PoolState::UnCharged,
 				Error::<T>::InvalidPoolState
 			);
-			let res = SharesAndWithdrawnRewards::<T>::clear_prefix(pid, u32::max_value(), None);
+			let res = SharesAndWithdrawnRewards::<T>::clear_prefix(pid, u32::MAX, None);
 			ensure!(res.maybe_cursor.is_none(), Error::<T>::PoolNotCleared);
 			PoolInfos::<T>::remove(pid);
 
@@ -971,7 +972,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let mut pool_info = PoolInfos::<T>::get(&pid).ok_or(Error::<T>::PoolDoesNotExist)?;
+			let mut pool_info = PoolInfos::<T>::get(pid).ok_or(Error::<T>::PoolDoesNotExist)?;
 			ensure!(
 				pool_info.state == PoolState::Retired
 					|| pool_info.state == PoolState::Ongoing
@@ -1019,7 +1020,7 @@ pub mod pallet {
 			// Check origin
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			let gauge_infos = GaugeInfos::<T>::iter_prefix_values(&gid);
+			let gauge_infos = GaugeInfos::<T>::iter_prefix_values(gid);
 			let retire_limit = RetireLimit::<T>::get();
 			let mut all_retired = true;
 			for (retire_count, gauge_info) in gauge_infos.enumerate() {
@@ -1076,7 +1077,7 @@ pub mod pallet {
 			whitelist: Vec<PoolId>,
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
-			let res = BoostNextRoundWhitelist::<T>::clear(u32::max_value(), None);
+			let res = BoostNextRoundWhitelist::<T>::clear(u32::MAX, None);
 			ensure!(res.maybe_cursor.is_none(), Error::<T>::PoolNotCleared);
 			whitelist.iter().for_each(|pid| {
 				BoostNextRoundWhitelist::<T>::insert(pid, ());
@@ -1161,7 +1162,7 @@ pub mod pallet {
 
 impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>, T::AccountId> for Pallet<T> {
 	fn get_token_shares(pool_id: PoolId, currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
-		if let Some(pool_info) = PoolInfos::<T>::get(&pool_id) {
+		if let Some(pool_info) = PoolInfos::<T>::get(pool_id) {
 			if let Some(token_proportion_value) = pool_info.tokens_proportion.get(&currency_id) {
 				let native_amount = pool_info
 					.basic_token
@@ -1174,19 +1175,19 @@ impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>, T::AccountId> for Pal
 	}
 
 	fn refresh_gauge_pool(exchanger: &T::AccountId) -> DispatchResult {
-		let mut pids = UserFarmingPool::<T>::get(&exchanger);
+		let mut pids = UserFarmingPool::<T>::get(exchanger);
 		for pid in pids.clone() {
 			let gauge_pid = pid + GAUGE_BASE_ID;
-			if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(&pid, &exchanger) {
+			if let Some(share_info) = SharesAndWithdrawnRewards::<T>::get(pid, exchanger) {
 				if let Some(mut gauge_pool_info) = PoolInfos::<T>::get(gauge_pid) {
-					let gauge_new_value = T::BbBNC::balance_of(&exchanger, None)?
+					let gauge_new_value = T::BbBNC::balance_of(exchanger, None)?
 						.checked_mul(&share_info.share)
 						.ok_or(ArithmeticError::Overflow)?;
 					if let Some(share_info) =
-						SharesAndWithdrawnRewards::<T>::get(gauge_pid, &exchanger)
+						SharesAndWithdrawnRewards::<T>::get(gauge_pid, exchanger)
 					{
 						Self::update_gauge_share(
-							&exchanger,
+							exchanger,
 							gauge_pid,
 							gauge_new_value,
 							share_info.share,
@@ -1194,7 +1195,7 @@ impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>, T::AccountId> for Pal
 						)?;
 					} else {
 						Self::add_share(
-							&exchanger,
+							exchanger,
 							gauge_pid,
 							&mut gauge_pool_info,
 							gauge_new_value,
@@ -1204,10 +1205,10 @@ impl<T: Config> FarmingInfo<BalanceOf<T>, CurrencyIdOf<T>, T::AccountId> for Pal
 			} else {
 				// If `SharesAndWithdrawnRewards` returns `None`, remove the `pid` from `UserFarmingPool`.
 				pids.retain(|&x| x != pid);
-				SharesAndWithdrawnRewards::<T>::remove(gauge_pid, &exchanger);
+				SharesAndWithdrawnRewards::<T>::remove(gauge_pid, exchanger);
 			}
 		}
-		UserFarmingPool::<T>::insert(&exchanger, pids);
+		UserFarmingPool::<T>::insert(exchanger, pids);
 
 		Ok(())
 	}

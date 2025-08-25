@@ -41,6 +41,7 @@ pub trait HyperBridgeSender<AccountId, Balance> {
 	/// - `fee`: Fee for the message
 	///   Returns
 	/// - `H256`: Message hash
+	#[allow(clippy::too_many_arguments)]
 	fn send_and_call(
 		currency_id: CurrencyId,
 		from: AccountId,

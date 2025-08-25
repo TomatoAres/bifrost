@@ -143,21 +143,20 @@ impl<T: Config> Pallet<T> {
 		let call =
 			Self::wrap_utility_as_derivative_call_data(&ASTAR_DAPP_STAKING, delegator_index, call);
 		let mut query_id = None;
-		let xcm_message;
-		if pending_status.is_some() {
+		let xcm_message = if pending_status.is_some() {
 			let notify_call =
 				<T as Config>::RuntimeCall::from(Call::<T>::notify_astar_dapp_staking {
 					query_id: 0,
 					response: Default::default(),
 				});
-			xcm_message = Self::wrap_xcm_message_with_notify(
+			Self::wrap_xcm_message_with_notify(
 				&ASTAR_DAPP_STAKING,
 				call,
 				notify_call,
 				&mut query_id,
-			)?;
+			)?
 		} else {
-			xcm_message = Self::wrap_xcm_message(&ASTAR_DAPP_STAKING, call)?;
+			Self::wrap_xcm_message(&ASTAR_DAPP_STAKING, call)?
 		};
 		Ok((query_id, xcm_message))
 	}
@@ -203,7 +202,7 @@ impl<T: Config> Pallet<T> {
 								ConfigurationByStakingProtocol::<T>::get(ASTAR_DAPP_STAKING)
 									.ok_or(Error::<T>::ConfigurationNotFound)?;
 							let unlock_time = current_time_unit
-								.add(configuration.unlock_period)
+								.saturating_add(configuration.unlock_period)
 								.ok_or(Error::<T>::TimeUnitNotFound)?;
 							pending_ledger
 								.unlocking

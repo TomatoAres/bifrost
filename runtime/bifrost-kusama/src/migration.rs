@@ -2,7 +2,6 @@
 
 use super::*;
 use frame_support::{pallet_prelude::*, storage_alias, traits::OnRuntimeUpgrade};
-use log;
 use parity_scale_codec::{Decode, Encode, EncodeLike, MaxEncodedLen};
 use sp_std::fmt::Debug;
 
@@ -21,14 +20,19 @@ pub mod v0 {
 		BalanceOf, BoundedCallOf, Config, Deposit, Pallet, PalletsOriginOf, ReferendumIndex,
 		ReferendumStatus, ScheduleAddressOf, TallyOf, TrackIdOf,
 	};
+	use sp_runtime::traits::BlockNumberProvider;
+
 	// ReferendumStatus and its dependency types referenced from the latest version while staying
 	// unchanged. [`super::test::referendum_status_v0()`] checks its immutability between v0 and
 	// latest version.
 
+	pub type BlockNumberFor<T, I> =
+		<<T as Config<I>>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
+
 	pub type ReferendumInfoOf<T, I> = ReferendumInfo<
 		TrackIdOf<T, I>,
 		PalletsOriginOf<T>,
-		frame_system::pallet_prelude::BlockNumberFor<T>,
+		BlockNumberFor<T, I>,
 		BoundedCallOf<T, I>,
 		BalanceOf<T, I>,
 		TallyOf<T, I>,
@@ -102,7 +106,7 @@ pub mod v1 {
 	use sp_runtime::Deserialize;
 
 	/// The log target.
-	const TARGET: &'static str = "runtime::referenda::migration::v1";
+	const TARGET: &str = "runtime::referenda::migration::v1";
 
 	#[derive(Debug, Deserialize, Clone)]
 	struct ForeignReferendumInfo<AccountId, Balance> {
@@ -265,7 +269,6 @@ pub mod v1 {
 							(None, None) => (),
 							_ => return Err(TryRuntimeError::Other("Referenda Data mismatch")),
 						}
-						()
 					}
 				};
 			}
@@ -295,7 +298,7 @@ pub mod slpx_migrates_whitelist {
 				new_whitelist,
 			);
 
-			Weight::from(<Runtime as frame_system::Config>::DbWeight::get().writes(1u64))
+			<Runtime as frame_system::Config>::DbWeight::get().writes(1u64)
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -358,7 +361,7 @@ pub mod opengov {
 			IndexToId::<T, I>::remove(6, 2);
 			IndexToId::<T, I>::remove(6, 3);
 			IndexToId::<T, I>::remove(6, 4);
-			Weight::from(<Runtime as frame_system::Config>::DbWeight::get().writes(20u64))
+			<Runtime as frame_system::Config>::DbWeight::get().writes(20u64)
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -462,7 +465,7 @@ pub mod system_maker {
 
 			log::info!("Bifrost SystemMakerClearPalletId `on_runtime_upgrade finished`");
 
-			Weight::from(T::DbWeight::get().reads_writes(1, 1))
+			T::DbWeight::get().reads_writes(1, 1)
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -759,7 +762,7 @@ pub mod vsbond_auction {
 
 			log::info!("Bifrost VSBondAuctionClearPalletId `on_runtime_upgrade finished`");
 
-			Weight::from(T::DbWeight::get().reads_writes(count + 1, 10))
+			T::DbWeight::get().reads_writes(count + 1, 10)
 		}
 
 		#[cfg(feature = "try-runtime")]

@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Ensure we're `no_std` when compiling for Wasm.
-#![cfg(feature = "runtime-benchmarks")]
 
 use bifrost_primitives::{currency::CLOUD, VBNC};
 use frame_benchmarking::v2::*;

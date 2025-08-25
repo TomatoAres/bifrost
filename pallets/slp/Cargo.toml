@@ -28,7 +28,6 @@ cumulus-primitives-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-utility = { workspace = true }
 polkadot-parachain-primitives = { workspace = true }
-bifrost-xcm-interface = { workspace = true }
 bifrost-vtoken-minting = { workspace = true }
 bifrost-asset-registry = { workspace = true }
 bifrost-parachain-staking = { workspace = true }

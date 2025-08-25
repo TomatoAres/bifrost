@@ -30,7 +30,7 @@ impl<T: Config> OnRuntimeUpgrade for BifrostKusamaAddCurrencyToSupportXcmFee<T> 
 		//migrate the value type of SupportXcmFeeList
 		let currency_list = BoundedVec::try_from(vec![BNC, MOVR, KSM]).unwrap();
 		SupportXcmFeeList::<T>::put(currency_list);
-		Weight::from(T::DbWeight::get().reads_writes(1 as u64 + 1, 2 as u64 + 1))
+		T::DbWeight::get().reads_writes(1_u64 + 1, 2_u64 + 1)
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -62,7 +62,7 @@ impl<T: Config> OnRuntimeUpgrade for BifrostPolkadotAddCurrencyToSupportXcmFee<T
 		//migrate the value type of SupportXcmFeeList
 		let currency_list = BoundedVec::try_from(vec![BNC, GLMR, DOT, ASTR, MANTA]).unwrap();
 		SupportXcmFeeList::<T>::put(currency_list);
-		Weight::from(T::DbWeight::get().reads_writes(1 as u64 + 1, 2 as u64 + 1))
+		T::DbWeight::get().reads_writes(1_u64 + 1, 2_u64 + 1)
 	}
 
 	#[cfg(feature = "try-runtime")]

@@ -15,8 +15,9 @@
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Helper methods for computing issuance based on inflation
+
 use frame_support::traits::Currency;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::{PerThing, Perbill, RuntimeDebug};
@@ -43,6 +44,7 @@ fn rounds_per_year<T: Config>() -> u32 {
 	Copy,
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	Default,
 	RuntimeDebug,
 	MaxEncodedLen,

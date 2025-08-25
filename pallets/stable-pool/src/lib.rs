@@ -52,7 +52,18 @@ pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type AssetIdOf<T> = <T as Config>::CurrencyId;
 
 pub type AtLeast64BitUnsignedOf<T> = <T as bifrost_stable_asset::Config>::AtLeast64BitUnsigned;
+pub type TokenRateList<T> = Vec<(
+	AssetIdOf<T>,
+	(AtLeast64BitUnsignedOf<T>, AtLeast64BitUnsignedOf<T>),
+)>;
+pub type TokenRateEntry<T> = (
+	AssetIdOf<T>,
+	AtLeast64BitUnsignedOf<T>,
+	AtLeast64BitUnsignedOf<T>,
+	Permill,
+);
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 
@@ -341,10 +352,7 @@ pub mod pallet {
 		pub fn edit_token_rate(
 			origin: OriginFor<T>,
 			pool_id: StableAssetPoolId,
-			token_rate_info: Vec<(
-				AssetIdOf<T>,
-				(AtLeast64BitUnsignedOf<T>, AtLeast64BitUnsignedOf<T>),
-			)>,
+			token_rate_info: TokenRateList<T>,
 		) -> DispatchResult {
 			// Ensure the caller has the necessary control origin
 			T::ControlOrigin::ensure_origin(origin)?;
@@ -411,17 +419,15 @@ impl<T: Config> Pallet<T> {
 	fn ensure_can_refresh(
 		token_in: AssetIdOf<T>,
 		token_out: AssetIdOf<T>,
-	) -> Option<(
-		AssetIdOf<T>,
-		AtLeast64BitUnsignedOf<T>,
-		AtLeast64BitUnsignedOf<T>,
-		Permill,
-	)> {
+	) -> Option<TokenRateEntry<T>> {
 		if let Some(hardcap) = Self::get_token_rate_hardcap(token_in) {
 			if T::CurrencyIdConversion::convert_to_token(token_in).ok() == Some(token_out) {
 				return Some((
 					token_in,
-					T::VtokenMinting::get_v_currency_issuance(token_in).into(),
+					// Should be ok, because token_in is vtoken
+					T::VtokenMinting::get_v_currency_issuance(token_in)
+						.ok()?
+						.into(),
 					T::VtokenMinting::get_token_pool(token_out).into(),
 					hardcap,
 				));
@@ -430,7 +436,10 @@ impl<T: Config> Pallet<T> {
 			if T::CurrencyIdConversion::convert_to_token(token_out).ok() == Some(token_in) {
 				return Some((
 					token_out,
-					T::VtokenMinting::get_v_currency_issuance(token_out).into(),
+					// Should be ok, because token_out is vtoken
+					T::VtokenMinting::get_v_currency_issuance(token_out)
+						.ok()?
+						.into(),
 					T::VtokenMinting::get_token_pool(token_in).into(),
 					hardcap,
 				));
@@ -527,7 +536,7 @@ impl<T: Config> Pallet<T> {
 				pool_id,
 				*pool_info
 					.assets
-					.get(i as usize)
+					.get(i)
 					.ok_or(bifrost_stable_asset::Error::<T>::ArgumentsMismatch)?,
 			)?;
 		}
@@ -557,7 +566,7 @@ impl<T: Config> Pallet<T> {
 						pool_id,
 						*pool_info
 							.assets
-							.get(i as usize)
+							.get(i)
 							.ok_or(bifrost_stable_asset::Error::<T>::ArgumentsMismatch)?,
 					)?,
 				Error::<T>::CantMint
@@ -580,7 +589,7 @@ impl<T: Config> Pallet<T> {
 		<T as bifrost_stable_asset::Config>::Assets::deposit(
 			pool_info.pool_asset,
 			who,
-			mint_amount.into(),
+			mint_amount,
 		)?;
 		pool_info.total_supply = total_supply;
 		pool_info.balances = balances;
@@ -630,17 +639,17 @@ impl<T: Config> Pallet<T> {
 				pool_id,
 				*pool_info
 					.assets
-					.get(i as usize)
+					.get(i)
 					.ok_or(bifrost_stable_asset::Error::<T>::ArgumentsMismatch)?,
 			)?;
 		}
 
 		let zero = Zero::zero();
-		for i in 0..amounts.len() {
+		for (i, _) in amounts.iter().enumerate() {
 			ensure!(
 				amounts[i]
 					>= *min_redeem_amounts
-						.get(i as usize)
+						.get(i)
 						.ok_or(bifrost_stable_asset::Error::<T>::ArgumentsMismatch)?,
 				bifrost_stable_asset::Error::<T>::RedeemUnderMin
 			);
@@ -714,7 +723,7 @@ impl<T: Config> Pallet<T> {
 				pool_id,
 				*pool_info
 					.assets
-					.get(i as usize)
+					.get(i)
 					.ok_or(bifrost_stable_asset::Error::<T>::ArgumentsMismatch)?,
 			)?;
 		}
@@ -724,7 +733,7 @@ impl<T: Config> Pallet<T> {
 			balances,
 			total_supply,
 			burn_amount,
-		} = bifrost_stable_asset::Pallet::<T>::get_redeem_multi_amount(&mut pool_info, &new_amounts)?;
+		} = bifrost_stable_asset::Pallet::<T>::get_redeem_multi_amount(&pool_info, &new_amounts)?;
 		let zero: T::Balance = Zero::zero();
 		ensure!(
 			redeem_amount <= max_redeem_amount,
@@ -803,7 +812,7 @@ impl<T: Config> Pallet<T> {
 			total_supply,
 			balances,
 			redeem_amount,
-		} = bifrost_stable_asset::Pallet::<T>::get_redeem_single_amount(&mut pool_info, amount, i)?;
+		} = bifrost_stable_asset::Pallet::<T>::get_redeem_single_amount(&pool_info, amount, i)?;
 		dy = Self::downscale(
 			dy,
 			pool_id,
@@ -987,11 +996,11 @@ impl<T: Config> Pallet<T> {
 		{
 			return Ok(Self::calculate_scaling(
 				amount.into(),
-				numerator.into(),
-				demoninator.into(),
+				numerator,
+				demoninator,
 			));
 		}
-		return Err(Error::<T>::TokenRateNotSet.into());
+		Err(Error::<T>::TokenRateNotSet.into())
 	}
 	pub fn downscale(
 		amount: T::Balance,
@@ -1003,11 +1012,11 @@ impl<T: Config> Pallet<T> {
 		{
 			return Ok(Self::calculate_scaling(
 				amount.into(),
-				numerator.into(),
-				demoninator.into(),
+				numerator,
+				demoninator,
 			));
 		}
-		return Err(Error::<T>::TokenRateNotSet.into());
+		Err(Error::<T>::TokenRateNotSet.into())
 	}
 
 	fn calculate_scaling(
@@ -1110,7 +1119,7 @@ impl<T: Config> Pallet<T> {
 				pool_id,
 				*pool_info
 					.assets
-					.get(i as usize)
+					.get(i)
 					.ok_or(bifrost_stable_asset::Error::<T>::ArgumentsMismatch)?,
 			)?;
 		}
@@ -1125,11 +1134,11 @@ impl<T: Config> Pallet<T> {
 		currency_id_out: &AssetIdOf<T>,
 	) -> Option<(StableAssetPoolId, PoolTokenIndex, PoolTokenIndex)> {
 		Pools::<T>::iter().find_map(|(pool_id, pool_info)| {
-			if pool_info.assets.get(0) == Some(currency_id_in)
+			if pool_info.assets.first() == Some(currency_id_in)
 				&& pool_info.assets.get(1) == Some(currency_id_out)
 			{
 				Some((pool_id, 0, 1))
-			} else if pool_info.assets.get(0) == Some(currency_id_out)
+			} else if pool_info.assets.first() == Some(currency_id_out)
 				&& pool_info.assets.get(1) == Some(currency_id_in)
 			{
 				Some((pool_id, 1, 0))

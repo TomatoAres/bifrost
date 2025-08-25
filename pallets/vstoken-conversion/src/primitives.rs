@@ -16,20 +16,43 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_arithmetic::per_things::Percent;
 use sp_runtime::RuntimeDebug;
 
 /// Exchange rate of vstoken-conversion
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
+#[derive(
+	PartialEq,
+	Eq,
+	Clone,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Default,
+)]
 pub struct VstokenConversionExchangeRate {
 	pub vsbond_convert_to_vstoken: Percent,
 	pub vstoken_convert_to_vsbond: Percent,
 }
 
 /// Exchange fee of vstoken-conversion
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
+#[derive(
+	PartialEq,
+	Eq,
+	Clone,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Default,
+)]
 pub struct VstokenConversionExchangeFee<Balance> {
 	pub vstoken_exchange_fee: Balance,
 	pub vsbond_exchange_fee_of_vstoken: Balance,

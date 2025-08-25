@@ -201,9 +201,9 @@ impl<T: Config> Pallet<T> {
 			T::StablePoolHandler::get_pool_id(&vtoken_id, &asset_id)
 				.ok_or(Error::<T>::NotSupportTokenType)?;
 
-		<T as lend_market::Config>::Assets::mint_into(asset_id, &who, reduce_amount)?;
+		<T as lend_market::Config>::Assets::mint_into(asset_id, who, reduce_amount)?;
 
-		T::LendMarket::do_repay_borrow(&who, asset_id, reduce_amount)?;
+		T::LendMarket::do_repay_borrow(who, asset_id, reduce_amount)?;
 		let redeem_amount = T::StablePoolHandler::get_swap_input(
 			pool_id,
 			currency_id_in,
@@ -211,10 +211,10 @@ impl<T: Config> Pallet<T> {
 			reduce_amount,
 		)?;
 		// Do redeem
-		T::LendMarket::do_redeem(&who, vtoken_id, redeem_amount)?;
+		T::LendMarket::do_redeem(who, vtoken_id, redeem_amount)?;
 
 		T::StablePoolHandler::swap(
-			&who,
+			who,
 			pool_id,
 			currency_id_in,
 			currency_id_out,
@@ -223,7 +223,7 @@ impl<T: Config> Pallet<T> {
 		)?;
 		<T as lend_market::Config>::Assets::burn_from(
 			asset_id,
-			&who,
+			who,
 			reduce_amount,
 			Preservation::Protect,
 			Precision::Exact,
@@ -238,7 +238,7 @@ impl<T: Config> Pallet<T> {
 		vtoken_id: AssetIdOf<T>,
 		increase_amount: BalanceOf<T>,
 	) -> DispatchResult {
-		<T as lend_market::Config>::Assets::mint_into(asset_id, &who, increase_amount)?;
+		<T as lend_market::Config>::Assets::mint_into(asset_id, who, increase_amount)?;
 		let (_, vtoken_value) = T::VtokenMinting::mint(
 			who.clone(),
 			asset_id,
@@ -246,11 +246,11 @@ impl<T: Config> Pallet<T> {
 			BoundedVec::default(),
 			None,
 		)?;
-		T::LendMarket::do_mint(&who, vtoken_id, vtoken_value)?;
-		T::LendMarket::do_borrow(&who, asset_id, increase_amount)?;
+		T::LendMarket::do_mint(who, vtoken_id, vtoken_value)?;
+		T::LendMarket::do_borrow(who, asset_id, increase_amount)?;
 		<T as lend_market::Config>::Assets::burn_from(
 			asset_id,
-			&who,
+			who,
 			increase_amount,
 			Preservation::Protect,
 			Precision::Exact,

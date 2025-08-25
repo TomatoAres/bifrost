@@ -20,7 +20,6 @@
 #![allow(non_upper_case_globals)]
 
 use crate as bifrost_channel_commission;
-use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::OnInitialize;
 use bifrost_primitives::{
 	currency::{ASG, BNC, KSM},
 	CommissionPalletId, CurrencyId, RedeemType, VtokenMintingInterface,
@@ -210,8 +209,8 @@ impl VtokenMintingInterface<AccountId, CurrencyId, Balance> for SimpleVTokenSupp
 		0
 	}
 
-	fn get_v_currency_issuance(_v_currency_id: CurrencyId) -> Balance {
-		11000u64
+	fn get_v_currency_issuance(_v_currency_id: CurrencyId) -> Result<Balance, DispatchError> {
+		Ok(11000u64)
 	}
 
 	fn set_v_currency_issuance(_v_currency_id: CurrencyId, _adjustment: i128) -> DispatchResult {
@@ -265,6 +264,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == BNC)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

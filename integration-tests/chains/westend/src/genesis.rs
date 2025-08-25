@@ -65,6 +65,7 @@ pub fn genesis() -> Storage {
 				.cloned()
 				.map(|k| (k, ENDOWMENT))
 				.collect(),
+			dev_accounts: None,
 		},
 		session: westend_runtime::SessionConfig {
 			keys: validators::initial_authorities()

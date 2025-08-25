@@ -65,7 +65,7 @@ pub trait BbBNCInterface<AccountId, CurrencyId, Balance, BlockNumber> {
 	fn add_reward(
 		who: &AccountId,
 		conf: &mut IncentiveConfig<CurrencyId, Balance, BlockNumber, AccountId>,
-		rewards: &Vec<CurrencyId>,
+		rewards: &[CurrencyId],
 		remaining: Balance,
 	) -> DispatchResult;
 	fn notify_reward(
@@ -160,7 +160,7 @@ where
 	fn add_reward(
 		_who: &AccountId,
 		_conf: &mut IncentiveConfig<CurrencyId, Balance, BlockNumber, AccountId>,
-		_rewards: &Vec<CurrencyId>,
+		_rewards: &[CurrencyId],
 		_remaining: Balance,
 	) -> DispatchResult {
 		Ok(())

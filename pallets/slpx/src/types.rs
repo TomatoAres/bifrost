@@ -20,7 +20,7 @@ use crate::pallet;
 use bifrost_primitives::{CurrencyId, TargetChain};
 use ethereum::TransactionAction;
 use orml_traits::MultiCurrency;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::H160;
 use sp_core::{H256, U256};
@@ -101,19 +101,33 @@ pub enum MoonbeamCall {
 	EthereumXcm(EthereumXcmCall),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Debug, Eq, DecodeWithMemTracking, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen,
+)]
 pub enum OrderCaller<AccountId> {
 	Substrate(AccountId),
 	Evm(H160),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Debug, Eq, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen,
+)]
 pub enum OrderType {
 	Mint,
 	Redeem,
 }
 
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub struct Order<AccountId, CurrencyId, Balance, BlockNumber> {
 	pub source_chain_caller: OrderCaller<AccountId>,
 	pub source_chain_id: u64,
@@ -166,7 +180,18 @@ pub struct HydrationOracleConfig<BlockNumber> {
 }
 
 /// Async Mint configuration
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, Default, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	TypeInfo,
+	Default,
+	MaxEncodedLen,
+)]
 pub struct AsyncMintConfiguration<BlockNumber> {
 	/// Maximum ratio of vToken issuance to token pool
 	pub max_issuance_ratio: FixedU128,

@@ -19,7 +19,7 @@
 //! Low-level types used throughout the Bifrost code.
 
 use bstringify::bstringify;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
@@ -83,9 +83,28 @@ pub const WETH_TOKEN_ID: u8 = 13u8;
 pub const WETH: CurrencyId = CurrencyId::Token2(WETH_TOKEN_ID);
 pub const WAVE_TOKEN_ID: u8 = 14u8;
 pub const WAVE: CurrencyId = CurrencyId::Token2(WAVE_TOKEN_ID);
+
+// Ethereum ETH
 pub const ETH_TOKEN_ID: u8 = 15u8;
 pub const ETH: CurrencyId = CurrencyId::Token2(ETH_TOKEN_ID);
 pub const V_ETH: CurrencyId = CurrencyId::VToken2(ETH_TOKEN_ID);
+
+// Hyperbridge Ethereum ETH
+pub const HP_ETH_TOKEN_ID: u8 = 16u8;
+pub const HP_ETH: CurrencyId = CurrencyId::Token2(HP_ETH_TOKEN_ID);
+
+// Hyperbridge Base ETH
+pub const HP_BASE_ETH_TOKEN_ID: u8 = 17u8;
+pub const HP_BASE_ETH: CurrencyId = CurrencyId::Token2(HP_BASE_ETH_TOKEN_ID);
+
+// Hyperbridge Arbitrum ETH
+pub const HP_ARB_ETH_TOKEN_ID: u8 = 18u8;
+pub const HP_ARB_ETH: CurrencyId = CurrencyId::Token2(HP_ARB_ETH_TOKEN_ID);
+
+// Hyperbridge Optimistic ETH
+pub const HP_OP_ETH_TOKEN_ID: u8 = 19u8;
+pub const HP_OP_ETH: CurrencyId = CurrencyId::Token2(HP_OP_ETH_TOKEN_ID);
+
 pub const VSBOND_BNC_2001_0_8: CurrencyId = CurrencyId::VSBond(TokenSymbol::BNC, 2001, 0, 8);
 pub const CLOUD_TOKEN_ID: u8 = 12u8;
 pub const CLOUD: CurrencyId = CurrencyId::Token2(CLOUD_TOKEN_ID);
@@ -113,6 +132,15 @@ pub const KUSAMA_BNC_ASSET_INDEX: AssetId = AssetId {
 	asset_type: 0,
 	asset_index: 0,
 };
+
+/// Errors returned when attempting to convert a currency ID into a token representation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CurrencyConversionError {
+	/// The given currency ID is invalid or not supported for conversion.
+	InvalidToken,
+	/// Unable to convert the specified `CurrencyId` to a valid Token type.
+	ConversionFailed,
+}
 
 macro_rules! create_currency_id {
 	($(#[$meta:meta])*
@@ -282,7 +310,7 @@ create_currency_id! {
 	// Bit 8 : 0 for Pokladot Ecosystem, 1 for Kusama Ecosystem
 	// Bit 7 : Reserved
 	// Bit 6 - 1 : The token ID
-	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	#[derive(Encode, Decode, Eq, DecodeWithMemTracking, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
 	#[repr(u8)]
 	pub enum TokenSymbol {
 		ASG("Asgard", 12) = 0,
@@ -312,6 +340,7 @@ pub type TokenId = u8;
 #[derive(
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Eq,
 	PartialEq,
@@ -376,29 +405,29 @@ impl CurrencyId {
 		(Self::VSToken(symbol), vsbond_fixed)
 	}
 
-	pub fn to_token(&self) -> Result<Self, ()> {
+	pub fn to_token(&self) -> Result<Self, CurrencyConversionError> {
 		match self {
 			Self::VToken(TokenSymbol::BNC) => Ok(Self::Native(TokenSymbol::BNC)),
 			Self::VToken(symbol) => Ok(Self::Token(*symbol)),
 			Self::VToken2(id) => Ok(Self::Token2(*id)),
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::InvalidToken),
 		}
 	}
 
-	pub fn to_vtoken(&self) -> Result<Self, ()> {
+	pub fn to_vtoken(&self) -> Result<Self, CurrencyConversionError> {
 		match self {
 			Self::Token(symbol) => Ok(Self::VToken(*symbol)),
 			Self::Token2(id) => Ok(Self::VToken2(*id)),
 			Self::Native(TokenSymbol::BNC) => Ok(Self::VToken(TokenSymbol::BNC)),
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::InvalidToken),
 		}
 	}
 
-	pub fn to_vstoken(&self) -> Result<Self, ()> {
+	pub fn to_vstoken(&self) -> Result<Self, CurrencyConversionError> {
 		match self {
 			Self::Token(symbol) => Ok(Self::VSToken(*symbol)),
 			Self::Token2(id) => Ok(Self::VSToken2(*id)),
-			_ => Err(()),
+			_ => Err(CurrencyConversionError::InvalidToken),
 		}
 	}
 }
@@ -449,7 +478,8 @@ impl TryFrom<u64> for CurrencyId {
 	fn try_from(id: u64) -> Result<Self, Self::Error> {
 		let c_discr = ((id & 0x0000_0000_0000_ff00) >> 8) as u8;
 
-		let t_discr = ((id & 0x0000_0000_0000_00ff) >> 00) as u8;
+		// Discriminator is in the lowest 8 bits
+		let t_discr = (id & 0x0000_0000_0000_00ff) as u8;
 
 		let pid = ((id & 0xffff_0000_0000_0000) >> 48) as u32;
 		let lp1 = ((id & 0x0000_ffff_0000_0000) >> 32) as u32;
@@ -503,7 +533,7 @@ impl TryFrom<u64> for CurrencyId {
 	}
 }
 
-#[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, TypeInfo)]
+#[derive(Clone, Eq, PartialEq, DecodeWithMemTracking, RuntimeDebug, Encode, Decode, TypeInfo)]
 pub enum AssetIds {
 	ForeignAssetId(ForeignAssetId),
 	NativeAssetId(CurrencyId),

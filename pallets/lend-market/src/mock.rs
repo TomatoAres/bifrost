@@ -303,6 +303,7 @@ impl pallet_assets::Config for Test {
 	type WeightInfo = ();
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type CallbackHandle = ();
+	type Holder = ();
 }
 
 impl pallet_prices::Config for Test {
@@ -377,6 +378,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 			.filter(|(_, currency_id, _)| *currency_id == BNC)
 			.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 			.collect::<Vec<_>>(),
+		dev_accounts: None,
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -494,8 +496,8 @@ pub const fn market_mock(lend_token_id: CurrencyId) -> Market<Balance> {
 			jump_utilization: Ratio::from_percent(80),
 		}),
 		reserve_factor: Ratio::from_percent(15),
-		supply_cap: 1_000_000_000_000_000_000_000u128, // set to 1B
-		borrow_cap: 1_000_000_000_000_000_000_000u128, // set to 1B
+		supply_cap: 1_000_000_000_000_000_000_000_u128, // set to 1B
+		borrow_cap: 1_000_000_000_000_000_000_000_u128, // set to 1B
 		lend_token_id,
 	}
 }
@@ -526,6 +528,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self.balances.into_iter().collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

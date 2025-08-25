@@ -57,7 +57,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn remove_validators_duplicates(
 		currency_id: CurrencyId,
-		validators: &Vec<MultiLocation>,
+		validators: &[MultiLocation],
 	) -> Result<Vec<MultiLocation>, Error<T>> {
 		let validators_set =
 			Validators::<T>::get(currency_id).ok_or(Error::<T>::ValidatorSetNotExist)?;
@@ -65,10 +65,10 @@ impl<T: Config> Pallet<T> {
 		for validator in validators.iter() {
 			// Check if the validator is in the validator whitelist
 			ensure!(
-				validators_set.contains(&validator),
+				validators_set.contains(validator),
 				Error::<T>::ValidatorNotExist
 			);
-			if !validators_list.contains(&validator) {
+			if !validators_list.contains(validator) {
 				validators_list.push(*validator);
 			}
 		}

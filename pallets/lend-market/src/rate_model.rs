@@ -24,7 +24,9 @@ use crate::*;
 
 /// Parallel interest rate model
 #[cfg_attr(feature = "std", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo,
+)]
 pub enum InterestRateModel {
 	Jump(JumpModel),
 	Curve(CurveModel),
@@ -87,7 +89,18 @@ impl InterestRateModel {
 
 /// The jump interest rate model
 #[cfg_attr(feature = "std", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, Default, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	Default,
+	TypeInfo,
+)]
 pub struct JumpModel {
 	/// The base interest rate when utilization rate is 0
 	pub base_rate: Rate,
@@ -164,7 +177,18 @@ impl JumpModel {
 
 /// The curve interest rate model
 #[cfg_attr(feature = "std", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, Default, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	Default,
+	TypeInfo,
+)]
 pub struct CurveModel {
 	pub base_rate: Rate,
 }

@@ -10,7 +10,6 @@ parity-scale-codec = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 primitive-types = { workspace = true }
-ethabi = { workspace = true }
 
 frame-support = { workspace = true }
 hex-literal = { workspace = true }

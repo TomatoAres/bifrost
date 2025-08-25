@@ -289,7 +289,7 @@ pub mod pallet {
 				T::Currency::transfer(
 					&who,
 					&PALLET_HYPERBRIDGE.into_account_truncating(),
-					asset_registration_fee.into(),
+					asset_registration_fee,
 					Preservation::Expendable,
 				)?;
 			}
@@ -306,7 +306,7 @@ pub mod pallet {
 
 			let dispatcher = <T as Config>::Dispatcher::default();
 			let dispatch_post = DispatchPost {
-				dest: T::Coprocessor::get().ok_or_else(|| Error::<T>::CoprocessorNotConfigured)?,
+				dest: T::Coprocessor::get().ok_or(Error::<T>::CoprocessorNotConfigured)?,
 				from: token_gateway_id().0.to_vec(),
 				to: token_governor_id(),
 				timeout: 0,
@@ -349,14 +349,14 @@ pub mod pallet {
 				T::Currency::transfer(
 					&who,
 					&PALLET_HYPERBRIDGE.into_account_truncating(),
-					asset_registration_fee.into(),
+					asset_registration_fee,
 					Preservation::Expendable,
 				)?;
 			}
 
 			let dispatcher = <T as Config>::Dispatcher::default();
 			let dispatch_post = DispatchPost {
-				dest: T::Coprocessor::get().ok_or_else(|| Error::<T>::CoprocessorNotConfigured)?,
+				dest: T::Coprocessor::get().ok_or(Error::<T>::CoprocessorNotConfigured)?,
 				from: token_gateway_id().0.to_vec(),
 				to: token_governor_id(),
 				timeout: 0,
@@ -416,9 +416,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn is_token_gateway(id: &[u8]) -> bool {
-		id == &token_gateway_id().0
+		id == token_gateway_id().0
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	pub fn do_teleport(
 		currency_id: CurrencyId,
 		sender: T::AccountId,
@@ -431,11 +432,11 @@ impl<T: Config> Pallet<T> {
 	) -> Result<H256, DispatchError> {
 		let dispatcher = <T as Config>::Dispatcher::default();
 		let asset_id =
-			SupportedAssets::<T>::get(currency_id).ok_or_else(|| Error::<T>::UnregisteredAsset)?;
+			SupportedAssets::<T>::get(currency_id).ok_or(Error::<T>::UnregisteredAsset)?;
 
 		let decimals = currency_id.decimals().unwrap_or(
 			T::CurrencyIdConvert::get_currency_metadata(currency_id)
-				.map_or(12, |metadata| metadata.decimals.into()),
+				.map_or(12, |metadata| metadata.decimals),
 		);
 
 		let is_native = NativeAssets::<T>::get(currency_id);
@@ -461,7 +462,7 @@ impl<T: Config> Pallet<T> {
 		let to = recepient.0;
 		let from: [u8; 32] = sender.encode().try_into().unwrap();
 		let erc_decimals =
-			Decimals::<T>::get(currency_id).ok_or_else(|| Error::<T>::AssetDecimalsNotFound)?;
+			Decimals::<T>::get(currency_id).ok_or(Error::<T>::AssetDecimalsNotFound)?;
 
 		let body = match data {
 			Some(data) => {
@@ -504,7 +505,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let token_gateway_address =
-			TokenGatewayAddresses::<T>::get(dest).ok_or_else(|| Error::<T>::UnregisteredAsset)?;
+			TokenGatewayAddresses::<T>::get(dest).ok_or(Error::<T>::UnregisteredAsset)?;
 
 		let dispatch_post = DispatchPost {
 			dest,

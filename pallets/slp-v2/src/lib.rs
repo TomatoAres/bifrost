@@ -21,8 +21,8 @@
 #[cfg(feature = "polkadot")]
 use astar_dapp_staking::types::DappStaking;
 use bifrost_primitives::{
-	Balance, BlockNumber, CurrencyId, CurrencyIdConversion, HyperBridgeSender, TimeUnit,
-	VtokenMintingOperator,
+	Balance, BlockNumber, CurrencyId, CurrencyIdConversion, CurrencyIdExt, HyperBridgeSender,
+	TimeUnit, VtokenMintingOperator,
 };
 use common::types::{Delegator, DelegatorIndex, ProtocolConfiguration};
 #[cfg(feature = "polkadot")]
@@ -741,6 +741,15 @@ pub mod pallet {
 					&protocol_fee_receiver,
 					protocol_fee,
 				)?;
+				if protocol_fee_currency_id.is_vtoken() {
+					let adjustment = protocol_fee
+						.try_into()
+						.map_err(|_| Error::<T>::InvalidParameter)?;
+					T::VtokenMinting::set_v_currency_issuance(
+						protocol_fee_currency_id,
+						adjustment,
+					)?;
+				}
 			}
 
 			// Update the token exchange rate.

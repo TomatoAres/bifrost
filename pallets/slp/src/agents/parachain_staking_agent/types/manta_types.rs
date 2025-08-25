@@ -53,7 +53,7 @@ pub enum MantaUtilityCall<MantaCall> {
 	#[codec(index = 1)]
 	AsDerivative(u16, Box<MantaCall>),
 	#[codec(index = 2)]
-	BatchAll(Box<Vec<Box<MantaCall>>>),
+	BatchAll(Vec<Box<MantaCall>>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]

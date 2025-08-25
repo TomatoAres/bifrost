@@ -45,9 +45,8 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 
 			// Return the consumed weight
 			let count = CommissionTokens::<T>::iter().count();
-			Weight::from(
-				T::DbWeight::get().reads_writes(count as u64 + count as u64 + 1, count as u64 + 1),
-			)
+
+			T::DbWeight::get().reads_writes(count as u64 + count as u64 + 1, count as u64 + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

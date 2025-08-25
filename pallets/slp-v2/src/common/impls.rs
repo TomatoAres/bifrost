@@ -108,14 +108,11 @@ impl<T: Config> Pallet<T> {
 		delegator: Delegator<T::AccountId>,
 	) -> DispatchResultWithPostInfo {
 		let delegator_index =
-			DelegatorIndexByStakingProtocolAndDelegator::<T>::take(&staking_protocol, &delegator)
+			DelegatorIndexByStakingProtocolAndDelegator::<T>::take(staking_protocol, &delegator)
 				.ok_or(Error::<T>::DelegatorIndexNotFound)?;
-		DelegatorByStakingProtocolAndDelegatorIndex::<T>::remove(
-			&staking_protocol,
-			delegator_index,
-		);
-		ValidatorsByStakingProtocolAndDelegator::<T>::remove(&staking_protocol, &delegator);
-		LedgerByStakingProtocolAndDelegator::<T>::remove(&staking_protocol, &delegator);
+		DelegatorByStakingProtocolAndDelegatorIndex::<T>::remove(staking_protocol, delegator_index);
+		ValidatorsByStakingProtocolAndDelegator::<T>::remove(staking_protocol, &delegator);
+		LedgerByStakingProtocolAndDelegator::<T>::remove(staking_protocol, &delegator);
 		Self::deposit_event(Event::RemoveDelegator {
 			staking_protocol,
 			delegator_index,
@@ -349,7 +346,7 @@ impl<T: Config> Pallet<T> {
 			query_id,
 			max_weight: notify_call_weight,
 		});
-		let mut xcm_message = Self::wrap_xcm_message(&staking_protocol, call)?;
+		let mut xcm_message = Self::wrap_xcm_message(staking_protocol, call)?;
 		xcm_message.0.insert(3, report_transact_status);
 		Ok(xcm_message)
 	}

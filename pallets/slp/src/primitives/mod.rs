@@ -22,6 +22,7 @@ mod phala_primitives;
 mod polkadot_primitives;
 
 pub use filecoin_primitives::*;
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 pub use parachain_staking_primitives::*;
 pub use phala_primitives::*;
 pub use polkadot_primitives::*;
@@ -35,7 +36,7 @@ pub type QueryId = u64;
 pub const TIMEOUT_BLOCKS: u32 = 1000;
 pub const BASE_WEIGHT: u64 = 1000;
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub enum Ledger<Balance> {
 	Substrate(SubstrateLedger<Balance>),
 	Moonbeam(OneToManyLedger<Balance>),
@@ -45,7 +46,7 @@ pub enum Ledger<Balance> {
 }
 
 /// A type for accommodating delegator update entries for different kinds of currencies.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub enum LedgerUpdateEntry<Balance> {
 	/// A type for substrate ledger updating entries
 	Substrate(SubstrateLedgerUpdateEntry<Balance>),
@@ -55,14 +56,14 @@ pub enum LedgerUpdateEntry<Balance> {
 
 /// A type for accommodating validators by delegator update entries for different kinds of
 /// currencies.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, DecodeWithMemTracking, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 pub enum ValidatorsByDelegatorUpdateEntry {
 	/// A type for substrate validators by delegator updating entries
 	Substrate(SubstrateValidatorsByDelegatorUpdateEntry),
 }
 
 /// Different minimum and maximum requirements for different chain
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct MinimumsMaximums<Balance> {
 	/// The minimum bonded amount for a delegator at any time.
 	#[codec(compact)]
@@ -100,7 +101,7 @@ pub struct MinimumsMaximums<Balance> {
 }
 
 /// Different delay params for different chain
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, DecodeWithMemTracking, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 pub struct Delays {
 	/// The unlock delay for the unlocking amount to be able to be liquidized.
 	pub unlock_delay: TimeUnit,

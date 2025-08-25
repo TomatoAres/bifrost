@@ -16,15 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg(test)]
+#![cfg(any(test, feature = "std"))]
 
-use bifrost_primitives::{
+use crate::{
 	Balance, CurrencyId, OraclePriceProvider, Price, PriceDetail, BNC, DOT, DOT_U, ETH, KSM, MANTA,
 	VDOT, VKSM,
 };
 use frame_support::parameter_types;
 use sp_runtime::FixedU128;
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 
 parameter_types! {
 	pub static StoragePrice: BTreeMap<CurrencyId, (Price, u128)> = BTreeMap::from([
@@ -41,6 +41,7 @@ parameter_types! {
 
 pub struct MockOraclePriceProvider;
 impl MockOraclePriceProvider {
+	/// Set price for a specific currency
 	pub fn set_price(currency_id: CurrencyId, price: Price) {
 		let mut storage_price = StoragePrice::get();
 		match storage_price.get(&currency_id) {
@@ -53,14 +54,56 @@ impl MockOraclePriceProvider {
 		};
 		StoragePrice::set(storage_price);
 	}
+
+	/// Set price with custom mantissa for a specific currency
+	pub fn set_price_with_mantissa(currency_id: CurrencyId, price: Price, mantissa: u128) {
+		let mut storage_price = StoragePrice::get();
+		storage_price.insert(currency_id, (price, mantissa));
+		StoragePrice::set(storage_price);
+	}
+
+	/// Reset all prices to default values
+	pub fn reset_to_default() {
+		StoragePrice::set(BTreeMap::from([
+			(
+				BNC,
+				(
+					FixedU128::from_inner(200_000_000_000_000_000),
+					10u128.pow(12),
+				),
+			),
+			(
+				MANTA,
+				(
+					FixedU128::from_inner(800_000_000_000_000_000),
+					10u128.pow(18),
+				),
+			),
+			(DOT, (FixedU128::from(5), 10u128.pow(10))),
+			(VDOT, (FixedU128::from(6), 10u128.pow(10))),
+			(DOT_U, (FixedU128::from(1), 10u128.pow(6))),
+			(KSM, (FixedU128::from(20), 10u128.pow(12))),
+			(VKSM, (FixedU128::from(25), 10u128.pow(12))),
+			(ETH, (FixedU128::from(3000), 10u128.pow(18))),
+		]));
+	}
+
+	/// Clear all prices
+	pub fn clear_all() {
+		StoragePrice::set(BTreeMap::new());
+	}
+
+	/// Get current storage state (for debugging)
+	pub fn get_storage() -> BTreeMap<CurrencyId, (Price, u128)> {
+		StoragePrice::get()
+	}
 }
 
 impl OraclePriceProvider for MockOraclePriceProvider {
 	fn get_price(currency_id: &CurrencyId) -> Option<PriceDetail> {
-		match StoragePrice::get().get(currency_id) {
-			Some((price, _)) => Some((*price, 0)),
-			None => None,
-		}
+		StoragePrice::get()
+			.get(currency_id)
+			.map(|(price, _)| (*price, 0))
 	}
 
 	fn get_amount_by_prices(
@@ -70,8 +113,8 @@ impl OraclePriceProvider for MockOraclePriceProvider {
 		currency_out: &CurrencyId,
 		currency_out_price: Price,
 	) -> Option<Balance> {
-		if let Some((_, currency_in_mantissa)) = StoragePrice::get().get(&currency_in) {
-			if let Some((_, currency_out_mantissa)) = StoragePrice::get().get(&currency_out) {
+		if let Some((_, currency_in_mantissa)) = StoragePrice::get().get(currency_in) {
+			if let Some((_, currency_out_mantissa)) = StoragePrice::get().get(currency_out) {
 				let total_value = currency_in_price
 					.mul(FixedU128::from_inner(amount_in))
 					.div(FixedU128::from_inner(*currency_in_mantissa));
@@ -90,10 +133,10 @@ impl OraclePriceProvider for MockOraclePriceProvider {
 		currency_out: &CurrencyId,
 	) -> Option<(Balance, Price, Price)> {
 		if let Some((currency_in_price, currency_in_mantissa)) =
-			StoragePrice::get().get(&currency_in)
+			StoragePrice::get().get(currency_in)
 		{
 			if let Some((currency_out_price, currency_out_mantissa)) =
-				StoragePrice::get().get(&currency_out)
+				StoragePrice::get().get(currency_out)
 			{
 				let total_value = currency_in_price
 					.mul(FixedU128::from_inner(amount_in))
@@ -139,7 +182,7 @@ mod test {
 	fn get_oracle_amount_by_currency_and_amount_in() {
 		let bnc_amount = 100 * 10u128.pow(12);
 		let dot_amount = 4 * 10u128.pow(10);
-		let ksm_amount = 10u128.pow(12);
+		let ksm_amount = 1 * 10u128.pow(12);
 		let usdt_amount = 20 * 10u128.pow(6);
 		let manta_amount = 25 * 10u128.pow(18);
 		assert_eq!(

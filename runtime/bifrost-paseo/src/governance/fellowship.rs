@@ -24,6 +24,7 @@
 use super::*;
 use frame_support::traits::{EitherOf, MapSuccess, TryMapSuccess};
 use sp_arithmetic::traits::CheckedSub;
+use sp_runtime::str_array;
 use sp_runtime::{
 	morph_types,
 	traits::{ConstU16, Replace, ReplaceWithDefault, TypedGet},
@@ -39,18 +40,20 @@ pub struct TracksInfo;
 impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 	type Id = u16;
 	type RuntimeOrigin = <RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin;
-	fn tracks() -> &'static [(Self::Id, pallet_referenda::TrackInfo<Balance, BlockNumber>)] {
-		static DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
-			(
-				0u16,
-				pallet_referenda::TrackInfo {
-					name: "candidates",
+	fn tracks(
+	) -> impl Iterator<Item = Cow<'static, pallet_referenda::Track<Self::Id, Balance, BlockNumber>>>
+	{
+		static DATA: [pallet_referenda::Track<u16, Balance, BlockNumber>; 10] = [
+			pallet_referenda::Track {
+				id: 0,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("candidates"),
 					max_deciding: 10,
 					decision_deposit: 100 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -62,17 +65,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				1u16,
-				pallet_referenda::TrackInfo {
-					name: "members",
+			},
+			pallet_referenda::Track {
+				id: 1,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("members"),
 					max_deciding: 10,
 					decision_deposit: 10 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -84,17 +87,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				2u16,
-				pallet_referenda::TrackInfo {
-					name: "proficients",
+			},
+			pallet_referenda::Track {
+				id: 2,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("proficients"),
 					max_deciding: 10,
 					decision_deposit: 10 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -106,17 +109,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				3u16,
-				pallet_referenda::TrackInfo {
-					name: "fellows",
+			},
+			pallet_referenda::Track {
+				id: 3,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("fellows"),
 					max_deciding: 10,
 					decision_deposit: 10 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -128,17 +131,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				4u16,
-				pallet_referenda::TrackInfo {
-					name: "senior fellows",
+			},
+			pallet_referenda::Track {
+				id: 4,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("senior fellows"),
 					max_deciding: 10,
 					decision_deposit: 10 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -150,17 +153,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				5u16,
-				pallet_referenda::TrackInfo {
-					name: "experts",
+			},
+			pallet_referenda::Track {
+				id: 5,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("experts"),
 					max_deciding: 10,
-					decision_deposit: 1 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					decision_deposit: DOLLARS,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -172,17 +175,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				6u16,
-				pallet_referenda::TrackInfo {
-					name: "senior experts",
+			},
+			pallet_referenda::Track {
+				id: 6,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("senior experts"),
 					max_deciding: 10,
-					decision_deposit: 1 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					decision_deposit: DOLLARS,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -194,17 +197,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				7u16,
-				pallet_referenda::TrackInfo {
-					name: "masters",
+			},
+			pallet_referenda::Track {
+				id: 7,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("masters"),
 					max_deciding: 10,
-					decision_deposit: 1 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					decision_deposit: DOLLARS,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -216,17 +219,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				8u16,
-				pallet_referenda::TrackInfo {
-					name: "senior masters",
+			},
+			pallet_referenda::Track {
+				id: 8,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("senior masters"),
 					max_deciding: 10,
-					decision_deposit: 1 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					decision_deposit: DOLLARS,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -238,17 +241,17 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
-			(
-				9u16,
-				pallet_referenda::TrackInfo {
-					name: "grand masters",
+			},
+			pallet_referenda::Track {
+				id: 9,
+				info: pallet_referenda::TrackInfo {
+					name: str_array("grand masters"),
 					max_deciding: 10,
-					decision_deposit: 1 * DOLLARS,
-					prepare_period: 1 * MINUTES,
+					decision_deposit: DOLLARS,
+					prepare_period: MINUTES,
 					decision_period: 2 * DAYS,
 					confirm_period: 5 * MINUTES,
-					min_enactment_period: 1 * MINUTES,
+					min_enactment_period: MINUTES,
 					min_approval: pallet_referenda::Curve::LinearDecreasing {
 						length: Perbill::from_percent(100),
 						floor: Perbill::from_percent(50),
@@ -260,9 +263,9 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						ceil: Perbill::from_percent(60),
 					},
 				},
-			),
+			},
 		];
-		&DATA[..]
+		DATA.iter().map(Cow::Borrowed)
 	}
 	fn track_for(id: &Self::RuntimeOrigin) -> Result<Self::Id, ()> {
 		#[cfg(feature = "runtime-benchmarks")]
@@ -292,7 +295,6 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 		}
 	}
 }
-pallet_referenda::impl_tracksinfo_get!(TracksInfo, Balance, BlockNumber);
 
 pub type FellowshipReferendaInstance = pallet_referenda::Instance2;
 
@@ -315,6 +317,7 @@ impl pallet_referenda::Config<FellowshipReferendaInstance> for Runtime {
 	type AlarmInterval = AlarmInterval;
 	type Tracks = TracksInfo;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 pub type FellowshipCollectiveInstance = pallet_ranked_collective::Instance1;

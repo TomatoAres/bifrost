@@ -20,6 +20,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use frame_support::{parameter_types, PalletId};
 use hex_literal::hex;
 use parity_scale_codec::MaxEncodedLen;
@@ -38,6 +39,11 @@ pub mod xcm;
 pub use crate::xcm::*;
 pub mod mock_xcm;
 pub use crate::mock_xcm::*;
+
+#[cfg(any(test, feature = "std"))]
+pub mod mock_price;
+#[cfg(any(test, feature = "std"))]
+pub use crate::mock_price::*;
 
 pub mod price;
 pub use crate::price::*;
@@ -161,7 +167,7 @@ pub type DerivativeIndex = u16;
 
 pub type TimeStampedPrice = orml_oracle::TimestampedValue<Price, Moment>;
 
-#[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, TypeInfo)]
+#[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct AssetMetadata<Balance> {
 	pub name: Vec<u8>,
 	pub symbol: Vec<u8>,
@@ -243,7 +249,9 @@ impl<AccountId> Default for RedeemType<AccountId> {
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
+#[derive(
+	Encode, Decode, Eq, DecodeWithMemTracking, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo,
+)]
 pub enum XcmOperationType {
 	// SALP operations
 	UmpContributeTransact,
@@ -275,7 +283,18 @@ pub enum XcmOperationType {
 	TeleportAssets,
 }
 
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub enum SupportChain {
 	Astar,
 	Moonbeam,
@@ -284,7 +303,18 @@ pub enum SupportChain {
 	Manta,
 }
 
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub enum TargetChain<AccountId> {
 	Astar(H160),
 	Moonbeam(H160),

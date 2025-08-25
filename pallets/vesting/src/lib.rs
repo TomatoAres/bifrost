@@ -88,6 +88,13 @@ type BalanceOf<T> =
 type MaxLocksOf<T> =
 	<<T as Config>::Currency as LockableCurrency<<T as frame_system::Config>::AccountId>>::MaxLocks;
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
+type VestingScheduleConfig<T> = (
+	<T as frame_system::Config>::AccountId,
+	BlockNumberFor<T>,
+	BlockNumberFor<T>,
+	BalanceOf<T>,
+);
+type VestingList<T> = Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>;
 
 const VESTING_ID: LockIdentifier = *b"vesting ";
 
@@ -232,12 +239,7 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub vesting: Vec<(
-			T::AccountId,
-			BlockNumberFor<T>,
-			BlockNumberFor<T>,
-			BalanceOf<T>,
-		)>,
+		pub vesting: Vec<VestingScheduleConfig<T>>,
 	}
 
 	#[pallet::genesis_build]
@@ -682,10 +684,7 @@ impl<T: Config> Pallet<T> {
 	fn report_schedule_updates(
 		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
 		action: VestingAction,
-	) -> (
-		Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
-		BalanceOf<T>,
-	) {
+	) -> (VestingList<T>, BalanceOf<T>) {
 		let now = T::BlockNumberProvider::current_block_number();
 
 		let mut total_locked_now: BalanceOf<T> = Zero::zero();
@@ -762,13 +761,7 @@ impl<T: Config> Pallet<T> {
 	fn exec_action(
 		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
 		action: VestingAction,
-	) -> Result<
-		(
-			Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
-			BalanceOf<T>,
-		),
-		DispatchError,
-	> {
+	) -> Result<(VestingList<T>, BalanceOf<T>), DispatchError> {
 		let (schedules, locked_now) = match action {
 			VestingAction::Merge {
 				index1: idx1,

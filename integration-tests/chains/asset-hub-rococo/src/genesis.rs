@@ -45,6 +45,7 @@ pub fn genesis() -> Storage {
 				.cloned()
 				.map(|k| (k, ED * 4096 * 4096))
 				.collect(),
+			dev_accounts: None,
 		},
 		parachain_info: asset_hub_rococo_runtime::ParachainInfoConfig {
 			parachain_id: PARA_ID.into(),

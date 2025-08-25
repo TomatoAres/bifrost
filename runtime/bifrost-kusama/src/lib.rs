@@ -62,6 +62,7 @@ pub use frame_support::{
 use frame_system::limits::{BlockLength, BlockWeights};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
+use parity_scale_codec::DecodeWithMemTracking;
 use sp_api::impl_runtime_apis;
 use sp_arithmetic::Percent;
 use sp_core::{ConstBool, OpaqueMetadata};
@@ -169,7 +170,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost"),
 	impl_name: Cow::Borrowed("bifrost"),
 	authoring_version: 1,
-	spec_version: 20002,
+	spec_version: 21000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -381,8 +382,8 @@ impl pallet_timestamp::Config for Runtime {
 
 parameter_types! {
 	pub ExistentialDeposit: Balance = 10 * MILLIBNC;
-	pub TransferFee: Balance = 1 * MILLIBNC;
-	pub CreationFee: Balance = 1 * MILLIBNC;
+	pub TransferFee: Balance = MILLIBNC;
+	pub CreationFee: Balance = MILLIBNC;
 	pub TransactionByteFee: Balance = 16 * MICROBNC;
 }
 
@@ -414,6 +415,7 @@ parameter_types! {
 	PartialOrd,
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	RuntimeDebug,
 	MaxEncodedLen,
 	scale_info::TypeInfo,
@@ -517,6 +519,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyDepositFactor = ProxyDepositFactor;
 	type ProxyType = ProxyType;
 	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -557,6 +560,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -575,6 +579,7 @@ impl pallet_multisig::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -614,7 +619,7 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
-	pub IndexDeposit: Balance = 1 * BNCS;
+	pub IndexDeposit: Balance = BNCS;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -663,7 +668,7 @@ parameter_types! {
 	pub ProposalBondMaximum: Balance = 500 * BNCS;
 	pub const SpendPeriod: BlockNumber = 6 * DAYS;
 	pub const Burn: Permill = Permill::from_perthousand(0);
-	pub TipReportDepositBase: Balance = 1 * BNCS;
+	pub TipReportDepositBase: Balance = BNCS;
 	pub DataDepositPerByte: Balance = 10 * cent::<Runtime>(NativeCurrencyId::get());
 	pub const MaximumReasonLength: u32 = 16384;
 	pub const PayoutSpendPeriod: BlockNumber = 30 * DAYS;
@@ -912,6 +917,7 @@ impl pallet_session::Config for Runtime {
 	// we don't have stash and controller, thus we don't need the convert as well.
 	type ValidatorIdOf = ConvertInto;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
+	type DisablingStrategy = pallet_session::disabling::UpToLimitDisablingStrategy;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -974,7 +980,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 }
 
 parameter_types! {
-	pub BifrostParachainAccountId20: [u8; 20] = cumulus_primitives_core::ParaId::from(ParachainInfo::get()).into_account_truncating();
+	pub BifrostParachainAccountId20: [u8; 20] = ParachainInfo::get().into_account_truncating();
 }
 
 pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::Location {
@@ -1067,7 +1073,7 @@ parameter_types! {
 	pub MinContribution: Balance = dollar::<Runtime>(RelayCurrencyId::get()) / 10;
 	pub const RemoveKeysLimit: u32 = 500;
 	pub const VSBondValidPeriod: BlockNumber = 30 * DAYS;
-	pub const ReleaseCycle: BlockNumber = 1 * DAYS;
+	pub const ReleaseCycle: BlockNumber = DAYS;
 	pub const LeasePeriod: BlockNumber = KUSAMA_LEASE_PERIOD;
 	pub const ReleaseRatio: Percent = Percent::from_percent(50);
 	pub const SlotLength: BlockNumber = 8u32 as BlockNumber;
@@ -1225,7 +1231,7 @@ impl bifrost_cross_in_out::Config for Runtime {
 
 parameter_types! {
 	pub const QueryTimeout: BlockNumber = 100;
-	pub const ReferendumCheckInterval: BlockNumber = 1 * HOURS;
+	pub const ReferendumCheckInterval: BlockNumber = HOURS;
 }
 
 pub struct DerivativeAccountTokenFilter;
@@ -1370,6 +1376,7 @@ impl bifrost_slpx::Config for Runtime {
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = ();
 	type PalletId = SlpxPalletId;
+	type OraclePriceProvider = Prices;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1520,7 +1527,7 @@ impl leverage_staking::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ClearingDuration: u32 = prod_or_fast!(1 * DAYS, 10 * MINUTES);
+	pub const ClearingDuration: u32 = prod_or_fast!(DAYS, 10 * MINUTES);
 	pub const NameLengthLimit: u32 = 20;
 	pub BifrostCommissionReceiver: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
@@ -1554,7 +1561,7 @@ where
 {
 	fn local_balance_of(asset_id: ZenlinkAssetId, who: &AccountId) -> AssetBalance {
 		if let Ok(currency_id) = asset_id.try_into() {
-			return TryInto::<AssetBalance>::try_into(Local::free_balance(currency_id, &who))
+			return TryInto::<AssetBalance>::try_into(Local::free_balance(currency_id, who))
 				.unwrap_or_default();
 		}
 		AssetBalance::default()
@@ -1570,10 +1577,7 @@ where
 
 	fn local_is_exists(asset_id: ZenlinkAssetId) -> bool {
 		let currency_id: Result<CurrencyId, ()> = asset_id.try_into();
-		match currency_id {
-			Ok(_) => true,
-			Err(_) => false,
-		}
+		currency_id.is_ok()
 	}
 
 	fn local_transfer(
@@ -1585,8 +1589,8 @@ where
 		if let Ok(currency_id) = asset_id.try_into() {
 			Local::transfer(
 				currency_id,
-				&origin,
-				&target,
+				origin,
+				target,
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local transfer"))?,
@@ -1605,7 +1609,7 @@ where
 		if let Ok(currency_id) = asset_id.try_into() {
 			Local::deposit(
 				currency_id,
-				&origin,
+				origin,
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local deposit"))?,
@@ -1625,7 +1629,7 @@ where
 		if let Ok(currency_id) = asset_id.try_into() {
 			Local::withdraw(
 				currency_id,
-				&origin,
+				origin,
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local withdraw"))?,
@@ -1673,7 +1677,7 @@ impl pallet_migrations::Config for Runtime {
 
 parameter_types! {
 	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
-	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositPerItem: Balance = CENTS;
 	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
 	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
 	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
@@ -1846,6 +1850,11 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		pallet_session::migrations::v1::MigrateV0ToV1<
+			Runtime,
+			pallet_session::migrations::v1::InitOffenceSeverity<Runtime>,
+		>,
+		cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 	);
 }
 
@@ -1865,6 +1874,7 @@ extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
+	use crate::Runtime;
 	define_benchmarks!(
 		[bifrost_asset_registry, AssetRegistry]
 		[bifrost_cross_in_out, CrossInOut]
@@ -1885,6 +1895,8 @@ mod benches {
 		// [bifrost_channel_commission, ChannelCommission]
 		[bifrost_vesting, Vesting]
 	);
+
+	impl frame_system_benchmarking::Config for Runtime {}
 }
 
 impl_runtime_apis! {
@@ -2035,7 +2047,7 @@ impl_runtime_apis! {
 			} else {
 				let native_fee = WeightToFee::weight_to_fee(&weight);
 				let asset_location = &asset.try_as::<AssetId>().map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?.0;
-				let asset_currency = AssetIdMaps::<Runtime>::get_currency_id(&asset_location).ok_or(XcmPaymentApiError::AssetNotFound)?;
+				let asset_currency = AssetIdMaps::<Runtime>::get_currency_id(asset_location).ok_or(XcmPaymentApiError::AssetNotFound)?;
 				let asset_fee = Prices::get_oracle_amount_by_currency_and_amount_in(&bifrost_primitives::BNC, native_fee, &asset_currency).ok_or(XcmPaymentApiError::AssetNotFound)?.0;
 				Ok(asset_fee)
 			}
@@ -2057,6 +2069,18 @@ impl_runtime_apis! {
 
 		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
 			PolkadotXcm::dry_run_xcm::<Runtime, XcmRouter, RuntimeCall, XcmConfig>(origin_location, xcm)
+		}
+	}
+
+	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
+		fn convert_location(location: VersionedLocation) -> Result<
+			AccountId,
+			xcm_runtime_apis::conversions::Error
+		> {
+			xcm_runtime_apis::conversions::LocationToAccountHelper::<
+				AccountId,
+				xcm_config::LocationToAccountId,
+			>::convert_location(location)
 		}
 	}
 
@@ -2146,11 +2170,11 @@ impl_runtime_apis! {
 
 	impl bifrost_farming_rpc_runtime_api::FarmingRuntimeApi<Block, AccountId, PoolId, CurrencyId> for Runtime {
 		fn get_farming_rewards(who: AccountId, pid: PoolId) -> Vec<(CurrencyId, Balance)> {
-			Farming::get_farming_rewards(&who, pid).unwrap_or(Vec::new())
+			Farming::get_farming_rewards(&who, pid).unwrap_or_default()
 		}
 
 		fn get_gauge_rewards(who: AccountId, pid: PoolId) -> Vec<(CurrencyId, Balance)> {
-			Farming::get_gauge_rewards(&who, pid).unwrap_or(Vec::new())
+			Farming::get_gauge_rewards(&who, pid).unwrap_or_default()
 		}
 	}
 
@@ -2202,23 +2226,21 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
+			use frame_benchmarking::BenchmarkList;
 			use frame_support::traits::StorageInfoTrait;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
-			return (list, storage_info)
+			(list, storage_info)
 		}
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
+			use frame_benchmarking::BenchmarkBatch;
 			use frame_support::traits::TrackedStorageKey;
-
-			impl frame_system_benchmarking::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number

@@ -74,7 +74,7 @@ pub fn dollar<T: Config>(currency_id: CurrencyId) -> Balance {
 		.decimals()
 		.unwrap_or(
 			AssetIdMaps::<T>::get_currency_metadata(currency_id)
-				.map_or(12, |metatata| metatata.decimals.into()),
+				.map_or(12, |metadata| metadata.decimals),
 		)
 		.into();
 

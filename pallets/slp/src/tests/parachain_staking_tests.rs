@@ -203,12 +203,12 @@ fn parachain_staking_bond_to_liquidize_works() {
 
 			assert_ok!(ParachainStaking::join_candidates(
 				RuntimeOrigin::signed(BOB),
-				10_000_000_000_000u128,
+				10_000_000_000_000_u128,
 				10_000_000u32
 			));
 			assert_ok!(ParachainStaking::join_candidates(
 				RuntimeOrigin::signed(CHARLIE),
-				10_000_000_000_000u128,
+				10_000_000_000_000_u128,
 				10_000_000u32
 			));
 
@@ -932,7 +932,7 @@ fn parachain_staking_transfer_back_works() {
 			RuntimeOrigin::root(),
 			CHARLIE,
 			BNC,
-			1000_000_000_000_000,
+			1_000_000_000_000_000,
 		));
 
 		assert_ok!(Slp::transfer_back(
@@ -977,7 +977,7 @@ fn parachain_staking_transfer_to_works() {
 			RuntimeOrigin::root(),
 			entrance_account_id_32.into(),
 			BNC,
-			1000_000_000_000_000,
+			1_000_000_000_000_000,
 		));
 
 		assert_ok!(Slp::transfer_to(
@@ -1062,8 +1062,14 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		// environment setup
 		parachain_staking_setup();
 
-		// First set base vtoken exchange rate. Should be 1:1.
+		assert_ok!(Currencies::deposit(BNC, &ALICE, 1000));
 		assert_ok!(Currencies::deposit(VBNC, &ALICE, 1000));
+		let total_issuance = Tokens::total_issuance(VBNC);
+		if total_issuance > 0 {
+			bifrost_vtoken_minting::VtokenIssuance::<Runtime>::insert(VBNC, total_issuance);
+		}
+
+		// First set base vtoken exchange rate. Should be 1:1.
 		assert_ok!(Slp::increase_token_pool(
 			RuntimeOrigin::signed(ALICE),
 			BNC,

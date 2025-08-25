@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg(feature = "runtime-benchmarks")]
-
 use super::*;
 use crate::Pallet as AssetRegistry;
 use bifrost_primitives::CurrencyId;
@@ -112,7 +110,7 @@ mod benchmarks {
 		let call = Call::<T>::register_location {
 			currency_id: Token2(0),
 			location: Box::new(versioned_location.clone()),
-			weight: Weight::from_parts(2000_000_000, u64::MAX),
+			weight: Weight::from_parts(2_000_000_000, u64::MAX),
 		};
 
 		#[block]
@@ -127,7 +125,7 @@ mod benchmarks {
 		assert_eq!(CurrencyIdToLocations::<T>::get(Token2(0)), Some(location));
 		assert_eq!(
 			CurrencyIdToWeights::<T>::get(Token2(0)),
-			Some(Weight::from_parts(2000_000_000, u64::MAX))
+			Some(Weight::from_parts(2_000_000_000, u64::MAX))
 		);
 		Ok(())
 	}
@@ -152,7 +150,7 @@ mod benchmarks {
 		let call = Call::<T>::force_set_location {
 			currency_id: Token2(0),
 			location: Box::new(versioned_location.clone()),
-			weight: Weight::from_parts(2000_000_000, u64::MAX),
+			weight: Weight::from_parts(2_000_000_000, u64::MAX),
 		};
 
 		#[block]

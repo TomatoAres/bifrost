@@ -15,7 +15,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-#![cfg(feature = "runtime-benchmarks")]
 
 use crate::{Pallet as StablePool, *};
 pub use bifrost_primitives::{BNC, DOT, KSM, VDOT};
@@ -38,14 +37,14 @@ mod benchmarks {
 		_(
 			RawOrigin::Root,
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			10000000u128.into(),
-			20000000u128.into(),
-			50000000u128.into(),
-			10000u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			10000000_u128.into(),
+			20000000_u128.into(),
+			50000000_u128.into(),
+			10000_u128.into(),
 			fee_account.clone(),
 			fee_account,
-			1000000000000000000u128.into(),
+			1000000000000000000_u128.into(),
 		);
 
 		Ok(())
@@ -60,14 +59,14 @@ mod benchmarks {
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			10000000u128.into(),
-			20000000u128.into(),
-			50000000u128.into(),
-			10000u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			10000000_u128.into(),
+			20000000_u128.into(),
+			50000000_u128.into(),
+			10000_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000000000u128.into()
+			1000000000000000000_u128.into()
 		));
 
 		#[extrinsic_call]
@@ -75,8 +74,8 @@ mod benchmarks {
 			RawOrigin::Root,
 			0,
 			vec![
-				(VDOT.into(), (9u128.into(), 10u128.into())),
-				(DOT.into(), (1u128.into(), 1u128.into())),
+				(VDOT.into(), (9_u128.into(), 10_u128.into())),
+				(DOT.into(), (1_u128.into(), 1_u128.into())),
 			],
 		);
 
@@ -92,14 +91,14 @@ mod benchmarks {
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			10000000u128.into(),
-			20000000u128.into(),
-			50000000u128.into(),
-			10000u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			10000000_u128.into(),
+			20000000_u128.into(),
+			50000000_u128.into(),
+			10000_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000000000u128.into()
+			1000000000000000000_u128.into()
 		));
 
 		#[extrinsic_call]
@@ -117,14 +116,14 @@ mod benchmarks {
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			10000000u128.into(),
-			20000000u128.into(),
-			50000000u128.into(),
-			10000u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			10000000_u128.into(),
+			20000000_u128.into(),
+			50000000_u128.into(),
+			10000_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000000000u128.into()
+			1000000000000000000_u128.into()
 		));
 
 		assert_ok!(StablePool::<T>::config_vtoken_auto_refresh(
@@ -148,39 +147,39 @@ mod benchmarks {
 		T::MultiCurrency::deposit(
 			BNC.into(),
 			&fee_account,
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
 		)?;
 
 		T::MultiCurrency::deposit(
 			KSM.into(),
 			&fee_account,
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
 		)?;
 
 		let amounts = vec![
-			<T as bifrost_stable_asset::Config>::Balance::from(10_000_000_000u128.into()),
-			<T as bifrost_stable_asset::Config>::Balance::from(10_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(10_000_000_000_u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(10_000_000_000_u128.into()),
 		];
 
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			10000000u128.into(),
-			20000000u128.into(),
-			50000000u128.into(),
-			10000u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			10000000_u128.into(),
+			20000000_u128.into(),
+			50000000_u128.into(),
+			10000_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000000000u128.into()
+			1000000000000000000_u128.into()
 		));
 
 		assert_ok!(StablePool::<T>::edit_token_rate(
 			RawOrigin::Root.into(),
 			0,
 			vec![
-				(BNC.into(), (9u128.into(), 10u128.into())),
-				(KSM.into(), (1u128.into(), 1u128.into()))
+				(BNC.into(), (9_u128.into(), 10_u128.into())),
+				(KSM.into(), (1_u128.into(), 1_u128.into()))
 			]
 		));
 
@@ -204,31 +203,31 @@ mod benchmarks {
 		T::MultiCurrency::deposit(
 			BNC.into(),
 			&fee_account,
-			<T as bifrost_stable_asset::Config>::Balance::from(1000_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(1_000_000_000_000_u128.into()),
 		)?;
 
 		let amounts = vec![
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_u128.into()),
 		];
 
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			10000000u128.into(),
-			20000000u128.into(),
-			50000000u128.into(),
-			10000u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			10000000_u128.into(),
+			20000000_u128.into(),
+			50000000_u128.into(),
+			10000_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000000000u128.into()
+			1000000000000000000_u128.into()
 		));
 
 		assert_ok!(StablePool::<T>::edit_token_rate(
 			RawOrigin::Root.into(),
 			0,
-			vec![(BNC.into(), (9u128.into(), 10u128.into()))]
+			vec![(BNC.into(), (9_u128.into(), 10_u128.into()))]
 		));
 
 		assert_ok!(StablePool::<T>::add_liquidity(
@@ -244,7 +243,7 @@ mod benchmarks {
 			0,
 			0,
 			1,
-			<T as bifrost_stable_asset::Config>::Balance::from(50_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(50_000_000_000_u128.into()),
 			<T as bifrost_stable_asset::Config>::Balance::zero(),
 		);
 
@@ -259,31 +258,31 @@ mod benchmarks {
 		T::MultiCurrency::deposit(
 			BNC.into(),
 			&fee_account,
-			<T as bifrost_stable_asset::Config>::Balance::from(1000_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(1_000_000_000_000_u128.into()),
 		)?;
 
 		let amounts = vec![
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_u128.into()),
 		];
 
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 
 		assert_ok!(StablePool::<T>::edit_token_rate(
 			RawOrigin::Root.into(),
 			0,
-			vec![(BNC.into(), (9u128.into(), 10u128.into()))]
+			vec![(BNC.into(), (9_u128.into(), 10_u128.into()))]
 		));
 
 		assert_ok!(StablePool::<T>::add_liquidity(
@@ -297,7 +296,7 @@ mod benchmarks {
 		_(
 			RawOrigin::Signed(fee_account),
 			0,
-			<T as bifrost_stable_asset::Config>::Balance::from(5_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(5_000_000_u128.into()),
 			vec![
 				<T as bifrost_stable_asset::Config>::Balance::zero(),
 				<T as bifrost_stable_asset::Config>::Balance::zero(),
@@ -316,31 +315,31 @@ mod benchmarks {
 		T::MultiCurrency::deposit(
 			BNC.into(),
 			&fee_account,
-			<T as bifrost_stable_asset::Config>::Balance::from(1000_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(1_000_000_000_000_u128.into()),
 		)?;
 
 		let amounts = vec![
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_u128.into()),
 		];
 
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 
 		assert_ok!(StablePool::<T>::edit_token_rate(
 			RawOrigin::Root.into(),
 			0,
-			vec![(BNC.into(), (9u128.into(), 10u128.into()))]
+			vec![(BNC.into(), (9_u128.into(), 10_u128.into()))]
 		));
 
 		assert_ok!(StablePool::<T>::add_liquidity(
@@ -354,7 +353,7 @@ mod benchmarks {
 		_(
 			RawOrigin::Signed(fee_account),
 			0,
-			<T as bifrost_stable_asset::Config>::Balance::from(5_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(5_000_000_u128.into()),
 			0,
 			<T as bifrost_stable_asset::Config>::Balance::zero(),
 			2,
@@ -372,31 +371,31 @@ mod benchmarks {
 		T::MultiCurrency::deposit(
 			BNC.into(),
 			&fee_account,
-			<T as bifrost_stable_asset::Config>::Balance::from(1000_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(1_000_000_000_000_u128.into()),
 		)?;
 
 		let amounts = vec![
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
-			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(100_000_000_000_u128.into()),
 		];
 
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 
 		assert_ok!(StablePool::<T>::edit_token_rate(
 			RawOrigin::Root.into(),
 			0,
-			vec![(BNC.into(), (9u128.into(), 10u128.into()))]
+			vec![(BNC.into(), (9_u128.into(), 10_u128.into()))]
 		));
 
 		assert_ok!(StablePool::<T>::add_liquidity(
@@ -407,8 +406,8 @@ mod benchmarks {
 		));
 
 		let redeem_amounts = vec![
-			<T as bifrost_stable_asset::Config>::Balance::from(90_000_000u128.into()),
-			<T as bifrost_stable_asset::Config>::Balance::from(90_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(90_000_000_u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(90_000_000_u128.into()),
 		];
 
 		#[extrinsic_call]
@@ -416,7 +415,7 @@ mod benchmarks {
 			RawOrigin::Signed(fee_account),
 			0,
 			redeem_amounts,
-			<T as bifrost_stable_asset::Config>::Balance::from(200_000_000_000u128.into()),
+			<T as bifrost_stable_asset::Config>::Balance::from(200_000_000_000_u128.into()),
 		);
 
 		Ok(())
@@ -431,18 +430,18 @@ mod benchmarks {
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 
 		#[extrinsic_call]
-		_(RawOrigin::Root, 0, 9u128.into(), 9u32.into());
+		_(RawOrigin::Root, 0, 9_u128.into(), 9u32.into());
 
 		Ok(())
 	}
@@ -456,23 +455,23 @@ mod benchmarks {
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 
 		#[extrinsic_call]
 		_(
 			RawOrigin::Root,
 			0,
-			Some(1000u128.into()),
-			Some(1000u128.into()),
-			Some(1000u128.into()),
+			Some(1000_u128.into()),
+			Some(1000_u128.into()),
+			Some(1000_u128.into()),
 		);
 
 		Ok(())
@@ -488,14 +487,14 @@ mod benchmarks {
 		assert_ok!(StablePool::<T>::create_pool(
 			RawOrigin::Root.into(),
 			vec![coin0.into(), coin1.into()],
-			vec![1u128.into(), 1u128.into()],
-			0u128.into(),
-			0u128.into(),
-			0u128.into(),
-			220u128.into(),
+			vec![1_u128.into(), 1_u128.into()],
+			0_u128.into(),
+			0_u128.into(),
+			0_u128.into(),
+			220_u128.into(),
 			fee_account.clone(),
 			fee_account.clone(),
-			1000000000000u128.into()
+			1000000000000_u128.into()
 		));
 
 		#[extrinsic_call]

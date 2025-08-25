@@ -127,18 +127,16 @@ impl<T: Config>
 				let contribute_call =
 					PhalaCall::PhalaVault(VaultCall::<T>::Contribute(pool_id, amount));
 				let calls = vec![Box::new(wrap_call), Box::new(contribute_call)];
-				let batched_calls = PhalaCall::Utility(Box::new(
-					PhalaUtilityCall::<PhalaCall<T>>::BatchAll(Box::new(calls)),
-				));
+				let batched_calls =
+					PhalaCall::Utility(Box::new(PhalaUtilityCall::<PhalaCall<T>>::BatchAll(calls)));
 				batched_calls.encode()
 			} else {
 				let contribute_call = PhalaCall::PhalaStakePoolv2(
 					StakePoolv2Call::<T>::Contribute(pool_id, amount, None),
 				);
 				let calls = vec![Box::new(wrap_call), Box::new(contribute_call)];
-				let batched_calls = PhalaCall::Utility(Box::new(
-					PhalaUtilityCall::<PhalaCall<T>>::BatchAll(Box::new(calls)),
-				));
+				let batched_calls =
+					PhalaCall::Utility(Box::new(PhalaUtilityCall::<PhalaCall<T>>::BatchAll(calls)));
 				batched_calls.encode()
 			}
 		};
@@ -338,7 +336,7 @@ impl<T: Config>
 	fn delegate(
 		&self,
 		who: &MultiLocation,
-		targets: &Vec<MultiLocation>,
+		targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		_weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -371,7 +369,7 @@ impl<T: Config>
 			);
 
 			// if the delegator is new, create a ledger for it
-			if !DelegatorLedgers::<T>::contains_key(currency_id, &who.clone()) {
+			if !DelegatorLedgers::<T>::contains_key(currency_id, *who) {
 				// Create a new delegator ledger\
 				let ledger = PhalaLedger::<BalanceOf<T>> {
 					account: *who,
@@ -422,7 +420,7 @@ impl<T: Config>
 		Pallet::<T>::deposit_event(Event::Delegated {
 			currency_id,
 			delegator_id: *who,
-			targets: Some(targets.clone()),
+			targets: Some(targets.to_vec()),
 			query_id: Zero::zero(),
 			query_id_hash: Hash::<T>::default(),
 		});
@@ -435,7 +433,7 @@ impl<T: Config>
 	fn undelegate(
 		&self,
 		who: &MultiLocation,
-		_targets: &Vec<MultiLocation>,
+		_targets: &[MultiLocation],
 		currency_id: CurrencyId,
 		_weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -489,7 +487,7 @@ impl<T: Config>
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
 		let targets = targets.as_ref().ok_or(Error::<T>::ValidatorNotProvided)?;
-		Self::delegate(self, who, &targets, currency_id, weight_and_fee)
+		Self::delegate(self, who, targets, currency_id, weight_and_fee)
 	}
 
 	/// Corresponds to the `check_and_maybe_force_withdraw` funtion of PhalaVault pallet.
@@ -952,11 +950,11 @@ impl<T: Config> PhalaAgent<T> {
 		total_shares: &u128,
 		amount: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, Error<T>> {
-		ensure!(total_shares > &0u128, Error::<T>::DividedByZero);
+		ensure!(total_shares > &0_u128, Error::<T>::DividedByZero);
 		let shares: u128 = U256::from((*total_shares).saturated_into::<u128>())
 			.saturating_mul(amount.saturated_into::<u128>().into())
 			.checked_div((*total_value).saturated_into::<u128>().into())
-			.map(|x| u128::try_from(x))
+			.map(u128::try_from)
 			.ok_or(Error::<T>::OverFlow)?
 			.map_err(|_| Error::<T>::OverFlow)?;
 

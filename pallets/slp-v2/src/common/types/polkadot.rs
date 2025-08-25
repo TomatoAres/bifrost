@@ -27,6 +27,7 @@ use crate::{
 use bifrost_primitives::{
 	AstarChainId, BifrostPolkadotChainId, MoonbeamChainId, TimeUnit, ASTR, DOT, ETH, GLMR,
 };
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use frame_support::traits::Get;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use polkadot_parachain_primitives::primitives::Sibling;
@@ -39,7 +40,19 @@ use xcm::{
 };
 
 /// Supported staking protocols.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
+#[allow(clippy::enum_variant_names)]
 pub enum StakingProtocol {
 	/// DappStaking on Astar.
 	AstarDappStaking,
@@ -118,8 +131,8 @@ impl StakingProtocol {
 	) -> Option<Location> {
 		match (self, delegator) {
 			(StakingProtocol::AstarDappStaking, Delegator::Substrate(account_id)) => {
-				account_id.encode().try_into().ok().and_then(|account_id| {
-					Some(Location::new(
+				account_id.encode().try_into().ok().map(|account_id| {
+					Location::new(
 						1,
 						[
 							Parachain(AstarChainId::get()),
@@ -128,18 +141,18 @@ impl StakingProtocol {
 								id: account_id,
 							},
 						],
-					))
+					)
 				})
 			}
 			(StakingProtocol::PolkadotStaking, Delegator::Substrate(account_id)) => {
-				account_id.encode().try_into().ok().and_then(|account_id| {
-					Some(Location::new(
+				account_id.encode().try_into().ok().map(|account_id| {
+					Location::new(
 						1,
 						[AccountId32 {
 							network: None,
 							id: account_id,
 						}],
-					))
+					)
 				})
 			}
 			(StakingProtocol::MoonbeamParachainStaking, Delegator::Ethereum(account_id)) => {
@@ -188,7 +201,10 @@ impl StakingProtocol {
 }
 
 /// Validator in slp protocol.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo,
+)]
+#[allow(clippy::enum_variant_names)]
 pub enum Validator<AccountId> {
 	AstarDappStaking(AstarValidator<AccountId>),
 	MoonbeamParachainStaking(H160),
@@ -197,19 +213,43 @@ pub enum Validator<AccountId> {
 }
 
 /// Ledger in slp protocol.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo,
+)]
 pub enum Ledger {
 	AstarDappStaking(AstarDappStakingLedger),
 	EthereumStaking(EthereumStakingLedger),
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum XcmTask<AccountId> {
 	AstarDappStaking(DappStaking<AccountId>),
 }
 
 /// PendingStatus in slp protocol.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum PendingStatus<AccountId> {
 	AstarDappStaking(AstarDappStakingPendingStatus<AccountId>),
 }

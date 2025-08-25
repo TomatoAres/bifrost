@@ -213,8 +213,8 @@ pub fn local_testnet_config() -> ChainSpec {
 		(Native(BNC), DOLLARS / 100, None),
 		(Stable(KUSD), DOLLARS / 10_000, None),
 		(Token(KSM), DOLLARS / 10_000, None),
-		(Token(ZLK), DOLLARS / 1000_000, None),
-		(Token(MOVR), DOLLARS / 1000_000, None),
+		(Token(ZLK), DOLLARS / 1_000_000, None),
+		(Token(MOVR), DOLLARS / 1_000_000, None),
 	];
 	let vcurrency = vec![VToken(BNC), VToken(KSM), VToken(MOVR)];
 

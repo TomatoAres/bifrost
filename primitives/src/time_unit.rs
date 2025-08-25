@@ -18,12 +18,15 @@
 
 //! Low-level types used throughout the Bifrost code.
 
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use parity_scale_codec::MaxEncodedLen;
 use scale_info::TypeInfo;
 use sp_core::{Decode, Encode, RuntimeDebug};
 
 // For vtoken-minting and slp modules
-#[derive(Encode, Decode, Clone, RuntimeDebug, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, Clone, RuntimeDebug, Eq, TypeInfo, MaxEncodedLen,
+)]
 pub enum TimeUnit {
 	// Kusama staking time unit
 	Era(#[codec(compact)] u32),
@@ -48,7 +51,7 @@ impl TimeUnit {
 		}
 	}
 
-	pub fn add(self, other_time: Self) -> Option<Self> {
+	pub fn saturating_add(self, other_time: Self) -> Option<Self> {
 		match (self, other_time) {
 			(TimeUnit::Era(a), TimeUnit::Era(b)) => Some(TimeUnit::Era(a.saturating_add(b))),
 			(TimeUnit::SlashingSpan(a), TimeUnit::SlashingSpan(b)) => {
@@ -106,6 +109,7 @@ impl Ord for TimeUnit {
 	}
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for TimeUnit {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		match (&self, other) {
@@ -115,6 +119,7 @@ impl PartialOrd for TimeUnit {
 			(Self::Kblock(a), Self::Kblock(b)) => Some(a.cmp(b)),
 			(Self::Hour(a), Self::Hour(b)) => Some(a.cmp(b)),
 			_ => None,
-		}
+		};
+		Some(self.cmp(other))
 	}
 }

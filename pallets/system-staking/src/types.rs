@@ -140,7 +140,7 @@ where
 {
 	/// Number of blocks with delayed execution
 	pub exec_delay: BlockNumber,
-	///
+	/// System stakable base balance
 	pub system_stakable_base: Balance,
 }
 

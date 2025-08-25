@@ -253,7 +253,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				!AccountToOuterMultilocation::<T>::contains_key(&currency_id, who.clone()),
+				!AccountToOuterMultilocation::<T>::contains_key(currency_id, who.clone()),
 				Error::<T>::AlreadyExist
 			);
 
@@ -345,7 +345,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::ControlOrigin::ensure_origin(origin)?;
 
-			if RegisterWhiteList::<T>::get(currency_id) == None {
+			if RegisterWhiteList::<T>::get(currency_id).is_none() {
 				RegisterWhiteList::<T>::insert(currency_id, BoundedVec::default());
 			}
 

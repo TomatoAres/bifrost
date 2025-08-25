@@ -173,6 +173,7 @@ impl pallet_assets::Config for Test {
 	type WeightInfo = ();
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type CallbackHandle = ();
+	type Holder = ();
 }
 
 parameter_types! {
@@ -284,6 +285,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(ALICE, 100_000_000), (CHARLIE, 100_000_000)],
+		dev_accounts: None,
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

@@ -25,7 +25,6 @@ pallet-timestamp = { workspace = true }
 pallet-traits = { workspace = true }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
-sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 

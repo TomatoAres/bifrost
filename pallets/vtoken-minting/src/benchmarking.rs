@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Ensure we're `no_std` when compiling for Wasm.
-#![cfg(feature = "runtime-benchmarks")]
 
 use crate::{Pallet as VtokenMinting, *};
 use bifrost_primitives::{CurrencyId, TokenSymbol, VtokenMintingOperator, VKSM};

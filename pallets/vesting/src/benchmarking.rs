@@ -45,7 +45,7 @@ fn add_vesting_schedule<T: Config>(who: &T::AccountId) -> Result<BalanceOf<T>, B
 	Pallet::<T>::init_vesting_start_at(RawOrigin::Root.into(), 0u32.into())
 		.map_err(|_| BenchmarkError::Stop("Failed to init vesting start"))?;
 
-	Pallet::<T>::add_vesting_schedule(&who, locked.into(), per_block.into(), starting_block.into())
+	Pallet::<T>::add_vesting_schedule(who, locked.into(), per_block.into(), starting_block.into())
 		.map_err(|_| BenchmarkError::Stop("Failed to add vesting schedule"))?;
 
 	Ok(locked.into())

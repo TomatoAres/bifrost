@@ -217,6 +217,10 @@ pub mod pallet {
 			limit: u32,
 			executed_num: u32,
 		},
+		/// Error event indicating that the clearing environment setting failed.
+		SetClearingEnvironmentFailed {
+			block_number: BlockNumberFor<T>,
+		},
 	}
 
 	/// Auto increment channel id
@@ -331,7 +335,7 @@ pub mod pallet {
 				return Weight::zero();
 			}
 
-			let channel_count: u32 = ChannelNextId::<T>::get().into();
+			let channel_count: u32 = ChannelNextId::<T>::get();
 			let current_block_number = T::BlockNumberProvider::current_block_number();
 
 			// get the commission token count
@@ -340,7 +344,16 @@ pub mod pallet {
 			// If the current block number is the first block of a new clearing period, we need to
 			// prepare data for clearing.
 			if (current_block_number % T::ClearingDuration::get()).is_zero() {
-				Self::set_clearing_environment();
+				if let Some(e) = Self::set_clearing_environment().err() {
+					log::error!(
+						target: "channel-commission::set_clearing_environment",
+						"Received invalid justification for {:?}",
+						e,
+					);
+					Self::deposit_event(Event::SetClearingEnvironmentFailed {
+						block_number: current_block_number,
+					});
+				}
 			} else if (current_block_number % T::ClearingDuration::get())
 				< (channel_count + 1).into()
 			{
@@ -538,7 +551,7 @@ pub mod pallet {
 				PeriodClearedCommissions::<T>::insert(vtoken, BalanceOf::<T>::zero());
 
 				// set VtokenIssuanceSnapshots for the vtoken
-				let issuance = T::VtokenMintingInterface::get_v_currency_issuance(vtoken);
+				let issuance = T::VtokenMintingInterface::get_v_currency_issuance(vtoken)?;
 				let zero_balance: BalanceOf<T> = Zero::zero();
 				VtokenIssuanceSnapshots::<T>::insert(vtoken, (zero_balance, issuance));
 
@@ -636,7 +649,7 @@ pub mod pallet {
 				// if the sum of all shares is greater than 1, throw an error
 				let total_shares_op = total_shares.checked_add(&share);
 
-				total_shares = total_shares_op.ok_or_else(|| Error::<T>::InvalidCommissionRate)?;
+				total_shares = total_shares_op.ok_or(Error::<T>::InvalidCommissionRate)?;
 			}
 
 			// update the channel vtoken share
@@ -654,25 +667,30 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub(crate) fn set_clearing_environment() {
+	pub(crate) fn set_clearing_environment() -> Result<(), DispatchError> {
 		//  Move the vtoken issuance amount from ongoing period to the previous period and clear the
 		// ongoing period issuance amount
 		let snapshots: Vec<CurrencyId> = VtokenIssuanceSnapshots::<T>::iter_keys().collect();
 		for vtoken in snapshots {
-			VtokenIssuanceSnapshots::<T>::mutate(vtoken, |issuance| {
-				issuance.0 = issuance.1;
+			VtokenIssuanceSnapshots::<T>::mutate(
+				vtoken,
+				|issuance| -> Result<(), DispatchError> {
+					issuance.0 = issuance.1;
 
-				// get the vtoken new issuance amount from Tokens module issuance storage
-				let new_issuance = T::VtokenMintingInterface::get_v_currency_issuance(vtoken);
+					// get the vtoken new issuance amount from Tokens module issuance storage
+					let new_issuance = T::VtokenMintingInterface::get_v_currency_issuance(vtoken)?;
 
-				issuance.1 = new_issuance;
+					issuance.1 = new_issuance;
 
-				Self::deposit_event(Event::VtokenIssuanceSnapshotUpdated {
-					vtoken,
-					old_issuance: issuance.0,
-					new_issuance,
-				});
-			});
+					Self::deposit_event(Event::VtokenIssuanceSnapshotUpdated {
+						vtoken,
+						old_issuance: issuance.0,
+						new_issuance,
+					});
+
+					Ok(())
+				},
+			)?;
 		}
 
 		// Move the total minted amount of the period from ongoing period to the previous period and
@@ -748,6 +766,8 @@ impl<T: Config> Pallet<T> {
 				});
 			});
 		}
+
+		Ok(())
 	}
 
 	pub(crate) fn clear_channel_commissions(channel_id: ChannelId) {
@@ -894,13 +914,15 @@ impl<T: Config> Pallet<T> {
 
 			// transfer the bifrost commission amount from CommissionPalletId account to the bifrost
 			// commission receiver account
-			if let Err(_) = T::MultiCurrency::transfer(
+			if T::MultiCurrency::transfer(
 				commission_token,
 				&Self::account_id(),
 				&T::BifrostCommissionReceiver::get(),
 				bifrost_commission,
 				ExistenceRequirement::AllowDeath,
-			) {
+			)
+			.is_err()
+			{
 				log::error!(
 					"Failed to transfer bifrost commission for token: {:?}",
 					commission_token

@@ -39,8 +39,14 @@ pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T>>>::Balance;
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+type ContributionInfo<T> = (BalanceOf<T>, ContributionStatus<BalanceOf<T>>);
+type ContributionRecord<T> = (AccountIdOf<T>, ContributionInfo<T>);
+
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, Default,
+)]
 pub enum FundStatus {
+	#[default]
 	Ongoing,
 	Retired,
 	Success,
@@ -49,12 +55,6 @@ pub enum FundStatus {
 	RedeemWithdrew,
 	FailedToContinue,
 	End,
-}
-
-impl Default for FundStatus {
-	fn default() -> Self {
-		FundStatus::Ongoing
-	}
 }
 
 /// Information on a funding effort for a pre-existing parachain. We assume that the parachain
@@ -789,7 +789,7 @@ pub mod pallet {
 					let release_amount = T::ReleaseRatio::get() * rp_balance;
 
 					// Must be ok
-					if let Err(_) = TryInto::<BalanceOf<T>>::try_into(release_amount) {
+					if TryInto::<BalanceOf<T>>::try_into(release_amount).is_err() {
 						log::warn!("Overflow: The balance of redeem-pool exceeds u128.");
 					}
 				}
@@ -819,13 +819,13 @@ pub mod pallet {
 			first_slot: LeasePeriod,
 			last_slot: LeasePeriod,
 		) -> Result<FundInfo<BalanceOf<T>, LeasePeriod>, Error<T>> {
-			return match FailedFundsToRefund::<T>::get((index, first_slot, last_slot)) {
+			match FailedFundsToRefund::<T>::get((index, first_slot, last_slot)) {
 				Some(fund) => Ok(fund),
 				_ => match Funds::<T>::get(index) {
 					Some(fund) => Ok(fund),
 					_ => Err(Error::<T>::InvalidFundNotExist),
 				},
-			};
+			}
 		}
 
 		pub fn fund_account_id(index: ParaId) -> T::AccountId {
@@ -854,7 +854,7 @@ pub mod pallet {
 		pub fn contribution_by_fund(
 			index: ParaId,
 			who: &AccountIdOf<T>,
-		) -> Result<(BalanceOf<T>, ContributionStatus<BalanceOf<T>>), Error<T>> {
+		) -> Result<ContributionInfo<T>, Error<T>> {
 			let fund = Funds::<T>::get(index).ok_or(Error::<T>::InvalidParaId)?;
 			let (contributed, status) = Self::contribution(fund.trie_index, who);
 			Ok((contributed, status))
@@ -862,10 +862,7 @@ pub mod pallet {
 
 		pub(crate) fn contribution_iterator(
 			index: TrieIndex,
-		) -> ChildTriePrefixIterator<(
-			AccountIdOf<T>,
-			(BalanceOf<T>, ContributionStatus<BalanceOf<T>>),
-		)> {
+		) -> ChildTriePrefixIterator<ContributionRecord<T>> {
 			ChildTriePrefixIterator::<_>::with_prefix_over_key::<Identity>(
 				&Self::id_from_index(index),
 				&[],

@@ -20,7 +20,7 @@
 
 use crate::{mock::*, *};
 use bifrost_primitives::currency::KSM;
-use frame_support::{assert_noop, assert_ok, WeakBoundedVec};
+use frame_support::{assert_noop, assert_ok};
 use sp_runtime::DispatchError::BadOrigin;
 #[allow(deprecated)]
 use xcm::opaque::v3::{Junction, Junctions::X1};

@@ -29,6 +29,7 @@ use bifrost_primitives::{
 	OraclePriceProvider,
 };
 use core::ops::Mul;
+use ethereum::AuthorizationList;
 use fp_evm::AccountProvider;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::{
@@ -112,6 +113,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>,
 		is_transactional: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
@@ -162,6 +164,7 @@ where
 				max_priority_fee_per_gas,
 				value,
 				access_list,
+				authorization_list,
 			},
 			weight_limit,
 			proof_size_base_cost,
@@ -183,12 +186,25 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
 		config: &fp_evm::Config,
 	) -> Result<CallInfo, RunnerError<Self::Error>> {
+		let authorization = authorization_list
+			.iter()
+			.map(|d| {
+				(
+					U256::from(d.chain_id),
+					d.address,
+					d.nonce,
+					d.authorizing_address().ok(),
+				)
+			})
+			.collect::<Vec<(U256, sp_core::H160, U256, Option<sp_core::H160>)>>();
+
 		if validate {
 			Self::validate(
 				source,
@@ -200,6 +216,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				authorization,
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -217,6 +234,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -234,12 +252,25 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
 		config: &fp_evm::Config,
 	) -> Result<CreateInfo, RunnerError<Self::Error>> {
+		let authorization = authorization_list
+			.iter()
+			.map(|d| {
+				(
+					U256::from(d.chain_id),
+					d.address,
+					d.nonce,
+					d.authorizing_address().ok(),
+				)
+			})
+			.collect::<Vec<(U256, sp_core::H160, U256, Option<sp_core::H160>)>>();
+
 		if validate {
 			Self::validate(
 				source,
@@ -251,6 +282,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				authorization,
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -267,6 +299,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -285,12 +318,25 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
 		config: &fp_evm::Config,
 	) -> Result<CreateInfo, RunnerError<Self::Error>> {
+		let authorization = authorization_list
+			.iter()
+			.map(|d| {
+				(
+					U256::from(d.chain_id),
+					d.address,
+					d.nonce,
+					d.authorizing_address().ok(),
+				)
+			})
+			.collect::<Vec<(U256, sp_core::H160, U256, Option<sp_core::H160>)>>();
+
 		if validate {
 			Self::validate(
 				source,
@@ -302,6 +348,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				authorization,
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -319,6 +366,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,

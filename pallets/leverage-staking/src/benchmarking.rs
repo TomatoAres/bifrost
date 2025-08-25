@@ -188,7 +188,7 @@ mod benchmarks {
 		let rate = FixedU128::from_inner(unit(990_000));
 
 		#[extrinsic_call]
-		Pallet::<T>::flash_loan_deposit(SystemOrigin::Signed(caller.clone()), coin0.into(), rate);
+		Pallet::<T>::flash_loan_deposit(SystemOrigin::Signed(caller.clone()), coin0, rate);
 
 		Ok(())
 	}

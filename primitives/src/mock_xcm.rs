@@ -20,12 +20,15 @@ use crate::{AccountId, Balance, CurrencyId};
 use orml_traits::{xcm_transfer::Transferred, XcmTransfer};
 use sp_runtime::DispatchError;
 use sp_std::vec::Vec;
+use xcm::latest::XcmContext;
 use xcm::{
 	latest::Asset,
 	prelude::{ExecuteXcm, Fungible, Outcome, PreparedMessage, SendResult, Xcm, XcmResult},
 	v5::{AssetId, Assets, Location, SendError, SendXcm, Weight, WeightLimit, XcmHash},
 };
-use xcm_executor::traits::{AssetTransferError, TransferType, XcmAssetTransfers};
+use xcm_executor::traits::{
+	AssetTransferError, FeeManager, FeeReason, TransferType, XcmAssetTransfers,
+};
 
 pub struct MockXcmRouter;
 impl SendXcm for MockXcmRouter {
@@ -138,6 +141,15 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
 	fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> XcmResult {
 		Ok(())
 	}
+}
+
+impl FeeManager for MockXcmExecutor {
+	fn is_waived(_: Option<&Location>, _: FeeReason) -> bool {
+		// By default, the fee is not waived. It can be modified according to the actual situation
+		false
+	}
+
+	fn handle_fee(_: Assets, _: Option<&XcmContext>, _: FeeReason) {}
 }
 
 impl XcmAssetTransfers for MockXcmExecutor {

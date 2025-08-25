@@ -17,18 +17,42 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_primitives::Balance;
-use frame_support::pallet_prelude::{Decode, Encode, MaxEncodedLen, TypeInfo};
+use frame_support::pallet_prelude::{
+	Decode, DecodeWithMemTracking, Encode, MaxEncodedLen, TypeInfo,
+};
 use sp_runtime::Saturating;
 
 /// Dapp staking extrinsic call.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum EthereumStaking {
 	Stake(#[codec(compact)] Balance),
 	Unstake(#[codec(compact)] Balance),
 }
 
 /// Ethereum staking ledger.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, Default, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Debug,
+	Default,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct EthereumStakingLedger {
 	/// How much active locked amount an account has. This can be used for staking.
 	#[codec(compact)]

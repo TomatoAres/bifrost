@@ -59,7 +59,7 @@ pub enum MoonbeamUtilityCall<MoonbeamCall> {
 	#[codec(index = 1)]
 	AsDerivative(u16, Box<MoonbeamCall>),
 	#[codec(index = 2)]
-	BatchAll(Box<Vec<Box<MoonbeamCall>>>),
+	BatchAll(Vec<Box<MoonbeamCall>>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]

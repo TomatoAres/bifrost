@@ -323,6 +323,7 @@ fn start_consensus(
 		// Very limited proposal time.
 		authoring_duration: Duration::from_millis(1500),
 		reinitialize: false,
+		max_pov_percentage: None, // default 85%
 	};
 
 	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(
@@ -392,7 +393,7 @@ where
 			.map(|cfg| cfg.registry.clone()),
 	);
 
-	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
+	let (network, system_rpc_tx, tx_handler_controller, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
 			net_config,
@@ -588,8 +589,6 @@ where
 			announce_block,
 		)?;
 	}
-
-	start_network.start_network();
 
 	Ok((task_manager, client))
 }

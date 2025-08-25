@@ -898,7 +898,7 @@ fn refund_meanwhile_issue_should_work() {
 			deadline
 		));
 
-		let amounts = vec![1_000u128, 1_000u128];
+		let amounts = vec![1_000_u128, 1_000_u128];
 		assert_ok!(StablePool::create_pool(
 			RuntimeOrigin::signed(ALICE),
 			vec![KSM, VKSM],

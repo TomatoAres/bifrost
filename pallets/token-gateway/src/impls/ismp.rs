@@ -51,9 +51,9 @@ where
 			}
 		);
 
-		let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
+		let body: RequestBody = if let Ok(body) = Body::abi_decode(&body[1..], true) {
 			body.into()
-		} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
+		} else if let Ok(body) = BodyWithCall::abi_decode(&body[1..], true) {
 			body.into()
 		} else {
 			Err(anyhow!("Token Gateway: Failed to decode request body"))?
@@ -82,7 +82,7 @@ where
 			})?;
 		let decimals = local_asset_id.decimals().unwrap_or(
 			T::CurrencyIdConvert::get_currency_metadata(local_asset_id)
-				.map_or(12, |metatata| metatata.decimals),
+				.map_or(12, |metadata| metadata.decimals),
 		);
 		let erc_decimals = Decimals::<T>::get(local_asset_id)
 			.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
@@ -221,9 +221,9 @@ where
 				nonce,
 				..
 			})) => {
-				let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
+				let body: RequestBody = if let Ok(body) = Body::abi_decode(&body[1..], true) {
 					body.into()
-				} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
+				} else if let Ok(body) = BodyWithCall::abi_decode(&body[1..], true) {
 					body.into()
 				} else {
 					Err(anyhow!("Token Gateway: Failed to decode request body"))?
@@ -240,7 +240,7 @@ where
 					})?;
 				let decimals = local_asset_id.decimals().unwrap_or(
 					T::CurrencyIdConvert::get_currency_metadata(local_asset_id)
-						.map_or(12, |metatata| metatata.decimals),
+						.map_or(12, |metadata| metadata.decimals),
 				);
 				let erc_decimals = Decimals::<T>::get(local_asset_id)
 					.ok_or_else(|| anyhow!("Asset decimals not configured"))?;

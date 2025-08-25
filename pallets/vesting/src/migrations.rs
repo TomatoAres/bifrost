@@ -49,12 +49,12 @@ pub(crate) mod v1 {
 		Vesting::<T>::translate::<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>, _>(
 			|_key, vesting_info| {
 				reads_writes += 1;
-				let v: Option<
-					BoundedVec<
-						VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-						MaxVestingSchedulesGet<T>,
-					>,
-				> = vec![vesting_info].try_into().ok();
+
+				type VestingSchedule<T> = BoundedVec<
+					VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
+					MaxVestingSchedulesGet<T>,
+				>;
+				let v: Option<VestingSchedule<T>> = vec![vesting_info].try_into().ok();
 
 				if v.is_none() {
 					log::warn!(

@@ -47,6 +47,7 @@ pub fn genesis(para_id: u32) -> Storage {
 				.cloned()
 				.map(|k| (k, ED * 4096))
 				.collect(),
+			dev_accounts: None,
 		},
 		parachain_info: penpal_runtime::ParachainInfoConfig {
 			parachain_id: para_id.into(),

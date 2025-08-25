@@ -75,22 +75,22 @@ where
 		{
 			let raw_call_name = call_name.to_vec();
 			let raw_call_name_len = raw_call_name.len();
-			if call.encode().len() >= raw_call_name_len {
-				if call.encode()[0..raw_call_name_len].eq(&raw_call_name) {
-					match Self::charge_extra_fee(
-						who,
-						extra_fee_currency,
-						extra_fee_amount,
-						&extra_fee_receiver,
-					) {
-						Ok(_) => {}
-						Err(_) => {
-							return Err(TransactionValidityError::Invalid(
-								InvalidTransaction::Payment,
-							));
-						}
+			if call.encode().len() >= raw_call_name_len
+				&& call.encode()[0..raw_call_name_len].eq(&raw_call_name)
+			{
+				match Self::charge_extra_fee(
+					who,
+					extra_fee_currency,
+					extra_fee_amount,
+					&extra_fee_receiver,
+				) {
+					Ok(_) => {}
+					Err(_) => {
+						return Err(TransactionValidityError::Invalid(
+							InvalidTransaction::Payment,
+						));
 					}
-				};
+				}
 			}
 		}
 

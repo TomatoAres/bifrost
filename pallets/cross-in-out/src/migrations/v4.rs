@@ -39,14 +39,14 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV4<T> {
 			log::info!(target: LOG_TARGET, "Migrating AccountToOuterMultilocation v2::MultiLocation ➜ v3::MultiLocation");
 			for (currency_id, account_id, v2_location) in AccountToOuterMultilocation::<T>::drain()
 			{
-				let v3_location: MultiLocation = v2_location.into();
+				let v3_location: MultiLocation = v2_location;
 				AccountToOuterMultilocation::<T>::insert(currency_id, account_id, v3_location);
 				count += 1;
 			}
 
 			log::info!(target: LOG_TARGET, "Migrating OuterMultilocationToAccount v2::MultiLocation ➜ v3::MultiLocation");
 			for (currency_id, old_key, account) in OuterMultilocationToAccount::<T>::drain() {
-				let v3_key: MultiLocation = old_key.into();
+				let v3_key: MultiLocation = old_key;
 				OuterMultilocationToAccount::<T>::insert(currency_id, v3_key, account);
 				count += 1;
 			}
@@ -55,7 +55,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV4<T> {
 			in_code_version.put::<Pallet<T>>();
 
 			// Return the consumed weight
-			Weight::from(T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1))
+			T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

@@ -39,7 +39,7 @@ pub enum AstarUtilityCall<AstarCall> {
 	#[codec(index = 1)]
 	AsDerivative(u16, Box<AstarCall>),
 	#[codec(index = 2)]
-	BatchAll(Box<Vec<Box<AstarCall>>>),
+	BatchAll(Vec<Box<AstarCall>>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]

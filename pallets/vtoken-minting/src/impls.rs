@@ -28,8 +28,8 @@ use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
 	currency::BNC, AstarChainId, CurrencyId, CurrencyIdExt, HydrationChainId, HyperBridgeSender,
 	InterlayChainId, MantaChainId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
-	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, FIL, HYPERBRIDGE_TIMEOUT,
-	V_ETH,
+	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, ETH, FIL, HP_ARB_ETH,
+	HP_BASE_ETH, HP_ETH, HP_OP_ETH, HYPERBRIDGE_TIMEOUT, V_ETH,
 };
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
@@ -71,7 +71,14 @@ impl<T: Config> Pallet<T> {
 		currency_amount: &BalanceOf<T>,
 		operation: Operation,
 	) -> DispatchResult {
-		TokenPool::<T>::mutate(currency_id, |token_pool_amount| -> DispatchResult {
+		// If the currency is in SupportedEth, update the ETH pool instead
+		let target_currency_id = if Self::is_supported_eth(currency_id) {
+			&ETH
+		} else {
+			currency_id
+		};
+
+		TokenPool::<T>::mutate(target_currency_id, |token_pool_amount| -> DispatchResult {
 			match operation {
 				Operation::Set => *token_pool_amount = *currency_amount,
 				Operation::Add => {
@@ -124,7 +131,7 @@ impl<T: Config> Pallet<T> {
 	/// - `unlock_id`: The unlock id.
 	/// - `lock_to_time_unit`: The lock to time unit.
 	/// - `redeem_type`: The redeem type.
-	/// Returns:
+	///   Returns:
 	/// - `bool`: Whether the record is removed.
 	pub fn update_token_unlock_ledger(
 		redeemer: &AccountIdOf<T>,
@@ -189,7 +196,7 @@ impl<T: Config> Pallet<T> {
 							.map_err(|_| Error::<T>::TooManyRedeems)?;
 
 						*total_locked = total_locked
-							.checked_add(&currency_amount)
+							.checked_add(currency_amount)
 							.ok_or(Error::<T>::CalculationOverflow)?;
 					}
 					None => {
@@ -247,7 +254,7 @@ impl<T: Config> Pallet<T> {
 							.map_err(|_| Error::<T>::TooManyRedeems)?;
 
 						*total_locked = total_locked
-							.checked_add(&currency_amount)
+							.checked_add(currency_amount)
 							.ok_or(Error::<T>::CalculationOverflow)?;
 					}
 					None => {
@@ -322,7 +329,7 @@ impl<T: Config> Pallet<T> {
 			operation,
 			is_remove_record,
 		)?;
-		Self::update_unlocking_total(&currency_id, &currency_amount, operation)?;
+		Self::update_unlocking_total(currency_id, currency_amount, operation)?;
 		Ok(is_remove_record)
 	}
 
@@ -332,9 +339,10 @@ impl<T: Config> Pallet<T> {
 	/// - `v_currency_id`: The v_currency id.
 	/// - `currency_id`: The currency id.
 	/// - `currency_amount`: The currency amount.
-	/// Returns:
+	///   Returns:
 	/// - `(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>)`: The currency amount, v_currency amount, mint
 	///   fee.
+	#[allow(clippy::type_complexity)]
 	pub fn mint_without_transfer(
 		minter: &AccountIdOf<T>,
 		v_currency_id: CurrencyId,
@@ -438,7 +446,7 @@ impl<T: Config> Pallet<T> {
 	/// - `redeem_currency_amount`: The redeem currency amount.
 	/// - `entrance_account_balance`: The entrance account balance.
 	/// - `redeem_type`: The redeem type.
-	/// Returns:
+	///   Returns:
 	/// - `(BalanceOf<T>, RedeemTo<T::AccountId>)`: The redeem currency amount, redeem to.
 	pub fn transfer_to_by_redeem_type(
 		redeemer: T::AccountId,
@@ -628,7 +636,7 @@ impl<T: Config> Pallet<T> {
 				let ongoing_time =
 					OngoingTimeUnit::<T>::get(currency).ok_or(Error::<T>::OngoingTimeUnitNotSet)?;
 				let result_time_unit = ongoing_time
-					.add(unlock_duration)
+					.saturating_add(unlock_duration)
 					.ok_or(Error::<T>::CalculationOverflow)?;
 				if result_time_unit.gt(time_unit) {
 					*time_unit = time_unit.clone().add_one();
@@ -701,13 +709,11 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let currency_id = match currency_id {
 			Some(currency_id) => {
-				if SupportedEth::<T>::get().contains(&currency_id) {
-					currency_id
-				} else {
-					v_currency_id
-						.to_token()
-						.map_err(|_| Error::<T>::NotSupportTokenType)?
-				}
+				ensure!(
+					Self::convert_to_vtoken(currency_id)? == v_currency_id,
+					Error::<T>::NotSupportTokenType
+				);
+				currency_id
 			}
 			None => v_currency_id
 				.to_token()
@@ -760,7 +766,7 @@ impl<T: Config> Pallet<T> {
 		let unlock_duration =
 			UnlockDuration::<T>::get(currency_id).ok_or(Error::<T>::UnlockDurationNotFound)?;
 		let lock_to_time_unit = ongoing_time_unit
-			.add(unlock_duration)
+			.saturating_add(unlock_duration)
 			.ok_or(Error::<T>::UnlockDurationNotFound)?;
 
 		// Decrease the token pool amount
@@ -773,7 +779,7 @@ impl<T: Config> Pallet<T> {
 					&redeemer,
 					&currency_id,
 					&currency_amount,
-					&next_id,
+					next_id,
 					&lock_to_time_unit,
 					Some(redeem_type),
 					Operation::Add,
@@ -804,12 +810,12 @@ impl<T: Config> Pallet<T> {
 				Ok(Some(T::WeightInfo::redeem() + extra_weight).into())
 			})
 		} else {
-			TokenUnlockNextId::<T>::mutate(&currency_id, |next_id| -> DispatchResultWithPostInfo {
+			TokenUnlockNextId::<T>::mutate(currency_id, |next_id| -> DispatchResultWithPostInfo {
 				Self::update_unlock_ledger(
 					&redeemer,
 					&currency_id,
 					&currency_amount,
-					&next_id,
+					next_id,
 					&lock_to_time_unit,
 					Some(redeem_type),
 					Operation::Add,
@@ -866,7 +872,7 @@ impl<T: Config> Pallet<T> {
 		// and revise ledger to set the new_amount to be previous_amount + v_currency_amount
 		VtokenLockLedger::<T>::mutate_exists(
 			&minter,
-			&v_currency_id,
+			v_currency_id,
 			|v_token_lock_ledger| -> Result<(), Error<T>> {
 				// get the vtoken lock duration from VtokenIncentiveCoef
 				let lock_duration = MintWithLockBlocks::<T>::get(v_currency_id)
@@ -915,7 +921,7 @@ impl<T: Config> Pallet<T> {
 		minter: &AccountIdOf<T>,
 		v_currency_id: CurrencyIdOf<T>,
 		v_currency_amount: BalanceOf<T>,
-	) -> Result<BalanceOf<T>, Error<T>> {
+	) -> Result<BalanceOf<T>, DispatchError> {
 		// get the vtoken pool balance
 		let vtoken_pool_balance =
 			T::MultiCurrency::free_balance(v_currency_id, &Self::incentive_pool_account());
@@ -948,12 +954,10 @@ impl<T: Config> Pallet<T> {
 		let percentage = Permill::from_rational(minter_vebnc_balance, vebnc_total_issuance);
 		let sqrt_percentage =
 			FixedU128::from_inner(percentage * 1_000_000_000_000_000_000u128).sqrt();
-		let percentage = Permill::from_rational(
-			sqrt_percentage.into_inner(),
-			1_000_000_000_000_000_000u128.into(),
-		);
+		let percentage =
+			Permill::from_rational(sqrt_percentage.into_inner(), 1_000_000_000_000_000_000u128);
 		// get the total issuance of the vtoken for rate calculation
-		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id)?;
 
 		// get the incentive coef for the vtoken
 		let incentive_coef = VtokenIncentiveCoef::<T>::get(v_currency_id)
@@ -985,11 +989,8 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 {
 	fn get_token_pool(currency_id: CurrencyId) -> BalanceOf<T> {
 		if SupportedEth::<T>::get().contains(&currency_id) {
-			let mut token_pool_amount = BalanceOf::<T>::zero();
-			SupportedEth::<T>::get().iter().for_each(|&currency_id| {
-				token_pool_amount += TokenPool::<T>::get(currency_id);
-			});
-			token_pool_amount
+			// Return the unified ETH token pool for any SupportedEth token
+			TokenPool::<T>::get(ETH)
 		} else {
 			TokenPool::<T>::get(currency_id)
 		}
@@ -1057,7 +1058,15 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 	}
 
 	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyIdOf<T>, DispatchError> {
-		if SupportedEth::<T>::get().contains(&currency_id) {
+		#[allow(clippy::if_same_then_else)]
+		if currency_id == ETH
+			|| currency_id == HP_ETH
+			|| currency_id == HP_BASE_ETH
+			|| currency_id == HP_ARB_ETH
+			|| currency_id == HP_OP_ETH
+		{
+			Ok(V_ETH)
+		} else if SupportedEth::<T>::get().contains(&currency_id) {
 			Ok(V_ETH)
 		} else {
 			let currency_id = currency_id
@@ -1078,7 +1087,7 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 			AccountIdOf<T>,
 			TimeUnit,
 		>>::get_token_pool(currency_id);
-		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id)?;
 
 		if BalanceOf::<T>::zero().eq(&token_pool_amount) {
 			Ok(currency_amount)
@@ -1094,7 +1103,7 @@ impl<T: Config> VtokenMintingOperator<CurrencyId, BalanceOf<T>, AccountIdOf<T>, 
 		}
 	}
 
-	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> BalanceOf<T> {
+	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Result<BalanceOf<T>, DispatchError> {
 		Self::get_v_currency_issuance_inner(v_currency_id)
 	}
 
@@ -1156,7 +1165,7 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 			CurrencyIdOf<T>,
 			BalanceOf<T>,
 		>>::get_token_pool(currency_id);
-		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id)?;
 
 		if BalanceOf::<T>::zero().eq(&token_pool_amount) {
 			Ok(currency_amount)
@@ -1177,7 +1186,7 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 	/// - `currency_id`: The currency id.
 	/// - `v_currency_id`: The v_currency id.
 	/// - `currency_amount`: The currency amount.
-	/// Returns:
+	///   Returns:
 	/// - `Result`: The v_currency amount.
 	fn get_currency_amount_by_v_currency_amount(
 		currency_id: CurrencyIdOf<T>,
@@ -1189,7 +1198,7 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 			CurrencyIdOf<T>,
 			BalanceOf<T>,
 		>>::get_token_pool(currency_id);
-		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id);
+		let v_currency_issuance = Self::get_v_currency_issuance_inner(v_currency_id)?;
 
 		if BalanceOf::<T>::zero().eq(&v_currency_issuance) {
 			Ok(v_currency_amount)
@@ -1211,11 +1220,8 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 
 	fn get_token_pool(currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
 		if SupportedEth::<T>::get().contains(&currency_id) {
-			let mut token_pool_amount = BalanceOf::<T>::zero();
-			SupportedEth::<T>::get().iter().for_each(|&currency_id| {
-				token_pool_amount += TokenPool::<T>::get(currency_id);
-			});
-			token_pool_amount
+			// Return the unified ETH token pool for any SupportedEth token
+			TokenPool::<T>::get(ETH)
 		} else {
 			TokenPool::<T>::get(currency_id)
 		}
@@ -1225,7 +1231,9 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 		T::MoonbeamChainId::get()
 	}
 
-	fn get_v_currency_issuance(v_currency_id: CurrencyIdOf<T>) -> BalanceOf<T> {
+	fn get_v_currency_issuance(
+		v_currency_id: CurrencyIdOf<T>,
+	) -> Result<BalanceOf<T>, DispatchError> {
 		Self::get_v_currency_issuance_inner(v_currency_id)
 	}
 
@@ -1237,7 +1245,7 @@ impl<T: Config> VtokenMintingInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceO
 impl<T: Config> VTokenSupplyProvider<CurrencyIdOf<T>, BalanceOf<T>> for Pallet<T> {
 	fn get_vtoken_supply(vtoken: CurrencyIdOf<T>) -> Option<BalanceOf<T>> {
 		if CurrencyId::is_vtoken(&vtoken) {
-			Some(Self::get_v_currency_issuance_inner(vtoken))
+			Some(Self::get_v_currency_issuance_inner(vtoken).ok()?)
 		} else {
 			None
 		}

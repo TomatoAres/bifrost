@@ -17,13 +17,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_primitives::{CurrencyId, TimeUnit};
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::vec::Vec;
 use xcm::v3::MultiLocation;
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct SubstrateLedger<Balance> {
 	/// The delegator account Id
 	pub account: MultiLocation,
@@ -41,7 +42,7 @@ pub struct SubstrateLedger<Balance> {
 }
 
 /// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct UnlockChunk<Balance> {
 	/// Amount of funds to be unlocked.
 	#[codec(compact)]
@@ -51,7 +52,7 @@ pub struct UnlockChunk<Balance> {
 }
 
 /// A type for substrate ledger updating entries
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct SubstrateLedgerUpdateEntry<Balance> {
 	/// The currency id of the delegator that needs to be update
 	pub currency_id: CurrencyId,
@@ -69,7 +70,7 @@ pub struct SubstrateLedgerUpdateEntry<Balance> {
 }
 
 /// A type for substrate validators by delegator updating entries
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, DecodeWithMemTracking, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 pub struct SubstrateValidatorsByDelegatorUpdateEntry {
 	/// The currency id of the delegator that needs to be update
 	pub currency_id: CurrencyId,
@@ -79,7 +80,7 @@ pub struct SubstrateValidatorsByDelegatorUpdateEntry {
 	pub validators: Vec<MultiLocation>,
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub enum SubstrateLedgerUpdateOperation {
 	Bond,
 	Unlock,

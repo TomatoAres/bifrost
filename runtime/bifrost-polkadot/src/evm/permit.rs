@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{evm::precompiles, ExtrinsicBaseWeight, Runtime};
+use alloc::vec;
 use bifrost_primitives::{AccountId, EvmPermit};
 use fp_evm::ExitReason;
 use fp_evm::FeeCalculator;
@@ -118,6 +119,7 @@ where
 
 		let is_transactional = true;
 		let validate = true;
+		let authorization_list = vec![];
 		let info = match <R as pallet_evm::Config>::Runner::call(
 			source,
 			target,
@@ -128,6 +130,7 @@ where
 			max_priority_fee_per_gas,
 			None,
 			access_list,
+			authorization_list,
 			is_transactional,
 			validate,
 			None,

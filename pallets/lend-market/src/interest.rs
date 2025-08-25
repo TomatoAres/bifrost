@@ -21,6 +21,16 @@ use sp_runtime::{traits::Zero, DispatchResult};
 
 use crate::*;
 
+type InterestRates<T> = (
+	Rate,
+	Rate,
+	Rate,
+	Ratio,
+	BalanceOf<T>,
+	BalanceOf<T>,
+	FixedU128,
+);
+
 impl<T: Config> Pallet<T> {
 	/// Accrue interest and update corresponding storage
 	pub(crate) fn accrue_interest(asset_id: AssetIdOf<T>) -> DispatchResult {
@@ -59,20 +69,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn get_market_status(
-		asset_id: AssetIdOf<T>,
-	) -> Result<
-		(
-			Rate,
-			Rate,
-			Rate,
-			Ratio,
-			BalanceOf<T>,
-			BalanceOf<T>,
-			FixedU128,
-		),
-		DispatchError,
-	> {
+	pub fn get_market_status(asset_id: AssetIdOf<T>) -> Result<InterestRates<T>, DispatchError> {
 		let market = Self::market(asset_id)?;
 		let total_supply = TotalSupply::<T>::get(asset_id);
 		let total_cash = Self::get_total_cash(asset_id);

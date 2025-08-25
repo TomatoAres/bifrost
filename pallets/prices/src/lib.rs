@@ -29,7 +29,6 @@ use bifrost_primitives::{
 };
 use frame_support::{dispatch::DispatchClass, pallet_prelude::*, transactional};
 use frame_system::pallet_prelude::*;
-use log;
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 pub use pallet::*;
 use pallet_traits::*;
@@ -194,16 +193,16 @@ impl<T: Config> Pallet<T> {
 
 	fn get_storage_price(asset_id: &CurrencyId) -> Option<Price> {
 		EmergencyPrice::<T>::get(asset_id)
-			.or_else(|| T::Source::get(asset_id).and_then(|price| Some(price.value)))
+			.or_else(|| T::Source::get(asset_id).map(|price| price.value))
 	}
 
 	fn get_asset_mantissa(asset_id: &CurrencyId) -> Option<u128> {
-		10u128.checked_pow(
+		10_u128.checked_pow(
 			asset_id
 				.decimals()
 				.unwrap_or(
 					T::CurrencyIdConvert::get_currency_metadata(*asset_id)
-						.map_or(12, |metatata| metatata.decimals.into()),
+						.map_or(12, |metadata| metadata.decimals),
 				)
 				.into(),
 		)
@@ -250,7 +249,7 @@ impl<T: Config> OraclePriceProvider for Pallet<T> {
 	/// - `price_in`: The price of currency_in.
 	/// - `currency_out`: The currency to be converted to.
 	/// - `price_out`: The price of currency_out.
-	/// Returns:
+	///   Returns:
 	/// - The amount of currency_out.
 	fn get_amount_by_prices(
 		currency_in: &CurrencyId,
@@ -275,7 +274,7 @@ impl<T: Config> OraclePriceProvider for Pallet<T> {
 	/// - `currency_in`: The currency to be converted.
 	/// - `amount_in`: The amount of currency to be converted.
 	/// - `currency_out`: The currency to be converted to.
-	/// Returns:
+	///   Returns:
 	/// - The amount of currency_out.
 	/// - The price of currency_in.
 	/// - The price of currency_out.

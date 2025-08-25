@@ -1,6 +1,6 @@
 [package]
 name = "bifrost-cli"
-version = "0.20.2"
+version = "0.21.0"
 authors = ["Liebi Technologies <bifrost@liebi.com>"]
 description = "Bifrost Parachain Node"
 build = "build.rs"
@@ -18,30 +18,23 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # third-party dependencies
 clap = { workspace = true, features = ["derive"] }
-parity-scale-codec = { workspace = true }
 log = { workspace = true }
 
 # primitives
-sp-io = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 
 # client dependencies
-sc-executor = { workspace = true }
 sc-service = { workspace = true, optional = true }
 sc-sysinfo = { workspace = true }
 sc-telemetry = { workspace = true }
-sc-tracing = { workspace = true }
-sc-offchain = { workspace = true }
 sc-network = { workspace = true }
 
 # node-specific dependencies
 bifrost-service = { workspace = true }
-bifrost-primitives = { workspace = true }
 
 # CLI-specific dependencies
 sc-cli = { workspace = true, optional = true }
-frame-try-runtime = { workspace = true, optional = true }
 frame-benchmarking-cli = { workspace = true, optional = true }
 node-inspect = { workspace = true, optional = true }
 
@@ -53,7 +46,6 @@ cumulus-primitives-core = { workspace = true }
 # Polkadot dependencies
 polkadot-primitives = { workspace = true }
 polkadot-cli = { workspace = true }
-polkadot-parachain-primitives = { workspace = true }
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true, optional = true }

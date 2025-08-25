@@ -9,7 +9,7 @@ version = "0.8.0"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-ethereum = { workspace = true, features = [ "with-codec" ] }
+ethereum = { workspace = true, default-features = false, features = ["with-scale"]  }
 hex-literal = { workspace = true }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
@@ -30,7 +30,6 @@ orml-traits = { workspace = true }
 orml-xtokens = { workspace = true }
 zenlink-protocol = { workspace = true }
 bifrost-primitives = { workspace = true }
-bifrost-xcm-interface = { workspace = true }
 bifrost-asset-registry = { workspace = true }
 bifrost-stable-pool = { workspace = true }
 bifrost-stable-asset = { workspace = true }

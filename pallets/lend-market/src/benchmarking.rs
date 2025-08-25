@@ -1,6 +1,5 @@
 //! LendMarket pallet benchmarking.
 
-#![cfg(feature = "runtime-benchmarks")]
 pub use crate::{AccountBorrows, Pallet as LendMarket, *};
 use bifrost_primitives::{Balance, CurrencyId, KSM, LKSM, VKSM, VSKSM};
 use frame_benchmarking::v2::*;
@@ -244,8 +243,7 @@ mod benchmarks {
 		);
 
 		assert_last_event::<T>(
-			Event::<T>::MarketRewardSpeedUpdated(KSM, 1_000_000_u128.into(), 1_000_000_u128.into())
-				.into(),
+			Event::<T>::MarketRewardSpeedUpdated(KSM, 1_000_000_u128, 1_000_000_u128).into(),
 		);
 		Ok(())
 	}

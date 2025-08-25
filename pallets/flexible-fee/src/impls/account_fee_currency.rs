@@ -95,6 +95,6 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 			};
 		}
 
-		return Ok(hopeless_currency);
+		Ok(hopeless_currency)
 	}
 }

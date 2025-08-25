@@ -26,6 +26,7 @@ use bifrost_primitives::{
 	CurrencyId, MockXcmRouter, VTokenSupplyProvider, VtokenVotingPalletId, XcmOperationType, BNC,
 };
 use cumulus_primitives_core::ParaId;
+use frame_support::traits::Disabled;
 use frame_support::{
 	assert_ok, derive_impl, ord_parameter_types,
 	pallet_prelude::{Decode, DispatchError, Encode, MaxEncodedLen, TypeInfo, Weight},
@@ -38,14 +39,15 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use pallet_conviction_voting::{Tally, TallyOf};
-use pallet_referenda::{
-	impl_tracksinfo_get, BoundedCallOf, Curve, ReferendumIndex, TrackInfo, TracksInfo,
-};
+use pallet_referenda::{BoundedCallOf, Curve, ReferendumIndex, TrackInfo, TracksInfo};
 use pallet_xcm::EnsureResponse;
+use parity_scale_codec::DecodeWithMemTracking;
 use sp_runtime::{
+	str_array,
 	traits::{BlockNumberProvider, ConstU32, IdentityLookup},
 	BuildStorage, Perbill,
 };
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use xcm::{prelude::*, v3::MultiLocation};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
@@ -221,6 +223,8 @@ impl pallet_conviction_voting::Config for Runtime {
 	type MaxVotes = ConstU32<512>;
 	type MaxTurnout = frame_support::traits::TotalIssuanceOf<Balances, Self::AccountId>;
 	type Polls = TestPolls;
+	type BlockNumberProvider = System;
+	type VotingHooks = ();
 }
 
 orml_traits::parameter_type_with_key! {
@@ -287,6 +291,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -318,6 +323,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 ord_parameter_types! {
@@ -488,6 +494,7 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -506,12 +513,13 @@ pub struct TestTracksInfo;
 impl TracksInfo<u128, u64> for TestTracksInfo {
 	type Id = u8;
 	type RuntimeOrigin = <RuntimeOrigin as OriginTrait>::PalletsOrigin;
-	fn tracks() -> &'static [(Self::Id, TrackInfo<u128, u64>)] {
-		static DATA: [(u8, TrackInfo<u128, u64>); 3] = [
-			(
-				0u8,
-				TrackInfo {
-					name: "root",
+	fn tracks() -> impl Iterator<Item = Cow<'static, pallet_referenda::Track<Self::Id, u128, u64>>>
+	{
+		static DATA: [pallet_referenda::Track<u8, u128, u64>; 3] = [
+			pallet_referenda::Track {
+				id: 0u8,
+				info: TrackInfo {
+					name: str_array("root"),
 					max_deciding: 1,
 					decision_deposit: 10,
 					prepare_period: 4,
@@ -529,11 +537,11 @@ impl TracksInfo<u128, u64> for TestTracksInfo {
 						ceil: Perbill::from_percent(100),
 					},
 				},
-			),
-			(
-				1u8,
-				TrackInfo {
-					name: "none",
+			},
+			pallet_referenda::Track {
+				id: 1u8,
+				info: TrackInfo {
+					name: str_array("none"),
 					max_deciding: 3,
 					decision_deposit: 1,
 					prepare_period: 2,
@@ -551,11 +559,11 @@ impl TracksInfo<u128, u64> for TestTracksInfo {
 						ceil: Perbill::from_percent(100),
 					},
 				},
-			),
-			(
-				2u8,
-				TrackInfo {
-					name: "none",
+			},
+			pallet_referenda::Track {
+				id: 2u8,
+				info: TrackInfo {
+					name: str_array("none"),
 					max_deciding: 3,
 					decision_deposit: 1,
 					prepare_period: 2,
@@ -573,9 +581,9 @@ impl TracksInfo<u128, u64> for TestTracksInfo {
 						ceil: Perbill::from_percent(100),
 					},
 				},
-			),
+			},
 		];
-		&DATA[..]
+		DATA.iter().map(Cow::Borrowed)
 	}
 	fn track_for(id: &Self::RuntimeOrigin) -> Result<Self::Id, ()> {
 		if let Ok(system_origin) = frame_system::RawOrigin::try_from(id.clone()) {
@@ -590,7 +598,6 @@ impl TracksInfo<u128, u64> for TestTracksInfo {
 		}
 	}
 }
-impl_tracksinfo_get!(TestTracksInfo, u128, u64);
 
 parameter_types! {
 	pub const SubmissionDeposit: Balance = 2;
@@ -614,9 +621,12 @@ impl pallet_referenda::Config for Runtime {
 	type AlarmInterval = AlarmInterval;
 	type Tracks = TestTracksInfo;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
-#[derive(Encode, Debug, Decode, TypeInfo, Eq, PartialEq, Clone, MaxEncodedLen)]
+#[derive(
+	Encode, Debug, Decode, DecodeWithMemTracking, TypeInfo, Eq, PartialEq, Clone, MaxEncodedLen,
+)]
 pub struct TestTally {
 	pub ayes: u32,
 	pub nays: u32,
@@ -683,12 +693,15 @@ pub fn propose_set_balance(who: u64, value: u128, delay: u64) -> sp_runtime::Dis
 }
 
 pub fn next_block() {
+	RelaychainDataProvider::set_block_number(RelaychainDataProvider::current_block_number() + 1);
+	Scheduler::on_initialize(RelaychainDataProvider::current_block_number());
+
 	System::set_block_number(System::block_number() + 1);
 	Scheduler::on_initialize(System::block_number());
 }
 
 pub fn run_to(n: u64) {
-	while System::block_number() < n {
+	while RelaychainDataProvider::current_block_number() < n {
 		next_block();
 	}
 }
@@ -712,6 +725,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.unwrap();
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![(ALICE, 10), (BOB, 20), (CHARLIE, 3000)],
+		dev_accounts: None,
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

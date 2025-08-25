@@ -169,6 +169,7 @@ where
 		Ok(())
 	}
 
+	#[allow(clippy::type_complexity)]
 	pub fn get_farming_rewards(
 		who: &T::AccountId,
 		pid: PoolId,
@@ -213,6 +214,7 @@ where
 		Ok(result_vec)
 	}
 
+	#[allow(clippy::type_complexity)]
 	pub fn get_gauge_rewards(
 		who: &T::AccountId,
 		pid: PoolId,
@@ -263,7 +265,7 @@ where
 					)|
 					 -> DispatchResult {
 						let reward = reward_amount
-							.checked_sub(&total_gauged_reward)
+							.checked_sub(total_gauged_reward)
 							.ok_or(ArithmeticError::Overflow)?;
 						// gauge_reward = gauge rate * gauge rewards * existing rewards in the
 						// gauge pool

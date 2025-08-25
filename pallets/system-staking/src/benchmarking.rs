@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg(feature = "runtime-benchmarks")]
 use crate::{Config, Pallet as SystemStaking, *};
 use bifrost_primitives::{CurrencyId, TokenSymbol, *};
 use frame_benchmarking::v2::*;
@@ -98,7 +97,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&caller,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000u128).into()
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_000u128)
 		));
 		assert_ok!(T::VtokenMintingInterface::mint(
 			caller,

@@ -66,6 +66,7 @@ pub trait WeightInfo {
 	fn update_async_mint_whitelist() -> Weight;
 	fn update_async_mint_config() -> Weight;
 	fn force_increase_hyperbridge_reserve() -> Weight;
+	fn set_hyperbridge_fee_exempt_accounts() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -221,6 +222,16 @@ impl WeightInfo for () {
 		//  Estimated: `0`
 		// Minimum execution time: 18_353_000 picoseconds.
 		Weight::from_parts(19_084_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Slpx::set_hyperbridge_fee_exempt_accounts` (r:0 w:1)
+	/// Proof: `Slpx::set_hyperbridge_fee_exempt_accounts` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)
+	fn set_hyperbridge_fee_exempt_accounts() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_506_000 picoseconds.
+		Weight::from_parts(19_248_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

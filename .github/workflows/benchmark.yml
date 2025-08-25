@@ -19,8 +19,8 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           components: rustfmt
-          target: wasm32-unknown-unknown
-          toolchain: 1.82.0
+          target: wasm32v1-none
+          toolchain: 1.84.1
       - name: Generate WeightInfo Files
         run: make generate-bifrost-weights
       - name: Commit Automatically

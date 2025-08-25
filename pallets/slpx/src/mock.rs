@@ -20,8 +20,9 @@
 use crate as slpx;
 use bifrost_asset_registry::AssetIdMaps;
 pub use bifrost_primitives::{CurrencyId, MockXcmExecutor, TokenSymbol, BNC, KSM};
-use bifrost_primitives::{MockXcmTransfer, MoonbeamChainId};
+use bifrost_primitives::{MockOraclePriceProvider, MockXcmTransfer, MoonbeamChainId};
 use cumulus_primitives_core::ParaId;
+use frame_support::traits::Disabled;
 use frame_support::{
 	construct_runtime, derive_impl, ord_parameter_types,
 	pallet_prelude::*,
@@ -201,7 +202,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub SelfRelativeLocation: Location = Location::here();
-	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
+	pub const BaseXcmWeight: Weight = Weight::from_parts( 1_000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
 
@@ -250,6 +251,7 @@ impl pallet_xcm::Config for Test {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 parameter_types! {
@@ -308,6 +310,7 @@ impl slpx::Config for Test {
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = ();
 	type PalletId = SlpxPalletId;
+	type OraclePriceProvider = MockOraclePriceProvider;
 }
 
 pub struct DustRemovalWhitelist;
@@ -336,7 +339,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.build_storage()
 		.unwrap();
 	pallet_balances::GenesisConfig::<Test> {
-		balances: vec![(BOB, 1000 * 1000_000_000_000)],
+		balances: vec![(BOB, 1000 * 1_000_000_000_000)],
+		dev_accounts: None,
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -348,12 +352,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			(
 				ALICE,
 				bifrost_primitives::WETH,
-				1000 * 1000_000_000_000_000_000,
+				1000 * 1_000_000_000_000_000_000,
 			),
 			(
 				ALICE,
 				bifrost_primitives::V_ETH,
-				1000 * 1000_000_000_000_000_000,
+				1000 * 1_000_000_000_000_000_000,
 			),
 		],
 	}

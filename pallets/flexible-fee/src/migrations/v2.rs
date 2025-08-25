@@ -46,7 +46,7 @@ impl<T: Config> OnRuntimeUpgrade for FlexibleFeeMigration<T> {
 			StorageVersion::new(2).put::<Pallet<T>>();
 
 			// Return the consumed weight
-			Weight::from(T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1))
+			T::DbWeight::get().reads_writes(count + 1, count + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

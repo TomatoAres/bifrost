@@ -26,13 +26,14 @@ use bifrost_primitives::{
 	StableAssetPalletId, KSM, KUSD,
 };
 use bifrost_runtime_common::milli;
+use frame_support::traits::Disabled;
 use frame_support::{
 	derive_impl, ord_parameter_types, parameter_types,
 	traits::{ConstU128, ConstU32, Everything, Nothing},
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{location::RelativeReserveProvider, parameter_type_with_key};
-use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, DispatchResult};
+use sp_runtime::{traits::IdentityLookup, BuildStorage};
 use xcm::{prelude::*, v3::Weight};
 use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
 use xcm_executor::XcmExecutor;
@@ -80,7 +81,7 @@ orml_traits::parameter_type_with_key! {
 			&VBNC => 0,
 			&CurrencyId::BLP(_) => 0,
 			_ => bifrost_asset_registry::AssetIdMaps::<Test>::get_currency_metadata(*currency_id)
-				.map_or(Balance::max_value(), |metatata| metatata.minimal_balance)
+				.map_or(Balance::MAX, |metadata| metadata.minimal_balance)
 		}
 	};
 }
@@ -152,6 +153,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 parameter_type_with_key! {
@@ -162,7 +164,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
-	// pub const BaseXcmWeight: Weight = Weight::from_ref_time(1000_000_000u64);
+	// pub const BaseXcmWeight: Weight = Weight::from_ref_time( 1_000_000_000u64);
 	pub const MaxAssetsForTransfer: usize = 2;
 	// pub UniversalLocation: InteriorLocation = Parachain(2001).into();
 }
@@ -311,6 +313,7 @@ impl pallet_xcm::Config for Test {
 	type AdminOrigin = EnsureSignedBy<One, u128>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 pub struct ExtBuilder {
@@ -385,6 +388,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == BNC)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

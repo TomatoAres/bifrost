@@ -218,26 +218,59 @@ fn to_vtoken_should_work() {
 		native_bnc.to_vtoken(),
 		Ok(CurrencyId::VToken(TokenSymbol::BNC))
 	);
-	assert_eq!(native_asg.to_vtoken(), Err(()));
-	assert_eq!(vtoken_ksm.to_vtoken(), Err(()));
+	assert_eq!(
+		native_asg.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vtoken_ksm.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
 	assert_eq!(
 		token_ksm.to_vtoken(),
 		Ok(CurrencyId::VToken(TokenSymbol::KSM))
 	);
-	assert_eq!(stable_kusd.to_vtoken(), Err(()));
-	assert_eq!(vstoken_eth.to_vtoken(), Err(()));
-	assert_eq!(vsbond_ksm.to_vtoken(), Err(()));
+	assert_eq!(
+		stable_kusd.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vstoken_eth.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vsbond_ksm.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
 	assert_eq!(
 		token2_dot.to_vtoken(),
 		Ok(CurrencyId::VToken2(DOT_TOKEN_ID))
 	);
-	assert_eq!(vtoken2_dot.to_vtoken(), Err(()));
-	assert_eq!(vstoken2_dot.to_vtoken(), Err(()));
-	assert_eq!(vsbond2_dot.to_vtoken(), Err(()));
-	assert_eq!(foreign_asset.to_vtoken(), Err(()));
-	assert_eq!(blp.to_vtoken(), Err(()));
-	assert_eq!(stable_lp_token.to_vtoken(), Err(()));
-	assert_eq!(lp_token.to_vtoken(), Err(()));
+	assert_eq!(
+		vtoken2_dot.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vstoken2_dot.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vsbond2_dot.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		foreign_asset.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(blp.to_vtoken(), Err(CurrencyConversionError::InvalidToken));
+	assert_eq!(
+		stable_lp_token.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		lp_token.to_vtoken(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
 }
 
 #[test]
@@ -258,7 +291,10 @@ fn to_token_should_work() {
 	let stable_lp_token = CurrencyId::StableLpToken(100);
 	let lp_token = CurrencyId::LPToken(TokenSymbol::BNC, 0, TokenSymbol::KSM, 2);
 
-	assert_eq!(native_bnc.to_token(), Err(()));
+	assert_eq!(
+		native_bnc.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
 	assert_eq!(
 		vtoken_bnc.to_token(),
 		Ok(CurrencyId::Native(TokenSymbol::BNC))
@@ -267,16 +303,46 @@ fn to_token_should_work() {
 		vtoken_ksm.to_token(),
 		Ok(CurrencyId::Token(TokenSymbol::KSM))
 	);
-	assert_eq!(token_ksm.to_token(), Err(()));
-	assert_eq!(stable_kusd.to_token(), Err(()));
-	assert_eq!(vstoken_eth.to_token(), Err(()));
-	assert_eq!(vsbond_ksm.to_token(), Err(()));
-	assert_eq!(token2_dot.to_token(), Err(()));
+	assert_eq!(
+		token_ksm.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		stable_kusd.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vstoken_eth.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vsbond_ksm.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		token2_dot.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
 	assert_eq!(vtoken2_dot.to_token(), Ok(CurrencyId::Token2(DOT_TOKEN_ID)));
-	assert_eq!(vstoken2_dot.to_token(), Err(()));
-	assert_eq!(vsbond2_dot.to_token(), Err(()));
-	assert_eq!(foreign_asset.to_token(), Err(()));
-	assert_eq!(blp.to_token(), Err(()));
-	assert_eq!(stable_lp_token.to_token(), Err(()));
-	assert_eq!(lp_token.to_token(), Err(()));
+	assert_eq!(
+		vstoken2_dot.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		vsbond2_dot.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		foreign_asset.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(blp.to_token(), Err(CurrencyConversionError::InvalidToken));
+	assert_eq!(
+		stable_lp_token.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
+	assert_eq!(
+		lp_token.to_token(),
+		Err(CurrencyConversionError::InvalidToken)
+	);
 }

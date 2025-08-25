@@ -83,11 +83,11 @@ mod v2 {
 		pub exec_delay: BlockNumber,
 		/// 100 %
 		pub system_stakable_farming_rate: Permill,
-		///
+		/// LPtoken rates
 		pub lptoken_rates: BoundedVec<Perbill, ConstU32<32>>,
 		/// true: add, false: sub , +/- token_config.system_stakable_base
 		pub add_or_sub: bool,
-		///
+		/// System stakable base balance
 		pub system_stakable_base: Balance,
 		/// Farming pool ids
 		pub farming_poolids: BoundedVec<PoolId, ConstU32<32>>,
@@ -107,20 +107,21 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 			// We transform the storage values from the old into the new format.
 			log::info!(target: LOG_TARGET, "Start to migrate TokenStatus storage...");
 			for (currency, old_token_info) in v2::TokenStatus::<T>::drain() {
-				let mut new_token_info = <TokenInfo<BalanceOf<T>, BlockNumberFor<T>>>::default();
-				new_token_info.system_stakable_amount = old_token_info.system_stakable_amount;
-				new_token_info.system_shadow_amount = old_token_info.system_shadow_amount;
-				new_token_info.pending_redeem_amount = old_token_info.pending_redeem_amount;
-
-				new_token_info.current_config.exec_delay =
-					BlockNumberFor::<T>::from(old_token_info.current_config.exec_delay);
-				new_token_info.current_config.system_stakable_base =
-					old_token_info.current_config.system_stakable_base;
-
-				new_token_info.new_config.exec_delay =
-					BlockNumberFor::<T>::from(old_token_info.new_config.exec_delay);
-				new_token_info.new_config.system_stakable_base =
-					old_token_info.new_config.system_stakable_base;
+				let new_token_info = TokenInfo {
+					system_stakable_amount: old_token_info.system_stakable_amount,
+					system_shadow_amount: old_token_info.system_shadow_amount,
+					pending_redeem_amount: old_token_info.pending_redeem_amount,
+					current_config: TokenConfig {
+						exec_delay: BlockNumberFor::<T>::from(
+							old_token_info.current_config.exec_delay,
+						),
+						system_stakable_base: old_token_info.current_config.system_stakable_base,
+					},
+					new_config: TokenConfig {
+						exec_delay: BlockNumberFor::<T>::from(old_token_info.new_config.exec_delay),
+						system_stakable_base: old_token_info.new_config.system_stakable_base,
+					},
+				};
 
 				TokenStatus::<T>::insert(currency, new_token_info);
 			}
@@ -130,7 +131,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 
 			// Return the consumed weight
 			let count = TokenStatus::<T>::iter().count();
-			Weight::from(T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1))
+			T::DbWeight::get().reads_writes(count as u64 + 1, count as u64 + 1)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

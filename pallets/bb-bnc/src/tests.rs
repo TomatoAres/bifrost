@@ -448,7 +448,7 @@ fn notify_reward_amount() {
 				100_000_000_000,
 				4 * 365 * DAYS - 7 * DAYS
 			));
-			System::set_block_number(System::block_number() + 1 * DAYS);
+			System::set_block_number(System::block_number() + DAYS);
 			assert_ok!(BbBNC::get_rewards_inner(BB_BNC_SYSTEM_POOL_ID, &BOB, None));
 			assert_eq!(Tokens::free_balance(KSM, &BOB), 1071231021);
 			assert_ok!(BbBNC::get_rewards_inner(
@@ -939,6 +939,50 @@ fn deposit_markup_a_large_number_should_work() {
 }
 
 #[test]
+fn deposit_markup_with_token_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+			// Set markup config for a base token (MOVR), not a vtoken
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				MOVR,
+				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
+				FixedU128::saturating_from_integer(1),
+				RWI,
+			));
+
+			let deposit_amount = 1_000_000_000_000u128;
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				MOVR,
+				deposit_amount
+			));
+
+			// LockedTokens should be recorded for MOVR
+			let locked =
+				LockedTokens::<Runtime>::get(MOVR, BOB).expect("locked token should exist");
+			assert_eq!(locked.amount, deposit_amount);
+
+			// TotalLock should be updated for MOVR
+			assert_eq!(TotalLock::<Runtime>::get(MOVR), deposit_amount);
+
+			// User markup info should be created/updated
+			assert!(UserMarkupInfos::<Runtime>::get(BOB).is_some());
+		});
+}
+
+#[test]
 fn redeem_unlock_after_360_days_should_work2() {
 	ExtBuilder::default()
 		.one_hundred_for_alice_n_bob()
@@ -1227,7 +1271,7 @@ fn multiple_positions_with_complex_rewards_should_work() {
 			);
 			// Setup rewards
 			let rewards = vec![KSM];
-			assert_ok!(Tokens::deposit(KSM, &ALICE, 1000_000_000_000_000));
+			assert_ok!(Tokens::deposit(KSM, &ALICE, 1_000_000_000_000_000));
 			assert_ok!(BbBNC::notify_rewards(
 				RuntimeOrigin::root(),
 				ALICE,
@@ -1404,13 +1448,10 @@ fn bonus_works() {
 			};
 			MarkupCoefficient::<Runtime>::insert(currency_id, markup_coefficient.clone());
 
-			// Set total issuance
-			orml_tokens::TotalIssuance::<Runtime>::insert(currency_id, 10000);
-
 			let result = BbBNC::bonus(&account, currency_id, value).unwrap();
 			assert!(result < markup_coefficient.hardcap);
 
-			let value_over_hardcap = 10000;
+			let value_over_hardcap = 3000000000000000;
 			assert_eq!(
 				BbBNC::bonus(&account, currency_id, value_over_hardcap).unwrap(),
 				markup_coefficient.hardcap
@@ -1462,7 +1503,7 @@ fn bbbnc_values_for_different_lock_times() {
 			let bbbnc_value_4_years =
 				BbBNC::balance_of_position_current_block(POSITIONID0).unwrap();
 			let locked_amount = Locked::<Runtime>::get(POSITIONID0).amount;
-			let ratio_4_years = bbbnc_value_4_years as f64 / locked_amount as f64;
+			let _ratio_4_years = bbbnc_value_4_years as f64 / locked_amount as f64;
 
 			// Check that bbBNC value is approximately 1.0 * locked amount
 			assert!(bbbnc_value_4_years > locked_amount * 60 / 100);
@@ -1486,11 +1527,11 @@ fn bbbnc_values_for_different_lock_times() {
 			let bbbnc_value_2_years =
 				BbBNC::balance_of_position_current_block(POSITIONID0).unwrap();
 			let locked_amount = Locked::<Runtime>::get(POSITIONID0).amount;
-			let ratio_2_years = bbbnc_value_2_years as f64 / locked_amount as f64;
+			let _ratio_2_years = bbbnc_value_2_years as f64 / locked_amount as f64;
 
 			// Check that bbBNC value is approximately 0.625 * locked amount
 			// Temporarily adjust to actual values for debugging
-			let actual_ratio = (bbbnc_value_2_years * 100) / locked_amount;
+			let _actual_ratio = (bbbnc_value_2_years * 100) / locked_amount;
 
 			// 使用实际的比例放宽断言
 			assert!(bbbnc_value_2_years > locked_amount * 44 / 100);
@@ -1513,10 +1554,10 @@ fn bbbnc_values_for_different_lock_times() {
 
 			let bbbnc_value_1_year = BbBNC::balance_of_position_current_block(POSITIONID0).unwrap();
 			let locked_amount = Locked::<Runtime>::get(POSITIONID0).amount;
-			let ratio_1_year = bbbnc_value_1_year as f64 / locked_amount as f64;
+			let _ratio_1_year = bbbnc_value_1_year as f64 / locked_amount as f64;
 
 			// Calculate actual ratio
-			let actual_ratio = (bbbnc_value_1_year * 100) / locked_amount;
+			let _actual_ratio = (bbbnc_value_1_year * 100) / locked_amount;
 
 			// Check that bbBNC value is approximately 0.4375 * locked amount
 			assert!(bbbnc_value_1_year > locked_amount * 34 / 100);
@@ -1540,10 +1581,10 @@ fn bbbnc_values_for_different_lock_times() {
 			let bbbnc_value_3_months =
 				BbBNC::balance_of_position_current_block(POSITIONID0).unwrap();
 			let locked_amount = Locked::<Runtime>::get(POSITIONID0).amount;
-			let ratio_3_months = bbbnc_value_3_months as f64 / locked_amount as f64;
+			let _ratio_3_months = bbbnc_value_3_months as f64 / locked_amount as f64;
 
 			// Calculate actual ratio
-			let actual_ratio = (bbbnc_value_3_months * 100) / locked_amount;
+			let _actual_ratio = (bbbnc_value_3_months * 100) / locked_amount;
 
 			// Check that bbBNC value is approximately 0.296875 * locked amount
 			assert!(bbbnc_value_3_months > locked_amount * 27 / 100);
@@ -1566,10 +1607,10 @@ fn bbbnc_values_for_different_lock_times() {
 
 			let bbbnc_value_min = BbBNC::balance_of_position_current_block(POSITIONID0).unwrap();
 			let locked_amount = Locked::<Runtime>::get(POSITIONID0).amount;
-			let ratio_min = bbbnc_value_min as f64 / locked_amount as f64;
+			let _ratio_min = bbbnc_value_min as f64 / locked_amount as f64;
 
 			// Calculate actual ratio
-			let actual_ratio = (bbbnc_value_min * 100) / locked_amount;
+			let _actual_ratio = (bbbnc_value_min * 100) / locked_amount;
 
 			// Check that bbBNC value is approximately 0.25 * locked amount
 			assert!(bbbnc_value_min > locked_amount * 23 / 100);
@@ -1677,7 +1718,7 @@ fn balance_changes_over_time_and_redeem() {
 			));
 
 			// Get initial position counter
-			let position = Position::<Runtime>::get();
+			let _position = Position::<Runtime>::get();
 
 			// Create a lock with 1000e12 tokens for 100000 blocks
 			assert_ok!(BbBNC::create_lock_inner(
@@ -2057,7 +2098,7 @@ fn test_record_and_remove_expiring_position() {
 		assert_eq!(NextExpiringBlock::<Runtime>::get(), 0);
 
 		// Record the position
-		BbBNC::record_expiring_position(position, unlock_time);
+		let _ = BbBNC::record_expiring_position(position, unlock_time);
 
 		// Now it should be tracked
 		assert!(ExpiringPositions::<Runtime>::get(unlock_time).contains(&position));
@@ -2066,7 +2107,7 @@ fn test_record_and_remove_expiring_position() {
 		// Add another position with earlier expiry
 		let earlier_position = 456;
 		let earlier_time = 500;
-		BbBNC::record_expiring_position(earlier_position, earlier_time);
+		let _ = BbBNC::record_expiring_position(earlier_position, earlier_time);
 
 		// NextExpiringBlock should now be the earlier time
 		assert_eq!(NextExpiringBlock::<Runtime>::get(), earlier_time);
@@ -2184,7 +2225,7 @@ fn extreme_values_should_not_overflow() {
 			System::set_block_number(System::block_number() + 20);
 
 			// Test with large but reasonable values in calculations
-			let large_balance = 1_000_000_000_000_000u128; // Using a large but reasonable value
+			let large_balance = 1_000_000_000_000_000_u128; // Using a large but reasonable value
 
 			// Set configuration
 			assert_ok!(BbBNC::set_config(
@@ -3214,7 +3255,7 @@ fn fuzz_balance_of_and_supply_calculations() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let test_start = std::time::Instant::now();
+			let _test_start = std::time::Instant::now();
 			asset_registry();
 			System::set_block_number(System::block_number() + 20);
 
@@ -3282,7 +3323,7 @@ fn fuzz_balance_of_and_supply_calculations() {
 			System::set_block_number(earliest_expiry);
 
 			// Process expiring blocks
-			let process_start = std::time::Instant::now();
+			let _process_start = std::time::Instant::now();
 
 			// Process the first expiring block, then skip the rest
 			BbBNC::on_initialize(earliest_expiry);
@@ -3296,7 +3337,7 @@ fn fuzz_extreme_balance_and_supply_scenarios() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let test_start = std::time::Instant::now();
+			let _test_start = std::time::Instant::now();
 			asset_registry();
 			System::set_block_number(System::block_number() + 20);
 
@@ -3319,7 +3360,7 @@ fn fuzz_extreme_balance_and_supply_scenarios() {
 			let large_amount = 1_000_000_000_000u128; // Reduced magnitude
 			assert_ok!(Tokens::deposit(VBNC, &ALICE, large_amount * 2));
 
-			let lock_start = std::time::Instant::now();
+			let _lock_start = std::time::Instant::now();
 			assert_ok!(BbBNC::create_lock_inner(&ALICE, large_amount, 7 * DAYS));
 
 			// Verify balance calculation works with large amounts
@@ -3342,7 +3383,7 @@ fn fuzz_extreme_balance_and_supply_scenarios() {
 			System::set_block_number(first_expiry);
 
 			// Process expiry blocks and skip remaining processing
-			let process_start = std::time::Instant::now();
+			let _process_start = std::time::Instant::now();
 			BbBNC::on_initialize(first_expiry);
 			skip_all_expiring_blocks();
 		});
@@ -3354,7 +3395,7 @@ fn fuzz_balance_and_supply_math_edge_cases() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			let start = std::time::Instant::now();
+			let _start = std::time::Instant::now();
 			asset_registry();
 			System::set_block_number(System::block_number() + 20);
 
@@ -3371,7 +3412,7 @@ fn fuzz_balance_and_supply_math_edge_cases() {
 
 			// Create locks and track positions
 			let mut positions = Vec::new();
-			for (i, (amount, duration, desc)) in test_params.iter().enumerate() {
+			for (i, (amount, duration, _desc)) in test_params.iter().enumerate() {
 				// Use different accounts for each test case
 				let account = match i % 2 {
 					0 => BOB,
@@ -3379,7 +3420,7 @@ fn fuzz_balance_and_supply_math_edge_cases() {
 				};
 
 				// Create the lock
-				let lock_start = std::time::Instant::now();
+				let _lock_start = std::time::Instant::now();
 				assert_ok!(BbBNC::create_lock_inner(&account, *amount, *duration));
 
 				// Get the latest position
@@ -3406,7 +3447,7 @@ fn fuzz_balance_and_supply_math_edge_cases() {
 			System::set_block_number(earliest_expiry);
 
 			// Process expiry - using optimized version to skip bulk processing
-			let process_start = std::time::Instant::now();
+			let _process_start = std::time::Instant::now();
 			BbBNC::on_initialize(earliest_expiry);
 			// Use skip function instead of full processing
 			skip_all_expiring_blocks();
@@ -3415,7 +3456,7 @@ fn fuzz_balance_and_supply_math_edge_cases() {
 
 // Helper function to process all expiring blocks - add this after the asset_registry function
 fn process_all_expiring_blocks() {
-	let process_start = std::time::Instant::now();
+	let _process_start = std::time::Instant::now();
 
 	// Process any remaining expiring blocks
 	let mut next_expiring = NextExpiringBlock::<Runtime>::get();
@@ -3425,7 +3466,7 @@ fn process_all_expiring_blocks() {
 	let max_empty_blocks = 5; // Maximum number of consecutive empty blocks
 
 	while next_expiring > 0 && iterations < max_iterations {
-		let iter_start = std::time::Instant::now();
+		let _iter_start = std::time::Instant::now();
 		iterations += 1;
 
 		// Check if this block is empty
@@ -3469,4 +3510,220 @@ fn skip_all_expiring_blocks() {
 	if next_expiring > 0 {
 		NextExpiringBlock::<Runtime>::set(0);
 	}
+}
+
+#[test]
+fn refresh_inner_arithmetic_safety_test() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Test case 1: Normal operation
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(100_000_000_000_000_000), // 0.1
+				FixedU128::saturating_from_integer(1),
+				RWI,
+			));
+
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(BOB),
+				VBNC,
+				10_000_000_000_000
+			));
+
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				365 * DAYS,
+			));
+
+			// Verify initial state
+			let initial_markup_info = UserMarkupInfos::<Runtime>::get(&BOB);
+			assert!(initial_markup_info.is_some());
+
+			// Test case 2: Edge case with zero total issuance (should be handled safely)
+			// This tests the arithmetic safety around line 1563 where ti (total issuance) is used
+
+			// Create a scenario where total issuance might be very small
+			let zero_issuance_currency = CurrencyId::VToken(TokenSymbol::KSM);
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				zero_issuance_currency,
+				FixedU128::from_inner(100_000_000_000_000_000),
+				FixedU128::saturating_from_integer(1),
+				RWI,
+			));
+
+			// This should not panic even with zero or very small issuance
+			let result = BbBNC::refresh_inner(zero_issuance_currency);
+			// The function should handle this gracefully, either succeeding or failing with a proper error
+			match result {
+				Ok(_) => {
+					// Success is acceptable
+				}
+				Err(e) => {
+					// Specific arithmetic errors are acceptable, but not panics
+					assert!(
+						matches!(
+							e,
+							sp_runtime::DispatchError::Arithmetic(ArithmeticError::Overflow)
+						) || matches!(
+							e,
+							sp_runtime::DispatchError::Arithmetic(ArithmeticError::DivisionByZero)
+						) || matches!(e, sp_runtime::DispatchError::Module(_))
+					);
+				}
+			}
+
+			// Test case 3: Extreme values that could cause overflow
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(999_000_000_000_000_000), // Very high markup coefficient
+				FixedU128::saturating_from_integer(1),
+				FixedU128::from_inner(999_000_000_000_000_000), // Very high RWI
+			));
+
+			// This should complete without arithmetic overflow
+			assert_ok!(BbBNC::refresh_inner(VBNC));
+
+			// Test case 4: Verify markup coefficients are properly bounded by hardcap
+			let updated_markup_info = UserMarkupInfos::<Runtime>::get(&BOB);
+			assert!(updated_markup_info.is_some());
+			let info = updated_markup_info.unwrap();
+
+			// Markup coefficient should not exceed hardcap of 1.0
+			assert!(info.markup_coefficient <= FixedU128::saturating_from_integer(1));
+
+			// Test case 5: Test with maximum possible locked token amount
+			// Set up a user with maximum reasonable locked tokens
+			let large_amount = 1_000_000_000_000_000u128;
+			assert_ok!(Tokens::deposit(VBNC, &ALICE, large_amount * 2));
+
+			assert_ok!(BbBNC::deposit_markup(
+				RuntimeOrigin::signed(ALICE),
+				VBNC,
+				large_amount
+			));
+
+			assert_ok!(BbBNC::create_lock_inner(&ALICE, large_amount, 365 * DAYS,));
+
+			// Change markup coefficient to trigger refresh
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(200_000_000_000_000_000), // 0.2
+				FixedU128::saturating_from_integer(1),
+				RWI,
+			));
+
+			// This should handle large amounts without overflow
+			assert_ok!(BbBNC::refresh_inner(VBNC));
+
+			// Verify both users were processed correctly
+			let bob_markup_after = UserMarkupInfos::<Runtime>::get(&BOB);
+			let alice_markup_after = UserMarkupInfos::<Runtime>::get(&ALICE);
+
+			assert!(bob_markup_after.is_some());
+			assert!(alice_markup_after.is_some());
+
+			// Both should have updated refresh blocks
+			let bob_locked_token = LockedTokens::<Runtime>::get(VBNC, &BOB);
+			let alice_locked_token = LockedTokens::<Runtime>::get(VBNC, &ALICE);
+
+			assert!(bob_locked_token.is_some());
+			assert!(alice_locked_token.is_some());
+
+			assert_eq!(
+				bob_locked_token.unwrap().refresh_block,
+				System::block_number()
+			);
+			assert_eq!(
+				alice_locked_token.unwrap().refresh_block,
+				System::block_number()
+			);
+		});
+}
+
+#[test]
+fn refresh_inner_division_by_zero_protection() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			// Test division by zero protection in the calculation around line 1563
+			// where ti (total issuance) might be zero
+
+			assert_ok!(BbBNC::set_markup_coefficient(
+				RuntimeOrigin::root(),
+				VBNC,
+				FixedU128::from_inner(100_000_000_000_000_000),
+				FixedU128::saturating_from_integer(1),
+				RWI,
+			));
+
+			// Create a scenario where TotalLock exists but total issuance might be problematic
+			TotalLock::<Runtime>::insert(VBNC, 1000u128);
+
+			// Insert a locked token entry for a user
+			LockedTokens::<Runtime>::insert(
+				VBNC,
+				&BOB,
+				LockedToken {
+					amount: 1000u128,
+					markup_coefficient: FixedU128::from_inner(50_000_000_000_000_000),
+					refresh_block: 0, // Old refresh block to trigger refresh
+				},
+			);
+
+			// Insert user markup info
+			UserMarkupInfos::<Runtime>::insert(
+				&BOB,
+				UserMarkupInfo {
+					old_markup_coefficient: FixedU128::zero(),
+					markup_coefficient: FixedU128::from_inner(50_000_000_000_000_000),
+				},
+			);
+
+			// The refresh should handle potential division by zero gracefully
+			// Even if VToken issuance is zero, it should not panic
+			let result = BbBNC::refresh_inner(VBNC);
+
+			// Should either succeed or fail with appropriate error (not panic)
+			match result {
+				Ok(_) => {
+					// Success is fine
+					let locked_token = LockedTokens::<Runtime>::get(VBNC, &BOB);
+					assert!(locked_token.is_some());
+					assert_eq!(locked_token.unwrap().refresh_block, System::block_number());
+				}
+				Err(e) => {
+					// Should be a proper error, not a panic
+					assert!(
+						matches!(
+							e,
+							sp_runtime::DispatchError::Arithmetic(ArithmeticError::DivisionByZero)
+						) || matches!(
+							e,
+							sp_runtime::DispatchError::Arithmetic(ArithmeticError::Overflow)
+						) || matches!(e, sp_runtime::DispatchError::Module(_))
+					);
+				}
+			}
+		});
 }

@@ -24,18 +24,19 @@ use crate as bifrost_slp;
 use crate::{Config, DispatchResult};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
-	currency::{BNC, KSM, MANTA},
-	Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, BlockNumber,
-	CurrencyId, IncentivePoolAccount, MockXcmExecutor, MockXcmRouter, MoonbeamChainId,
+	currency::{BNC, KSM, MANTA, VKSM},
+	Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId,
+	IncentivePoolAccount, MockXcmExecutor, MockXcmRouter, MoonbeamChainId,
 	ParachainStakingPalletId, SlpxOperator, StableAssetPalletId, TokenSymbol,
 	XcmDestWeightAndFeeHandler, XcmOperationType,
 };
 pub use cumulus_primitives_core::ParaId;
+use frame_support::traits::Disabled;
 use frame_support::{
 	construct_runtime, derive_impl, ord_parameter_types,
 	pallet_prelude::Get,
 	parameter_types,
-	traits::{ConstU128, ConstU32, Everything, Nothing, ProcessMessageError},
+	traits::{ConstU128, ConstU32, Everything, Nothing},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -49,8 +50,7 @@ use sp_runtime::{
 };
 use sp_std::vec::Vec;
 use xcm::v3::{prelude::*, Weight};
-use xcm_builder::{FixedWeightBounds, FrameTransactionalProcessor};
-use xcm_executor::traits::{Properties, ShouldExecute};
+use xcm_builder::FixedWeightBounds;
 
 pub type AccountId = AccountId32;
 pub type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -210,7 +210,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
-	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
+	pub const BaseXcmWeight: Weight = Weight::from_parts( 1_000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
 
@@ -607,6 +607,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 pub struct ExtBuilder {
@@ -635,6 +636,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == BNC)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -649,6 +651,22 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		t.into()
+		let mut ext: sp_io::TestExternalities = t.into();
+
+		ext.execute_with(|| {
+			// Initialize VtokenIssuance with current total issuance for all vtokens
+			let vtokens = [VKSM];
+			for vtoken in vtokens.iter() {
+				let total_issuance = Tokens::total_issuance(*vtoken);
+				if total_issuance > 0 {
+					bifrost_vtoken_minting::VtokenIssuance::<Runtime>::insert(
+						vtoken,
+						total_issuance,
+					);
+				}
+			}
+		});
+
+		ext
 	}
 }

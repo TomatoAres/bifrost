@@ -18,8 +18,6 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 
-#![cfg(feature = "runtime-benchmarks")]
-
 use crate::{BalanceOf, Call, Config, Pallet as BuyBack, *};
 use bifrost_primitives::VDOT;
 use frame_benchmarking::v2::*;

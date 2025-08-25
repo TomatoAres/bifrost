@@ -45,6 +45,7 @@ use bifrost_primitives::{
 };
 use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
+use ethereum::AuthorizationList;
 pub use frame_support::{
 	construct_runtime, match_types, parameter_types,
 	traits::{
@@ -117,7 +118,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use hex_literal::hex;
 use pallet_ethereum::Transaction;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use zenlink_protocol::{
 	AssetBalance, AssetId as ZenlinkAssetId, LocalAssetHandler, MultiAssetsHandler, PairInfo,
 	PairLpGenerate, ZenlinkMultiAssets,
@@ -197,7 +198,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_paseo"),
 	impl_name: Cow::Borrowed("bifrost_paseo"),
 	authoring_version: 0,
-	spec_version: 20002,
+	spec_version: 21000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -318,8 +319,8 @@ impl pallet_timestamp::Config for Runtime {
 
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 10 * MILLIBNC;
-	pub const TransferFee: Balance = 1 * MILLIBNC;
-	pub const CreationFee: Balance = 1 * MILLIBNC;
+	pub const TransferFee: Balance = MILLIBNC;
+	pub const CreationFee: Balance = MILLIBNC;
 	pub const TransactionByteFee: Balance = 16 * MICROBNC;
 }
 
@@ -351,6 +352,7 @@ parameter_types! {
 	PartialOrd,
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	RuntimeDebug,
 	MaxEncodedLen,
 	scale_info::TypeInfo,
@@ -441,6 +443,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyDepositFactor = ProxyDepositFactor;
 	type ProxyType = ProxyType;
 	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -481,6 +484,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -499,6 +503,7 @@ impl pallet_multisig::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -589,8 +594,8 @@ parameter_types! {
 	pub const SpendPeriod: BlockNumber = 6 * DAYS;
 	pub const PayoutSpendPeriod: BlockNumber = 30 * DAYS;
 	pub const Burn: Permill = Permill::from_perthousand(0);
-	pub const TipReportDepositBase: Balance = 1 * DOLLARS;
-	pub const DataDepositPerByte: Balance = 1 * CENTS;
+	pub const TipReportDepositBase: Balance = DOLLARS;
+	pub const DataDepositPerByte: Balance = CENTS;
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxBalance: Balance = 800_000 * BNCS;
 }
@@ -769,6 +774,7 @@ impl pallet_session::Config for Runtime {
 	// we don't have stash and controller, thus we don't need the convert as well.
 	type ValidatorIdOf = ConvertInto;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
+	type DisablingStrategy = pallet_session::disabling::UpToLimitDisablingStrategy;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -924,7 +930,7 @@ parameter_types! {
 	pub MinContribution: Balance = dollar::<Runtime>(RelayCurrencyId::get()) * 5;
 	pub const RemoveKeysLimit: u32 = 500;
 	pub const VSBondValidPeriod: BlockNumber = 30 * DAYS;
-	pub const ReleaseCycle: BlockNumber = 1 * DAYS;
+	pub const ReleaseCycle: BlockNumber = DAYS;
 	pub const LeasePeriod: BlockNumber = POLKA_LEASE_PERIOD;
 	pub const ReleaseRatio: Percent = Percent::from_percent(50);
 	pub const SlotLength: BlockNumber = 8u32 as BlockNumber;
@@ -1089,6 +1095,7 @@ impl bifrost_slpx::Config for Runtime {
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = TokenGateway;
 	type PalletId = SlpxPalletId;
+	type OraclePriceProvider = Prices;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1129,7 +1136,7 @@ impl bifrost_stable_pool::Config for Runtime {
 
 parameter_types! {
 	pub const QueryTimeout: BlockNumber = 100;
-	pub const ReferendumCheckInterval: BlockNumber = 1 * HOURS;
+	pub const ReferendumCheckInterval: BlockNumber = HOURS;
 }
 
 pub struct DerivativeAccountTokenFilter;
@@ -1382,7 +1389,7 @@ impl leverage_staking::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ClearingDuration: u32 = prod_or_fast!(1 * DAYS, 10 * MINUTES);
+	pub const ClearingDuration: u32 = prod_or_fast!(DAYS, 10 * MINUTES);
 	pub const NameLengthLimit: u32 = 20;
 	pub BifrostCommissionReceiver: AccountId = FeeSharePalletId::get().into_account_truncating();
 }
@@ -1583,7 +1590,7 @@ where
 
 parameter_types! {
 	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
-	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositPerItem: Balance = CENTS;
 	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
 	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
 	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
@@ -1790,6 +1797,11 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		pallet_session::migrations::v1::MigrateV0ToV1<
+			Runtime,
+			pallet_session::migrations::v1::InitOffenceSeverity<Runtime>,
+		>,
+		cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 	);
 }
 
@@ -1867,6 +1879,7 @@ extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
+	use crate::Runtime;
 	define_benchmarks!(
 		[bb_bnc, BbBNC]
 		[bifrost_buy_back, BuyBack]
@@ -1874,6 +1887,8 @@ mod benches {
 		[bifrost_xcm_interface, XcmInterface]
 		[bifrost_farming, Farming]
 	);
+
+	impl frame_system_benchmarking::Config for Runtime {}
 }
 
 impl_runtime_apis! {
@@ -1966,6 +1981,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
 			let mut config = <Runtime as pallet_evm::Config>::config().clone();
 			config.estimate = estimate;
@@ -2023,6 +2039,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.unwrap_or_default(),
+				authorization_list.unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -2042,6 +2059,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
 			let config = if estimate {
 				let mut config = <Runtime as pallet_evm::Config>::config().clone();
@@ -2109,6 +2127,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				Vec::new(),
+				authorization_list.unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -2377,6 +2396,18 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
+		fn convert_location(location: VersionedLocation) -> Result<
+			AccountId,
+			xcm_runtime_apis::conversions::Error
+		> {
+			xcm_runtime_apis::conversions::LocationToAccountHelper::<
+				AccountId,
+				xcm_config::LocationToAccountId,
+			>::convert_location(location)
+		}
+	}
+
 	impl bifrost_flexible_fee_rpc_runtime_api::FlexibleFeeRuntimeApi<Block, AccountId> for Runtime {
 		fn get_fee_token_and_amount(who: AccountId, fee: Balance,utx: <Block as BlockT>::Extrinsic) -> (CurrencyId, Balance) {
 			let call = utx.0.function;
@@ -2555,7 +2586,7 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
+			use frame_benchmarking::BenchmarkList;
 			use frame_support::traits::StorageInfoTrait;
 
 			let mut list = Vec::<BenchmarkList>::new();
@@ -2570,8 +2601,6 @@ impl_runtime_apis! {
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
 			use frame_support::traits::TrackedStorageKey;
-
-			impl frame_system_benchmarking::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 			// you can whitelist any storage keys you do not want to track here

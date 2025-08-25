@@ -22,11 +22,36 @@
 
 use crate::{mock::*, DispatchError::Module, *};
 use bifrost_primitives::{
-	currency::{BNC, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
-	VtokenMintingOperator, ETH, V_ETH,
+	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR, WETH},
+	VtokenMintingOperator, ETH, HP_ARB_ETH, HP_BASE_ETH, HP_ETH, HP_OP_ETH, VDOT, V_ETH,
 };
 use frame_support::{assert_noop, assert_ok, sp_runtime::Permill, BoundedVec};
 use sp_runtime::ModuleError;
+
+#[test]
+fn convert_to_vtoken() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(VtokenMinting::convert_to_vtoken(KSM).unwrap(), VKSM);
+		assert_eq!(VtokenMinting::convert_to_vtoken(BNC).unwrap(), VBNC);
+		assert_eq!(VtokenMinting::convert_to_vtoken(DOT).unwrap(), VDOT);
+		assert_eq!(VtokenMinting::convert_to_vtoken(MOVR).unwrap(), VMOVR);
+
+		assert_eq!(VtokenMinting::convert_to_vtoken(ETH).unwrap(), V_ETH);
+		assert_eq!(VtokenMinting::convert_to_vtoken(HP_ETH).unwrap(), V_ETH);
+		assert_eq!(
+			VtokenMinting::convert_to_vtoken(HP_BASE_ETH).unwrap(),
+			V_ETH
+		);
+		assert_eq!(VtokenMinting::convert_to_vtoken(HP_ARB_ETH).unwrap(), V_ETH);
+		assert_eq!(VtokenMinting::convert_to_vtoken(HP_OP_ETH).unwrap(), V_ETH);
+
+		assert_ok!(VtokenMinting::set_supported_eth(
+			RuntimeOrigin::signed(ALICE),
+			vec![BNC].try_into().unwrap()
+		));
+		assert_eq!(VtokenMinting::convert_to_vtoken(BNC).unwrap(), V_ETH);
+	});
+}
 
 #[test]
 fn mint_bnc() {
@@ -504,6 +529,13 @@ fn eth() {
 				V_ETH,
 				10000000000000000000
 			));
+
+			// Redeem VDOT should fail
+			assert_noop!(
+				VtokenMinting::redeem(Some(BOB).into(), Some(ETH), VDOT, 10000000000000000000),
+				Error::<Runtime>::NotSupportTokenType
+			);
+
 			VtokenMinting::on_idle(100, Weight::MAX);
 			VtokenMinting::on_idle(100, Weight::MAX);
 			VtokenMinting::on_idle(100, Weight::MAX);
@@ -1171,4 +1203,370 @@ fn set_vtoken_incentive_lock_blocks_should_work() {
 			// get vksm lock blocks should return None
 			assert_eq!(MintWithLockBlocks::<Runtime>::get(VKSM), None);
 		})
+}
+
+#[test]
+fn get_v_currency_issuance_inner_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: Should fail for non-vtoken currency
+			assert_noop!(
+				VtokenMinting::get_v_currency_issuance_inner(KSM),
+				Error::<Runtime>::NotSupportTokenType
+			);
+
+			// Test case 2: Should return correct issuance for vtoken
+			let expected_issuance = 1000u128;
+			VtokenIssuance::<Runtime>::insert(VKSM, expected_issuance);
+
+			assert_ok!(VtokenMinting::get_v_currency_issuance_inner(VKSM));
+			assert_eq!(
+				VtokenMinting::get_v_currency_issuance_inner(VKSM).unwrap(),
+				expected_issuance
+			);
+		})
+}
+
+#[test]
+fn set_v_currency_issuance_inner_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: Should fail for non-vtoken currency
+			assert_noop!(
+				VtokenMinting::set_v_currency_issuance_inner(KSM, 100),
+				Error::<Runtime>::NotSupportTokenType
+			);
+
+			// Test case 2: Positive adjustment should work
+			let initial_issuance = 1000u128;
+			VtokenIssuance::<Runtime>::insert(VKSM, initial_issuance);
+
+			assert_ok!(VtokenMinting::set_v_currency_issuance_inner(VKSM, 500));
+			assert_eq!(VtokenIssuance::<Runtime>::get(VKSM), 1500u128);
+
+			// Test case 3: Negative adjustment should work
+			assert_ok!(VtokenMinting::set_v_currency_issuance_inner(VKSM, -300));
+			assert_eq!(VtokenIssuance::<Runtime>::get(VKSM), 1200u128);
+
+			// Test case 4: Overflow on addition should fail
+			VtokenIssuance::<Runtime>::insert(VKSM, u128::MAX);
+			assert_noop!(
+				VtokenMinting::set_v_currency_issuance_inner(VKSM, 1),
+				Error::<Runtime>::CalculationOverflow
+			);
+
+			// Test case 5: Overflow on subtraction should fail
+			VtokenIssuance::<Runtime>::insert(VKSM, 0u128);
+			assert_noop!(
+				VtokenMinting::set_v_currency_issuance_inner(VKSM, -1),
+				Error::<Runtime>::CalculationOverflow
+			);
+		})
+}
+
+#[test]
+fn unified_eth_token_pool_update_operations() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up SupportedEth list with ETH and WETH
+			assert_ok!(VtokenMinting::set_supported_eth(
+				RuntimeOrigin::signed(ALICE),
+				vec![ETH, WETH].try_into().unwrap()
+			));
+
+			// Initially, all pools should be zero
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 0);
+			assert_eq!(TokenPool::<Runtime>::get(WETH), 0);
+
+			// Test Add operation: Adding to ETH should update ETH pool
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&1000,
+				crate::impls::Operation::Add
+			));
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 1000);
+			assert_eq!(TokenPool::<Runtime>::get(WETH), 0); // WETH pool remains separate for storage
+
+			// Test Add operation: Adding to WETH should also update ETH pool (unified behavior)
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&500,
+				crate::impls::Operation::Add
+			));
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 1500); // ETH pool increased by 500
+			assert_eq!(TokenPool::<Runtime>::get(WETH), 0); // WETH pool remains unchanged
+
+			// Test Sub operation: Subtracting from ETH
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&300,
+				crate::impls::Operation::Sub
+			));
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 1200);
+
+			// Test Sub operation: Subtracting from WETH should also affect ETH pool
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&200,
+				crate::impls::Operation::Sub
+			));
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 1000);
+
+			// Test Set operation: Setting ETH pool
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&2000,
+				crate::impls::Operation::Set
+			));
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 2000);
+
+			// Test Set operation: Setting WETH should also set ETH pool
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&3000,
+				crate::impls::Operation::Set
+			));
+			assert_eq!(TokenPool::<Runtime>::get(ETH), 3000);
+		});
+}
+
+#[test]
+fn unified_eth_token_pool_get_operations() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up SupportedEth list with ETH and WETH
+			assert_ok!(VtokenMinting::set_supported_eth(
+				RuntimeOrigin::signed(ALICE),
+				vec![ETH, WETH].try_into().unwrap()
+			));
+
+			// Set the ETH pool to a known value
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&5000,
+				crate::impls::Operation::Set
+			));
+
+			// Both ETH and WETH should return the same unified pool amount
+			use bifrost_primitives::VtokenMintingOperator;
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
+				5000
+			);
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				5000
+			);
+
+			// Test VtokenMintingInterface trait implementation
+			use bifrost_primitives::VtokenMintingInterface;
+			assert_eq!(
+				<VtokenMinting as VtokenMintingInterface<_, _, _>>::get_token_pool(ETH),
+				5000
+			);
+			assert_eq!(
+				<VtokenMinting as VtokenMintingInterface<_, _, _>>::get_token_pool(WETH),
+				5000
+			);
+
+			// Update through WETH and verify both return the new amount
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&1000,
+				crate::impls::Operation::Add
+			));
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
+				6000
+			);
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				6000
+			);
+		});
+}
+
+#[test]
+fn non_supported_eth_tokens_work_independently() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up SupportedEth list with only ETH (WETH is not included)
+			assert_ok!(VtokenMinting::set_supported_eth(
+				RuntimeOrigin::signed(ALICE),
+				vec![ETH].try_into().unwrap()
+			));
+
+			// Set initial values for pools
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&1000,
+				crate::impls::Operation::Set
+			));
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&2000,
+				crate::impls::Operation::Set
+			));
+			assert_ok!(VtokenMinting::update_token_pool(
+				&KSM,
+				&3000,
+				crate::impls::Operation::Set
+			));
+
+			// ETH should use unified pool (itself since it's the only one in SupportedEth)
+			use bifrost_primitives::VtokenMintingOperator;
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
+				1000
+			);
+
+			// WETH and KSM should work independently since they're not in SupportedEth
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				2000
+			);
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(KSM),
+				3000
+			);
+
+			// Update WETH and KSM - should not affect ETH
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&500,
+				crate::impls::Operation::Add
+			));
+			assert_ok!(VtokenMinting::update_token_pool(
+				&KSM,
+				&1000,
+				crate::impls::Operation::Add
+			));
+
+			// Verify independence
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
+				1000
+			); // Unchanged
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				2500
+			); // 2000 + 500
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(KSM),
+				4000
+			); // 3000 + 1000
+		});
+}
+
+#[test]
+fn unified_eth_pool_with_multiple_tokens() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up SupportedEth list with ETH and WETH
+			assert_ok!(VtokenMinting::set_supported_eth(
+				RuntimeOrigin::signed(ALICE),
+				vec![ETH, WETH].try_into().unwrap()
+			));
+
+			// Add different amounts through different tokens
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&1000,
+				crate::impls::Operation::Add
+			));
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&2000,
+				crate::impls::Operation::Add
+			));
+
+			// Both should return the unified amount
+			use bifrost_primitives::VtokenMintingOperator;
+			let unified_pool =
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH);
+			assert_eq!(unified_pool, 3000); // 1000 + 2000
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				unified_pool
+			);
+
+			// Test trait implementations return the same value
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
+				unified_pool
+			);
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				unified_pool
+			);
+
+			// Subtract from different tokens
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&500,
+				crate::impls::Operation::Sub
+			));
+			assert_ok!(VtokenMinting::update_token_pool(
+				&WETH,
+				&1000,
+				crate::impls::Operation::Sub
+			));
+
+			// Both should return the new unified amount
+			let new_unified_pool =
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH);
+			assert_eq!(new_unified_pool, 1500); // 3000 - 500 - 1000
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				new_unified_pool
+			);
+		});
+}
+
+#[test]
+fn unified_eth_pool_overflow_protection() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up SupportedEth list
+			assert_ok!(VtokenMinting::set_supported_eth(
+				RuntimeOrigin::signed(ALICE),
+				vec![ETH, WETH].try_into().unwrap()
+			));
+
+			// Test subtraction beyond available balance should fail
+			assert_ok!(VtokenMinting::update_token_pool(
+				&ETH,
+				&100,
+				crate::impls::Operation::Set
+			));
+			assert_noop!(
+				VtokenMinting::update_token_pool(&WETH, &200, crate::impls::Operation::Sub),
+				Error::<Runtime>::CalculationOverflow
+			);
+
+			// Pool should remain unchanged after failed operation
+			use bifrost_primitives::VtokenMintingOperator;
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
+				100
+			);
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
+				100
+			);
+		});
 }

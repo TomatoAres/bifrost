@@ -15,12 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-#![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
 use bifrost_asset_registry::CurrencyIdToLocations;
 use bifrost_primitives::{TimeUnit, KSM, VKSM};
-use bifrost_vtoken_minting;
 use frame_benchmarking::v2::account;
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, sp_runtime::traits::UniqueSaturatedFrom, BoundedVec};
@@ -32,31 +30,31 @@ fn init_whitelist<T: Config + bifrost_asset_registry::Config>() -> (T::AccountId
 		SupportChain::Astar,
 		BoundedVec::try_from(vec![caller.clone()]).unwrap(),
 	);
-	let addr: [u8; 20] = hex_literal::hex!["3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0"].into();
+	let addr: [u8; 20] = hex_literal::hex!["3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0"];
 	let receiver = H160::from(addr);
 	let evm_caller_account_id = Pallet::<T>::h160_to_account_id(&receiver);
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		KSM,
 		&evm_caller_account_id,
-		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 	));
 
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		VKSM,
 		&evm_caller_account_id,
-		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 	));
 
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		KSM,
 		&caller,
-		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 	));
 
 	assert_ok!(<T as Config>::MultiCurrency::deposit(
 		VKSM,
 		&caller,
-		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 	));
 
 	CurrencyIdToLocations::<T>::insert(KSM, xcm::v5::Location::default());
@@ -72,7 +70,7 @@ mod benchmarks {
 
 	#[benchmark]
 	fn add_whitelist() {
-		let addr: [u8; 20] = hex_literal::hex!["3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0"].into();
+		let addr: [u8; 20] = hex_literal::hex!["3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0"];
 		let receiver = H160::from(addr);
 
 		#[extrinsic_call]
@@ -140,7 +138,7 @@ mod benchmarks {
 		_(
 			RawOrigin::Signed(caller),
 			KSM,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_u128),
 			TargetChain::Astar(receiver),
 			BoundedVec::default(),
 			0,
@@ -192,7 +190,7 @@ mod benchmarks {
 			RawOrigin::Signed(caller),
 			None,
 			VKSM,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_u128),
 			TargetChain::Astar(receiver),
 		);
 	}
@@ -207,7 +205,7 @@ mod benchmarks {
 			592,
 			0,
 			KSM,
-			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 			TargetChain::Astar(receiver),
 			BoundedVec::default(),
 			0,
@@ -229,7 +227,7 @@ mod benchmarks {
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
 			KSM,
 			&Pallet::<T>::reserve_account(),
-			BalanceOf::<T>::unique_saturated_from(20_000_000_000_000u128)
+			BalanceOf::<T>::unique_saturated_from(20_000_000_000_000_u128)
 		));
 
 		#[extrinsic_call]
@@ -269,19 +267,19 @@ mod benchmarks {
 		{
 			let caller = account("caller", 0, 0);
 			let token_amount = bifrost_vtoken_minting::BalanceOf::<T>::unique_saturated_from(
-				10_000_000_000_000u128,
+				10_000_000_000_000_u128,
 			);
 
 			// Ensure KSM balance for caller
 			assert_ok!(<T as Config>::MultiCurrency::deposit(
 				KSM,
 				&caller,
-				BalanceOf::<T>::unique_saturated_from(20_000_000_000_000u128)
+				BalanceOf::<T>::unique_saturated_from(20_000_000_000_000_u128)
 			));
 
 			assert_ok!(bifrost_vtoken_minting::Pallet::<T>::mint(
 				RawOrigin::Signed(caller).into(),
-				KSM.into(),
+				KSM,
 				token_amount,
 				BoundedVec::default(),
 				None
@@ -302,6 +300,15 @@ mod benchmarks {
 		);
 
 		Ok(())
+	}
+
+	#[benchmark]
+	fn set_hyperbridge_fee_exempt_accounts() {
+		#[extrinsic_call]
+		_(
+			RawOrigin::Root,
+			vec![account("caller", 0, 0)].try_into().unwrap(),
+		);
 	}
 
 	//   `cargo test -p pallet-example-basic --all-features`, you will see one line per case:

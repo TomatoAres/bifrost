@@ -71,13 +71,25 @@ pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 >>::CurrencyId;
 pub type RawCallName = BoundedVec<u8, ConstU32<32>>;
 
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub enum TargetChain {
 	AssetHub,
 	RelayChain,
 }
 
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 	use bifrost_primitives::{Balance, EvmPermit, OraclePriceProvider};
@@ -562,7 +574,7 @@ impl<T: Config> Pallet<T> {
 			.collect();
 
 		// Get user default fee currency
-		if let Some(default_fee_currency) = UserDefaultFeeCurrency::<T>::get(&account_id) {
+		if let Some(default_fee_currency) = UserDefaultFeeCurrency::<T>::get(account_id) {
 			if let Some(index) = fee_currency_list
 				.iter()
 				.position(|&c| c == default_fee_currency)
@@ -630,15 +642,11 @@ impl<T: Config> Pallet<T> {
 					fee_info = Some((currency_id, extra_fee_amount));
 					break;
 				}
-			} else {
-				match Self::ensure_can_swap(who, currency_id, extra_fee_currency, extra_fee_amount)
-				{
-					Ok(amount_in) => {
-						fee_info = Some((currency_id, amount_in));
-						break;
-					}
-					Err(_) => {}
-				}
+			} else if let Ok(amount_in) =
+				Self::ensure_can_swap(who, currency_id, extra_fee_currency, extra_fee_amount)
+			{
+				fee_info = Some((currency_id, amount_in));
+				break;
 			}
 		}
 
@@ -749,7 +757,7 @@ impl<T: Config> BalanceCmp<T::AccountId> for Pallet<T> {
 
 		let (fee_amount, _, _) =
 			T::OraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
-				&ETH, amount, &currency,
+				&ETH, amount, currency,
 			)
 			.ok_or(Error::<T>::ConversionError)?;
 

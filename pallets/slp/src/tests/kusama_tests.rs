@@ -258,7 +258,12 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		));
 
 		// First set base vtoken exchange rate. Should be 1:1.
+		assert_ok!(Currencies::deposit(KSM, &ALICE, 100));
 		assert_ok!(Currencies::deposit(VKSM, &ALICE, 100));
+		let total_issuance = Tokens::total_issuance(VKSM);
+		if total_issuance > 0 {
+			bifrost_vtoken_minting::VtokenIssuance::<Runtime>::insert(VKSM, total_issuance);
+		}
 		assert_ok!(Slp::increase_token_pool(
 			RuntimeOrigin::signed(ALICE),
 			KSM,
@@ -526,7 +531,7 @@ fn test_construct_xcm() {
 		)
 		.unwrap();
 
-		assert_eq!(fee, BalanceOf::<Runtime>::from(10000000000u128));
+		assert_eq!(fee, BalanceOf::<Runtime>::from(10000000000_u128));
 
 		let fee = crate::Pallet::<Runtime>::construct_xcm_and_send_as_subaccount_without_query_id(
 			XcmOperationType::Bond,

@@ -25,9 +25,9 @@ use bifrost_primitives::{
 	FarmingGaugeRewardIssuerPalletId, FarmingKeeperPalletId, FarmingRewardIssuerPalletId,
 	IncentivePoolAccount, MoonbeamChainId, SystemStakingPalletId,
 };
-use bifrost_slp::QueryId;
 pub use cumulus_primitives_core::ParaId;
 use cumulus_primitives_core::*;
+use frame_support::traits::Disabled;
 use frame_support::{
 	derive_impl, ord_parameter_types,
 	pallet_prelude::Get,
@@ -38,9 +38,8 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{location::RelativeReserveProvider, parameter_type_with_key};
 use sp_core::ConstU32;
 use sp_runtime::{
-	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, ConvertInto, IdentityLookup, Zero},
-	AccountId32, BuildStorage, DispatchError, DispatchResult, Percent,
+	traits::{AccountIdConversion, ConvertInto, IdentityLookup},
+	AccountId32, BuildStorage,
 };
 use sp_std::vec;
 use xcm::v3::Weight;
@@ -155,7 +154,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub SelfRelativeLocation: Location = Location::here();
-	pub const BaseXcmWeight: Weight = Weight::from_parts(1000_000_000u64, 0);
+	pub const BaseXcmWeight: Weight = Weight::from_parts( 1_000_000_000u64, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
 
@@ -340,6 +339,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -371,6 +371,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 pub struct ExtBuilder {
@@ -420,6 +421,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == BNC)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

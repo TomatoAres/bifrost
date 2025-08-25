@@ -32,7 +32,9 @@ pub mod incentive;
 pub mod traits;
 pub mod weights;
 
-use bifrost_primitives::{Balance, CurrencyId, FarmingInfo, PoolId, VtokenMintingInterface};
+use bifrost_primitives::{
+	Balance, CurrencyId, CurrencyIdExt, FarmingInfo, PoolId, VtokenMintingInterface,
+};
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	pallet_prelude::*,
@@ -57,6 +59,8 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<AccountIdOf<T
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
+pub type PendingRewards<T> = (CurrencyIdOf<T>, BalanceOf<T>);
+
 pub type CurrencyIdOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 	<T as frame_system::Config>::AccountId,
 >>::CurrencyId;
@@ -68,7 +72,7 @@ pub type PositionId = u128;
 /// precision for fixed point number
 const PRECISION: u128 = 1_000_000_000_000_000_000;
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub struct BbConfig<Balance, BlockNumber> {
 	/// Minimum number of TokenType that users can lock
 	min_mint: Balance,
@@ -861,7 +865,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn query_pending_rewards(
 			who: &AccountIdOf<T>,
-		) -> Result<Vec<(CurrencyIdOf<T>, BalanceOf<T>)>, DispatchError> {
+		) -> Result<Vec<PendingRewards<T>>, DispatchError> {
 			let conf = IncentiveConfigs::<T>::get(BB_BNC_SYSTEM_POOL_ID);
 			ensure!(
 				conf.incentive_controller.is_some(),
@@ -912,7 +916,7 @@ pub mod pallet {
 			if old_locked.end > current_block_number && old_locked.amount > BalanceOf::<T>::zero() {
 				u_old.slope = U256::from(old_locked.amount.saturated_into::<u128>())
 					.checked_div(U256::from(T::MaxBlock::get().saturated_into::<u128>()))
-					.map(|x| u128::try_from(x))
+					.map(u128::try_from)
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into();
@@ -927,7 +931,7 @@ pub mod pallet {
 			if new_locked.end > current_block_number && new_locked.amount > BalanceOf::<T>::zero() {
 				u_new.slope = U256::from(new_locked.amount.saturated_into::<u128>())
 					.checked_div(U256::from(T::MaxBlock::get().saturated_into::<u128>()))
-					.map(|x| u128::try_from(x))
+					.map(u128::try_from)
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into();
@@ -1052,13 +1056,11 @@ pub mod pallet {
 				SlopeChanges::<T>::insert(old_locked.end, old_dslope);
 			}
 
-			if new_locked.end > current_block_number {
-				if new_locked.end > old_locked.end {
-					new_dslope = new_dslope
-						.checked_sub(u_new.slope)
-						.ok_or(ArithmeticError::Overflow)?;
-					SlopeChanges::<T>::insert(new_locked.end, new_dslope);
-				}
+			if new_locked.end > current_block_number && new_locked.end > old_locked.end {
+				new_dslope = new_dslope
+					.checked_sub(u_new.slope)
+					.ok_or(ArithmeticError::Overflow)?;
+				SlopeChanges::<T>::insert(new_locked.end, new_dslope);
 				// else: we recorded it already in old_dslope
 			}
 
@@ -1100,7 +1102,7 @@ pub mod pallet {
 			}
 			Locked::<T>::insert(position, locked.clone());
 
-			let free_balance = T::MultiCurrency::free_balance(T::TokenType::get(), &who);
+			let free_balance = T::MultiCurrency::free_balance(T::TokenType::get(), who);
 			if value != BalanceOf::<T>::zero() {
 				let new_locked_balance = UserLocked::<T>::get(who)
 					.checked_add(value)
@@ -1148,7 +1150,7 @@ pub mod pallet {
 			}
 			let u_epoch = UserPointEpoch::<T>::get(position);
 			if u_epoch == U256::zero() {
-				return Ok(Zero::zero());
+				Ok(Zero::zero())
 			} else {
 				let mut last_point: Point<BalanceOf<T>, BlockNumberFor<T>> =
 					UserPointHistory::<T>::get(position, u_epoch);
@@ -1322,9 +1324,9 @@ pub mod pallet {
 			let current_block_number: BlockNumberFor<T> =
 				T::BlockNumberProvider::current_block_number();
 
-			let mut user_markup_info = UserMarkupInfos::<T>::get(&who).unwrap_or_default();
+			let mut user_markup_info = UserMarkupInfos::<T>::get(who).unwrap_or_default();
 			let mut locked_token =
-				LockedTokens::<T>::get(currency_id, &who).unwrap_or(LockedToken {
+				LockedTokens::<T>::get(currency_id, who).unwrap_or(LockedToken {
 					amount: Zero::zero(),
 					markup_coefficient: Zero::zero(),
 					refresh_block: current_block_number,
@@ -1338,14 +1340,17 @@ pub mod pallet {
 					.checked_div(U256::from(
 						TotalLock::<T>::get(currency_id).saturated_into::<u128>(),
 					))
-					.map(|x| u128::try_from(x))
+					.map(u128::try_from)
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into(),
 			);
 
 			let ni = locked_token.amount;
-			let ti = T::MultiCurrency::total_issuance(currency_id);
+			let mut ti: u128 = T::MultiCurrency::total_issuance(currency_id);
+			if currency_id.is_vtoken() {
+				ti = T::VtokenMinting::get_v_currency_issuance(currency_id)?;
+			}
 			let wi = markup_coefficient.markup_coefficient;
 			let left = markup_coefficient
 				.rwi
@@ -1356,7 +1361,7 @@ pub mod pallet {
 					.checked_mul(U256::from(ni.saturated_into::<u128>()))
 					.ok_or(ArithmeticError::Overflow)?
 					.checked_div(U256::from(ti))
-					.map(|x| u128::try_from(x))
+					.map(u128::try_from)
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into(),
@@ -1367,7 +1372,7 @@ pub mod pallet {
 
 			let new_markup_coefficient = markup_coefficient.hardcap.min(b);
 			Self::update_markup_info(
-				&who,
+				who,
 				user_markup_info
 					.markup_coefficient
 					.saturating_sub(locked_token.markup_coefficient)
@@ -1377,15 +1382,15 @@ pub mod pallet {
 			locked_token.markup_coefficient = new_markup_coefficient;
 			locked_token.refresh_block = current_block_number;
 
-			T::MultiCurrency::set_lock(MARKUP_LOCK_ID, currency_id, &who, locked_token.amount)?;
-			LockedTokens::<T>::insert(&currency_id, &who, locked_token);
-			UserPositions::<T>::get(&who).into_iter().try_for_each(
+			T::MultiCurrency::set_lock(MARKUP_LOCK_ID, currency_id, who, locked_token.amount)?;
+			LockedTokens::<T>::insert(currency_id, who, locked_token);
+			UserPositions::<T>::get(who).into_iter().try_for_each(
 				|position| -> DispatchResult {
 					let locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> =
 						Locked::<T>::get(position);
 					ensure!(!locked.amount.is_zero(), Error::<T>::ArgumentsError);
 					Self::markup_calc(
-						&who,
+						who,
 						position,
 						locked.clone(),
 						locked,
@@ -1420,7 +1425,7 @@ pub mod pallet {
 
 			let current_block_number: BlockNumberFor<T> =
 				T::BlockNumberProvider::current_block_number();
-			let locked_token = LockedTokens::<T>::get(currency_id, &who).unwrap_or(LockedToken {
+			let locked_token = LockedTokens::<T>::get(currency_id, who).unwrap_or(LockedToken {
 				amount: Zero::zero(),
 				markup_coefficient: Zero::zero(),
 				refresh_block: current_block_number,
@@ -1432,14 +1437,17 @@ pub mod pallet {
 					.checked_mul(U256::from(amount.saturated_into::<u128>()))
 					.ok_or(ArithmeticError::Overflow)?
 					.checked_div(U256::from(total_lock.saturated_into::<u128>()))
-					.map(|x| u128::try_from(x))
+					.map(u128::try_from)
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into(),
 			);
 
 			let ni = amount;
-			let ti = T::MultiCurrency::total_issuance(currency_id);
+			let mut ti: u128 = T::MultiCurrency::total_issuance(currency_id);
+			if currency_id.is_vtoken() {
+				ti = T::VtokenMinting::get_v_currency_issuance(currency_id)?;
+			}
 			let wi = markup_coefficient.markup_coefficient;
 			let left = markup_coefficient
 				.rwi
@@ -1450,7 +1458,7 @@ pub mod pallet {
 					.checked_mul(U256::from(ni.saturated_into::<u128>()))
 					.ok_or(ArithmeticError::Overflow)?
 					.checked_div(U256::from(ti))
-					.map(|x| u128::try_from(x))
+					.map(u128::try_from)
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into(),
@@ -1481,12 +1489,12 @@ pub mod pallet {
 				},
 			)?;
 
-			let mut user_markup_info = UserMarkupInfos::<T>::get(&who).unwrap_or_default();
+			let mut user_markup_info = UserMarkupInfos::<T>::get(who).unwrap_or_default();
 
 			let locked_token =
-				LockedTokens::<T>::get(&currency_id, &who).ok_or(Error::<T>::LockNotExist)?;
+				LockedTokens::<T>::get(currency_id, who).ok_or(Error::<T>::LockNotExist)?;
 			Self::update_markup_info(
-				&who,
+				who,
 				user_markup_info
 					.markup_coefficient
 					.saturating_sub(locked_token.markup_coefficient),
@@ -1498,16 +1506,16 @@ pub mod pallet {
 					.ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
-			T::MultiCurrency::remove_lock(MARKUP_LOCK_ID, currency_id, &who)?;
+			T::MultiCurrency::remove_lock(MARKUP_LOCK_ID, currency_id, who)?;
 
-			LockedTokens::<T>::remove(&currency_id, &who);
-			UserPositions::<T>::get(&who).into_iter().try_for_each(
+			LockedTokens::<T>::remove(currency_id, who);
+			UserPositions::<T>::get(who).into_iter().try_for_each(
 				|position| -> DispatchResult {
 					let locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> =
 						Locked::<T>::get(position);
 					ensure!(!locked.amount.is_zero(), Error::<T>::ArgumentsError); // TODO
 					Self::markup_calc(
-						&who,
+						who,
 						position,
 						locked.clone(),
 						locked,
@@ -1531,7 +1539,7 @@ pub mod pallet {
 			let limit = T::MarkupRefreshLimit::get();
 			let mut all_refreshed = true;
 			let mut refresh_count = 0;
-			let locked_tokens = LockedTokens::<T>::iter_prefix(&currency_id);
+			let locked_tokens = LockedTokens::<T>::iter_prefix(currency_id);
 
 			for (who, mut locked_token) in locked_tokens {
 				if refresh_count >= limit {
@@ -1552,14 +1560,17 @@ pub mod pallet {
 							.checked_div(U256::from(
 								TotalLock::<T>::get(currency_id).saturated_into::<u128>(),
 							))
-							.map(|x| u128::try_from(x))
+							.map(u128::try_from)
 							.ok_or(ArithmeticError::Overflow)?
 							.map_err(|_| ArithmeticError::Overflow)?
 							.unique_saturated_into(),
 					);
 
 					let ni = locked_token.amount;
-					let ti = T::MultiCurrency::total_issuance(currency_id);
+					let mut ti: u128 = T::MultiCurrency::total_issuance(currency_id);
+					if currency_id.is_vtoken() {
+						ti = T::VtokenMinting::get_v_currency_issuance(currency_id)?;
+					}
 					let wi = markup_coefficient.markup_coefficient;
 
 					let left = markup_coefficient
@@ -1571,7 +1582,7 @@ pub mod pallet {
 							.checked_mul(U256::from(ni.saturated_into::<u128>()))
 							.ok_or(ArithmeticError::Overflow)?
 							.checked_div(U256::from(ti))
-							.map(|x| u128::try_from(x))
+							.map(u128::try_from)
 							.ok_or(ArithmeticError::Overflow)?
 							.map_err(|_| ArithmeticError::Overflow)?
 							.unique_saturated_into(),
@@ -1590,7 +1601,7 @@ pub mod pallet {
 						&mut user_markup_info,
 					);
 					locked_token.markup_coefficient = new_markup_coefficient;
-					LockedTokens::<T>::insert(&currency_id, &who, locked_token);
+					LockedTokens::<T>::insert(currency_id, &who, locked_token);
 					UserPositions::<T>::get(&who).into_iter().try_for_each(
 						|position| -> DispatchResult {
 							let locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> =
@@ -1626,7 +1637,6 @@ pub mod pallet {
 		/// * `position` - the ID of the position
 		/// * `_locked` - user locked variable representation
 		/// * `if_fast` - distinguish whether it is a fast withdraw
-
 		pub fn withdraw_no_ensure(
 			who: &AccountIdOf<T>,
 			position: PositionId,
@@ -1694,8 +1704,8 @@ pub mod pallet {
 						T::FiveYears::get().saturated_into::<u128>(),
 					)?)
 				}) // five years
-				.and_then(|x| Some(x.saturating_pow(2)))
-				.and_then(|x| Some(x.min(FixedU128::one()))) // Ensure commission rate doesn't exceed 100%
+				.map(|x| x.saturating_pow(2))
+				.map(|x| x.min(FixedU128::one())) // Ensure commission rate doesn't exceed 100%
 				.ok_or(ArithmeticError::Overflow)
 		}
 
@@ -1824,7 +1834,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 		Self::deposit_event(Event::LockCreated {
 			who: who.to_owned(),
 			position: new_position,
-			value: value,
+			value,
 			old_unlock_time: Zero::zero(),
 			unlock_time: real_unlock_time,
 		});
@@ -2090,7 +2100,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 			BlockNumberFor<T>,
 			AccountIdOf<T>,
 		>,
-		rewards: &Vec<CurrencyIdOf<T>>,
+		rewards: &[CurrencyIdOf<T>],
 		remaining: BalanceOf<T>,
 	) -> DispatchResult {
 		rewards.iter().try_for_each(|currency| -> DispatchResult {

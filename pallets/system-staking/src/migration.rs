@@ -29,7 +29,7 @@ use sp_std::marker::PhantomData;
 
 pub fn update_for_async<T: Config>() -> Weight {
 	if let Some(mut round) = <Round<T>>::get() {
-		round.length = round.length * 2;
+		round.length *= 2;
 		<Round<T>>::put(round);
 	}
 

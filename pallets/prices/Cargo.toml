@@ -12,7 +12,6 @@ frame-system = { workspace = true }
 num-traits = { workspace = true }
 orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
-xcm = { workspace = true }
 pallet-assets = { workspace = true }
 pallet-traits = { workspace = true }
 bifrost-primitives = { workspace = true }

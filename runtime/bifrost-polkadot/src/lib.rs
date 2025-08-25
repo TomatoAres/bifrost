@@ -46,6 +46,7 @@ use bifrost_primitives::{
 };
 use cumulus_pallet_parachain_system::RelayChainState;
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
+use ethereum::AuthorizationList;
 pub use frame_support::{
 	construct_runtime, match_types, parameter_types,
 	traits::{
@@ -118,7 +119,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use hex_literal::hex;
 use pallet_ethereum::Transaction;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use zenlink_protocol::{
 	AssetBalance, AssetId as ZenlinkAssetId, LocalAssetHandler, MultiAssetsHandler, PairInfo,
 	PairLpGenerate, ZenlinkMultiAssets,
@@ -198,7 +199,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_polkadot"),
 	impl_name: Cow::Borrowed("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 20002,
+	spec_version: 21000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -319,8 +320,8 @@ impl pallet_timestamp::Config for Runtime {
 
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 10 * MILLIBNC;
-	pub const TransferFee: Balance = 1 * MILLIBNC;
-	pub const CreationFee: Balance = 1 * MILLIBNC;
+	pub const TransferFee: Balance = MILLIBNC;
+	pub const CreationFee: Balance = MILLIBNC;
 	pub const TransactionByteFee: Balance = 16 * MICROBNC;
 }
 
@@ -352,6 +353,7 @@ parameter_types! {
 	PartialOrd,
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	RuntimeDebug,
 	MaxEncodedLen,
 	scale_info::TypeInfo,
@@ -442,6 +444,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyDepositFactor = ProxyDepositFactor;
 	type ProxyType = ProxyType;
 	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -482,6 +485,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -500,6 +504,7 @@ impl pallet_multisig::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -589,8 +594,8 @@ parameter_types! {
 	pub const SpendPeriod: BlockNumber = 6 * DAYS;
 	pub const PayoutSpendPeriod: BlockNumber = 30 * DAYS;
 	pub const Burn: Permill = Permill::from_perthousand(0);
-	pub const TipReportDepositBase: Balance = 1 * DOLLARS;
-	pub const DataDepositPerByte: Balance = 1 * CENTS;
+	pub const TipReportDepositBase: Balance = DOLLARS;
+	pub const DataDepositPerByte: Balance = CENTS;
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxBalance: Balance = 800_000 * BNCS;
 }
@@ -769,6 +774,7 @@ impl pallet_session::Config for Runtime {
 	// we don't have stash and controller, thus we don't need the convert as well.
 	type ValidatorIdOf = ConvertInto;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
+	type DisablingStrategy = pallet_session::disabling::UpToLimitDisablingStrategy;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -832,7 +838,7 @@ impl bifrost_flexible_fee::Config for Runtime {
 }
 
 parameter_types! {
-	pub BifrostParachainAccountId20: [u8; 20] = cumulus_primitives_core::ParaId::from(ParachainInfo::get()).into_account_truncating();
+	pub BifrostParachainAccountId20: [u8; 20] = ParachainInfo::get().into_account_truncating();
 }
 
 pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLocation {
@@ -924,7 +930,7 @@ parameter_types! {
 	pub MinContribution: Balance = dollar::<Runtime>(RelayCurrencyId::get()) * 5;
 	pub const RemoveKeysLimit: u32 = 500;
 	pub const VSBondValidPeriod: BlockNumber = 30 * DAYS;
-	pub const ReleaseCycle: BlockNumber = 1 * DAYS;
+	pub const ReleaseCycle: BlockNumber = DAYS;
 	pub const LeasePeriod: BlockNumber = POLKA_LEASE_PERIOD;
 	pub const ReleaseRatio: Percent = Percent::from_percent(50);
 	pub const SlotLength: BlockNumber = 8u32 as BlockNumber;
@@ -1089,6 +1095,7 @@ impl bifrost_slpx::Config for Runtime {
 	type BlockNumberProvider = System;
 	type HyperBridgeSender = TokenGateway;
 	type PalletId = SlpxPalletId;
+	type OraclePriceProvider = Prices;
 }
 
 pub struct EnsurePoolAssetId;
@@ -1129,7 +1136,7 @@ impl bifrost_stable_pool::Config for Runtime {
 
 parameter_types! {
 	pub const QueryTimeout: BlockNumber = 100;
-	pub const ReferendumCheckInterval: BlockNumber = 1 * HOURS;
+	pub const ReferendumCheckInterval: BlockNumber = HOURS;
 }
 
 pub struct DerivativeAccountTokenFilter;
@@ -1382,7 +1389,7 @@ impl leverage_staking::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ClearingDuration: u32 = prod_or_fast!(1 * DAYS, 10 * MINUTES);
+	pub const ClearingDuration: u32 = prod_or_fast!(DAYS, 10 * MINUTES);
 	pub const NameLengthLimit: u32 = 20;
 	pub BifrostCommissionReceiver: AccountId = FeeSharePalletId::get().into_account_truncating();
 }
@@ -1488,7 +1495,7 @@ where
 {
 	fn local_balance_of(asset_id: ZenlinkAssetId, who: &AccountId) -> AssetBalance {
 		if let Ok(currency_id) = asset_id.try_into() {
-			return TryInto::<AssetBalance>::try_into(Local::free_balance(currency_id, &who))
+			return TryInto::<AssetBalance>::try_into(Local::free_balance(currency_id, who))
 				.unwrap_or_default();
 		}
 		AssetBalance::default()
@@ -1504,10 +1511,7 @@ where
 
 	fn local_is_exists(asset_id: ZenlinkAssetId) -> bool {
 		let currency_id: Result<CurrencyId, ()> = asset_id.try_into();
-		match currency_id {
-			Ok(_) => true,
-			Err(_) => false,
-		}
+		currency_id.is_ok()
 	}
 
 	fn local_transfer(
@@ -1519,8 +1523,8 @@ where
 		if let Ok(currency_id) = asset_id.try_into() {
 			Local::transfer(
 				currency_id,
-				&origin,
-				&target,
+				origin,
+				target,
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local transfer"))?,
@@ -1539,7 +1543,7 @@ where
 		if let Ok(currency_id) = asset_id.try_into() {
 			Local::deposit(
 				currency_id,
-				&origin,
+				origin,
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local deposit"))?,
@@ -1559,7 +1563,7 @@ where
 		if let Ok(currency_id) = asset_id.try_into() {
 			Local::withdraw(
 				currency_id,
-				&origin,
+				origin,
 				amount
 					.try_into()
 					.map_err(|_| DispatchError::Other("convert amount in local withdraw"))?,
@@ -1577,7 +1581,7 @@ where
 
 parameter_types! {
 	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
-	pub const MigrationSignedDepositPerItem: Balance = 1 * CENTS;
+	pub const MigrationSignedDepositPerItem: Balance = CENTS;
 	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
 	pub MigController: AccountId = hex!["d8852e21aabb61e78c806e7e794e5951b43d48b242feb288099b7b9300ebcf08"].into();
 	pub RootMigController: AccountId = hex!["989e2d94ede74944da0ec9dbdbaa1a2beb38f1b4d9764eca91651dbaee1f104a"].into();
@@ -1791,6 +1795,11 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		pallet_session::migrations::v1::MigrateV0ToV1<
+			Runtime,
+			pallet_session::migrations::v1::InitOffenceSeverity<Runtime>,
+		>,
+		cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 	);
 }
 
@@ -2083,7 +2092,7 @@ mod benches {
 			// 		name: b"Polkadot".to_vec(),
 			// 		symbol: b"DOT".to_vec(),
 			// 		decimals: 10,
-			// 		minimal_balance: 10u128,
+			// 		minimal_balance: 10_u128,
 			// 	},
 			// );
 			// let _ = bifrost_asset_registry::Pallet::<Runtime>::do_register_location(
@@ -2117,7 +2126,7 @@ mod benches {
 			Err(BenchmarkError::Skip)
 		}
 	}
-	pub use frame_benchmarking::{BenchmarkBatch, BenchmarkList, Benchmarking};
+	pub use frame_benchmarking::{BenchmarkBatch, BenchmarkList};
 	pub use frame_support::traits::{StorageInfoTrait, WhitelistedStorageKeys};
 	pub use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
 
@@ -2217,6 +2226,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
 			let mut config = <Runtime as pallet_evm::Config>::config().clone();
 			config.estimate = estimate;
@@ -2274,6 +2284,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.unwrap_or_default(),
+				authorization_list.unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -2293,6 +2304,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
 			let config = if estimate {
 				let mut config = <Runtime as pallet_evm::Config>::config().clone();
@@ -2360,6 +2372,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				Vec::new(),
+				authorization_list.unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -2602,7 +2615,7 @@ impl_runtime_apis! {
 			} else {
 				let native_fee = WeightToFee::weight_to_fee(&weight);
 				let asset_location = &asset.try_as::<AssetId>().map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?.0;
-				let asset_currency = AssetIdMaps::<Runtime>::get_currency_id(&asset_location).ok_or(XcmPaymentApiError::AssetNotFound)?;
+				let asset_currency = AssetIdMaps::<Runtime>::get_currency_id(asset_location).ok_or(XcmPaymentApiError::AssetNotFound)?;
 				let asset_fee = Prices::get_oracle_amount_by_currency_and_amount_in(&bifrost_primitives::BNC, native_fee, &asset_currency).ok_or(XcmPaymentApiError::AssetNotFound)?.0;
 				Ok(asset_fee)
 			}
@@ -2624,6 +2637,18 @@ impl_runtime_apis! {
 
 		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
 			PolkadotXcm::dry_run_xcm::<Runtime, XcmRouter, RuntimeCall, xcm_config::XcmConfig>(origin_location, xcm)
+		}
+	}
+
+	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
+		fn convert_location(location: VersionedLocation) -> Result<
+			AccountId,
+			xcm_runtime_apis::conversions::Error
+		> {
+			xcm_runtime_apis::conversions::LocationToAccountHelper::<
+				AccountId,
+				xcm_config::LocationToAccountId,
+			>::convert_location(location)
 		}
 	}
 
@@ -2713,11 +2738,11 @@ impl_runtime_apis! {
 
 	impl bifrost_farming_rpc_runtime_api::FarmingRuntimeApi<Block, AccountId, PoolId, CurrencyId> for Runtime {
 		fn get_farming_rewards(who: AccountId, pid: PoolId) -> Vec<(CurrencyId, Balance)> {
-			Farming::get_farming_rewards(&who, pid).unwrap_or(Vec::new())
+			Farming::get_farming_rewards(&who, pid).unwrap_or_default()
 		}
 
 		fn get_gauge_rewards(who: AccountId, pid: PoolId) -> Vec<(CurrencyId, Balance)> {
-			Farming::get_gauge_rewards(&who, pid).unwrap_or(Vec::new())
+			Farming::get_gauge_rewards(&who, pid).unwrap_or_default()
 		}
 	}
 
@@ -2753,7 +2778,7 @@ impl_runtime_apis! {
 		fn query_pending_rewards(
 			who: AccountId,
 		) -> Vec<(CurrencyId, Balance)> {
-			BbBNC::query_pending_rewards(&who).unwrap_or(Vec::new())
+			BbBNC::query_pending_rewards(&who).unwrap_or_default()
 		}
 	}
 

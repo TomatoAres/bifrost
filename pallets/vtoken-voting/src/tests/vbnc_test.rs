@@ -91,12 +91,12 @@ fn basic_voting_works() {
 			assert_ok!(VtokenVoting::try_remove_vote(
 				&ALICE,
 				vtoken,
-				poll_index,
+				Some(poll_index),
 				UnvoteScope::Any
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -120,12 +120,12 @@ fn voting_balance_gets_locked() {
 			assert_ok!(VtokenVoting::try_remove_vote(
 				&ALICE,
 				vtoken,
-				poll_index,
+				Some(poll_index),
 				UnvoteScope::Any
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -175,7 +175,7 @@ fn successful_but_zero_conviction_vote_balance_can_be_unlocked() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(BOB),
 				vtoken,
-				poll_index
+				Some(poll_index)
 			));
 			assert_eq!(usable_balance(vtoken, &BOB), 20);
 
@@ -183,7 +183,7 @@ fn successful_but_zero_conviction_vote_balance_can_be_unlocked() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				poll_index
+				Some(poll_index)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
@@ -225,10 +225,10 @@ fn unsuccessful_conviction_vote_balance_can_be_unlocked() {
 			assert_ok!(VtokenVoting::try_remove_vote(
 				&ALICE,
 				vtoken,
-				poll_index,
+				Some(poll_index),
 				UnvoteScope::Any
 			));
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, poll_index));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -270,7 +270,7 @@ fn ensure_balance_after_unlock() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				poll_index
+				Some(poll_index)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 10);
@@ -325,7 +325,7 @@ fn ensure_comprehensive_balance_after_unlock() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				poll_index
+				Some(poll_index)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
 			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 2);
@@ -381,12 +381,12 @@ fn successful_conviction_vote_balance_stays_locked_for_correct_time() {
 				assert_ok!(VtokenVoting::try_remove_vote(
 					&i,
 					vtoken,
-					poll_index,
+					Some(poll_index),
 					UnvoteScope::Any
 				));
 			}
 			for i in 1..=5 {
-				assert_ok!(VtokenVoting::update_lock(&i, vtoken, poll_index));
+				assert_ok!(VtokenVoting::update_lock(&i, vtoken, Some(poll_index)));
 				assert_eq!(usable_balance(vtoken, &i), 10 * i as u128);
 			}
 		});
@@ -481,7 +481,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 
 			System::set_block_number(10);
 			assert_noop!(
-				VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, 0),
+				VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, Some(0)),
 				Error::<Runtime>::NoPermissionYet
 			);
 			assert_eq!(
@@ -494,7 +494,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				0
+				Some(0)
 			));
 			assert_eq!(
 				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
@@ -511,7 +511,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				1
+				Some(1)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
@@ -524,7 +524,7 @@ fn lock_amalgamation_valid_with_multiple_removed_votes() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				2
+				Some(2)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 			assert_eq!(
@@ -603,7 +603,7 @@ fn removed_votes_when_referendum_killed() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				0
+				Some(0)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 			assert_eq!(
@@ -615,7 +615,7 @@ fn removed_votes_when_referendum_killed() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				1
+				Some(1)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 5);
 			assert_eq!(
@@ -627,7 +627,7 @@ fn removed_votes_when_referendum_killed() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				2
+				Some(2)
 			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 			assert_eq!(
@@ -1047,7 +1047,7 @@ fn vbnc_auto_update_referenda_status() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				0
+				Some(0)
 			));
 
 			assert_eq!(
@@ -1161,7 +1161,7 @@ fn vbnc_auto_update_referenda_status_with_unlock() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				0
+				Some(0)
 			));
 
 			assert_eq!(
@@ -1221,7 +1221,7 @@ fn vbnc_auto_update_referenda_status_with_unlock_can_early_unlock() {
 			assert_ok!(VtokenVoting::unlock(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
-				0
+				Some(0)
 			));
 
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
@@ -1229,6 +1229,101 @@ fn vbnc_auto_update_referenda_status_with_unlock_can_early_unlock() {
 				ReferendumInfoFor::<Runtime>::get(vtoken, 0),
 				Some(ReferendumInfo::Completed(21))
 			);
+		});
+	}
+}
+
+#[test]
+fn ensure_normal_vote_unlock_must_with_poll_index() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let poll_index = 1;
+			let poll_index_2 = 2;
+			let locking_period = 10;
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				locking_period,
+			));
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index,
+				aye(2, 1)
+			));
+
+			assert_ok!(VtokenVoting::set_referendum_status(
+				RuntimeOrigin::root(),
+				vtoken,
+				poll_index,
+				ReferendumInfoOf::<Runtime>::Completed(3),
+			));
+
+			assert_noop!(
+				VtokenVoting::unlock(RuntimeOrigin::signed(ALICE), vtoken, None),
+				Error::<Runtime>::NeedPollIndex
+			);
+
+			System::set_block_number(13);
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				Some(poll_index)
+			));
+
+			assert_eq!(usable_balance(vtoken, &ALICE), 10);
+			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 0);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				0
+			);
+
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index_2,
+				aye(10, 5)
+			));
+
+			assert_eq!(usable_balance(vtoken, &ALICE), 0);
+			assert_eq!(Tokens::accounts(&ALICE, vtoken).frozen, 10);
+			assert_eq!(
+				VotingForV2::<Runtime>::get(vtoken, &ALICE).locked_balance(),
+				10
+			);
+		});
+	}
+}
+
+#[test]
+fn delegate_then_undelegate_and_unlock_succeeds() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let locking_period = 10;
+
+			assert_ok!(VtokenVoting::set_vote_locking_period(
+				RuntimeOrigin::root(),
+				vtoken,
+				locking_period,
+			));
+			assert_eq!(usable_balance(vtoken, &BOB), 20);
+			assert_ok!(VtokenVoting::delegate(
+				RuntimeOrigin::signed(BOB),
+				vtoken,
+				ALICE,
+				Conviction::None,
+				2
+			));
+			assert_eq!(usable_balance(vtoken, &BOB), 18);
+			assert_ok!(VtokenVoting::undelegate(RuntimeOrigin::signed(BOB), vtoken));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(BOB),
+				vtoken,
+				None
+			));
+			assert_eq!(Tokens::accounts(&BOB, vtoken).frozen, 0);
+			assert_eq!(usable_balance(vtoken, &BOB), 20);
 		});
 	}
 }

@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bifrost_primitives::{Balance, BlockNumber, CurrencyId, TimeUnit};
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::H160;
 use sp_runtime::Permill;
@@ -33,7 +33,18 @@ pub const AS_DERIVATIVE_CALL_INDEX: u8 = 1;
 pub const LIMITED_RESERVE_TRANSFER_ASSETS_CALL_INDEX: u8 = 8;
 
 /// Configuration of the protocol
-#[derive(Encode, Decode, MaxEncodedLen, Default, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Default,
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct ProtocolConfiguration<AccountId> {
 	/// Xcm fee for the task
 	pub xcm_task_fee: XcmFee,
@@ -73,7 +84,18 @@ pub struct StakingProtocolInfo {
 }
 
 /// Delegator account
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum Delegator<AccountId> {
 	/// Substrate account
 	Substrate(AccountId),
@@ -81,7 +103,19 @@ pub enum Delegator<AccountId> {
 	Ethereum(H160),
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Default, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Default,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct XcmFee {
 	pub weight: Weight,
 	pub fee: Balance,

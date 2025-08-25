@@ -22,7 +22,7 @@ use sp_runtime::BoundedVec;
 
 extern crate alloc;
 use alloc::vec::Vec;
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 
 /// The token registry Id
 pub const REGISTRY: [u8; 8] = *b"registry";
@@ -58,7 +58,9 @@ pub struct DeregisterAssets {
 }
 
 /// Holds data required for multi-chain native asset registration
-#[derive(Debug, Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq)]
+#[derive(
+	Debug, Clone, Encode, Decode, DecodeWithMemTracking, scale_info::TypeInfo, PartialEq, Eq,
+)]
 pub struct GatewayAssetRegistration {
 	/// The asset name
 	pub name: BoundedVec<u8, ConstU32<50>>,
@@ -71,7 +73,17 @@ pub struct GatewayAssetRegistration {
 }
 
 /// Allows a user to update their multi-chain native token potentially on multiple chains
-#[derive(Debug, Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq, Default)]
+#[derive(
+	Debug,
+	Clone,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	scale_info::TypeInfo,
+	PartialEq,
+	Eq,
+	Default,
+)]
 pub struct GatewayAssetUpdate {
 	/// The asset identifier
 	pub asset_id: H256,

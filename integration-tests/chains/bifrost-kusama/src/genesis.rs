@@ -46,6 +46,7 @@ pub fn genesis() -> Storage {
 				.cloned()
 				.map(|k| (k, ED * 4096 * 4096))
 				.collect(),
+			dev_accounts: None,
 		},
 		parachain_info: bifrost_kusama_runtime::ParachainInfoConfig {
 			parachain_id: PARA_ID.into(),

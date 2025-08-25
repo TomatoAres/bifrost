@@ -72,6 +72,7 @@ impl ismp_parachain::Config for Runtime {
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
 	type WeightInfo = ismp_parachain_weight::WeightInfo<Runtime>;
+	type RootOrigin = TechAdminOrRoot;
 }
 
 #[derive(Default)]

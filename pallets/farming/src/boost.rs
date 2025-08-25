@@ -98,11 +98,11 @@ impl<T: Config> Pallet<T> {
 
 		// Update whitelist
 		if BoostNextRoundWhitelist::<T>::iter_keys().count() != 0 {
-			let _ = BoostWhitelist::<T>::clear(u32::max_value(), None);
+			let _ = BoostWhitelist::<T>::clear(u32::MAX, None);
 			BoostNextRoundWhitelist::<T>::iter_keys().for_each(|pid| {
 				BoostWhitelist::<T>::insert(pid, ());
 			});
-			let _ = BoostNextRoundWhitelist::<T>::clear(u32::max_value(), None);
+			let _ = BoostNextRoundWhitelist::<T>::clear(u32::MAX, None);
 		} else {
 			ensure!(
 				BoostWhitelist::<T>::iter_keys().count() != 0,
@@ -118,7 +118,7 @@ impl<T: Config> Pallet<T> {
 		boost_pool_info.round_length = round_length;
 		Self::send_boost_rewards(&boost_pool_info)?;
 		BoostPoolInfos::<T>::set(boost_pool_info);
-		let _ = BoostVotingPools::<T>::clear(u32::max_value(), None);
+		let _ = BoostVotingPools::<T>::clear(u32::MAX, None);
 		Self::deposit_event(Event::RoundStart { round_length });
 		Ok(())
 	}
@@ -127,7 +127,7 @@ impl<T: Config> Pallet<T> {
 	// in hook
 	pub(crate) fn end_boost_round_inner() {
 		let mut boost_pool_info = BoostPoolInfos::<T>::get();
-		let _ = BoostBasicRewards::<T>::clear(u32::max_value(), None);
+		let _ = BoostBasicRewards::<T>::clear(u32::MAX, None);
 		Self::deposit_event(Event::RoundEnd {
 			total_votes: boost_pool_info.total_votes,
 			start_round: boost_pool_info.start_round,
@@ -144,11 +144,11 @@ impl<T: Config> Pallet<T> {
 		let whitelist_iter = BoostWhitelist::<T>::iter_keys();
 		// Update whitelist
 		if BoostNextRoundWhitelist::<T>::iter().count() != 0 {
-			let _ = BoostWhitelist::<T>::clear(u32::max_value(), None);
+			let _ = BoostWhitelist::<T>::clear(u32::MAX, None);
 			whitelist_iter.for_each(|pid| {
 				BoostWhitelist::<T>::insert(pid, ());
 			});
-			let _ = BoostNextRoundWhitelist::<T>::clear(u32::max_value(), None);
+			let _ = BoostNextRoundWhitelist::<T>::clear(u32::MAX, None);
 		} else if whitelist_iter.count() == 0 {
 			return;
 		}
@@ -168,16 +168,15 @@ impl<T: Config> Pallet<T> {
 			round_length: boost_pool_info.round_length,
 		});
 		BoostPoolInfos::<T>::set(boost_pool_info);
-		let _ = BoostVotingPools::<T>::clear(u32::max_value(), None);
+		let _ = BoostVotingPools::<T>::clear(u32::MAX, None);
 	}
 
 	pub(crate) fn send_boost_rewards(
 		boost_pool_info: &BoostPoolInfo<BalanceOf<T>, BlockNumberFor<T>>,
 	) -> DispatchResult {
 		BoostVotingPools::<T>::iter()
-			.filter_map(|(pid, value)| match PoolInfos::<T>::get(pid) {
-				Some(pool_info) => Some((pid, value, pool_info)),
-				None => None,
+			.filter_map(|(pid, value)| {
+				PoolInfos::<T>::get(pid).map(|pool_info| (pid, value, pool_info))
 			})
 			.try_for_each(|(pid, value, pool_info)| -> DispatchResult {
 				let proportion = Percent::from_rational(value, boost_pool_info.total_votes);
@@ -248,7 +247,7 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.try_for_each(|(pid, proportion)| -> DispatchResult {
 				ensure!(
-					BoostWhitelist::<T>::get(pid) != None,
+					BoostWhitelist::<T>::get(pid).is_some(),
 					Error::<T>::NotInWhitelist
 				);
 				let increace = *proportion * new_vote_amount;

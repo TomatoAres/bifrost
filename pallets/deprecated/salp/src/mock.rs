@@ -274,7 +274,7 @@ parameter_types! {
 	pub const SlotLength: BlockNumber = 8u32 as BlockNumber;
 	pub const LeasePeriod: BlockNumber = 6 * WEEKS;
 	pub const VSBondValidPeriod: BlockNumber = 30 * DAYS;
-	pub const ReleaseCycle: BlockNumber = 1 * DAYS;
+	pub const ReleaseCycle: BlockNumber = DAYS;
 	pub const ReleaseRatio: Percent = Percent::from_percent(50);
 	pub ConfirmMuitiSigAccount: AccountId = Multisig::multi_account_id(&vec![
 		ALICE,
@@ -517,6 +517,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -548,6 +549,7 @@ impl pallet_xcm::Config for Test {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 pub struct BifrostAccountIdToMultiLocation;
@@ -587,12 +589,12 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 		(Native(BNC), DOLLARS / 100, None),
 		(Stable(KUSD), DOLLARS / 10_000, None),
 		(Token(KSM), DOLLARS / 10_000, None),
-		(Token(ZLK), DOLLARS / 1000_000, None),
+		(Token(ZLK), DOLLARS /  1_000_000, None),
 		(Token(KAR), DOLLARS / 10_000, None),
-		(Token(RMRK), DOLLARS / 1000_000, None),
+		(Token(RMRK), DOLLARS /  1_000_000, None),
 		(Token(PHA), 4 * DOLLARS / 100, None),
-		(Token(MOVR), DOLLARS / 1000_000, None),
-		(Token(DOT), DOLLARS / 1000_000, None),
+		(Token(MOVR), DOLLARS /  1_000_000, None),
+		(Token(DOT), DOLLARS /  1_000_000, None),
 	];
 	let vcurrency = vec![Native(BNC), Token(KSM), Token(MOVR)];
 	let vsbond = vec![];

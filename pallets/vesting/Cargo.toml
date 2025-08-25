@@ -16,7 +16,6 @@ log = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
-sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 
 [features]

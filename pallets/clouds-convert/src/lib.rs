@@ -204,7 +204,7 @@ pub mod pallet {
 				.checked_div(total_supply.saturated_into::<u128>().into())
 				// first turn into u128，then use unique_saturated_into BalanceOf<T>
 				.map(|x| x.saturated_into::<u128>())
-				.map(|x| BalanceOf::<T>::unique_saturated_from(x))
+				.map(BalanceOf::<T>::unique_saturated_from)
 				.ok_or(Error::<T>::CalculationOverflow)?;
 
 			Ok(can_get_amount)

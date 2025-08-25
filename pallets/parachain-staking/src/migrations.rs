@@ -127,7 +127,7 @@ impl<T: Config> OnRuntimeUpgrade for InitGenesisMigration<T> {
 		// Snapshot total stake
 		<Staked<T>>::insert(1u32, <Total<T>>::get());
 		let db_weight = T::DbWeight::get();
-		db_weight.reads(5) + db_weight.writes(2) + Weight::from_parts(250_000_000_000 as u64, 0)
+		db_weight.reads(5) + db_weight.writes(2) + Weight::from_parts(250_000_000_000_u64, 0)
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -273,22 +273,22 @@ impl<T: Config> OnRuntimeUpgrade for SplitDelegatorStateIntoDelegationScheduledR
 				state.id, state.requests.less_total, &*format!("expected_delegator-{:?}_decrease_amount", state.id,),
 			);
 			delegator_state_map.insert(
-				(&*format!("expected_delegator-{:?}_decrease_amount", state.id)).to_string(),
+				(*format!("expected_delegator-{:?}_decrease_amount", state.id)).to_string(),
 				state.requests.less_total,
 			);
 
 			for (collator, request) in state.requests.requests.iter() {
 				collator_state_map.insert(
-					(&*format!(
+					(*format!(
 						"expected_collator-{:?}_delegator-{:?}_request",
 						collator, state.id,
 					))
-						.to_string(),
-					Self::old_request_to_string(&state.id, &request),
+					.to_string(),
+					Self::old_request_to_string(&state.id, request),
 				);
 			}
 			expected_delegator_state_entries =
-				expected_delegator_state_entries.saturating_add(1 as u64);
+				expected_delegator_state_entries.saturating_add(1_u64);
 			expected_requests =
 				expected_requests.saturating_add(state.requests.requests.len() as u64);
 		}
@@ -323,7 +323,7 @@ impl<T: Config> OnRuntimeUpgrade for SplitDelegatorStateIntoDelegationScheduledR
 		let mut actual_delegator_state_entries = 0;
 		for (delegator, state) in <DelegatorState<T>>::iter() {
 			let expected_delegator_decrease_amount: BalanceOf<T> = *delegator_state_map
-				.get(&(&*format!("expected_delegator-{:?}_decrease_amount", state.id)).to_string())
+				.get(&format!("expected_delegator-{:?}_decrease_amount", state.id).to_string())
 				.expect("must exist");
 			assert_eq!(
 				expected_delegator_decrease_amount, state.less_total,
@@ -448,7 +448,7 @@ impl<T: Config> OnRuntimeUpgrade for PatchIncorrectDelegationSums<T> {
 		// get total counted for all candidates
 		for (account, state) in <CandidateInfo<T>>::iter() {
 			candidate_total_counted_map.insert(
-				(&format!("Candidate{:?}TotalCounted", account)[..]).to_string(),
+				format!("Candidate{:?}TotalCounted", account)[..].to_string(),
 				state.total_counted,
 			);
 		}
@@ -464,7 +464,7 @@ impl<T: Config> OnRuntimeUpgrade for PatchIncorrectDelegationSums<T> {
 		// ensure new total counted = top_delegations.sum() + collator self bond
 		for (account, state) in <CandidateInfo<T>>::iter() {
 			let old_count = *candidate_total_counted_map
-				.get(&(&format!("Candidate{:?}TotalCounted", account)[..]).to_string())
+				.get(&format!("Candidate{:?}TotalCounted", account)[..])
 				.expect("qed");
 			let new_count = state.total_counted;
 			let top_delegations_sum = <TopDelegations<T>>::get(account)
@@ -600,7 +600,7 @@ pub mod v1 {
 				});
 
 				StorageVersion::new(1).put::<Pallet<T>>();
-				Weight::from(T::DbWeight::get().reads_writes(1, 1))
+				T::DbWeight::get().reads_writes(1, 1)
 			} else {
 				log::warn!("parachain-staking migration should be removed.");
 				T::DbWeight::get().reads(1)

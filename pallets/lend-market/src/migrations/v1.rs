@@ -57,13 +57,12 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 				|k: AssetIdOf<T>, value: Vec<AssetIdOf<T>>| {
 					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
 
-					let target_bounded_vec: BoundedVec<AssetIdOf<T>, T::MaxLengthLimit>;
-					if value.len() != 0 {
-						target_bounded_vec = BoundedVec::try_from(value).unwrap();
-					} else {
-						target_bounded_vec =
-							BoundedVec::<AssetIdOf<T>, T::MaxLengthLimit>::default();
-					}
+					let target_bounded_vec: BoundedVec<AssetIdOf<T>, T::MaxLengthLimit> =
+						if !value.is_empty() {
+							BoundedVec::try_from(value).unwrap()
+						} else {
+							BoundedVec::<AssetIdOf<T>, T::MaxLengthLimit>::default()
+						};
 
 					Some(target_bounded_vec)
 				},
@@ -75,10 +74,10 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 			// Return the consumed weight
 			let liquidation_free_collaterals_count = 1u64;
 			let market_bond_count = MarketBond::<T>::iter().count();
-			Weight::from(T::DbWeight::get().reads_writes(
+			T::DbWeight::get().reads_writes(
 				liquidation_free_collaterals_count + market_bond_count as u64 + 1,
-				liquidation_free_collaterals_count as u64 + market_bond_count as u64 + 1,
-			))
+				liquidation_free_collaterals_count + market_bond_count as u64 + 1,
+			)
 		} else {
 			// We don't do anything here.
 			Weight::zero()

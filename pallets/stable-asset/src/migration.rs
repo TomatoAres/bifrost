@@ -27,7 +27,7 @@ pub fn update_pallet_id<T: Config>() -> Weight {
 			let to: T::AccountId = T::PalletId::get().into_sub_account_truncating(pool_id);
 			let pool_info = maybe_pool_info.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-			for (_, &asset_id) in pool_info.assets.iter().enumerate() {
+			for &asset_id in pool_info.assets.iter() {
 				let balance = T::Assets::free_balance(asset_id, &pool_info.account_id);
 				if balance == Zero::zero() {
 					continue;
@@ -57,7 +57,7 @@ pub fn update_pallet_id<T: Config>() -> Weight {
 	}
 
 	let count: u64 = (pool_count * 3).into();
-	Weight::from(T::DbWeight::get().reads_writes(count, count))
+	T::DbWeight::get().reads_writes(count, count)
 }
 
 use frame_support::{pallet_prelude::PhantomData, traits::OnRuntimeUpgrade};
@@ -93,7 +93,7 @@ impl<T: super::Config> OnRuntimeUpgrade for StableAssetOnRuntimeUpgrade<T> {
 			if let Some(pool_info) = Pools::<T>::get(pool_id) {
 				let old_account_id: T::AccountId =
 					old_pallet_id.into_sub_account_truncating(pool_id);
-				for (_, &asset_id) in pool_info.assets.iter().enumerate() {
+				for &asset_id in pool_info.assets.iter() {
 					let old_balance = T::Assets::free_balance(asset_id, &old_account_id);
 					assert_eq!(old_balance, Zero::zero());
 

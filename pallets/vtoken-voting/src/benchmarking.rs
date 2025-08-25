@@ -196,7 +196,7 @@ mod benchmarks {
 		Pallet::<T>::notify_vote(notify_origin, query_id, response)?;
 
 		#[extrinsic_call]
-		_(origin, vtoken, poll_index);
+		_(origin, vtoken, Some(poll_index));
 
 		Ok(())
 	}
@@ -446,7 +446,7 @@ mod benchmarks {
 	#[benchmark]
 	fn delegate(v: Linear<0, 256>) -> Result<(), BenchmarkError> {
 		let max_votes = T::MaxVotes::get();
-		let r: u32 = v.min(max_votes).into();
+		let r: u32 = v.min(max_votes);
 
 		let voter = funded_account::<T>("voter", 0);
 		let caller = funded_account::<T>("caller", 0);
@@ -505,7 +505,7 @@ mod benchmarks {
 	#[benchmark]
 	fn undelegate(v: Linear<1, 256>) -> Result<(), BenchmarkError> {
 		let max_votes = T::MaxVotes::get();
-		let r: u32 = v.min(max_votes).into();
+		let r: u32 = v.min(max_votes);
 
 		let voter = funded_account::<T>("voter", 0);
 		let caller = funded_account::<T>("caller", 0);

@@ -318,7 +318,7 @@ impl<T: Config>
 	fn delegate(
 		&self,
 		_who: &MultiLocation,
-		_targets: &Vec<MultiLocation>,
+		_targets: &[MultiLocation],
 		_currency_id: CurrencyId,
 		_weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -329,7 +329,7 @@ impl<T: Config>
 	fn undelegate(
 		&self,
 		_who: &MultiLocation,
-		_targets: &Vec<MultiLocation>,
+		_targets: &[MultiLocation],
 		_currency_id: CurrencyId,
 		_weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
@@ -356,16 +356,14 @@ impl<T: Config>
 		currency_id: CurrencyId,
 		weight_and_fee: Option<(Weight, BalanceOf<T>)>,
 	) -> Result<QueryId, Error<T>> {
-		let call: Vec<u8>;
-
-		if validator == &MultiLocation::default() {
-			call = AstarCall::Staking(AstarDappsStakingCall::<T>::ClaimStakerRewards).encode();
+		let call: Vec<u8> = if validator == &MultiLocation::default() {
+			AstarCall::Staking(AstarDappsStakingCall::<T>::ClaimStakerRewards).encode()
 		} else {
-			let contract_h160 = Pallet::<T>::multilocation_to_h160_account(&validator)?;
+			let contract_h160 = Pallet::<T>::multilocation_to_h160_account(validator)?;
 			let smart_contract = SmartContract::<T::AccountId>::Evm(contract_h160);
-			call = AstarCall::Staking(AstarDappsStakingCall::<T>::ClaimBonusReward(smart_contract))
+			AstarCall::Staking(AstarDappsStakingCall::<T>::ClaimBonusReward(smart_contract))
 				.encode()
-		}
+		};
 
 		// Wrap the xcm message as it is sent from a subaccount of the parachain account, and
 		// send it out.

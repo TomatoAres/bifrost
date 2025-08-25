@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg(feature = "runtime-benchmarks")]
 use bifrost_primitives::{CurrencyId, TokenSymbol};
 use frame_benchmarking::v2::*;
 use frame_support::{

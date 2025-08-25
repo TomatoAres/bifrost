@@ -74,13 +74,13 @@ pub enum PhalaUtilityCall<PhalaCall> {
 	#[codec(index = 1)]
 	AsDerivative(u16, Box<PhalaCall>),
 	#[codec(index = 2)]
-	BatchAll(Box<Vec<Box<PhalaCall>>>),
+	BatchAll(Vec<Box<PhalaCall>>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]
 pub enum PhalaSystemCall {
 	#[codec(index = 8)]
-	RemarkWithEvent(Box<Vec<u8>>),
+	RemarkWithEvent(Vec<u8>),
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Clone)]

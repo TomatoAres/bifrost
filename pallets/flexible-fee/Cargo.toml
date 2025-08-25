@@ -36,7 +36,6 @@ sp-io = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 bifrost-asset-registry = { workspace = true }
 bifrost-xcm-interface = { workspace = true }
-xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 pallet-xcm = { workspace = true }
 

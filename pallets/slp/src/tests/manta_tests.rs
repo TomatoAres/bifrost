@@ -1733,7 +1733,12 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		));
 
 		// First set base vtoken exchange rate. Should be 1:1.
+		assert_ok!(Currencies::deposit(MANTA, &ALICE, 100));
 		assert_ok!(Currencies::deposit(VMANTA, &ALICE, 100));
+		let total_issuance = Tokens::total_issuance(VMANTA);
+		if total_issuance > 0 {
+			bifrost_vtoken_minting::VtokenIssuance::<Runtime>::insert(VMANTA, total_issuance);
+		}
 		assert_ok!(Slp::increase_token_pool(
 			RuntimeOrigin::signed(ALICE),
 			MANTA,

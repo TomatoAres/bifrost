@@ -456,7 +456,7 @@ benchmarks! {
 		} else {
 			0u32.into()
 		};
-		let (caller, _) = create_funded_user::<T>("caller", USER_SEED, extra.into());
+		let (caller, _) = create_funded_user::<T>("caller", USER_SEED, extra);
 		// Delegation count
 		let mut del_del_count = 0u32;
 		// Nominate MaxDelegationsPerDelegators collator candidates
@@ -770,7 +770,7 @@ benchmarks! {
 		assert!(
 			!DelegationScheduledRequests::<T>::get(&collator)
 			.iter()
-			.any(|x| &x.delegator == &caller)
+			.any(|x| x.delegator == caller)
 		);
 	}
 
@@ -897,13 +897,13 @@ benchmarks! {
 					let mut open_spots = delegators.len() as u32 - *n_count;
 					while open_spots > 0 && remaining_delegations > 0 {
 						let caller = delegators[open_spots as usize - 1usize].clone();
-						if let Ok(_) = Pallet::<T>::delegate(RawOrigin::Signed(
+						if Pallet::<T>::delegate(RawOrigin::Signed(
 							caller.clone()).into(),
 							col.clone(),
 							<<T as Config>::MinDelegatorStk as Get<BalanceOf<T>>>::get(),
 							*n_count,
 							collators.len() as u32, // overestimate
-						) {
+						).is_ok() {
 							*n_count += 1;
 							remaining_delegations -= 1;
 						}
@@ -1005,7 +1005,7 @@ benchmarks! {
 		// directly and then call pay_one_collator_reward directly.
 
 		let round_for_payout = 5;
-		<DelayedPayouts<T>>::insert(&round_for_payout, DelayedPayout {
+		<DelayedPayouts<T>>::insert(round_for_payout, DelayedPayout {
 			// NOTE: round_issuance is not correct here, but it doesn't seem to cause problems
 			round_issuance: 1000u32.into(),
 			total_staking_reward: total_staked,
@@ -1045,7 +1045,7 @@ benchmarks! {
 		// nominators should have been paid
 		for delegator in &delegators {
 			assert!(
-				T::Currency::free_balance(&delegator) > initial_stake_amount,
+				T::Currency::free_balance(delegator) > initial_stake_amount,
 				"delegator should have been paid in pay_one_collator_reward"
 			);
 		}

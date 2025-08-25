@@ -27,11 +27,11 @@ use crate::types::{
 use crate::types::{HYDRATION_EMA_ORACLE_CALL_INDEX, HYDRATION_EMA_ORACLE_PALLET_INDEX};
 use bifrost_asset_registry::AssetMetadata;
 use bifrost_primitives::{
-	currency::{BNC, MOVR},
+	currency::{BNC, DOT_U, MOVR},
 	AstarChainId, AstarEvmChainId, Balance, BifrostKusamaChainId, CurrencyId, CurrencyIdMapping,
 	HydrationChainId, HyperBridgeSender, InterlayChainId, MantaChainId, MoonbeamEvmChainId,
-	MoonriverEvmChainId, RedeemType, SlpxOperator, SupportChain, TargetChain, TokenInfo,
-	VtokenMintingInterface, GLMR, HYPERBRIDGE_TIMEOUT,
+	MoonriverEvmChainId, OraclePriceProvider, RedeemType, SlpxOperator, SupportChain, TargetChain,
+	TokenInfo, VtokenMintingInterface, GLMR, HYPERBRIDGE_TIMEOUT,
 };
 use cumulus_primitives_core::ParaId;
 use ethereum::TransactionAction;
@@ -86,7 +86,10 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+type OrderTriple<T> = (OrderCaller<AccountIdOf<T>>, AccountIdOf<T>, AccountIdOf<T>);
+
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 	use frame_support::{
@@ -127,6 +130,8 @@ pub mod pallet {
 		type CurrencyIdConvert: CurrencyIdMapping<CurrencyId, AssetMetadata<BalanceOf<Self>>>;
 		/// Ismp message disptacher
 		type HyperBridgeSender: HyperBridgeSender<AccountIdOf<Self>, BalanceOf<Self>>;
+		/// The oracle price provider
+		type OraclePriceProvider: OraclePriceProvider;
 		/// TreasuryAccount
 		#[pallet::constant]
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
@@ -315,6 +320,8 @@ pub mod pallet {
 		AsyncMintIssuanceRatioTooHigh,
 		/// Async Mint configuration not set
 		AsyncMintConfigNotSet,
+		/// Duplicate accounts in the exempt list
+		DuplicateAccount,
 	}
 
 	/// Contract whitelist
@@ -396,6 +403,11 @@ pub mod pallet {
 		(BlockNumberFor<T>, u8), // (last_exexuted_block, remaining_blocks)
 		ValueQuery,
 	>;
+
+	/// Async Mint execution records
+	#[pallet::storage]
+	pub type HyperBridgeFeeExemptAccounts<T: Config> =
+		StorageValue<_, BoundedVec<AccountIdOf<T>, ConstU32<16>>, ValueQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -999,6 +1011,34 @@ pub mod pallet {
 
 			Ok(().into())
 		}
+
+		/// Set Hyperbridge fee exempt accounts
+		///
+		/// Parameters:
+		/// - `accounts`: The accounts to exempt from Hyperbridge fee
+		#[pallet::call_index(22)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_hyperbridge_fee_exempt_accounts())]
+		pub fn set_hyperbridge_fee_exempt_accounts(
+			origin: OriginFor<T>,
+			accounts: BoundedVec<AccountIdOf<T>, ConstU32<16>>,
+		) -> DispatchResultWithPostInfo {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			// Check for duplicate accounts
+			let mut seen_accounts = BoundedVec::<AccountIdOf<T>, ConstU32<16>>::new();
+			for account in accounts.iter() {
+				ensure!(
+					!seen_accounts.contains(account),
+					Error::<T>::DuplicateAccount
+				);
+				seen_accounts
+					.try_push(account.clone())
+					.map_err(|_| Error::<T>::DuplicateAccount)?;
+			}
+
+			HyperBridgeFeeExemptAccounts::<T>::put(accounts);
+			Ok(().into())
+		}
 	}
 }
 
@@ -1011,6 +1051,11 @@ impl<T: Config> Pallet<T> {
 		remark: BoundedVec<u8, ConstU32<32>>,
 		channel_id: u32,
 	) -> DispatchResult {
+		let mut currency_amount = currency_amount;
+		if let TargetChain::HyperBridge(dest, _) = target_chain {
+			currency_amount =
+				Self::charge_hyperbridge_fee(caller.clone(), currency_id, currency_amount, dest)?;
+		};
 		let (v_currency_id, v_currency_amount) = T::VtokenMintingInterface::mint(
 			caller.clone(),
 			currency_id,
@@ -1032,6 +1077,15 @@ impl<T: Config> Pallet<T> {
 		v_currency_amount: BalanceOf<T>,
 		target_chain: TargetChain<AccountIdOf<T>>,
 	) -> DispatchResult {
+		let mut v_currency_amount = v_currency_amount;
+		if let TargetChain::HyperBridge(dest, _) = target_chain {
+			v_currency_amount = Self::charge_hyperbridge_fee(
+				caller.clone(),
+				v_currency_id,
+				v_currency_amount,
+				dest,
+			)?;
+		};
 		let redeem_type = match target_chain.clone() {
 			TargetChain::Astar(receiver) => {
 				let receiver = Self::h160_to_account_id(&receiver);
@@ -1141,6 +1195,7 @@ impl<T: Config> Pallet<T> {
 		Ok(account)
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	fn do_create_order(
 		source_chain_caller: OrderCaller<T::AccountId>,
 		source_chain_id: u64,
@@ -1272,12 +1327,10 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		vtoken_amount: BalanceOf<T>,
 	) -> Result<Vec<u8>, Error<T>> {
-		let eth_h160 = ethabi::ethereum_types::H160::from(contract.0);
-
 		let ethereum_call = Self::encode_ethereum_call(currency_id, token_amount, vtoken_amount);
 		let transaction = EthereumXcmTransaction::V2(EthereumXcmTransactionV2 {
 			gas_limit: U256::from(MAX_GAS_LIMIT),
-			action: TransactionAction::Call(eth_h160),
+			action: TransactionAction::Call(contract),
 			value: U256::zero(),
 			input: BoundedVec::try_from(ethereum_call).map_err(|_| Error::<T>::ErrorEncode)?,
 			access_list: None,
@@ -1290,7 +1343,7 @@ impl<T: Config> Pallet<T> {
 		origin: OriginFor<T>,
 		evm_caller: H160,
 		target_chain: &TargetChain<AccountIdOf<T>>,
-	) -> Result<(OrderCaller<AccountIdOf<T>>, AccountIdOf<T>, AccountIdOf<T>), DispatchError> {
+	) -> Result<OrderTriple<T>, DispatchError> {
 		let bifrost_chain_caller = ensure_signed(origin)?;
 
 		match target_chain {
@@ -1472,11 +1525,11 @@ impl<T: Config> Pallet<T> {
 			.decimals()
 			.unwrap_or(
 				T::CurrencyIdConvert::get_currency_metadata(currency_id)
-					.map_or(12, |metatata| metatata.decimals.into()),
+					.map_or(12, |metadata| metadata.decimals),
 			)
 			.into();
 
-		BalanceOf::<T>::saturated_from(10u128.saturating_pow(decimals).saturating_div(100u128))
+		BalanceOf::<T>::saturated_from(10_u128.saturating_pow(decimals).saturating_div(100_u128))
 	}
 
 	#[transactional]
@@ -1598,7 +1651,7 @@ impl<T: Config> Pallet<T> {
 				.to_vtoken()
 				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 			let v_currency_total_supply =
-				T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id);
+				T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id)?;
 
 			if config.last_block + config.period < current_block_number {
 				let encoded_call = Self::encode_transact_call(
@@ -1693,7 +1746,7 @@ impl<T: Config> Pallet<T> {
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 					let v_currency_total_supply =
-						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id);
+						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id)?;
 					log::debug!(
 						"staking_currency_amount: {:?}, v_currency_total_supply: {:?}",
 						staking_currency_amount,
@@ -1867,6 +1920,38 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+
+	/// Charge hyperbridge fee for minting.
+	/// If the caller is in the fee exempt accounts, the fee will be 0.
+	pub fn charge_hyperbridge_fee(
+		caller: T::AccountId,
+		currency_id: CurrencyId,
+		currency_amount: BalanceOf<T>,
+		dest: u32,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		if HyperBridgeFeeExemptAccounts::<T>::get().contains(&caller) {
+			return Ok(currency_amount);
+		}
+		let config = HyperBridgeOracle::<T>::get(dest).ok_or(Error::<T>::Unsupported)?;
+		let (fee, _, _) = T::OraclePriceProvider::get_oracle_amount_by_currency_and_amount_in(
+			&DOT_U,
+			config.fee.saturated_into::<u128>(),
+			&currency_id,
+		)
+		.ok_or(Error::<T>::Unsupported)?;
+
+		let fee = BalanceOf::<T>::saturated_from(fee);
+		T::MultiCurrency::transfer(
+			currency_id,
+			&caller,
+			&T::TreasuryAccount::get(),
+			fee,
+			ExistenceRequirement::AllowDeath,
+		)?;
+
+		ensure!(currency_amount >= fee, Error::<T>::FreeBalanceTooLow);
+		Ok(currency_amount.saturating_sub(fee))
+	}
 }
 
 // Functions to be called by other pallets.
@@ -1932,7 +2017,7 @@ impl<T: Config>
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 					let v_currency_total_supply =
-						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id);
+						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id)?;
 
 					let body = ethabi::encode(&[
 						ethabi::Token::Address(ethabi::ethereum_types::H160::from(token.0)),

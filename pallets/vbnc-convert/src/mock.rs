@@ -138,7 +138,7 @@ orml_traits::parameter_type_with_key! {
 			&VKSM => 5,
 			&VBNC => 5,
 			_ => AssetIdMaps::<Runtime>::get_currency_metadata(*currency_id)
-				.map_or(Balance::max_value(), |metatata| metatata.minimal_balance)
+				.map_or(Balance::MAX, |metadata| metadata.minimal_balance)
 		}
 	};
 }
@@ -180,6 +180,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.unwrap();
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![(BOB, 10)],
+		dev_accounts: None,
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

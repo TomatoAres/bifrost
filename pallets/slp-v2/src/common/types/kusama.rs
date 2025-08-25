@@ -23,6 +23,7 @@ use crate::{
 use bifrost_primitives::{
 	Balance, BifrostKusamaChainId, MoonbeamChainId, MoonriverChainId, TimeUnit, KSM, MOVR,
 };
+use frame_support::pallet_prelude::DecodeWithMemTracking;
 use frame_support::traits::Get;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use polkadot_parachain_primitives::primitives::Sibling;
@@ -35,7 +36,18 @@ use xcm::{
 };
 
 /// Supported staking protocols.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum StakingProtocol {
 	/// ParachainStaking on Moonriver.
 	MoonriverParachainStaking,
@@ -134,16 +146,40 @@ pub enum Validator<AccountId> {
 }
 
 /// Ledger in slp protocol.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo,
+)]
 pub enum Ledger {}
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum XcmTask<AccountId> {
 	Todo(AccountId),
 }
 
 /// PendingStatus in slp protocol.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum PendingStatus<AccountId> {
 	Todo(AccountId),
 }

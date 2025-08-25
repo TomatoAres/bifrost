@@ -30,11 +30,30 @@ use sp_runtime::{
 use sp_std::{fmt::Debug, prelude::*};
 
 /// Info regarding a referendum, present or past.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum ReferendumInfo<
-	Moment: Eq + PartialEq + Debug + Encode + Decode + TypeInfo + Clone + EncodeLike,
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+pub enum ReferendumInfo<Moment, Tally>
+where
+	Moment: Eq
+		+ PartialEq
+		+ Debug
+		+ Encode
+		+ DecodeWithMemTracking
+		+ Decode
+		+ TypeInfo
+		+ Clone
+		+ EncodeLike,
 	Tally: Eq + PartialEq + Debug + Encode + Decode + TypeInfo + Clone,
-> {
+{
 	/// Referendum has been submitted and is being voted on.
 	Ongoing(ReferendumStatus<Moment, Tally>),
 	/// Referendum finished.
@@ -44,11 +63,22 @@ pub enum ReferendumInfo<
 }
 
 /// Info regarding an ongoing referendum.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct ReferendumStatus<
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+pub struct ReferendumStatus<Moment, Tally>
+where
 	Moment: Parameter + Eq + PartialEq + Debug + Encode + Decode + TypeInfo + Clone + EncodeLike,
 	Tally: Eq + PartialEq + Debug + Encode + Decode + TypeInfo + Clone,
-> {
+{
 	/// The time of submission. Once `UndecidingTimeout` passes, it may be closed by anyone if
 	/// `deciding` is `None`.
 	pub submitted: Option<Moment>,
@@ -187,7 +217,18 @@ impl<Tally, Moment> PollStatus<Tally, Moment> {
 }
 
 /// A vote for a referendum of a particular account.
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub enum AccountVote<Balance> {
 	/// A standard vote, one-way (approve or reject) with a given amount of conviction.
 	Standard { vote: Vote, balance: Balance },
@@ -261,6 +302,7 @@ impl<Balance: Saturating + PartialOrd> AccountVote<Balance> {
 		}
 	}
 
+	#[allow(clippy::result_unit_err)]
 	pub fn checked_add(&mut self, vote: AccountVote<Balance>) -> Result<(), ()>
 	where
 		Balance: One,
@@ -301,6 +343,7 @@ impl<Balance: Saturating + PartialOrd> AccountVote<Balance> {
 		Ok(())
 	}
 
+	#[allow(clippy::result_unit_err)]
 	pub fn checked_sub(&mut self, vote: AccountVote<Balance>) -> Result<(), ()>
 	where
 		Balance: One,
@@ -572,11 +615,15 @@ where
 	TypeInfo,
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	MaxEncodedLen,
 )]
 #[scale_info(skip_type_params(Total))]
 #[codec(mel_bound(Votes: MaxEncodedLen))]
-pub struct Tally<Votes: Clone + PartialEq + Eq + Debug + TypeInfo + Codec, Total> {
+pub struct Tally<Votes, Total>
+where
+	Votes: Clone + PartialEq + Eq + Debug + TypeInfo + Codec,
+{
 	/// The number of aye votes, expressed in terms of post-conviction lock-vote.
 	pub ayes: Votes,
 	/// The number of nay votes, expressed in terms of post-conviction lock-vote.
@@ -730,7 +777,18 @@ impl<
 }
 
 /// Represents the voting result for a referendum proposal in vToken.
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Default,
+)]
 pub enum ReferendumVoteStatus {
 	/// The referendum proposal was approved.
 	Approved,
@@ -739,13 +797,8 @@ pub enum ReferendumVoteStatus {
 	/// The referendum proposal was Cancelled/TimeOut/Killed.
 	None,
 	/// Ongoing is currently available for the referendum proposal.
+	#[default]
 	Ongoing,
-}
-
-impl Default for ReferendumVoteStatus {
-	fn default() -> Self {
-		ReferendumVoteStatus::Ongoing
-	}
 }
 
 impl ReferendumVoteStatus {

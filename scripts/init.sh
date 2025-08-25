@@ -4,6 +4,6 @@ set -e
 
 echo "*** Initializing WASM build environment"
 
-rustup default 1.82.0
+rustup default 1.84.1
 
-rustup target add wasm32-unknown-unknown --toolchain 1.82.0
+rustup target add wasm32v1-none --toolchain 1.84.1

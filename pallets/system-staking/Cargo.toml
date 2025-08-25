@@ -34,7 +34,6 @@ bifrost-currencies = { workspace = true }
 orml-tokens = { workspace = true }
 orml-xtokens = { workspace = true }
 orml-traits = { workspace = true }
-hex-literal = { workspace = true }
 bifrost-slp = { workspace = true }
 bifrost-farming = { workspace = true }
 bifrost-asset-registry = { workspace = true }

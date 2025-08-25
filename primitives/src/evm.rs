@@ -4,6 +4,7 @@ use sp_std::vec::Vec;
 use xcm::latest::Weight;
 
 pub trait EvmPermit {
+	#[allow(clippy::too_many_arguments)]
 	fn validate_permit(
 		source: H160,
 		target: H160,
@@ -15,7 +16,7 @@ pub trait EvmPermit {
 		r: H256,
 		s: H256,
 	) -> DispatchResult;
-
+	#[allow(clippy::too_many_arguments)]
 	fn dispatch_permit(
 		source: H160,
 		target: H160,

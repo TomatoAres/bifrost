@@ -324,7 +324,7 @@ pub mod pallet {
 							// Update token_info.current_config , set token_info.current_config =
 							// token_info.new_config
 							token_info.update_config();
-							<TokenStatus<T>>::insert(&i, token_info.clone());
+							<TokenStatus<T>>::insert(i, token_info.clone());
 						}
 					}
 				}
@@ -348,7 +348,7 @@ pub mod pallet {
 					{
 						Self::process_token_info(pallet_account.clone(), token_info, i).ok();
 
-						if let Err(_) = Self::do_payout(i) {
+						if Self::do_payout(i).is_err() {
 							log::error!("System staking auto payout failed, token: {:?}", i);
 							Self::deposit_event(Event::PayoutFailed { token: i });
 						}
@@ -375,7 +375,7 @@ pub mod pallet {
 
 			// If it exists, get token info, if not, create a new token info
 			let mut new_token = false;
-			let mut token_info = if let Some(state) = <TokenStatus<T>>::get(&token) {
+			let mut token_info = if let Some(state) = <TokenStatus<T>>::get(token) {
 				state
 			} else {
 				new_token = true;
@@ -397,7 +397,7 @@ pub mod pallet {
 			}
 
 			// Update token info
-			<TokenStatus<T>>::insert(&token, token_info.clone());
+			<TokenStatus<T>>::insert(token, token_info.clone());
 
 			// If it is a new token, add it to the token list
 			if new_token {
@@ -427,7 +427,7 @@ pub mod pallet {
 			T::EnsureConfirmAsGovernance::ensure_origin(origin)?; // Motion
 
 			// Remove token info
-			<TokenStatus<T>>::remove(&token);
+			<TokenStatus<T>>::remove(token);
 
 			// Remove token from token list
 			let mut token_list = TokenList::<T>::get();
@@ -449,7 +449,7 @@ pub mod pallet {
 
 			// Get token info
 			let mut token_info =
-				<TokenStatus<T>>::get(&token).ok_or(Error::<T>::TokenInfoNotFound)?;
+				<TokenStatus<T>>::get(token).ok_or(Error::<T>::TokenInfoNotFound)?;
 
 			// Check current_config != new_config
 			if token_info.check_config_change() {
@@ -489,10 +489,11 @@ impl<T: Config> Pallet<T> {
 		token_info.system_stakable_amount = stakable_amount;
 
 		// Set token_info
-		<TokenStatus<T>>::insert(&token_id, token_info.clone());
+		<TokenStatus<T>>::insert(token_id, token_info.clone());
 
 		// Check stakable_amount > (system_shadow_amount - pending_redeem_amount) ===> mint vksm ,
 		// update system_shadow_amount+=mint_amount
+		#[allow(clippy::comparison_chain)]
 		if stakable_amount
 			> token_info
 				.system_shadow_amount
@@ -557,23 +558,19 @@ impl<T: Config> Pallet<T> {
 					T::VtokenMintingInterface::redeem(account, vtoken_id, vredeem_amount)?;
 
 					//Update token_info.pending_redeem_amount
-					let new_token_info = if let Some(state) = <TokenStatus<T>>::get(&token_id) {
-						state
-					} else {
-						<TokenInfo<BalanceOf<T>, BlockNumberFor<T>>>::default()
-					};
+					let new_token_info = <TokenStatus<T>>::get(token_id).unwrap_or_default();
 					token_info.pending_redeem_amount = new_token_info.pending_redeem_amount;
 				}
 			}
 		}
 
 		// Update token_info
-		<TokenStatus<T>>::insert(&token_id, token_info.clone());
+		<TokenStatus<T>>::insert(token_id, token_info.clone());
 		Ok(().into())
 	}
 
 	fn do_payout(token: CurrencyIdOf<T>) -> DispatchResultWithPostInfo {
-		let token_info = <TokenStatus<T>>::get(&token).ok_or(Error::<T>::TokenInfoNotFound)?;
+		let token_info = <TokenStatus<T>>::get(token).ok_or(Error::<T>::TokenInfoNotFound)?;
 
 		// token_id convert to vtoken_id
 		let vtoken_id = token
@@ -636,11 +633,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		//Get token info
-		let mut token_info = if let Some(state) = <TokenStatus<T>>::get(&token_id) {
-			state
-		} else {
-			<TokenInfo<BalanceOf<T>, BlockNumberFor<T>>>::default()
-		};
+		let mut token_info = <TokenStatus<T>>::get(token_id).unwrap_or_default();
 
 		// pending_redeem_amount -= token_amount
 		token_info.pending_redeem_amount = token_info
@@ -676,7 +669,7 @@ impl<T: Config> Pallet<T> {
 				});
 			}
 		}
-		<TokenStatus<T>>::insert(&token_id, token_info);
+		<TokenStatus<T>>::insert(token_id, token_info);
 		T::WeightInfo::on_redeem_success()
 	}
 
@@ -704,18 +697,14 @@ impl<T: Config> Pallet<T> {
 		}
 
 		//Get token info
-		let mut token_info = if let Some(state) = <TokenStatus<T>>::get(&token_id) {
-			state
-		} else {
-			<TokenInfo<BalanceOf<T>, BlockNumberFor<T>>>::default()
-		};
+		let mut token_info = <TokenStatus<T>>::get(token_id).unwrap_or_default();
 
 		// pending_redeem_amount += token_amount
 		token_info.pending_redeem_amount = token_info
 			.pending_redeem_amount
 			.saturating_add(token_amount);
 
-		<TokenStatus<T>>::insert(&token_id, token_info.clone());
+		<TokenStatus<T>>::insert(token_id, token_info.clone());
 
 		Self::deposit_event(Event::Redeemed {
 			token: token_id,

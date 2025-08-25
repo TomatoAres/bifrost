@@ -157,10 +157,10 @@ pub fn bifrost_polkadot_genesis(
 		"tokens": { "balances": tokens },
 		"prices": {
 			"emergencyPrice": vec![
-				(DOT, FixedU128::from_inner(6_000_000_000_000_000_000u128)),
-				(WETH, FixedU128::from_inner(3000_000_000_000_000_000_000u128)),
-				(ETH, FixedU128::from_inner(3000_000_000_000_000_000_000u128)),
-				(BNC, FixedU128::from_inner(250_000_000_000_000_000u128)),
+				(DOT, FixedU128::from_inner(6_000_000_000_000_000_000_u128)),
+				(WETH, FixedU128::from_inner(3000_000_000_000_000_000_000_u128)),
+				(ETH, FixedU128::from_inner(3000_000_000_000_000_000_000_u128)),
+				(BNC, FixedU128::from_inner(250_000_000_000_000_000_u128)),
 			]
 		},
 		// EVM compatibility
@@ -183,6 +183,10 @@ pub fn bifrost_polkadot_genesis(
 }
 
 pub fn local_testnet_config() -> ChainSpec {
+	// evm address: 0x6be02d1d3665660d22ff9624b7be0551ee1ac91b, for local evm environment test
+	let evm_test_address: AccountId =
+		hex!["b1294c61799bd4d9a11e3941c6243fb81dbb91b8b4df180acaaec095a5e7c33c"].into();
+
 	let endowed_accounts = vec![
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -192,6 +196,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		get_account_id_from_seed::<sr25519::Public>("Ferdie"),
 		whitelisted_caller(), // Benchmarking whitelist_account
 		account("bechmarking_account_1", 0, 0),
+		evm_test_address,
 	];
 	let balances = endowed_accounts
 		.iter()
@@ -203,7 +208,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		.flat_map(|x| {
 			vec![
 				(x.clone(), DOT, ENDOWMENT() * 4_000_000),
-				(x.clone(), WETH, ENDOWMENT() * 4_000_000),
+				(x.clone(), ETH, ENDOWMENT() * 4_000_000),
 			]
 		})
 		.collect();
@@ -307,6 +312,11 @@ pub fn local_testnet_config() -> ChainSpec {
 			100_000_000,
 			Some((String::from("Wave"), String::from("WAVE"), 18u8)),
 		),
+		(
+			ETH,
+			100_000_000,
+			Some((String::from("Ethereum"), String::from("ETH"), 18u8)),
+		),
 	];
 	let vcurrency = vec![
 		VSToken2(DOT_TOKEN_ID),
@@ -320,7 +330,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		H160::from_str("6be02d1d3665660d22ff9624b7be0551ee1ac91b")
 			.expect("internal H160 is valid; qed"),
 		fp_evm::GenesisAccount {
-			balance: U256::from(1_000_000_000_000_000_000_000_000u128),
+			balance: U256::from(1_000_000_000_000_000_000_000_000_u128),
 			code: Default::default(),
 			nonce: Default::default(),
 			storage: Default::default(),
@@ -499,7 +509,7 @@ pub fn dev_config() -> ChainSpec {
 		H160::from_str("6be02d1d3665660d22ff9624b7be0551ee1ac91b")
 			.expect("internal H160 is valid; qed"),
 		fp_evm::GenesisAccount {
-			balance: U256::from(1_000_000_000_000_000_000_000_000u128),
+			balance: U256::from(1_000_000_000_000_000_000_000_000_u128),
 			code: Default::default(),
 			nonce: Default::default(),
 			storage: Default::default(),

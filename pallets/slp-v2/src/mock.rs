@@ -23,6 +23,7 @@ use bifrost_primitives::{
 	BlockNumber, CommissionPalletId, CurrencyId, IncentivePoolAccount, MockXcmRouter,
 	MockXcmTransfer, BNC,
 };
+use frame_support::traits::Disabled;
 use frame_support::{
 	derive_impl,
 	pallet_prelude::{ConstU32, Get},
@@ -36,7 +37,7 @@ use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_core::{crypto::AccountId32, ConstU64};
 use sp_runtime::{
 	traits::{BlockNumberProvider, IdentityLookup},
-	BuildStorage, DispatchError, DispatchResult,
+	BuildStorage,
 };
 use xcm::{
 	prelude::Parachain,
@@ -175,6 +176,7 @@ impl xcm_executor::Config for XcmConfig {
 	type HrmpChannelAcceptedHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type XcmRecorder = ();
+	type XcmEventEmitter = ();
 }
 
 impl pallet_xcm::Config for Test {
@@ -201,6 +203,7 @@ impl pallet_xcm::Config for Test {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 pub struct ParachainId;

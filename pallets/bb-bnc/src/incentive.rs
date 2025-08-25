@@ -22,7 +22,7 @@ use frame_support::traits::ExistenceRequirement;
 pub use pallet::*;
 use sp_std::collections::btree_map::BTreeMap;
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub struct IncentiveConfig<CurrencyId, Balance, BlockNumber, AccountId> {
 	/// Reward per block number per currency_id, which will change at notify_reward.
 	pub reward_rate: BTreeMap<CurrencyId, Balance>,
@@ -98,7 +98,7 @@ impl<T: Config> Pallet<T> {
 				.checked_mul(U512::from(T::Multiplier::get().saturated_into::<u128>()))
 				.ok_or(ArithmeticError::Overflow)?
 				.checked_div(U512::from(total_supply.saturated_into::<u128>()))
-				.map(|x| u128::try_from(x))
+				.map(u128::try_from)
 				.ok_or(ArithmeticError::Overflow)?
 				.map_err(|_| ArithmeticError::Overflow)?
 				.unique_saturated_into();
@@ -123,11 +123,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BTreeMap<CurrencyIdOf<T>, BalanceOf<T>>, DispatchError> {
 		let reward_per_token = Self::reward_per_token(pool_id)?;
 		let bbbnc_balance = Self::balance_of_current_block(who)?;
-		let mut rewards = if let Some(rewards) = Rewards::<T>::get(who) {
-			rewards
-		} else {
-			BTreeMap::<CurrencyIdOf<T>, BalanceOf<T>>::default()
-		};
+		let mut rewards = Rewards::<T>::get(who).unwrap_or_default();
 		reward_per_token
 			.iter()
 			.try_for_each(|(currency, reward)| -> DispatchResult {
@@ -153,7 +149,7 @@ impl<T: Config> Pallet<T> {
 							.checked_mul(U256::from(share.saturated_into::<u128>()))
 							.ok_or(ArithmeticError::Overflow)?
 							.checked_div(U256::from(total_share.saturated_into::<u128>()))
-							.map(|x| u128::try_from(x))
+							.map(u128::try_from)
 							.ok_or(ArithmeticError::Overflow)?
 							.map_err(|_| ArithmeticError::Overflow)?
 							.unique_saturated_into();
@@ -270,12 +266,12 @@ impl<T: Config> Pallet<T> {
 			T::BlockNumberProvider::current_block_number();
 
 		if current_block_number >= conf.period_finish {
-			Self::add_reward(&account, &mut conf, &rewards, Zero::zero())?;
+			Self::add_reward(account, &mut conf, &rewards, Zero::zero())?;
 		} else {
 			let remaining = T::BlockNumberToBalance::convert(
 				conf.period_finish.saturating_sub(current_block_number),
 			);
-			Self::add_reward(&account, &mut conf, &rewards, remaining)?;
+			Self::add_reward(account, &mut conf, &rewards, remaining)?;
 		};
 
 		conf.last_update_time = current_block_number;
