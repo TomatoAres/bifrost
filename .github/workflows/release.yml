@@ -30,19 +30,19 @@ jobs:
           toolchain: 1.84.1
 
       - name: Download kusama srtool result
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: bifrost-kusama-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
 
       - name: Download polkadot srtool result
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: bifrost-polkadot-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
       
       - name: Download paseo srtool result
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: bifrost-paseo-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
