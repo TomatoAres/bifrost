@@ -22,6 +22,10 @@ use frame_support::traits::ExistenceRequirement;
 pub use pallet::*;
 use sp_std::collections::btree_map::BTreeMap;
 
+/// Type alias for the complex IncentiveConfig with generic parameters
+pub type IncentiveConfigOf<T> =
+	IncentiveConfig<CurrencyIdOf<T>, BalanceOf<T>, BlockNumberFor<T>, AccountIdOf<T>>;
+
 #[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub struct IncentiveConfig<CurrencyId, Balance, BlockNumber, AccountId> {
 	/// Reward per block number per currency_id, which will change at notify_reward.
@@ -73,16 +77,25 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Calculate the reward per token for the given pool
+	/// Calculate the reward per token for the given pool and update the config
 	pub fn reward_per_token(
 		pool_id: PoolId,
 	) -> Result<BTreeMap<CurrencyIdOf<T>, BalanceOf<T>>, DispatchError> {
+		let conf = Self::calculate_reward_per_token(pool_id)?;
+		IncentiveConfigs::<T>::set(pool_id, conf.clone());
+		Ok(conf.reward_per_token_stored)
+	}
+
+	/// Calculate the reward per token for the given pool
+	pub fn calculate_reward_per_token(
+		pool_id: PoolId,
+	) -> Result<IncentiveConfigOf<T>, DispatchError> {
 		let mut conf = IncentiveConfigs::<T>::get(pool_id);
 		let current_block_number: BlockNumberFor<T> =
 			T::BlockNumberProvider::current_block_number();
 		let total_supply = Self::total_supply(Some(current_block_number))?;
 		if total_supply == BalanceOf::<T>::zero() {
-			return Ok(conf.reward_per_token_stored);
+			return Ok(conf);
 		}
 		// Iterate over each currency and its associated reward rate
 		conf.reward_rate
@@ -111,8 +124,7 @@ impl<T: Config> Pallet<T> {
 				Ok(())
 			})?;
 
-		IncentiveConfigs::<T>::set(pool_id, conf.clone());
-		Ok(conf.reward_per_token_stored)
+		Ok(conf)
 	}
 
 	/// Calculates the reward earned by an account from a specific reward pool

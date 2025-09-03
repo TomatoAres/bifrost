@@ -305,8 +305,7 @@ pub mod pallet {
 		},
 		/// Incentive config set.
 		IncentiveSet {
-			incentive_config:
-				IncentiveConfig<CurrencyIdOf<T>, BalanceOf<T>, BlockNumberFor<T>, AccountIdOf<T>>,
+			incentive_config: IncentiveConfigOf<T>,
 		},
 		/// The rewards for this round have been added to the system account.
 		RewardAdded { rewards: Vec<CurrencyIdOf<T>> },
@@ -414,13 +413,8 @@ pub mod pallet {
 
 	/// Farming pool incentive configurations.[pool_id => IncentiveConfig]
 	#[pallet::storage]
-	pub type IncentiveConfigs<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		PoolId,
-		IncentiveConfig<CurrencyIdOf<T>, BalanceOf<T>, BlockNumberFor<T>, AccountIdOf<T>>,
-		ValueQuery,
-	>;
+	pub type IncentiveConfigs<T: Config> =
+		StorageMap<_, Blake2_128Concat, PoolId, IncentiveConfigOf<T>, ValueQuery>;
 
 	/// User reward per token paid. [who => reward per token]
 	#[pallet::storage]
@@ -876,7 +870,8 @@ pub mod pallet {
 			let user_reward_per_token_paid = UserRewardPerTokenPaid::<T>::get(who);
 
 			// Get current reward per token for all currencies
-			let reward_per_token = Self::reward_per_token(BB_BNC_SYSTEM_POOL_ID)?;
+			let reward_per_token =
+				Self::calculate_reward_per_token(BB_BNC_SYSTEM_POOL_ID)?.reward_per_token_stored;
 
 			let zero = Zero::zero();
 			// Calculate pending rewards for each currency
@@ -887,9 +882,13 @@ pub mod pallet {
 
 				if let Some(reward) = current_reward_per_token.checked_sub(*paid) {
 					let balance = Self::balance_of_current_block(who)?;
-					if let Some(pending) = reward.checked_mul(balance) {
-						rewards.insert(currency_id, pending);
-					}
+					let pending = U256::from(reward)
+						.checked_mul(U256::from(balance))
+						.ok_or(ArithmeticError::Overflow)?
+						.checked_div(U256::from(T::Multiplier::get().saturated_into::<u128>()))
+						.ok_or(ArithmeticError::Overflow)?
+						.unique_saturated_into();
+					rewards.insert(currency_id, pending);
 				}
 			}
 
@@ -920,12 +919,17 @@ pub mod pallet {
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into();
+				let end_block_i128 = i128::try_from(old_locked.end.saturated_into::<u128>())
+					.map_err(|_| ArithmeticError::Overflow)?;
+				let current_block_i128 =
+					i128::try_from(current_block_number.saturated_into::<u128>())
+						.map_err(|_| ArithmeticError::Overflow)?;
+				let block_diff = end_block_i128
+					.checked_sub(current_block_i128)
+					.ok_or(ArithmeticError::Overflow)?;
 				u_old.bias = u_old
 					.slope
-					.checked_mul(
-						(old_locked.end.saturated_into::<u128>() as i128)
-							- (current_block_number.saturated_into::<u128>() as i128),
-					)
+					.checked_mul(block_diff)
 					.ok_or(ArithmeticError::Overflow)?;
 			}
 			if new_locked.end > current_block_number && new_locked.amount > BalanceOf::<T>::zero() {
@@ -935,12 +939,17 @@ pub mod pallet {
 					.ok_or(ArithmeticError::Overflow)?
 					.map_err(|_| ArithmeticError::Overflow)?
 					.unique_saturated_into();
+				let end_block_i128 = i128::try_from(new_locked.end.saturated_into::<u128>())
+					.map_err(|_| ArithmeticError::Overflow)?;
+				let current_block_i128 =
+					i128::try_from(current_block_number.saturated_into::<u128>())
+						.map_err(|_| ArithmeticError::Overflow)?;
+				let block_diff = end_block_i128
+					.checked_sub(current_block_i128)
+					.ok_or(ArithmeticError::Overflow)?;
 				u_new.bias = u_new
 					.slope
-					.checked_mul(
-						(new_locked.end.saturated_into::<u128>() as i128)
-							- (current_block_number.saturated_into::<u128>() as i128),
-					)
+					.checked_mul(block_diff)
 					.ok_or(ArithmeticError::Overflow)?;
 			}
 			let mut old_dslope = SlopeChanges::<T>::get(old_locked.end);
@@ -1160,11 +1169,17 @@ pub mod pallet {
 					.checked_sub(
 						last_point
 							.slope
-							.checked_mul(
-								(current_block_number.saturated_into::<u128>() as i128)
-									.checked_sub(last_point.block.saturated_into::<u128>() as i128)
-									.ok_or(ArithmeticError::Overflow)?,
-							)
+							.checked_mul({
+								let current_block_i128 =
+									i128::try_from(current_block_number.saturated_into::<u128>())
+										.map_err(|_| ArithmeticError::Overflow)?;
+								let last_block_i128 =
+									i128::try_from(last_point.block.saturated_into::<u128>())
+										.map_err(|_| ArithmeticError::Overflow)?;
+								current_block_i128
+									.checked_sub(last_block_i128)
+									.ok_or(ArithmeticError::Overflow)?
+							})
 							.ok_or(ArithmeticError::Overflow)?,
 					)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -1227,11 +1242,16 @@ pub mod pallet {
 				.checked_sub(
 					upoint
 						.slope
-						.checked_mul(
-							(block.saturated_into::<u128>() as i128)
-								.checked_sub(upoint.block.saturated_into::<u128>() as i128)
-								.ok_or(ArithmeticError::Overflow)?,
-						)
+						.checked_mul({
+							let block_i128 = i128::try_from(block.saturated_into::<u128>())
+								.map_err(|_| ArithmeticError::Overflow)?;
+							let upoint_block_i128 =
+								i128::try_from(upoint.block.saturated_into::<u128>())
+									.map_err(|_| ArithmeticError::Overflow)?;
+							block_i128
+								.checked_sub(upoint_block_i128)
+								.ok_or(ArithmeticError::Overflow)?
+						})
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1637,6 +1657,7 @@ pub mod pallet {
 		/// * `position` - the ID of the position
 		/// * `_locked` - user locked variable representation
 		/// * `if_fast` - distinguish whether it is a fast withdraw
+		#[transactional]
 		pub fn withdraw_no_ensure(
 			who: &AccountIdOf<T>,
 			position: PositionId,
@@ -2094,12 +2115,7 @@ impl<T: Config> BbBNCInterface<AccountIdOf<T>, CurrencyIdOf<T>, BalanceOf<T>, Bl
 	#[transactional]
 	fn add_reward(
 		who: &AccountIdOf<T>,
-		conf: &mut IncentiveConfig<
-			CurrencyIdOf<T>,
-			BalanceOf<T>,
-			BlockNumberFor<T>,
-			AccountIdOf<T>,
-		>,
+		conf: &mut IncentiveConfigOf<T>,
 		rewards: &[CurrencyIdOf<T>],
 		remaining: BalanceOf<T>,
 	) -> DispatchResult {

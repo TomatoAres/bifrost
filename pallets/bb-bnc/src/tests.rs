@@ -3727,3 +3727,538 @@ fn refresh_inner_division_by_zero_protection() {
 			}
 		});
 }
+
+#[test]
+fn query_pending_rewards_should_match_get_rewards() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock for BOB
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * DAYS - 7 * DAYS),
+			));
+
+			// Set up rewards - deposit KSM to ALICE and notify rewards
+			let rewards = vec![KSM];
+			assert_ok!(Tokens::deposit(KSM, &ALICE, 1_000_000_000_000));
+			assert_ok!(BbBNC::notify_rewards(
+				RuntimeOrigin::root(),
+				ALICE,
+				Some(7 * DAYS),
+				rewards
+			));
+
+			// Advance time to accrue some rewards
+			System::set_block_number(System::block_number() + DAYS);
+
+			// Query pending rewards for BOB
+			let pending_rewards = BbBNC::query_pending_rewards(&BOB).unwrap();
+
+			// Get the balance before claiming rewards
+			let balance_before = Tokens::free_balance(KSM, &BOB);
+
+			// Claim rewards using get_rewards
+			assert_ok!(BbBNC::get_rewards(RuntimeOrigin::signed(BOB)));
+
+			// Get the balance after claiming rewards
+			let balance_after = Tokens::free_balance(KSM, &BOB);
+
+			// Calculate the actual rewards claimed
+			let claimed_rewards = balance_after - balance_before;
+
+			// Find the KSM reward in pending_rewards
+			let ksm_pending_reward = pending_rewards
+				.iter()
+				.find(|(currency_id, _)| *currency_id == KSM)
+				.map(|(_, amount)| *amount)
+				.unwrap_or(0);
+
+			// The claimed reward should match the pending reward
+			assert_eq!(
+				claimed_rewards, ksm_pending_reward,
+				"Claimed reward ({}) should match pending reward ({})",
+				claimed_rewards, ksm_pending_reward
+			);
+		});
+}
+
+#[test]
+fn query_pending_rewards_should_match_get_rewards_bnc() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock for BOB
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * DAYS - 7 * DAYS),
+			));
+
+			// Set up rewards - deposit BNC to ALICE and notify rewards
+			let rewards = vec![BNC];
+			assert_ok!(Tokens::deposit(BNC, &ALICE, 1_000_000_000_000));
+			assert_ok!(BbBNC::notify_rewards(
+				RuntimeOrigin::root(),
+				ALICE,
+				Some(7 * DAYS),
+				rewards
+			));
+
+			// Advance time to accrue some rewards
+			System::set_block_number(System::block_number() + DAYS);
+
+			// Query pending rewards for BOB
+			let pending_rewards = BbBNC::query_pending_rewards(&BOB).unwrap();
+
+			// Find the BNC reward in pending_rewards
+			let bnc_pending_reward = pending_rewards
+				.iter()
+				.find(|(currency_id, _)| *currency_id == BNC)
+				.map(|(_, amount)| *amount)
+				.unwrap_or(0);
+
+			// Calculate expected vBNC reward using VtokenMinting::get_v_currency_amount_by_currency_amount
+			let expected_vbnc_reward = VtokenMinting::get_v_currency_amount_by_currency_amount(
+				BNC,
+				VBNC,
+				bnc_pending_reward,
+			)
+			.unwrap_or(0);
+
+			// Get the balance before claiming rewards
+			let bnc_balance_before = Tokens::free_balance(BNC, &BOB);
+			let vbnc_balance_before = Tokens::free_balance(VBNC, &BOB);
+
+			// Claim rewards using get_rewards
+			assert_ok!(BbBNC::get_rewards(RuntimeOrigin::signed(BOB)));
+
+			// Get the balance after claiming rewards
+			let bnc_balance_after = Tokens::free_balance(BNC, &BOB);
+			let vbnc_balance_after = Tokens::free_balance(VBNC, &BOB);
+
+			// Calculate the actual rewards claimed
+			let bnc_claimed_rewards = bnc_balance_after - bnc_balance_before;
+			let vbnc_minted = vbnc_balance_after - vbnc_balance_before;
+
+			let pending_rewards = BbBNC::query_pending_rewards(&BOB).unwrap();
+			let after_get_reward_bnc_pending_reward = pending_rewards
+				.iter()
+				.find(|(currency_id, _)| *currency_id == BNC)
+				.map(|(_, amount)| *amount)
+				.unwrap_or(0);
+			assert_eq!(after_get_reward_bnc_pending_reward, 0);
+
+			// The vBNC minted should match the expected vBNC reward
+			assert_eq!(
+				vbnc_minted, expected_vbnc_reward,
+				"Minted vBNC ({}) should match expected vBNC reward ({})",
+				vbnc_minted, expected_vbnc_reward
+			);
+
+			// Verify that vBNC was actually minted
+			assert!(vbnc_minted > 0, "vBNC should have been minted");
+		});
+}
+
+#[test]
+fn test_on_initialize_handles_withdraw_no_ensure_failure() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(1);
+
+			// Set config with reasonable values
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(1000), // min_mint
+				Some(7 * DAYS), // min_block
+				Some(10) // max_positions_per_block
+			));
+
+			// Create a lock for BOB
+			assert_ok!(BbBNC::create_lock(
+				RuntimeOrigin::signed(BOB),
+				10_000_000_000_000, // value
+				System::block_number() + (4 * 365 * DAYS - 5 * DAYS) // unlock_time
+			));
+
+			let position = Position::<Runtime>::get() - 1;
+
+			// Calculate the real unlock time (same calculation as in create_lock_inner)
+			let unlock_time = System::block_number() + (4 * 365 * DAYS - 5 * DAYS);
+			let real_unlock_time = unlock_time
+				.checked_div(Week::get())
+				.unwrap_or(0)
+				.saturating_add(1u32.into())
+				.checked_mul(Week::get())
+				.unwrap_or(0);
+
+			// Verify the position is recorded in expiring positions
+			assert!(ExpiringPositions::<Runtime>::get(real_unlock_time).contains(&position));
+
+			// Verify the position owner mapping
+			assert_eq!(PositionOwner::<Runtime>::get(position), Some(BOB));
+
+			// Simulate the bug scenario: manually corrupt the state by removing position from UserPositions
+			// but keeping it in PositionOwner and ExpiringPositions
+			UserPositions::<Runtime>::mutate(&BOB, |positions| {
+				positions.retain(|&p| p != position);
+			});
+
+			// Now UserPositions doesn't contain the position, but PositionOwner and ExpiringPositions do
+			assert!(!UserPositions::<Runtime>::get(&BOB).contains(&position));
+			assert_eq!(PositionOwner::<Runtime>::get(position), Some(BOB));
+			assert!(ExpiringPositions::<Runtime>::get(real_unlock_time).contains(&position));
+
+			// Set block number to the expiry time
+			System::set_block_number(real_unlock_time);
+
+			// Store the initial state for comparison
+			let initial_expiring_positions = ExpiringPositions::<Runtime>::get(real_unlock_time).clone();
+			let _initial_next_expiring_block = NextExpiringBlock::<Runtime>::get();
+
+			// Call on_initialize - this should trigger withdraw_no_ensure failure
+			let _weight = BbBNC::on_initialize(real_unlock_time);
+
+			// After on_initialize, since withdraw_no_ensure failed:
+			// BUG: The position is removed from ExpiringPositions even though withdrawal failed
+			// This is the bug we want to test and eventually fix
+
+			let final_expiring_positions = ExpiringPositions::<Runtime>::get(real_unlock_time);
+
+			// BUG: Position is incorrectly removed from ExpiringPositions even though withdraw failed
+			// This demonstrates the bug - position should remain for retry in next block
+			assert!(
+				final_expiring_positions.contains(&position),
+				"BUG: Position is incorrectly removed from ExpiringPositions even though withdraw_no_ensure failed"
+			);
+
+			// The ExpiringPositions changed (position was incorrectly removed)
+			assert_eq!(
+				initial_expiring_positions, final_expiring_positions,
+				"BUG: ExpiringPositions was modified even though withdraw_no_ensure failed"
+			);
+
+			// The locked balance should still be non-zero (not withdrawn)
+			let locked_balance = Locked::<Runtime>::get(position);
+			assert!(
+				!locked_balance.amount.is_zero(),
+				"Position amount should still be non-zero because withdrawal failed"
+			);
+
+			// Verify that the position is still owned by BOB
+			assert_eq!(
+				PositionOwner::<Runtime>::get(position),
+				Some(BOB),
+				"Position owner should remain unchanged"
+			);
+
+			// BUG: Test that on next block, the position CANNOT be processed anymore
+			// This demonstrates the severity of the bug
+			System::set_block_number(real_unlock_time + 1);
+			let _weight2 = BbBNC::on_initialize(real_unlock_time + 1);
+
+			assert_eq!(ExpiringPositions::<Runtime>::get(real_unlock_time).contains(&position), true);
+		});
+}
+
+#[test]
+fn test_withdraw_no_ensure_failure_scenarios() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(1);
+
+			// Set config
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(1000),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Test case 1: Position exists in PositionOwner but not in UserPositions
+			assert_ok!(BbBNC::create_lock(
+				RuntimeOrigin::signed(BOB),
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * DAYS - 5 * DAYS)
+			));
+
+			let position1 = Position::<Runtime>::get() - 1;
+
+			// Corrupt state by removing from UserPositions
+			UserPositions::<Runtime>::mutate(&BOB, |positions| {
+				positions.retain(|&p| p != position1);
+			});
+
+			// Test withdraw_no_ensure directly - should fail
+			let locked = Locked::<Runtime>::get(position1);
+			assert_noop!(
+				BbBNC::withdraw_no_ensure(&BOB, position1, locked, None),
+				Error::<Runtime>::LockNotExist
+			);
+
+			// Test case 2: Simulate arithmetic underflow scenario
+			assert_ok!(BbBNC::create_lock(
+				RuntimeOrigin::signed(ALICE),
+				10_000_000_000_000,
+				System::block_number() + (4 * 365 * DAYS - 5 * DAYS)
+			));
+
+			let position2 = Position::<Runtime>::get() - 1;
+
+			// Manually corrupt supply to create underflow scenario
+			let current_supply = Supply::<Runtime>::get();
+			Supply::<Runtime>::set(current_supply - 5_000_000_000_000); // Reduce supply artificially
+
+			let locked2 = Locked::<Runtime>::get(position2);
+			// This might fail due to supply underflow
+			let _result = BbBNC::withdraw_no_ensure(&ALICE, position2, locked2, None);
+			// We expect this to either succeed or fail with Underflow, but not panic
+
+			// Reset supply for other tests
+			Supply::<Runtime>::set(current_supply);
+		});
+}
+
+#[test]
+fn test_negative_block_diff_in_balance_calculation() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock
+			assert_ok!(BbBNC::create_lock_inner(&BOB, 10_000_000_000_000, 7 * DAYS,));
+
+			let position = 0;
+
+			// Advance to a future block to create some history
+			System::set_block_number(System::block_number() + 100);
+
+			// Go to a specific block number first
+			let start_block = 1000;
+			System::set_block_number(start_block);
+
+			// Manually manipulate the UserPointHistory to create a scenario where
+			// last_point.block > current_block_number (simulating negative block diff)
+			let manipulated_point = Point {
+				bias: 100_000_000_000_000_000_000i128,
+				slope: 10_000_000_000_000_000_000i128,
+				block: start_block + 500, // Set block number in the future
+				amount: 10_000_000_000_000u128,
+			};
+
+			let u_epoch = UserPointEpoch::<Runtime>::get(position);
+			UserPointHistory::<Runtime>::insert(position, u_epoch, manipulated_point.clone());
+
+			// Go back to an earlier block to create negative block diff scenario
+			System::set_block_number(start_block + 100);
+
+			// This should not panic even with negative block diff
+			// The function should handle the negative block diff gracefully
+			let result = BbBNC::balance_of_position_current_block(position);
+
+			// The result should be handled properly - either Ok with 0 or some error
+			// but definitely not panic due to i128 overflow
+			match result {
+				Ok(balance) => {
+					// If successful, the bias should be clamped to 0 for negative values
+					assert!(balance >= 0, "Balance should not be negative");
+				}
+				Err(err) => {
+					// Should fail with ArithmeticError::Overflow
+					assert_eq!(err, ArithmeticError::Overflow.into());
+				}
+			}
+
+			// Test another scenario: very large block numbers that approach i128::MAX
+			System::set_block_number(1000000); // Use a large but reasonable block number
+
+			// Create another position with large block numbers
+			assert_ok!(BbBNC::create_lock_inner(
+				&ALICE,
+				5_000_000_000_000,
+				100000, // Short lock time
+			));
+
+			let position2 = 1;
+
+			// Manually set a point with block number close to i128::MAX
+			let large_block_point = Point {
+				bias: 50_000_000_000_000_000_000i128,
+				slope: 5_000_000_000_000_000_000i128,
+				block: 2000000u32.into(), // Large block number that fits in u32
+				amount: 5_000_000_000_000u128,
+			};
+
+			let u_epoch2 = UserPointEpoch::<Runtime>::get(position2);
+			UserPointHistory::<Runtime>::insert(position2, u_epoch2, large_block_point);
+
+			// This should not panic even with very large block numbers
+			let result2 = BbBNC::balance_of_position_current_block(position2);
+
+			// Should handle gracefully without panic
+			match result2 {
+				Ok(balance) => {
+					assert!(
+						balance >= 0,
+						"Balance should not be negative with large block numbers"
+					);
+				}
+				Err(err) => {
+					// Should fail with ArithmeticError::Overflow
+					assert_eq!(err, ArithmeticError::Overflow.into());
+				}
+			}
+		});
+}
+
+#[test]
+fn test_checkpoint_with_negative_block_diff() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create initial lock
+			assert_ok!(BbBNC::create_lock_inner(&BOB, 10_000_000_000_000, 7 * DAYS,));
+
+			let position = 0;
+
+			// Create a scenario where old_locked.end < current_block_number
+			// This would result in negative block_diff in the checkpoint function
+			let old_locked = LockedBalance {
+				amount: 10_000_000_000_000u128,
+				end: System::block_number(), // End block is in the past
+			};
+
+			let new_locked = LockedBalance {
+				amount: 10_000_000_000_000u128,
+				end: System::block_number() + 7 * DAYS, // New end block is in the future
+			};
+
+			// This should not panic even with negative block diff
+			let checkpoint_result = BbBNC::checkpoint(&BOB, position, old_locked, new_locked);
+
+			System::set_block_number(System::block_number() + 200);
+			// The result should be handled properly - either Ok or ArithmeticError::Overflow
+			match checkpoint_result {
+				Ok(_) => {
+					// If successful, we should be able to get the updated balance
+					let balance = BbBNC::balance_of_position_current_block(position);
+					assert!(
+						balance.is_ok(),
+						"Balance calculation should succeed after checkpoint"
+					);
+					if let Ok(balance) = balance {
+						assert!(balance >= 0, "Balance should not be negative");
+					}
+				}
+				Err(err) => {
+					// Should fail with ArithmeticError::Overflow
+					assert_eq!(err, ArithmeticError::Overflow.into());
+				}
+			}
+
+			// Test another scenario with zero amount but negative block diff
+			let zero_amount_locked = LockedBalance {
+				amount: 0u128,
+				end: System::block_number(), // End block is in the past
+			};
+
+			let new_zero_locked = LockedBalance {
+				amount: 0u128,
+				end: System::block_number() + 7 * DAYS, // New end block is in the future
+			};
+
+			// This should not panic even with negative block diff and zero amounts
+			let zero_checkpoint_result =
+				BbBNC::checkpoint(&BOB, position, zero_amount_locked, new_zero_locked);
+
+			// The result should be Ok since both amounts are zero
+			assert!(
+				zero_checkpoint_result.is_ok(),
+				"Checkpoint with zero amounts should succeed"
+			);
+			// Test with expired lock and zero new lock
+			let expired_locked = LockedBalance {
+				amount: 10_000_000_000_000u128,
+				end: System::block_number() - 100, // End block is far in the past
+			};
+
+			let zero_new_locked = LockedBalance {
+				amount: 0u128,
+				end: 0u32, // No new lock
+			};
+
+			// This should not panic even with negative block diff and expired lock
+			let expired_checkpoint_result =
+				BbBNC::checkpoint(&BOB, position, expired_locked, zero_new_locked);
+
+			// The result should be handled properly
+			match expired_checkpoint_result {
+				Ok(_) => {
+					// If successful, balance should be zero since lock is expired
+					let balance = BbBNC::balance_of_position_current_block(position);
+					assert!(
+						balance.is_ok(),
+						"Balance calculation should succeed after checkpoint"
+					);
+					if let Ok(balance) = balance {
+						assert_eq!(balance, 0, "Balance should be zero for expired lock");
+					}
+				}
+				Err(err) => {
+					// Should fail with ArithmeticError::Overflow
+					assert_eq!(err, ArithmeticError::Overflow.into());
+				}
+			}
+		});
+}
