@@ -22,7 +22,8 @@ use crate::{
 	KSM, MANTA, MOVR, PHA,
 };
 use bifrost_primitives::{
-	AstarChainId, CurrencyId, MantaChainId, MoonbeamChainId, MoonriverChainId, PhalaChainId,
+	AssetHubChainId, AstarChainId, CurrencyId, MantaChainId, MoonbeamChainId, MoonriverChainId,
+	PhalaChainId,
 };
 use frame_support::ensure;
 use parity_scale_codec::Encode;
@@ -374,7 +375,10 @@ impl<T: Config> Pallet<T> {
 		currency_id: CurrencyId,
 	) -> Result<xcm::v5::Location, Error<T>> {
 		match currency_id {
-			KSM | DOT => Ok(xcm::v5::Location::parent()),
+			KSM | DOT => Ok(xcm::v5::Location::new(
+				1,
+				[xcm::v5::prelude::Parachain(AssetHubChainId::get())],
+			)),
 			MOVR => Ok(xcm::v5::Location::new(
 				1,
 				[xcm::v5::prelude::Parachain(MoonriverChainId::get())],
@@ -423,6 +427,7 @@ impl<T: Config> Pallet<T> {
 		match currency_id {
 			MOVR => xcm::v5::Location::new(0, [xcm::v5::prelude::PalletInstance(10)]),
 			GLMR => xcm::v5::Location::new(0, [xcm::v5::prelude::PalletInstance(10)]),
+			KSM | DOT => xcm::v5::Location::parent(),
 			_ => xcm::v5::Location::here(),
 		}
 	}

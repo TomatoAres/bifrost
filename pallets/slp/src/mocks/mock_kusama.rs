@@ -25,9 +25,9 @@ use crate::{Config, DispatchResult};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, KSM, MANTA, VKSM},
-	Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId,
-	IncentivePoolAccount, MockXcmExecutor, MockXcmRouter, MoonbeamChainId,
-	ParachainStakingPalletId, SlpxOperator, StableAssetPalletId, TokenSymbol,
+	Amount, AssetHubChainId, Balance, BifrostEntranceAccount, BifrostExitAccount,
+	BifrostFeeAccount, CurrencyId, IncentivePoolAccount, MockXcmExecutor, MockXcmRouter,
+	MoonbeamChainId, ParachainStakingPalletId, SlpxOperator, StableAssetPalletId, TokenSymbol,
 	XcmDestWeightAndFeeHandler, XcmOperationType,
 };
 pub use cumulus_primitives_core::ParaId;
@@ -379,16 +379,20 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 				),
 			),
 			// Only relay chain use the Bifrost para account with "para"
-			CurrencyId::Token(TokenSymbol::KSM) => MultiLocation::new(
+			CurrencyId::Token(TokenSymbol::KSM) => xcm::v3::Location::new(
 				1,
-				X1(Junction::AccountId32 {
-					network: None,
-					id: Self::derivative_account_id(
-						ParaId::from(2001u32).into_account_truncating(),
-						sub_account_index,
-					)
-					.into(),
-				}),
+				xcm::v3::Junctions::X2(
+					xcm::v3::Junction::Parachain(AssetHubChainId::get()),
+					xcm::v3::Junction::AccountId32 {
+						network: None,
+						id: Self::derivative_account_id(
+							polkadot_parachain_primitives::primitives::Sibling::from(2001u32)
+								.into_account_truncating(),
+							sub_account_index,
+						)
+						.into(),
+					},
+				),
 			),
 			// Bifrost Kusama Native token
 			CurrencyId::Native(TokenSymbol::BNC) => MultiLocation::new(
@@ -504,7 +508,10 @@ impl Convert<CurrencyId, Option<xcm::v5::Location>> for CurrencyIdConvert {
 					xcm::v5::Junction::PalletInstance(10),
 				],
 			)),
-			Token(KSM) => Some(xcm::v5::Location::parent()),
+			Token(KSM) => Some(xcm::v5::Location::new(
+				1,
+				[xcm::v5::Junction::Parachain(1000)],
+			)),
 			Native(BNC) => Some(xcm::v5::Location::new(
 				0,
 				[xcm::v5::Junction::from(

@@ -42,7 +42,11 @@ use sp_runtime::{
 	DispatchResult,
 };
 use sp_std::prelude::*;
-use xcm::{opaque::v3::MultiLocation, v3::prelude::*, VersionedAssets, VersionedLocation};
+use xcm::{
+	opaque::v3::MultiLocation, v3::prelude::*, VersionedAssetId, VersionedAssets,
+	VersionedLocation, VersionedXcm,
+};
+use xcm_executor::traits::TransferType;
 
 /// StakingAgent implementation for Kusama/Polkadot
 pub struct PolkadotAgent<T>(PhantomData<T>);
@@ -844,30 +848,30 @@ impl<T: Config>
 		let (entrance_account, _) = T::VtokenMinting::get_entrance_and_exit_accounts();
 
 		// Prepare parameter dest and beneficiary.
-		let dest = Box::new(VersionedLocation::V3(Location::from([Parachain(
-			T::ParachainId::get().into(),
-		)])));
+		let dest = Box::new(VersionedLocation::V3(Location::new(
+			1,
+			[Parachain(T::ParachainId::get().into())],
+		)));
 
-		let beneficiary = Box::new(VersionedLocation::V3(Location::from([AccountId32 {
+		let beneficiary = Location::from([AccountId32 {
 			network: None,
 			id: entrance_account
 				.encode()
 				.try_into()
 				.map_err(|_| Error::<T>::FailToConvert)?,
-		}])));
+		}]);
 
 		// Prepare parameter assets.
+		let asset_id = Concrete(MultiLocation {
+			parents: 1,
+			interior: Here,
+		});
+		let remote_fees_id = Box::new(VersionedAssetId::V3(asset_id));
 		let asset = MultiAsset {
 			fun: Fungible(amount.unique_saturated_into()),
-			id: Concrete(MultiLocation {
-				parents: 0,
-				interior: Here,
-			}),
+			id: asset_id,
 		};
 		let assets: Box<VersionedAssets> = Box::new(VersionedAssets::V3(MultiAssets::from(asset)));
-
-		// Prepare parameter fee_asset_item.
-		let fee_asset_item: u32 = 0;
 
 		let (weight_limit, _) = T::XcmWeightAndFeeHandler::get_operation_weight_and_fee(
 			currency_id,
@@ -875,24 +879,29 @@ impl<T: Config>
 		)
 		.ok_or(Error::<T>::WeightAndFeeNotExists)?;
 
+		// Transfer KSM|DOT from AH to Bifrost, using LocalReserve on AH
+		let assets_transfer_type = Box::new(TransferType::LocalReserve);
+		let fees_transfer_type = Box::new(TransferType::LocalReserve);
+
+		let custom_xcm_on_dest = Box::new(VersionedXcm::V3(Xcm(vec![DepositAsset {
+			assets: Wild(AllCounted(1)),
+			beneficiary,
+		}])));
+
+		let xcm_call = XcmCall::TransferAssetsUsingTypeAndThen(
+			dest,
+			assets,
+			assets_transfer_type,
+			remote_fees_id,
+			fees_transfer_type,
+			custom_xcm_on_dest,
+			Limited(weight_limit),
+		);
+
 		// Construct xcm message.
 		let call = match currency_id {
-			KSM => KusamaCall::<T>::Xcm(Box::new(XcmCall::LimitedReserveTransferAssets(
-				dest,
-				beneficiary,
-				assets,
-				fee_asset_item,
-				Limited(weight_limit),
-			)))
-			.encode(),
-			DOT => PolkadotCall::<T>::Xcm(Box::new(XcmCall::LimitedReserveTransferAssets(
-				dest,
-				beneficiary,
-				assets,
-				fee_asset_item,
-				Limited(weight_limit),
-			)))
-			.encode(),
+			KSM => KusamaCall::<T>::Xcm(Box::new(xcm_call)).encode(),
+			DOT => PolkadotCall::<T>::Xcm(Box::new(xcm_call)).encode(),
 			_ => Err(Error::NotSupportedCurrencyId)?,
 		};
 

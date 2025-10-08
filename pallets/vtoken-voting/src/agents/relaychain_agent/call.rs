@@ -35,9 +35,9 @@ pub(in crate::agents::relaychain_agent) mod kusama {
 
 	#[derive(Encode, Decode, RuntimeDebug)]
 	pub(in crate::agents::relaychain_agent) enum RelayCall<T: Config> {
-		#[codec(index = 20)]
+		#[codec(index = 91)]
 		ConvictionVoting(ConvictionVoting<T>),
-		#[codec(index = 24)]
+		#[codec(index = 40)]
 		Utility(Utility<Self>),
 	}
 }
@@ -48,9 +48,9 @@ pub(in crate::agents::relaychain_agent) mod polkadot {
 
 	#[derive(Encode, Decode, RuntimeDebug)]
 	pub(in crate::agents::relaychain_agent) enum RelayCall<T: Config> {
-		#[codec(index = 20)]
+		#[codec(index = 61)]
 		ConvictionVoting(ConvictionVoting<T>),
-		#[codec(index = 26)]
+		#[codec(index = 40)]
 		Utility(Utility<Self>),
 	}
 }

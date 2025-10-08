@@ -21,7 +21,8 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::StaticLookup, RuntimeDebug};
 use sp_std::{boxed::Box, vec::Vec};
-use xcm::{v3::prelude::*, VersionedAssets, VersionedLocation};
+use xcm::{v3::prelude::*, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
+use xcm_executor::traits::TransferType;
 
 #[derive(Encode, Decode, RuntimeDebug)]
 pub enum KusamaCall<T: Config> {
@@ -29,11 +30,11 @@ pub enum KusamaCall<T: Config> {
 	System(SystemCall),
 	#[codec(index = 4)]
 	Balances(BalancesCall<T>),
-	#[codec(index = 6)]
+	#[codec(index = 89)]
 	Staking(StakingCall<T>),
-	#[codec(index = 24)]
+	#[codec(index = 40)]
 	Utility(Box<KusamaUtilityCall<Self>>),
-	#[codec(index = 99)]
+	#[codec(index = 31)]
 	Xcm(Box<XcmCall>),
 }
 
@@ -47,13 +48,13 @@ impl<T: Config> KusamaCall<T> {
 pub enum PolkadotCall<T: Config> {
 	#[codec(index = 0)]
 	System(SystemCall),
-	#[codec(index = 5)]
+	#[codec(index = 10)]
 	Balances(BalancesCall<T>),
-	#[codec(index = 7)]
+	#[codec(index = 89)]
 	Staking(StakingCall<T>),
-	#[codec(index = 26)]
+	#[codec(index = 40)]
 	Utility(Box<PolkadotUtilityCall<Self>>),
-	#[codec(index = 99)]
+	#[codec(index = 31)]
 	Xcm(Box<XcmCall>),
 }
 
@@ -126,6 +127,16 @@ pub enum XcmCall {
 		Box<VersionedLocation>,
 		Box<VersionedAssets>,
 		u32,
+		WeightLimit,
+	),
+	#[codec(index = 13)]
+	TransferAssetsUsingTypeAndThen(
+		Box<VersionedLocation>,
+		Box<VersionedAssets>,
+		Box<TransferType>,
+		Box<VersionedAssetId>,
+		Box<TransferType>,
+		Box<VersionedXcm<()>>,
 		WeightLimit,
 	),
 }

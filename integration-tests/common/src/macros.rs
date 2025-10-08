@@ -24,6 +24,7 @@ pub use pallet_assets;
 pub use pallet_balances;
 pub use pallet_message_queue;
 pub use pallet_xcm;
+pub use polkadot_runtime_parachains::dmp::Pallet as Dmp;
 
 // Polkadot
 pub use xcm::{
@@ -156,6 +157,8 @@ macro_rules! test_relay_is_trusted_teleporter {
 						<$sender_relay>::child_location_of(<$receiver_para>::para_id());
 					let beneficiary: Location =
 						$crate::macros::AccountId32 { network: None, id: receiver.clone().into() }.into();
+
+					$crate::macros::Dmp::<<$sender_relay as $crate::macros::Chain>::Runtime>::make_parachain_reachable(<$receiver_para>::para_id());
 
 					// Send XCM message from Relay
 					<$sender_relay>::execute_with(|| {

@@ -19,7 +19,7 @@
 // Ensure we're `no_std` when compiling for Wasm.
 
 use crate::*;
-use bifrost_primitives::{DOT, VDOT};
+use bifrost_primitives::{DOT, MANTA, VDOT};
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, PalletId};
 use frame_system::RawOrigin as SystemOrigin;
@@ -625,25 +625,25 @@ mod benchmarks {
 		let origin = <T as Config>::ControlOrigin::try_successful_origin()
 			.map_err(|_| BenchmarkError::Weightless)?;
 		set_mins_and_maxs::<T>(origin.clone());
-		DelegatorsMultilocation2Index::<T>::insert(KSM, DELEGATOR1, 0);
+		DelegatorsMultilocation2Index::<T>::insert(MANTA, DELEGATOR1, 0);
 
 		let fee_source_location = Pallet::<T>::account_32_to_local_location(
 			Pallet::<T>::account_id_to_account_32(whitelisted_caller()).unwrap(),
 		)
 		.unwrap();
 		FeeSources::<T>::insert(
-			KSM,
+			MANTA,
 			(fee_source_location, BalanceOf::<T>::from(4100000000u32)),
 		);
 
 		assert_ok!(<T as Config>::MultiCurrency::deposit(
-			KSM,
+			MANTA,
 			&whitelisted_caller(),
 			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000_u128),
 		));
 
 		T::XcmWeightAndFeeHandler::set_xcm_dest_weight_and_fee(
-			KSM,
+			MANTA,
 			XcmOperationType::TransferTo,
 			Some((Weight::from_parts(4000000000, 100000), 0u32.into())),
 		)?;
@@ -655,7 +655,7 @@ mod benchmarks {
 		#[extrinsic_call]
 		_(
 			origin as <T as frame_system::Config>::RuntimeOrigin,
-			KSM,
+			MANTA,
 			Box::new(from),
 			Box::new(DELEGATOR1),
 			10u32.into(),

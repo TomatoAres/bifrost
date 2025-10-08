@@ -23,6 +23,7 @@ sp-runtime = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 xcm = { workspace = true }
+xcm-executor = { workspace = true }
 pallet-xcm = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 pallet-balances = { workspace = true }
@@ -42,7 +43,6 @@ orml-traits = { workspace = true }
 bifrost-currencies = { workspace = true }
 bifrost-asset-registry = { workspace = true }
 pallet-indices = { workspace = true }
-xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 pallet-xcm = { workspace = true }
 
@@ -64,6 +64,7 @@ std = [
     "sp-io/std",
     "sp-std/std",
     "xcm/std",
+    "xcm-executor/std",
     "pallet-xcm/std",
     "cumulus-primitives-core/std",
     "pallet-balances/std",
@@ -84,4 +85,4 @@ runtime-benchmarks = [
     "xcm-builder/runtime-benchmarks",
     "bifrost-primitives/runtime-benchmarks",
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]

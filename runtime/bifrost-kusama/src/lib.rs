@@ -29,8 +29,8 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 extern crate alloc;
 use alloc::borrow::Cow;
 use bifrost_primitives::{
-	BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX, KUSD, LP_BNC_VBNC,
-	VBNC, VKSM,
+	AssetHubChainId, BLP_BNC_VBNC, BNC, KSM, KUSAMA_VBNC_ASSET_INDEX, KUSAMA_VBNC_LP_ASSET_INDEX,
+	KUSD, LP_BNC_VBNC, VBNC, VKSM,
 };
 use bifrost_slp::DerivativeAccountProvider;
 use core::convert::TryInto;
@@ -170,7 +170,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost"),
 	impl_name: Cow::Borrowed("bifrost"),
 	authoring_version: 1,
-	spec_version: 21000,
+	spec_version: 21002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1003,17 +1003,22 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> xcm::v3::
 				},
 			),
 		),
-		// Only relay chain use the Bifrost para account with "para"
 		KSM => xcm::v3::Location::new(
 			1,
-			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
-				network: None,
-				id: Utility::derivative_account_id(
-					ParachainInfo::get().into_account_truncating(),
-					index,
-				)
-				.into(),
-			}),
+			xcm::v3::Junctions::X2(
+				xcm::v3::Junction::Parachain(AssetHubChainId::get()),
+				xcm::v3::Junction::AccountId32 {
+					network: None,
+					id: Utility::derivative_account_id(
+						polkadot_parachain_primitives::primitives::Sibling::from(
+							ParachainInfo::get(),
+						)
+						.into_account_truncating(),
+						index,
+					)
+					.into(),
+				},
+			),
 		),
 		// Bifrost Kusama Native token
 		BNC => xcm::v3::Location::new(
@@ -1850,11 +1855,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		pallet_session::migrations::v1::MigrateV0ToV1<
-			Runtime,
-			pallet_session::migrations::v1::InitOffenceSeverity<Runtime>,
-		>,
-		cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
+		bifrost_slp::migrations::v5::SlpMigrationV5<Runtime>,
 	);
 }
 

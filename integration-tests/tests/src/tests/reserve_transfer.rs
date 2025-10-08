@@ -17,48 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::imports::*;
-use sp_core::{crypto::get_public_from_string_or_panic, sr25519};
-use sp_runtime::AccountId32;
-
-fn relay_to_para_sender_assertions(sender: AccountId32, amount_to_send: Balance, dest: Location) {
-	type RuntimeEvent = <Rococo as Chain>::RuntimeEvent;
-
-	Rococo::assert_xcm_pallet_attempted_complete(Some(Weight::from_parts(864_610_000, 8_799)));
-
-	assert_expected_events!(
-		Rococo,
-		vec![
-			// Amount to reserve transfer is transferred to Parachain's Sovereign account
-			RuntimeEvent::Balances(
-				pallet_balances::Event::Transfer { from, to, amount }
-			) => {
-				from: *from == sender,
-				to: *to == Rococo::sovereign_account_id_of(
-					dest.clone()
-				),
-				amount: *amount == amount_to_send,
-			},
-		]
-	);
-}
-
-fn relay_to_para_assets_receiver_assertions(
-	expected_currency_id: CurrencyId,
-	expected_receiver: AccountId32,
-	expected_amount: Balance,
-) {
-	type RuntimeEvent = <BifrostPolkadot as Chain>::RuntimeEvent;
-	assert_expected_events!(
-		BifrostPolkadot,
-		vec![
-			RuntimeEvent::Tokens(orml_tokens::Event::Deposited { currency_id, who, amount }) => {
-				currency_id: *currency_id == expected_currency_id,
-				who: *who == expected_receiver,
-				amount: *amount == expected_amount,
-			},
-		]
-	);
-}
+use rococo_system_emulated_network::rococo_emulated_chain::rococo_runtime::Dmp;
 
 // =========================================================================
 // ========= Reserve Transfers - Native Asset - Relay<>Parachain ===========
@@ -82,21 +41,31 @@ fn reserve_transfer_native_asset_from_relay_to_para() {
 		Weight::default(),
 	);
 
-	// Transfer assets from Relay to Parachain
-	// Rococo::execute_with(|| {
-	// 	assert_ok!(<Rococo as RococoPallet>::XcmPallet::transfer_assets(
-	// 		<Rococo as Chain>::RuntimeOrigin::signed(sender.clone()),
-	// 		bx!(destination.clone().into()),
-	// 		bx!(receiver.clone().into()),
-	// 		bx!((Here, amount_to_send).into()),
-	// 		0,
-	// 		WeightLimit::Unlimited,
-	// 	));
-	// 	// relay_to_para_sender_assertions(sender, amount_to_send, destination);
-	// });
+	Rococo::execute_with(|| {
+		Dmp::make_parachain_reachable(BifrostPolkadot::para_id());
+		assert_ok!(
+			<Rococo as RococoPallet>::XcmPallet::limited_reserve_transfer_assets(
+				<Rococo as Chain>::RuntimeOrigin::signed(sender.clone()),
+				bx!(destination.clone().into()),
+				bx!(receiver.clone().into()),
+				bx!((Here, amount_to_send).into()),
+				0,
+				WeightLimit::Unlimited,
+			)
+		);
+	});
 
 	// Assert DOT is received on Parachain
-	// BifrostPolkadot::execute_with(|| {
-	// 	relay_to_para_assets_receiver_assertions(DOT, receiver, amount_to_send);
-	// });
+	BifrostPolkadot::execute_with(|| {
+		type RuntimeEvent = <BifrostPolkadot as Chain>::RuntimeEvent;
+		assert_expected_events!(
+			BifrostPolkadot,
+			vec![
+				RuntimeEvent::Tokens(orml_tokens::Event::Deposited { currency_id, who ,.. }) => {
+					currency_id: *currency_id == DOT,
+					who: *who == receiver,
+				},
+			]
+		);
+	});
 }

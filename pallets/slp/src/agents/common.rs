@@ -28,13 +28,15 @@ use crate::{
 	BNC, DOT, GLMR, KSM, MANTA, MOVR, PHA,
 };
 use bifrost_primitives::{
-	CurrencyId, CurrencyIdExt, VtokenMintingOperator, XcmDestWeightAndFeeHandler,
+	AssetHubChainId, CurrencyId, CurrencyIdExt, VtokenMintingOperator, XcmDestWeightAndFeeHandler,
 };
+use frame_support::dispatch::RawOrigin;
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{dispatch::GetDispatchInfo, ensure, traits::Len};
 use orml_traits::{MultiCurrency, XcmTransfer};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_core::{Get, U256};
+use sp_runtime::traits::Dispatchable;
 use sp_runtime::{
 	traits::{
 		AccountIdConversion, BlockNumberProvider, CheckedAdd, UniqueSaturatedFrom,
@@ -42,6 +44,7 @@ use sp_runtime::{
 	},
 	DispatchResult, SaturatedConversion, Saturating,
 };
+use sp_std::boxed::Box;
 use xcm::v3::MultiLocation;
 use xcm::v5::prelude::*;
 
@@ -332,9 +335,6 @@ impl<T: Config> Pallet<T> {
 		currency_id: CurrencyId,
 	) -> xcm::v5::Junctions {
 		match currency_id {
-			KSM | DOT => xcm::v5::Junctions::from([xcm::v5::prelude::Parachain(
-				T::ParachainId::get().into(),
-			)]),
 			MOVR | GLMR => xcm::v5::Junctions::from([xcm::v5::prelude::AccountKey20 {
 				network: None,
 				key: Sibling::from(T::ParachainId::get()).into_account_truncating(),
@@ -361,8 +361,7 @@ impl<T: Config> Pallet<T> {
 			MOVR | GLMR => 30,
 			ASTR => 11,
 			PHA => 3,
-			KSM => 24,
-			DOT => 26,
+			KSM | DOT => 40,
 			_ => Err(Error::<T>::Unsupported)?,
 		};
 
@@ -475,22 +474,13 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn get_report_transact_status_instruct(
 		query_id: QueryId,
 		max_weight: Weight,
-		currency_id: CurrencyId,
 	) -> xcm::v5::Instruction<()> {
-		let dest_location = match currency_id {
-			DOT | KSM => xcm::v5::Location::new(
-				0,
-				[xcm::v5::prelude::Parachain(
-					u32::from(T::ParachainId::get()),
-				)],
-			),
-			_ => xcm::v5::Location::new(
-				1,
-				[xcm::v5::prelude::Parachain(
-					u32::from(T::ParachainId::get()),
-				)],
-			),
-		};
+		let dest_location = xcm::v5::Location::new(
+			1,
+			[xcm::v5::prelude::Parachain(
+				u32::from(T::ParachainId::get()),
+			)],
+		);
 
 		xcm::v5::prelude::ReportTransactStatus(xcm::v5::prelude::QueryResponseInfo {
 			destination: dest_location,
@@ -550,10 +540,47 @@ impl<T: Config> Pallet<T> {
 
 		let from_account = Pallet::<T>::multilocation_to_account(from)?;
 
-		let v5_location =
-			Location::try_from(to.into_versioned()).map_err(|()| Error::<T>::FailToConvert)?;
-		T::XcmTransfer::transfer(from_account, currency_id, amount, v5_location, Unlimited)
-			.map_err(|_| Error::<T>::TransferToError)?;
+		match currency_id {
+			KSM | DOT => {
+				let to_account = Pallet::<T>::multilocation_to_account(to)?;
+				let call = pallet_xcm::Call::limited_reserve_transfer_assets {
+					dest: Box::new(Location::new(1, [Parachain(AssetHubChainId::get())]).into()),
+					beneficiary: Box::new(
+						Location::new(
+							0,
+							[AccountId32 {
+								network: None,
+								id: to_account
+									.encode()
+									.try_into()
+									.map_err(|_e| Error::<T>::InvalidAccount)?,
+							}],
+						)
+						.into(),
+					),
+					assets: Box::new(
+						Asset {
+							id: Location::parent().into(),
+							fun: Fungible(amount.unique_saturated_into()),
+						}
+						.into(),
+					),
+					fee_asset_item: 0,
+					weight_limit: Unlimited,
+				};
+
+				let runtime_call = <T as Config>::RuntimeCall::from(call);
+				runtime_call
+					.dispatch(RawOrigin::Signed(from_account.clone()).into())
+					.map_err(|_| Error::<T>::TransferToError)?;
+			}
+			_ => {
+				let v5_location = Location::try_from(to.into_versioned())
+					.map_err(|()| Error::<T>::FailToConvert)?;
+				T::XcmTransfer::transfer(from_account, currency_id, amount, v5_location, Unlimited)
+					.map_err(|_| Error::<T>::TransferToError)?;
+			}
+		}
 
 		Ok(())
 	}
@@ -600,11 +627,8 @@ impl<T: Config> Pallet<T> {
 		xcm_message.insert(2, transact);
 
 		if let (Some(query_id), Some(notify_call_weight)) = (query_id, notify_call_weight) {
-			let report_transact_status_instruct = Self::get_report_transact_status_instruct(
-				query_id,
-				notify_call_weight,
-				currency_id,
-			);
+			let report_transact_status_instruct =
+				Self::get_report_transact_status_instruct(query_id, notify_call_weight);
 			xcm_message.insert(3, report_transact_status_instruct);
 		};
 

@@ -25,9 +25,9 @@ use crate::{Config, DispatchResult, XcmDestWeightAndFeeHandler};
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, KSM},
-	Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId,
-	IncentivePoolAccount, MoonbeamChainId, ParachainStakingPalletId, SlpxOperator, TokenSymbol,
-	XcmOperationType,
+	Amount, AssetHubChainId, Balance, BifrostEntranceAccount, BifrostExitAccount,
+	BifrostFeeAccount, CurrencyId, IncentivePoolAccount, MoonbeamChainId, ParachainStakingPalletId,
+	SlpxOperator, TokenSymbol, XcmOperationType,
 };
 pub use cumulus_primitives_core::ParaId;
 use frame_support::traits::Disabled;
@@ -312,17 +312,20 @@ impl Convert<(u16, CurrencyId), MultiLocation> for SubAccountIndexMultiLocationC
 				}),
 			),
 			// Bifrost Kusama Native token
-			CurrencyId::Native(TokenSymbol::BNC) => MultiLocation::new(
-				0,
-				X1(Junction::AccountId32 {
-					network: None,
-					id: Self::derivative_account_id(
-						polkadot_parachain_primitives::primitives::Sibling::from(2001u32)
-							.into_account_truncating(),
-						sub_account_index,
-					)
-					.into(),
-				}),
+			CurrencyId::Native(TokenSymbol::BNC) => xcm::v3::Location::new(
+				1,
+				xcm::v3::Junctions::X2(
+					xcm::v3::Junction::Parachain(AssetHubChainId::get()),
+					xcm::v3::Junction::AccountId32 {
+						network: None,
+						id: Self::derivative_account_id(
+							polkadot_parachain_primitives::primitives::Sibling::from(2001u32)
+								.into_account_truncating(),
+							sub_account_index,
+						)
+						.into(),
+					},
+				),
 			),
 			// Other sibling chains use the Bifrost para account with "sibl"
 			_ => {
@@ -388,7 +391,7 @@ impl Convert<CurrencyId, Option<Location>> for CurrencyIdConvert {
 
 		match id {
 			Token(MOVR) => Some(Location::new(1, [Parachain(2023), PalletInstance(10)])),
-			Token(KSM) => Some(Location::parent()),
+			Token(KSM) => Some(Location::new(1, [Parachain(1000)])),
 			Native(BNC) => Some(Location::new(
 				0,
 				Junction::from(BoundedVec::try_from("0x0001".encode()).unwrap()),

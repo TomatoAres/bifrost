@@ -36,8 +36,8 @@ use pallet_traits::evm::InspectEvmAccounts;
 // A few exports that help ease life for downstream crates.
 pub use bifrost_parachain_staking::{InflationInfo, Range};
 use bifrost_primitives::{
-	BifrostCrowdloanId, BifrostVsbondAccount, BuyBackAccount, BuybackPalletId, CloudsPalletId,
-	CommissionPalletId, FarmingBoostPalletId, FarmingGaugeRewardIssuerPalletId,
+	AssetHubChainId, BifrostCrowdloanId, BifrostVsbondAccount, BuyBackAccount, BuybackPalletId,
+	CloudsPalletId, CommissionPalletId, FarmingBoostPalletId, FarmingGaugeRewardIssuerPalletId,
 	FarmingKeeperPalletId, FarmingRewardIssuerPalletId, FeeSharePalletId, FlexibleFeePalletId,
 	IncentivePalletId, IncentivePoolAccount, LendMarketPalletId, LiquidityAccount,
 	LocalBncLocation, OraclePalletId, ParachainStakingPalletId, SlpEntrancePalletId,
@@ -199,7 +199,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_polkadot"),
 	impl_name: Cow::Borrowed("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 21001,
+	spec_version: 21002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -860,17 +860,22 @@ pub fn create_x2_multilocation(index: u16, currency_id: CurrencyId) -> MultiLoca
 				},
 			),
 		),
-		// Only relay chain use the Bifrost para account with "para"
 		DOT => xcm::v3::Location::new(
 			1,
-			xcm::v3::Junctions::X1(xcm::v3::Junction::AccountId32 {
-				network: None,
-				id: Utility::derivative_account_id(
-					ParachainInfo::get().into_account_truncating(),
-					index,
-				)
-				.into(),
-			}),
+			xcm::v3::Junctions::X2(
+				xcm::v3::Junction::Parachain(AssetHubChainId::get()),
+				xcm::v3::Junction::AccountId32 {
+					network: None,
+					id: Utility::derivative_account_id(
+						polkadot_parachain_primitives::primitives::Sibling::from(
+							ParachainInfo::get(),
+						)
+						.into_account_truncating(),
+						index,
+					)
+					.into(),
+				},
+			),
 		),
 		// Bifrost Polkadot Native token
 		BNC => xcm::v3::Location::new(
@@ -1795,6 +1800,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+		bifrost_slp::migrations::v5::SlpMigrationV5<Runtime>,
 	);
 }
 

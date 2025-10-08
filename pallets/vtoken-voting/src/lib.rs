@@ -42,6 +42,7 @@ use crate::{
 	traits::VotingAgent,
 	vote::{Casting, Delegating, Tally, Voting},
 };
+use bifrost_primitives::AssetHubChainId;
 use bifrost_primitives::{
 	currency::{BNC, DOT, KSM, VBNC, VDOT, VKSM},
 	traits::{DerivativeAccountHandler, VTokenSupplyProvider, XcmDestWeightAndFeeHandler},
@@ -1201,8 +1202,9 @@ pub mod pallet {
 			query_id: QueryId,
 		) -> Result<Xcm<()>, Error<T>> {
 			let para_id = T::ParachainId::get().into();
+			let destination = xcm::v5::Location::new(1, [xcm::v5::prelude::Parachain(para_id)]);
 			let asset = Asset {
-				id: AssetId(Location::here()),
+				id: AssetId(Location::parent()),
 				fun: Fungible(UniqueSaturatedInto::<u128>::unique_saturated_into(
 					extra_fee,
 				)),
@@ -1219,7 +1221,7 @@ pub mod pallet {
 					call: call.into(),
 				},
 				ReportTransactStatus(QueryResponseInfo {
-					destination: Location::from(Parachain(para_id)),
+					destination,
 					query_id,
 					max_weight: notify_call_weight,
 				}),
@@ -1713,8 +1715,9 @@ pub mod pallet {
 			vtoken: CurrencyId,
 		) -> Result<Location, Error<T>> {
 			let token = CurrencyId::to_token(&vtoken).map_err(|_| Error::<T>::NoData)?;
+			let asset_hub_location: Location = Location::new(1, Parachain(AssetHubChainId::get()));
 			match token {
-				KSM | DOT => Ok(Location::parent()),
+				KSM | DOT => Ok(asset_hub_location),
 				BNC => Ok(Location::new(1, [Parachain(T::ParachainId::get().into())])),
 				_ => Err(Error::<T>::VTokenNotSupport),
 			}

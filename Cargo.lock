@@ -1763,7 +1763,7 @@ dependencies = [
 
 [[package]]
 name = "bifrost-cli"
-version = "0.21.1"
+version = "0.21.2"
 dependencies = [
  "bifrost-service",
  "clap",

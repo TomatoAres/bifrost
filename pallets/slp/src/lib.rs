@@ -53,6 +53,7 @@ pub use primitives::Ledger;
 use sp_arithmetic::{per_things::Permill, traits::Zero};
 use sp_core::{bounded::BoundedVec, H160};
 use sp_io::hashing::blake2_256;
+use sp_runtime::traits::Dispatchable;
 use sp_runtime::traits::{CheckedAdd, CheckedSub, Convert, TrailingZeroInput, UniqueSaturatedFrom};
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -110,6 +111,8 @@ pub mod pallet {
 		type RuntimeCall: IsType<<Self as pallet_xcm::Config>::RuntimeCall>
 			+ Parameter
 			+ From<Call<Self>>
+			+ From<pallet_xcm::Call<Self>>
+			+ Dispatchable<RuntimeOrigin = <Self as frame_system::Config>::RuntimeOrigin>
 			+ GetDispatchInfo;
 
 		/// Currency operations handler
@@ -539,7 +542,7 @@ pub mod pallet {
 
 	/// The current storage version, we set to 3 our new version(after migrate stroage from vec t
 	/// boundedVec).
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
 
 	/// One operate origin(can be a multisig account) for a currency. An operating origins are
 	/// normal account in Bifrost chain.

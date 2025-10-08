@@ -508,6 +508,7 @@ impl<T: Config> Pallet<T> {
 				)
 				.ok_or(Error::<T>::WeightAndFeeNotExist)?;
 
+			// TODO Later, the overall address needs to be adapted, for example, changed to Location::parent()
 			let fee: Asset = Asset {
 				id: AssetId(Location::here()),
 				fun: Fungible(xcm_fee),
