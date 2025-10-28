@@ -88,11 +88,14 @@ impl<T: Config> Pallet<T> {
 					delegator.clone(),
 					delegator_index,
 				);
-				LedgerByStakingProtocolAndDelegator::<T>::insert(
-					staking_protocol,
-					delegator.clone(),
-					staking_protocol.get_default_ledger(),
-				);
+				match staking_protocol {
+					StakingProtocol::GeneralProxyStaking(..) => {}
+					_ => LedgerByStakingProtocolAndDelegator::<T>::insert(
+						staking_protocol,
+						delegator.clone(),
+						staking_protocol.get_default_ledger(),
+					),
+				}
 				Self::deposit_event(Event::AddDelegator {
 					staking_protocol,
 					delegator_index,
@@ -138,6 +141,8 @@ impl<T: Config> Pallet<T> {
 		let entrance_account_free_balance =
 			T::MultiCurrency::free_balance(currency_id, &entrance_account);
 
+		let mut event_amount = entrance_account_free_balance;
+
 		match staking_protocol {
 			StakingProtocol::AstarDappStaking => {
 				let dest_beneficiary_location = staking_protocol
@@ -152,7 +157,7 @@ impl<T: Config> Pallet<T> {
 				)
 				.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
 			}
-			StakingProtocol::EthereumStaking => {
+			StakingProtocol::EthereumStaking | StakingProtocol::GeneralProxyStaking(..) => {
 				let (amount, to, dest, payer, fee) = if let (
 					Some(amount),
 					Delegator::Ethereum(to),
@@ -174,6 +179,7 @@ impl<T: Config> Pallet<T> {
 					entrance_account_free_balance >= amount,
 					Error::<T>::InvalidParameter
 				);
+				event_amount = amount;
 				T::HyperBridgeSender::send_and_call(
 					currency_id,
 					entrance_account.clone(),
@@ -186,13 +192,13 @@ impl<T: Config> Pallet<T> {
 					fee,
 				)?;
 			}
-			_ => unreachable!(),
+			_ => return Err(Error::<T>::UnsupportedStakingProtocol.into()),
 		}
 		Self::deposit_event(Event::TransferTo {
 			staking_protocol,
 			from: entrance_account,
 			to: delegator,
-			amount: entrance_account_free_balance,
+			amount: event_amount,
 		});
 		Ok(().into())
 	}
@@ -407,5 +413,26 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::DelegatorNotFound
 		);
 		Ok(delegator_index)
+	}
+
+	pub fn ensure_parameter_correct(
+		staking_protocol: StakingProtocol,
+		currency_id: Option<CurrencyId>,
+	) -> Result<CurrencyId, DispatchError> {
+		match (staking_protocol, currency_id) {
+			(StakingProtocol::EthereumStaking, Some(expected_currency_id)) => {
+				Ok(expected_currency_id)
+			}
+			(StakingProtocol::GeneralProxyStaking(expected_currency_id, ..), None) => {
+				Ok(expected_currency_id)
+			}
+			(
+				StakingProtocol::AstarDappStaking
+				| StakingProtocol::MoonbeamParachainStaking
+				| StakingProtocol::PolkadotStaking,
+				None,
+			) => Ok(staking_protocol.info().currency_id),
+			_ => Err(Error::<T>::InvalidParameter.into()),
+		}
 	}
 }

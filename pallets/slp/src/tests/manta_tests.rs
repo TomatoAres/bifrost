@@ -1667,6 +1667,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		// manta_setup();
 
 		bifrost_vtoken_minting::OngoingTimeUnit::<Runtime>::insert(MANTA, TimeUnit::Round(1));
+		bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(MANTA, VMANTA);
 
 		DelegatorsIndex2Multilocation::<Runtime>::insert(MANTA, 0, subaccount_0_location);
 		DelegatorsMultilocation2Index::<Runtime>::insert(MANTA, subaccount_0_location, 0);

@@ -26,6 +26,7 @@ use bifrost_primitives::VtokenMintingOperator;
 use bifrost_primitives::{
 	TimeUnit, TokenSymbol, VtokenMintingInterface, DOT, KSM, VDOT, VKSM, V_ETH, WETH,
 };
+use bifrost_vtoken_minting::VTokenTokenConfig;
 use ethereum::TransactionAction;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::{assert_noop, assert_ok, dispatch::RawOrigin};
@@ -38,6 +39,17 @@ const ASTAR_SLPX_ADDR: [u8; 20] = hex!["c6bf0C5C78686f1D0E2E54b97D6de6e2cEFAe9fD
 const MOONBEAM_SLPX_ADDR: [u8; 20] = hex!["F1d4797E51a4640a76769A50b57abE7479ADd3d8"];
 
 fn init_vtoken_minting() {
+	assert_ok!(VtokenMinting::set_vtoken_multimap(
+		RuntimeOrigin::root(),
+		VKSM,
+		vec![VTokenTokenConfig {
+			token: KSM,
+			redeem_enabled: true,
+		}]
+		.try_into()
+		.unwrap(),
+	));
+
 	assert_ok!(Currencies::deposit(
 		KSM,
 		&Slpx::reserve_account(),
@@ -428,6 +440,18 @@ fn test_set_currency_to_support_xcm_fee() {
 #[test]
 fn test_add_order() {
 	new_test_ext().execute_with(|| {
+		// Set up vtoken multimap for DOT
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VDOT,
+			vec![VTokenTokenConfig {
+				token: DOT,
+				redeem_enabled: true,
+			}]
+			.try_into()
+			.unwrap(),
+		));
+
 		let source_chain_caller = H160::default();
 		assert_ok!(Slpx::mint(
 			RuntimeOrigin::signed(ALICE),
@@ -555,9 +579,15 @@ fn substrate_create_mint_order() {
 				fee: 100000u32.into(),
 			},
 		);
-		assert_ok!(VtokenMinting::set_supported_eth(
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
 			RuntimeOrigin::root(),
-			vec![WETH].try_into().unwrap(),
+			V_ETH,
+			vec![VTokenTokenConfig {
+				token: WETH,
+				redeem_enabled: true,
+			}]
+			.try_into()
+			.unwrap(),
 		));
 	});
 }
@@ -576,9 +606,15 @@ fn substrate_create_redeem_order() {
 			DOT,
 			1000
 		));
-		assert_ok!(VtokenMinting::set_supported_eth(
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
 			RuntimeOrigin::root(),
-			vec![WETH].try_into().unwrap(),
+			V_ETH,
+			vec![VTokenTokenConfig {
+				token: WETH,
+				redeem_enabled: true,
+			}]
+			.try_into()
+			.unwrap(),
 		));
 		assert_ok!(VtokenMinting::set_unlock_duration(
 			RuntimeOrigin::root(),
@@ -819,6 +855,18 @@ fn force_increase_hyperbridge_reserve_should_work() {
 		// Set initial block number
 		System::set_block_number(11u32.into());
 
+		// Set up vtoken multimap for DOT
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VDOT,
+			vec![VTokenTokenConfig {
+				token: DOT,
+				redeem_enabled: true,
+			}]
+			.try_into()
+			.unwrap(),
+		));
+
 		// Initialize token pool
 		assert_ok!(bifrost_vtoken_minting::Pallet::<Test>::increase_token_pool(
 			DOT, 10_000
@@ -941,6 +989,18 @@ fn slpx_use_hyperbridge_should_fail_when_not_set_oracle() {
 #[test]
 fn slpx_use_hyperbridge() {
 	new_test_ext().execute_with(|| {
+		// Set up vtoken multimap for DOT
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VDOT,
+			vec![VTokenTokenConfig {
+				token: DOT,
+				redeem_enabled: true,
+			}]
+			.try_into()
+			.unwrap(),
+		));
+
 		assert_ok!(Slpx::set_hyperbridge_oracle(
 			RuntimeOrigin::root(),
 			1,
@@ -979,6 +1039,18 @@ fn slpx_use_hyperbridge() {
 #[test]
 fn slpx_use_hyperbridge_with_fee_exempt_account() {
 	new_test_ext().execute_with(|| {
+		// Set up vtoken multimap for DOT
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VDOT,
+			vec![VTokenTokenConfig {
+				token: DOT,
+				redeem_enabled: true,
+			}]
+			.try_into()
+			.unwrap(),
+		));
+
 		assert_ok!(Slpx::set_hyperbridge_fee_exempt_accounts(
 			RuntimeOrigin::root(),
 			vec![ALICE].try_into().unwrap()

@@ -18,6 +18,7 @@
 
 use crate::{AccountVote, PollClass, PollIndex, *};
 use bifrost_primitives::DerivativeIndex;
+use parity_scale_codec::alloc::collections::BTreeMap;
 use sp_std::vec::Vec;
 
 /// Abstraction over a voting agent for a certain parachain.
@@ -40,9 +41,8 @@ pub trait VotingAgent<T: Config> {
 	///
 	/// - `who`: The account for which the vote is being delegated.
 	/// - `vtoken`: The token used for voting.
-	/// - `poll_index`: The index of the poll on which the vote is being cast.
 	/// - `submitted`: A flag indicating whether the vote was already submitted.
-	/// - `new_delegator_votes`: A vector of delegator votes, represented by the index of the
+	/// - `new_delegator_votes`: A map of delegator votes, represented by the index of the
 	///   derivative and the account's vote.
 	/// - `maybe_old_vote`: An optional tuple representing the old vote and its associated balance,
 	///   in case an old vote exists.
@@ -53,27 +53,21 @@ pub trait VotingAgent<T: Config> {
 		&self,
 		who: AccountIdOf<T>,
 		vtoken: CurrencyIdOf<T>,
-		poll_index: PollIndex,
 		submitted: bool,
-		new_delegator_votes: Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>,
-		maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+		new_delegator_votes: BTreeMap<PollIndex, VoteItemList<T>>,
+		maybe_old_vote: OldVote<T>,
 	) -> DispatchResult;
 
 	/// Encode the call data for voting.
 	///
-	/// - `new_delegator_votes`: A vector of new delegator votes to be encoded.
-	/// - `poll_index`: The index of the poll.
-	/// - `derivative_index`: The index of the derivative (delegator) involved in the voting
-	///   process.
+	/// - `new_delegator_votes`: A map of new delegator votes to be encoded.
 	///
 	/// This function encodes the call for a vote delegation action, returning the byte-encoded
 	/// representation of the call data. In case of errors during encoding, an `Error<T>` is
 	/// returned.
 	fn vote_call_encode(
 		&self,
-		new_delegator_votes: Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>,
-		poll_index: PollIndex,
-		derivative_index: DerivativeIndex,
+		new_delegator_votes: BTreeMap<PollIndex, VoteItemList<T>>,
 	) -> Result<Vec<u8>, Error<T>>;
 
 	/// Remove a delegator's vote.

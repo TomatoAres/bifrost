@@ -319,7 +319,7 @@ impl<AccountId, Balance: Copy + Ord + sp_std::ops::AddAssign + Zero + Saturating
 	}
 }
 
-#[derive(PartialEq, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, Clone)]
 /// Capacity status for top or bottom delegations
 pub enum CapacityStatus {
 	/// Reached capacity
@@ -330,7 +330,7 @@ pub enum CapacityStatus {
 	Partial,
 }
 
-#[derive(Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, RuntimeDebug, TypeInfo, Clone)]
 /// All candidate info except the top and bottom delegations
 pub struct CandidateMetadata<Balance> {
 	/// This candidate's self bond amount

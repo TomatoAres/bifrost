@@ -81,7 +81,7 @@ where
 {
 	/// The time of submission. Once `UndecidingTimeout` passes, it may be closed by anyone if
 	/// `deciding` is `None`.
-	pub submitted: Option<Moment>,
+	pub submitted: Moment,
 	/// The current tally of votes in this referendum.
 	pub tally: Tally,
 }

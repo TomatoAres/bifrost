@@ -116,7 +116,7 @@ use frame_support::{
 		Currency, EitherOf, EitherOfDiverse, Get, InsideBoth, LinearStoragePrice, OnFinalize,
 	},
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSignedBy};
 use hex_literal::hex;
 use pallet_ethereum::Transaction;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
@@ -125,6 +125,7 @@ use zenlink_protocol::{
 	PairLpGenerate, ZenlinkMultiAssets,
 };
 pub mod xcm_config;
+use crate::p_k_bridge::TransferTokensToKusama;
 use orml_traits::{currency::MutationHooks, location::RelativeReserveProvider};
 use pallet_evm::{GasWeightMapping, Runner};
 use pallet_identity::legacy::IdentityInfo;
@@ -144,7 +145,9 @@ use xcm_executor::XcmExecutor;
 
 pub mod governance;
 mod hyperbridge;
+mod p_k_bridge;
 
+use crate::p_k_bridge::BifrostKusamaGlobalSovereignAccount;
 use crate::xcm_config::XcmRouter;
 use bifrost_primitives::OraclePriceProvider;
 use frame_support::weights::WeightToFee as _;
@@ -199,7 +202,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_polkadot"),
 	impl_name: Cow::Borrowed("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 21002,
+	spec_version: 22000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1074,15 +1077,6 @@ impl bifrost_fee_share::Config for Runtime {
 	type BlockNumberProvider = System;
 }
 
-impl bifrost_cross_in_out::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrRoot;
-	type EntrancePalletId = SlpEntrancePalletId;
-	type WeightInfo = weights::bifrost_cross_in_out::BifrostWeight<Runtime>;
-	type MaxLengthLimit = MaxLengthLimit;
-}
-
 impl bifrost_slpx::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1461,6 +1455,19 @@ impl bifrost_slp_v2::Config for Runtime {
 	type HyperBridgeSender = TokenGateway;
 }
 
+impl bifrost_p_k_bridge::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::bifrost_p_k_bridge::BifrostWeight<Runtime>;
+	type ControlOrigin = TechAdminOrRoot;
+	type TokenSenderLocationOrigin = EitherOfDiverse<
+		EnsureSignedBy<BifrostKusamaGlobalSovereignAccount, AccountId>,
+		EnsureRoot<AccountId>,
+	>;
+	type TransferTokensToDestination = TransferTokensToKusama;
+	type Location = Location;
+	type Fungible = Balances;
+}
+
 parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
@@ -1696,7 +1703,6 @@ construct_runtime! {
 		Farming: bifrost_farming = 119,
 		SystemStaking: bifrost_system_staking = 120,
 		FeeShare: bifrost_fee_share = 122,
-		CrossInOut: bifrost_cross_in_out = 123,
 		BbBNC: bb_bnc = 124,
 		Slpx: bifrost_slpx = 125,
 		FellowshipCollective: pallet_ranked_collective::<Instance1> = 126,
@@ -1713,6 +1719,7 @@ construct_runtime! {
 		CloudsConvert: bifrost_clouds_convert = 137,
 		BuyBack: bifrost_buy_back = 138,
 		SlpV2: bifrost_slp_v2 = 139,
+		PKBridge: bifrost_p_k_bridge = 141,
 	}
 }
 
@@ -1785,6 +1792,10 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	type ChannelList = ParachainSystem;
 }
 
+parameter_types! {
+	pub const CrossInOutName: &'static str = "CrossInOut";
+}
+
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// This contains the combined migrations of the last 10 releases. It allows to skip runtime
@@ -1800,7 +1811,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_slp::migrations::v5::SlpMigrationV5<Runtime>,
+		bifrost_slp::migrations::v6::SlpMigrationV6<Runtime>,
 	);
 }
 

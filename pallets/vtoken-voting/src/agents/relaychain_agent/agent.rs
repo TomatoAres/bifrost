@@ -18,7 +18,8 @@
 
 use crate::*;
 use bifrost_primitives::{CurrencyId, DerivativeIndex};
-use frame_support::{ensure, pallet_prelude::*};
+use frame_support::pallet_prelude::*;
+use parity_scale_codec::alloc::collections::BTreeMap;
 use xcm::v5::Location;
 
 use crate::{agents::relaychain_agent::call::*, pallet::Error, traits::*};
@@ -47,15 +48,20 @@ impl<T: Config> VotingAgent<T> for RelaychainAgent<T> {
 		&self,
 		who: AccountIdOf<T>,
 		vtoken: CurrencyIdOf<T>,
-		poll_index: PollIndex,
 		submitted: bool,
-		new_delegator_votes: Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>,
-		maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+		new_delegator_votes: BTreeMap<PollIndex, VoteItemList<T>>,
+		maybe_old_vote: BoundedVec<
+			(
+				PollIndex,
+				OptionalAccountVote<T>,
+				Option<ReferendumInfoOf<T>>,
+			),
+			T::MaxVotes,
+		>,
 	) -> DispatchResult {
 		Pallet::<T>::send_xcm_vote_message(
 			who,
 			vtoken,
-			poll_index,
 			submitted,
 			new_delegator_votes,
 			maybe_old_vote,
@@ -64,28 +70,39 @@ impl<T: Config> VotingAgent<T> for RelaychainAgent<T> {
 
 	fn vote_call_encode(
 		&self,
-		new_delegator_votes: Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>,
-		poll_index: PollIndex,
-		derivative_index: DerivativeIndex,
+		new_delegator_votes: BTreeMap<PollIndex, VoteItemList<T>>,
 	) -> Result<Vec<u8>, Error<T>> {
-		let vote_calls = new_delegator_votes
-			.iter()
-			.map(|(_derivative_index, vote)| {
-				<RelayCall<T> as ConvictionVotingCall<T>>::vote(poll_index, *vote)
-			})
-			.collect::<Vec<_>>();
-		let vote_call = if vote_calls.len() == 1 {
-			vote_calls.into_iter().nth(0).ok_or(Error::<T>::NoData)?
-		} else {
-			ensure!(false, Error::<T>::NoPermissionYet);
-			<RelayCall<T> as UtilityCall<RelayCall<T>>>::batch_all(vote_calls)
+		let as_derivative = |derivative_index, call| {
+			<RelayCall<T> as UtilityCall<RelayCall<T>>>::as_derivative(derivative_index, call)
 		};
 
-		let encode_call =
-			<RelayCall<T> as UtilityCall<RelayCall<T>>>::as_derivative(derivative_index, vote_call)
-				.encode();
+		let mut vote_calls: Vec<(DerivativeIndex, RelayCall<T>)> = Vec::new();
+		for (poll_index, votes) in new_delegator_votes {
+			for (derivative_index, vote) in votes {
+				let call = <RelayCall<T> as ConvictionVotingCall<T>>::vote(poll_index, vote);
+				vote_calls.push((derivative_index, call));
+			}
+		}
 
-		Ok(encode_call)
+		// Process based on the number of voting calls:
+		// - If there is no voting call, the error `NoData` is returned.
+		// - If there is only one voting call, convert it to a call to the derived account and encode the return.
+		// - If there are multiple voting calls, convert each call into a call to a derived account, batch these calls together, and encode them before returning.
+		match vote_calls.len() {
+			0 => Err(Error::<T>::NoData),
+			1 => {
+				let (derivative_index, call) =
+					vote_calls.into_iter().next().ok_or(Error::<T>::NoData)?;
+				Ok(as_derivative(derivative_index, call).encode())
+			}
+			_ => {
+				let calls: Vec<_> = vote_calls
+					.into_iter()
+					.map(|(derivative_index, call)| as_derivative(derivative_index, call))
+					.collect();
+				Ok(<RelayCall<T> as UtilityCall<RelayCall<T>>>::batch_all(calls).encode())
+			}
+		}
 	}
 
 	fn delegate_remove_delegator_vote(

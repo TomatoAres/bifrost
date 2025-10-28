@@ -1444,6 +1444,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		phala_setup();
 
 		bifrost_vtoken_minting::OngoingTimeUnit::<Runtime>::insert(PHA, TimeUnit::Hour(1));
+		bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(PHA, VPHA);
 
 		let ledger = PhalaLedger::<BalanceOf<Runtime>> {
 			account: subaccount_0_location,

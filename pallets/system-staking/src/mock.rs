@@ -25,11 +25,12 @@ use bifrost_primitives::{
 	FarmingGaugeRewardIssuerPalletId, FarmingKeeperPalletId, FarmingRewardIssuerPalletId,
 	IncentivePoolAccount, MoonbeamChainId, SystemStakingPalletId,
 };
+use bifrost_vtoken_minting::{CurrencyIdOf, VTokenMultiMap, VTokenTokenConfig};
 pub use cumulus_primitives_core::ParaId;
 use cumulus_primitives_core::*;
 use frame_support::traits::Disabled;
 use frame_support::{
-	derive_impl, ord_parameter_types,
+	assert_ok, derive_impl, ord_parameter_types,
 	pallet_prelude::Get,
 	parameter_types,
 	traits::{Everything, Nothing, OnFinalize, OnInitialize},
@@ -104,6 +105,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {
@@ -436,7 +438,26 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		t.into()
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| {
+			// Set up TokenToVToken mappings
+			let mut ksm_tokens =
+				bifrost_vtoken_minting::VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			ksm_tokens
+				.try_push(bifrost_vtoken_minting::VTokenTokenConfig {
+					token: KSM,
+					redeem_enabled: true,
+				})
+				.unwrap();
+			assert_ok!(
+				bifrost_vtoken_minting::Pallet::<Runtime>::set_vtoken_multimap(
+					RuntimeOrigin::root(),
+					VKSM,
+					ksm_tokens
+				)
+			);
+		});
+		ext
 	}
 }
 

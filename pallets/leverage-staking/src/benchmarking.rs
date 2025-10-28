@@ -94,6 +94,9 @@ fn init<
 	)
 	.unwrap();
 
+	// Set up TokenToVToken mapping for KSM
+	bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
+
 	assert_ok!(lend_market::Pallet::<T>::add_market(
 		SystemOrigin::Root.into(),
 		KSM,

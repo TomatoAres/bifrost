@@ -198,7 +198,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_paseo"),
 	impl_name: Cow::Borrowed("bifrost_paseo"),
 	authoring_version: 0,
-	spec_version: 21002,
+	spec_version: 22000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1074,15 +1074,6 @@ impl bifrost_fee_share::Config for Runtime {
 	type BlockNumberProvider = System;
 }
 
-impl bifrost_cross_in_out::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrRoot;
-	type EntrancePalletId = SlpEntrancePalletId;
-	type WeightInfo = weights::bifrost_cross_in_out::BifrostWeight<Runtime>;
-	type MaxLengthLimit = MaxLengthLimit;
-}
-
 impl bifrost_slpx::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -1698,7 +1689,6 @@ construct_runtime! {
 		Farming: bifrost_farming = 119,
 		SystemStaking: bifrost_system_staking = 120,
 		FeeShare: bifrost_fee_share = 122,
-		CrossInOut: bifrost_cross_in_out = 123,
 		BbBNC: bb_bnc = 124,
 		Slpx: bifrost_slpx = 125,
 		FellowshipCollective: pallet_ranked_collective::<Instance1> = 126,
@@ -1787,6 +1777,10 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	type ChannelList = ParachainSystem;
 }
 
+parameter_types! {
+	pub const CrossInOutName: &'static str = "CrossInOut";
+}
+
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// This contains the combined migrations of the last 10 releases. It allows to skip runtime
@@ -1802,7 +1796,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_slp::migrations::v5::SlpMigrationV5<Runtime>,
+		bifrost_slp::migrations::v6::SlpMigrationV6<Runtime>,
 	);
 }
 

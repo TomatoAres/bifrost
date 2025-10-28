@@ -16,12 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-mod filecoin_primitives;
 mod parachain_staking_primitives;
 mod phala_primitives;
 mod polkadot_primitives;
 
-pub use filecoin_primitives::*;
 use frame_support::pallet_prelude::DecodeWithMemTracking;
 pub use parachain_staking_primitives::*;
 pub use phala_primitives::*;
@@ -41,7 +39,6 @@ pub enum Ledger<Balance> {
 	Substrate(SubstrateLedger<Balance>),
 	Moonbeam(OneToManyLedger<Balance>),
 	ParachainStaking(OneToManyLedger<Balance>),
-	Filecoin(FilecoinLedger<Balance>),
 	Phala(PhalaLedger<Balance>),
 }
 

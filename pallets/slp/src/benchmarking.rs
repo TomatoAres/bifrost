@@ -723,6 +723,9 @@ mod benchmarks {
 		let origin = <T as Config>::ControlOrigin::try_successful_origin()
 			.map_err(|_| BenchmarkError::Weightless)?;
 
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
+
 		#[extrinsic_call]
 		_(
 			origin as <T as frame_system::Config>::RuntimeOrigin,
@@ -737,6 +740,9 @@ mod benchmarks {
 	fn decrease_token_pool() -> Result<(), BenchmarkError> {
 		let origin = <T as Config>::ControlOrigin::try_successful_origin()
 			.map_err(|_| BenchmarkError::Weightless)?;
+
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
 
 		assert_ok!(Pallet::<T>::increase_token_pool(
 			origin.clone() as <T as frame_system::Config>::RuntimeOrigin,
@@ -778,6 +784,9 @@ mod benchmarks {
 			.map_err(|_| BenchmarkError::Weightless)?;
 		init_bond::<T>(origin.clone());
 		init_ongoing_time::<T>(origin.clone());
+
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
 
 		assert_ok!(Pallet::<T>::increase_token_pool(
 			origin.clone() as <T as frame_system::Config>::RuntimeOrigin,

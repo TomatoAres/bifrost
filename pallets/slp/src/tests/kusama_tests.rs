@@ -148,8 +148,9 @@ fn remove_delegator_works() {
 #[test]
 fn decrease_token_pool_works() {
 	ExtBuilder::default().build().execute_with(|| {
+		bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(KSM, VKSM);
 		// Set token pool as 100.
-		bifrost_vtoken_minting::TokenPool::<Runtime>::insert(KSM, 100);
+		bifrost_vtoken_minting::TokenPool::<Runtime>::insert(VKSM, 100);
 
 		// Decrease token pool by 10.
 		assert_ok!(Slp::decrease_token_pool(
@@ -159,7 +160,7 @@ fn decrease_token_pool_works() {
 		));
 
 		// Check the value after decreasing
-		assert_eq!(TokenPool::<Runtime>::get(KSM), 90);
+		assert_eq!(TokenPool::<Runtime>::get(VKSM), 90);
 	});
 }
 
@@ -202,6 +203,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		let treasury_32: [u8; 32] = treasury_id.clone().into();
 
 		bifrost_vtoken_minting::OngoingTimeUnit::<Runtime>::insert(KSM, TimeUnit::Era(1));
+		bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(KSM, VKSM);
 
 		DelegatorsIndex2Multilocation::<Runtime>::insert(KSM, 0, subaccount_0_location);
 		DelegatorsMultilocation2Index::<Runtime>::insert(KSM, subaccount_0_location, 0);

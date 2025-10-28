@@ -120,6 +120,9 @@ mod benchmarks {
 	fn mint() {
 		let (caller, receiver) = init_whitelist::<T>();
 
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
+
 		// Set up HyperBridgeOracle
 		HyperBridgeOracle::<T>::insert(
 			1,
@@ -149,6 +152,9 @@ mod benchmarks {
 	fn mint_with_channel_id() {
 		let (caller, receiver) = init_whitelist::<T>();
 
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
+
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(caller),
@@ -163,6 +169,9 @@ mod benchmarks {
 	#[benchmark]
 	fn redeem() {
 		let (caller, receiver) = init_whitelist::<T>();
+
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
 
 		assert_ok!(bifrost_vtoken_minting::Pallet::<T>::set_ongoing_time_unit(
 			RawOrigin::Root.into(),
@@ -216,6 +225,9 @@ mod benchmarks {
 	fn async_mint() -> Result<(), BenchmarkError> {
 		init_whitelist::<T>();
 
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
+
 		// Set up AsyncMintConfig
 		let config = AsyncMintConfiguration {
 			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%
@@ -255,6 +267,9 @@ mod benchmarks {
 
 	#[benchmark]
 	fn force_increase_hyperbridge_reserve() -> Result<(), BenchmarkError> {
+		// Set up TokenToVToken mapping for KSM
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
+
 		// Set up AsyncMintConfig
 		let config = AsyncMintConfiguration {
 			max_issuance_ratio: FixedU128::from_rational(1, 2), // 50%

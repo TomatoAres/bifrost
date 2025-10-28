@@ -18,10 +18,10 @@
 
 use super::*;
 use bifrost_asset_registry::AssetIdMaps;
-use bifrost_primitives::{
+pub(crate) use bifrost_primitives::{
 	AccountId, AccountIdToLocation, AssetHubLocation, AssetPrefixFrom, CurrencyId,
-	CurrencyIdMapping, EthereumLocation, KusamaNetwork, KusamaUniversalLocation, LocalVksmLocation,
-	NativeAssetFrom, SelfLocation, TokenSymbol, VksmFungible,
+	CurrencyIdMapping, EthereumLocation, KusamaNetwork, KusamaUniversalLocation, LocalBncLocation,
+	LocalVksmLocation, NativeAssetFrom, SelfLocation, TokenSymbol, VksmFungible,
 };
 pub use cumulus_primitives_core::ParaId;
 use frame_support::{parameter_types, sp_runtime::traits::Convert, traits::Get};
@@ -47,13 +47,14 @@ use frame_support::traits::{Disabled, TransformOrigin};
 use orml_traits::{currency::MutationHooks, location::RelativeReserveProvider};
 pub use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key, MultiCurrency};
 use orml_xcm_support::{IsNativeConcrete, MultiNativeAsset};
-use pallet_xcm::XcmPassthrough;
+use pallet_xcm::{AuthorizedAliasers, XcmPassthrough};
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
 use xcm::v5::{prelude::*, Location};
 use xcm_builder::{
-	AliasChildLocation, FrameTransactionalProcessor, FungibleAdapter, TrailingSetTopicAsId,
-	WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+	AliasChildLocation, AliasOriginRootUsingFilter, ExternalConsensusLocationsConverterFor,
+	FrameTransactionalProcessor, FungibleAdapter, TrailingSetTopicAsId, WeightInfoBounds,
+	WithComputedOrigin, WithUniqueTopic,
 };
 
 parameter_types! {
@@ -85,6 +86,9 @@ pub type LocationToAccountId = (
 	AccountId32Aliases<KusamaNetwork, AccountId>,
 	// Foreign locations alias into accounts according to a hash of their standard description.
 	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
+	// Different global consensus parachain sovereign account.
+	// (Used for over-bridge transfers and reserve processing)
+	ExternalConsensusLocationsConverterFor<KusamaUniversalLocation, AccountId>,
 );
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `RuntimeOrigin`
@@ -142,6 +146,20 @@ pub type FungibleTransactor = FungibleAdapter<
 	(),
 >;
 
+/// Means for transacting the native currency on this chain.
+pub type BalanceTransactor = FungibleAdapter<
+	// Use this currency:
+	Balances,
+	// Use this currency when it is a fungible asset matching the given location or name:
+	IsConcrete<LocalBncLocation>,
+	// Convert an XCM `Location` into a local account ID:
+	LocationToAccountId,
+	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+	AccountId,
+	// We don't track any teleports of `Tokens`.
+	(),
+>;
+
 pub type BifrostAssetTransactor = (
 	MultiCurrencyAdapter<
 		Currencies,
@@ -154,6 +172,7 @@ pub type BifrostAssetTransactor = (
 		DepositToAlternative<BifrostTreasuryAccount, Currencies, CurrencyId, AccountId, Balance>,
 	>,
 	FungibleTransactor,
+	BalanceTransactor,
 );
 
 pub struct ToTreasury;
@@ -174,7 +193,11 @@ impl TakeRevenue for ToTreasury {
 }
 
 /// We allow locations to alias into their own child locations.
-pub type Aliasers = AliasChildLocation;
+pub type Aliasers = (
+	AliasChildLocation,
+	AliasOriginRootUsingFilter<AssetHubLocation, Everything>,
+	AuthorizedAliasers<Runtime>,
+);
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
@@ -189,7 +212,10 @@ impl xcm_executor::Config for XcmConfig {
 		MultiNativeAsset<RelativeReserveProvider>,
 	);
 	/// Only allow teleportation of vKSM from AssetHub.
-	type IsTeleporter = AssetPrefixFrom<LocalVksmLocation, AssetHubLocation>;
+	type IsTeleporter = (
+		AssetPrefixFrom<LocalVksmLocation, AssetHubLocation>,
+		AssetPrefixFrom<LocalBncLocation, AssetHubLocation>,
+	);
 	type UniversalLocation = KusamaUniversalLocation;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
 	type ResponseHandler = PolkadotXcm;
@@ -314,6 +340,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type WeightInfo = weights::bifrost_currencies::WeightInfo<Runtime>;
+	type Balanced = Balances;
 }
 
 parameter_type_with_key! {

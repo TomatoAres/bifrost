@@ -20,6 +20,7 @@
 
 #![cfg(test)]
 
+use crate::VTokenTokenConfig;
 use crate::{mock::*, DispatchError::Module, *};
 use bifrost_primitives::{
 	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR, WETH},
@@ -45,11 +46,20 @@ fn convert_to_vtoken() {
 		assert_eq!(VtokenMinting::convert_to_vtoken(HP_ARB_ETH).unwrap(), V_ETH);
 		assert_eq!(VtokenMinting::convert_to_vtoken(HP_OP_ETH).unwrap(), V_ETH);
 
-		assert_ok!(VtokenMinting::set_supported_eth(
-			RuntimeOrigin::signed(ALICE),
-			vec![BNC].try_into().unwrap()
-		));
-		assert_eq!(VtokenMinting::convert_to_vtoken(BNC).unwrap(), V_ETH);
+		let token_configs = vec![VTokenTokenConfig {
+			token: BNC,
+			redeem_enabled: true,
+		}];
+
+		assert_noop!(
+			VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
+			),
+			Error::<Runtime>::TokenAlreadyMapped
+		);
+		assert_eq!(VtokenMinting::convert_to_vtoken(BNC).unwrap(), VBNC);
 	});
 }
 
@@ -165,8 +175,8 @@ fn mint() {
 				BoundedVec::default(),
 				None
 			));
-			assert_eq!(TokenPool::<Runtime>::get(MOVR), 190000000000000000000);
-			assert_eq!(TokenPool::<Runtime>::get(KSM), 95000000000);
+			assert_eq!(TokenPool::<Runtime>::get(VMOVR), 190000000000000000000);
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 95000000000);
 			assert_eq!(MinimumMint::<Runtime>::get(KSM), 200);
 			assert_eq!(Tokens::total_issuance(VKSM), 95000001000);
 
@@ -217,7 +227,7 @@ fn redeem() {
 			);
 			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 100));
 			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
-			assert_eq!(TokenPool::<Runtime>::get(KSM), 1686); // 1000 + 980 - 98 - 196
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1686); // 1000 + 980 - 98 - 196
 			assert_eq!(UnlockingTotal::<Runtime>::get(KSM), 294); // 98 + 196
 			assert_ok!(VtokenMinting::set_unlock_duration(
 				RuntimeOrigin::signed(ALICE),
@@ -349,7 +359,7 @@ fn rebond() {
 				Some((BOB, 100, TimeUnit::Era(1), RedeemType::Native))
 			);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(KSM, 1), None);
-			assert_eq!(TokenPool::<Runtime>::get(KSM), 1200);
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1200);
 			assert_eq!(UnlockingTotal::<Runtime>::get(KSM), 100); // 200 + 100 - 200
 			let (entrance_account, _exit_account) = VtokenMinting::get_entrance_and_exit_accounts();
 			assert_eq!(Tokens::free_balance(KSM, &entrance_account), 300);
@@ -444,7 +454,7 @@ fn movr() {
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(MOVR, 0), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(MOVR, 1), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(MOVR, 2), None);
-			assert_eq!(TokenUnlockNextId::<Runtime>::get(MOVR), 4);
+			assert_eq!(TokenUnlockNextId::<Runtime>::get(VMOVR), 4);
 			assert_ok!(VtokenMinting::rebond(
 				Some(CHARLIE).into(),
 				MOVR,
@@ -462,12 +472,20 @@ fn movr() {
 #[test]
 fn set_supported_eths() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(VtokenMinting::set_supported_eth(
-			RuntimeOrigin::signed(ALICE),
-			vec![ETH].try_into().unwrap()
+		let token_configs = vec![VTokenTokenConfig {
+			token: ETH,
+			redeem_enabled: true,
+		}];
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			V_ETH,
+			token_configs.try_into().unwrap()
 		));
 
-		assert_eq!(SupportedEth::<Runtime>::get().to_vec(), vec![ETH]);
+		let stored_configs = VTokenToTokens::<Runtime>::get(V_ETH).unwrap();
+		assert_eq!(stored_configs.len(), 1);
+		assert_eq!(stored_configs[0].token, ETH);
+		assert_eq!(stored_configs[0].redeem_enabled, true);
 	})
 }
 
@@ -510,7 +528,6 @@ fn eth() {
 				294000000000000000000
 			);
 			assert_eq!(Tokens::free_balance(V_ETH, &BOB), 294000000000000000000);
-			SupportedEth::<Runtime>::set(vec![ETH].try_into().unwrap());
 			assert_ok!(VtokenMinting::redeem(
 				Some(BOB).into(),
 				Some(ETH),
@@ -549,7 +566,7 @@ fn eth() {
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 0), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 1), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 2), None);
-			assert_eq!(EthUnlockNextId::<Runtime>::get(), 3);
+			assert_eq!(TokenUnlockNextId::<Runtime>::get(V_ETH), 3);
 			assert_ok!(VtokenMinting::mint(
 				Some(CHARLIE).into(),
 				ETH,
@@ -570,7 +587,7 @@ fn eth() {
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 0), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 1), None);
 			assert_eq!(TokenUnlockLedger::<Runtime>::get(ETH, 2), None);
-			assert_eq!(EthUnlockNextId::<Runtime>::get(), 4);
+			assert_eq!(TokenUnlockNextId::<Runtime>::get(V_ETH), 4);
 			assert_ok!(VtokenMinting::rebond(
 				Some(CHARLIE).into(),
 				ETH,
@@ -655,7 +672,7 @@ fn hook() {
 				None
 			);
 			assert_eq!(UserUnlockLedger::<Runtime>::get(BOB, KSM), None);
-			assert_eq!(TokenPool::<Runtime>::get(KSM), 1000);
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1000);
 			assert_eq!(Tokens::free_balance(KSM, &entrance_account), 0);
 			assert_ok!(VtokenMinting::update_ongoing_time_unit(
 				KSM,
@@ -730,7 +747,7 @@ fn rebond_by_unlock_id() {
 			));
 			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 200));
 			assert_ok!(VtokenMinting::redeem(Some(BOB).into(), None, VKSM, 100));
-			assert_eq!(TokenPool::<Runtime>::get(KSM), 1000);
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1000);
 			assert_noop!(
 				VtokenMinting::rebond_by_unlock_id(Some(BOB).into(), KSM, 0),
 				Error::<Runtime>::InvalidRebondToken
@@ -757,7 +774,7 @@ fn rebond_by_unlock_id() {
 				TokenUnlockLedger::<Runtime>::get(KSM, 1),
 				Some((BOB, 100, TimeUnit::Era(1), RedeemType::Native))
 			);
-			assert_eq!(TokenPool::<Runtime>::get(KSM), 1200);
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1200);
 			assert_eq!(UnlockingTotal::<Runtime>::get(KSM), 100); // 200 + 100 - 200
 			let (entrance_account, _exit_account) = VtokenMinting::get_entrance_and_exit_accounts();
 			assert_eq!(Tokens::free_balance(KSM, &entrance_account), 300);
@@ -846,7 +863,7 @@ fn fast_redeem_for_fil() {
 				None
 			);
 			assert_eq!(UserUnlockLedger::<Runtime>::get(BOB, FIL), None);
-			assert_eq!(TokenPool::<Runtime>::get(FIL), 1000);
+			assert_eq!(TokenPool::<Runtime>::get(VFIL), 1000);
 			assert_eq!(Tokens::free_balance(FIL, &entrance_account), 0);
 			assert_ok!(VtokenMinting::update_ongoing_time_unit(
 				FIL,
@@ -1274,15 +1291,25 @@ fn unified_eth_token_pool_update_operations() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			// Set up SupportedEth list with ETH and WETH
-			assert_ok!(VtokenMinting::set_supported_eth(
-				RuntimeOrigin::signed(ALICE),
-				vec![ETH, WETH].try_into().unwrap()
+			// Set up VTokenToTokens mapping with ETH and WETH for V_ETH
+			let token_configs = vec![
+				VTokenTokenConfig {
+					token: ETH,
+					redeem_enabled: true,
+				},
+				VTokenTokenConfig {
+					token: WETH,
+					redeem_enabled: true,
+				},
+			];
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
 			));
 
 			// Initially, all pools should be zero
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 0);
-			assert_eq!(TokenPool::<Runtime>::get(WETH), 0);
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 0);
 
 			// Test Add operation: Adding to ETH should update ETH pool
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1290,8 +1317,7 @@ fn unified_eth_token_pool_update_operations() {
 				&1000,
 				crate::impls::Operation::Add
 			));
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 1000);
-			assert_eq!(TokenPool::<Runtime>::get(WETH), 0); // WETH pool remains separate for storage
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 1000);
 
 			// Test Add operation: Adding to WETH should also update ETH pool (unified behavior)
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1299,8 +1325,7 @@ fn unified_eth_token_pool_update_operations() {
 				&500,
 				crate::impls::Operation::Add
 			));
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 1500); // ETH pool increased by 500
-			assert_eq!(TokenPool::<Runtime>::get(WETH), 0); // WETH pool remains unchanged
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 1500); // ETH pool increased by 500
 
 			// Test Sub operation: Subtracting from ETH
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1308,7 +1333,7 @@ fn unified_eth_token_pool_update_operations() {
 				&300,
 				crate::impls::Operation::Sub
 			));
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 1200);
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 1200);
 
 			// Test Sub operation: Subtracting from WETH should also affect ETH pool
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1316,7 +1341,7 @@ fn unified_eth_token_pool_update_operations() {
 				&200,
 				crate::impls::Operation::Sub
 			));
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 1000);
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 1000);
 
 			// Test Set operation: Setting ETH pool
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1324,7 +1349,7 @@ fn unified_eth_token_pool_update_operations() {
 				&2000,
 				crate::impls::Operation::Set
 			));
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 2000);
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 2000);
 
 			// Test Set operation: Setting WETH should also set ETH pool
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1332,7 +1357,7 @@ fn unified_eth_token_pool_update_operations() {
 				&3000,
 				crate::impls::Operation::Set
 			));
-			assert_eq!(TokenPool::<Runtime>::get(ETH), 3000);
+			assert_eq!(TokenPool::<Runtime>::get(V_ETH), 3000);
 		});
 }
 
@@ -1342,10 +1367,21 @@ fn unified_eth_token_pool_get_operations() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			// Set up SupportedEth list with ETH and WETH
-			assert_ok!(VtokenMinting::set_supported_eth(
-				RuntimeOrigin::signed(ALICE),
-				vec![ETH, WETH].try_into().unwrap()
+			// Set up VTokenToTokens mapping with ETH and WETH for V_ETH
+			let token_configs = vec![
+				VTokenTokenConfig {
+					token: ETH,
+					redeem_enabled: true,
+				},
+				VTokenTokenConfig {
+					token: WETH,
+					redeem_enabled: true,
+				},
+			];
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
 			));
 
 			// Set the ETH pool to a known value
@@ -1400,21 +1436,21 @@ fn non_supported_eth_tokens_work_independently() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			// Set up SupportedEth list with only ETH (WETH is not included)
-			assert_ok!(VtokenMinting::set_supported_eth(
-				RuntimeOrigin::signed(ALICE),
-				vec![ETH].try_into().unwrap()
+			// Update V_ETH mapping to only include ETH (remove WETH from unified pool)
+			let token_configs = vec![VTokenTokenConfig {
+				token: ETH,
+				redeem_enabled: true,
+			}];
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
 			));
 
 			// Set initial values for pools
 			assert_ok!(VtokenMinting::update_token_pool(
 				&ETH,
 				&1000,
-				crate::impls::Operation::Set
-			));
-			assert_ok!(VtokenMinting::update_token_pool(
-				&WETH,
-				&2000,
 				crate::impls::Operation::Set
 			));
 			assert_ok!(VtokenMinting::update_token_pool(
@@ -1430,37 +1466,24 @@ fn non_supported_eth_tokens_work_independently() {
 				1000
 			);
 
-			// WETH and KSM should work independently since they're not in SupportedEth
-			assert_eq!(
-				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
-				2000
-			);
+			// KSM should work independently since it's not in V_ETH mapping
 			assert_eq!(
 				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(KSM),
 				3000
 			);
 
-			// Update WETH and KSM - should not affect ETH
-			assert_ok!(VtokenMinting::update_token_pool(
-				&WETH,
-				&500,
-				crate::impls::Operation::Add
-			));
+			// Update KSM - should not affect ETH
 			assert_ok!(VtokenMinting::update_token_pool(
 				&KSM,
 				&1000,
 				crate::impls::Operation::Add
 			));
 
-			// Verify independence
+			// Verify independence - ETH pool should remain unchanged
 			assert_eq!(
 				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(ETH),
 				1000
 			); // Unchanged
-			assert_eq!(
-				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(WETH),
-				2500
-			); // 2000 + 500
 			assert_eq!(
 				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(KSM),
 				4000
@@ -1474,10 +1497,21 @@ fn unified_eth_pool_with_multiple_tokens() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			// Set up SupportedEth list with ETH and WETH
-			assert_ok!(VtokenMinting::set_supported_eth(
-				RuntimeOrigin::signed(ALICE),
-				vec![ETH, WETH].try_into().unwrap()
+			// Set up VTokenToTokens mapping with ETH and WETH for V_ETH
+			let token_configs = vec![
+				VTokenTokenConfig {
+					token: ETH,
+					redeem_enabled: true,
+				},
+				VTokenTokenConfig {
+					token: WETH,
+					redeem_enabled: true,
+				},
+			];
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
 			));
 
 			// Add different amounts through different tokens
@@ -1541,10 +1575,21 @@ fn unified_eth_pool_overflow_protection() {
 		.one_hundred_for_alice_n_bob()
 		.build()
 		.execute_with(|| {
-			// Set up SupportedEth list
-			assert_ok!(VtokenMinting::set_supported_eth(
-				RuntimeOrigin::signed(ALICE),
-				vec![ETH, WETH].try_into().unwrap()
+			// Set up VTokenToTokens mapping with ETH and WETH for V_ETH
+			let token_configs = vec![
+				VTokenTokenConfig {
+					token: ETH,
+					redeem_enabled: true,
+				},
+				VTokenTokenConfig {
+					token: WETH,
+					redeem_enabled: true,
+				},
+			];
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
 			));
 
 			// Test subtraction beyond available balance should fail
@@ -1569,4 +1614,689 @@ fn unified_eth_pool_overflow_protection() {
 				100
 			);
 		});
+}
+
+#[test]
+fn set_vtoken_multimap_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: Set up vBNC to support both BNC and DOT tokens
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: DOT,
+					redeem_enabled: false,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs.clone()
+			));
+
+			// Verify the configuration is stored
+			let stored_configs = VTokenToTokens::<Runtime>::get(VBNC).unwrap();
+			assert_eq!(stored_configs.len(), 2);
+			assert_eq!(stored_configs[0].token, BNC);
+			assert_eq!(stored_configs[0].redeem_enabled, true);
+			assert_eq!(stored_configs[1].token, DOT);
+			assert_eq!(stored_configs[1].redeem_enabled, false);
+
+			// Test case 2: Clear configuration by providing empty list
+			let empty_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				empty_configs
+			));
+
+			// Verify configuration is cleared
+			assert_eq!(VTokenToTokens::<Runtime>::get(VBNC), None);
+		});
+}
+
+#[test]
+fn set_vtoken_multimap_should_fail_for_invalid_inputs() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: Fail for non-vtoken
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_noop!(
+				VtokenMinting::set_vtoken_multimap(
+					RuntimeOrigin::root(),
+					BNC,
+					token_configs.clone()
+				),
+				Error::<Runtime>::NotSupportTokenType
+			);
+
+			// Test case 2: Fail for token conflict - set up vBNC first
+			let mut token_configs_vbnc = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs_vbnc
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs_vbnc
+			));
+
+			// Now try to add BNC to another vToken (VKSM) - should fail
+			let mut token_configs_vksm = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs_vksm
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_noop!(
+				VtokenMinting::set_vtoken_multimap(RuntimeOrigin::root(), VKSM, token_configs_vksm),
+				Error::<Runtime>::TokenAlreadyMapped
+			);
+		});
+}
+
+#[test]
+fn get_vtoken_config_for_token_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up configuration
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: DOT,
+					redeem_enabled: false,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs.clone()
+			));
+
+			// Test getting config for configured tokens
+			let (vtoken_bnc, config_bnc) =
+				VtokenMinting::get_vtoken_config_for_token(&BNC).unwrap();
+			assert_eq!(vtoken_bnc, VBNC);
+			assert_eq!(config_bnc.token, BNC);
+			assert_eq!(config_bnc.redeem_enabled, true);
+
+			let (vtoken_dot, config_dot) =
+				VtokenMinting::get_vtoken_config_for_token(&DOT).unwrap();
+			assert_eq!(vtoken_dot, VBNC);
+			assert_eq!(config_dot.token, DOT);
+			assert_eq!(config_dot.redeem_enabled, false);
+
+			assert_noop!(
+				VtokenMinting::set_vtoken_multimap(RuntimeOrigin::root(), VKSM, token_configs),
+				Error::<Runtime>::TokenAlreadyMapped
+			);
+		});
+}
+
+#[test]
+fn is_redeem_enabled_for_token_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up configuration
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: DOT,
+					redeem_enabled: false,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// Test redeem enabled tokens
+			assert_eq!(
+				VtokenMinting::is_redeem_enabled_for_token(&VBNC, &BNC),
+				true
+			);
+			assert_eq!(
+				VtokenMinting::is_redeem_enabled_for_token(&VBNC, &DOT),
+				false
+			);
+
+			// Test unconfigured tokens
+			assert_eq!(
+				VtokenMinting::is_redeem_enabled_for_token(&VBNC, &KSM),
+				false
+			);
+			assert_eq!(
+				VtokenMinting::is_redeem_enabled_for_token(&VKSM, &BNC),
+				false
+			);
+		});
+}
+
+#[test]
+fn get_vtoken_for_token_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up configuration
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// Test configured token
+			assert_eq!(VtokenMinting::get_vtoken_for_token(&BNC), Some(VBNC));
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VKSM,
+				VTokenMultiMap::<CurrencyIdOf<Runtime>>::default()
+			));
+			// Test unconfigured token
+			assert_eq!(VtokenMinting::get_vtoken_for_token(&KSM), None);
+		});
+}
+
+#[test]
+fn migrate_vtoken_to_token_reverse_mapping_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up VTokenToTokens mapping first
+			let token_configs = vec![
+				VTokenTokenConfig {
+					token: ETH,
+					redeem_enabled: true,
+				},
+				VTokenTokenConfig {
+					token: WETH,
+					redeem_enabled: true,
+				},
+			];
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
+			));
+
+			// Before migration, reverse mappings should not exist (they are set automatically now)
+			assert_eq!(TokenToVToken::<Runtime>::get(ETH), Some(V_ETH));
+			assert_eq!(TokenToVToken::<Runtime>::get(WETH), Some(V_ETH));
+
+			// The migration function is now a no-op since SupportedEth was removed
+			assert_ok!(VtokenMinting::migrate_supported_eth_to_vtoken_multimap());
+
+			// Check that the configurations are properly set
+			let stored_configs = VTokenToTokens::<Runtime>::get(V_ETH).unwrap();
+			assert_eq!(stored_configs.len(), 2);
+
+			let eth_config = stored_configs.iter().find(|c| c.token == ETH).unwrap();
+			assert_eq!(eth_config.redeem_enabled, true);
+
+			let weth_config = stored_configs.iter().find(|c| c.token == WETH).unwrap();
+			assert_eq!(weth_config.redeem_enabled, true);
+		});
+}
+
+#[test]
+fn set_vtoken_multimap_should_work_with_existing_config() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// First set up custom configuration for V_ETH with only ETH
+			let token_configs = vec![VTokenTokenConfig {
+				token: ETH,
+				redeem_enabled: false, // Custom config with redeem disabled
+			}];
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				token_configs.try_into().unwrap()
+			));
+
+			// Update configuration to include both ETH and WETH
+			let updated_configs = vec![
+				VTokenTokenConfig {
+					token: ETH,
+					redeem_enabled: true,
+				},
+				VTokenTokenConfig {
+					token: WETH,
+					redeem_enabled: true,
+				},
+			];
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				V_ETH,
+				updated_configs.try_into().unwrap()
+			));
+
+			// Configuration should be updated to include both tokens
+			let updated_stored_configs = VTokenToTokens::<Runtime>::get(V_ETH).unwrap();
+			assert_eq!(updated_stored_configs.len(), 2);
+
+			let eth_config = updated_stored_configs
+				.iter()
+				.find(|c| c.token == ETH)
+				.unwrap();
+			assert_eq!(eth_config.redeem_enabled, true); // Should be updated to true
+
+			let weth_config = updated_stored_configs
+				.iter()
+				.find(|c| c.token == WETH)
+				.unwrap();
+			assert_eq!(weth_config.redeem_enabled, true);
+		});
+}
+
+#[test]
+fn mint_with_vtoken_multimap_config_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up minimum mint
+			assert_ok!(VtokenMinting::set_minimum_mint(
+				RuntimeOrigin::signed(ALICE),
+				BNC,
+				100
+			));
+
+			// Set up fees (5% mint fee, 5% redeem fee)
+			pub const FEE: Permill = Permill::from_percent(5);
+			assert_ok!(VtokenMinting::set_fees(RuntimeOrigin::root(), FEE, FEE));
+
+			// Set up vBNC to support BNC token
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// Mint using configured token
+			assert_ok!(VtokenMinting::mint(
+				Some(BOB).into(),
+				BNC,
+				100000000000,
+				BoundedVec::default(),
+				None
+			));
+
+			// Verify vBNC was minted (not VBNC from default logic)
+			assert_eq!(Tokens::free_balance(VBNC, &BOB), 95000000000);
+
+			// Verify entrance account received BNC
+			let (entrance_account, _) = VtokenMinting::get_entrance_and_exit_accounts();
+			assert_eq!(
+				Currencies::free_balance(BNC, &entrance_account),
+				95000000000
+			);
+		});
+}
+
+#[test]
+fn redeem_with_vtoken_multimap_config_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up minimum amounts
+			assert_ok!(VtokenMinting::set_minimum_mint(
+				RuntimeOrigin::signed(ALICE),
+				BNC,
+				100
+			));
+			assert_ok!(VtokenMinting::set_minimum_redeem(
+				RuntimeOrigin::signed(ALICE),
+				VBNC,
+				100
+			));
+
+			// Set up fees (5% mint fee, 5% redeem fee)
+			pub const FEE: Permill = Permill::from_percent(5);
+			assert_ok!(VtokenMinting::set_fees(RuntimeOrigin::root(), FEE, FEE));
+
+			// Set up unlock duration
+			assert_ok!(VtokenMinting::set_unlock_duration(
+				RuntimeOrigin::signed(ALICE),
+				BNC,
+				TimeUnit::Era(1)
+			));
+			assert_ok!(VtokenMinting::update_ongoing_time_unit(
+				BNC,
+				TimeUnit::Era(1)
+			));
+
+			// Set up vBNC to support BNC token
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// Mint vBNC
+			assert_ok!(VtokenMinting::mint(
+				Some(BOB).into(),
+				BNC,
+				1000000000000,
+				BoundedVec::default(),
+				None
+			));
+
+			// Redeem to specific token (BNC)
+			assert_ok!(VtokenMinting::redeem(
+				Some(BOB).into(),
+				Some(BNC),
+				VBNC,
+				500000000000
+			));
+
+			// Verify redeem was successful
+			assert_eq!(Tokens::free_balance(VBNC, &BOB), 450000000000);
+		});
+}
+
+#[test]
+fn redeem_with_redeem_disabled_should_fail() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up minimum amounts
+			assert_ok!(VtokenMinting::set_minimum_mint(
+				RuntimeOrigin::signed(ALICE),
+				BNC,
+				100
+			));
+			assert_ok!(VtokenMinting::set_minimum_redeem(
+				RuntimeOrigin::signed(ALICE),
+				VBNC,
+				100
+			));
+
+			// Set up vBNC to support BNC token but with redeem disabled
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: false,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// Mint vBNC
+			assert_ok!(VtokenMinting::mint(
+				Some(BOB).into(),
+				BNC,
+				100000000000,
+				BoundedVec::default(),
+				None
+			));
+
+			// Try to redeem to BNC - should fail because redeem is disabled
+			assert_noop!(
+				VtokenMinting::redeem(Some(BOB).into(), Some(BNC), VBNC, 50000000000),
+				Error::<Runtime>::RedeemNotEnabled
+			);
+		});
+}
+
+#[test]
+fn convert_to_vtoken_with_multimap_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up vBNC to support BNC token
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// convert_to_vtoken should return the configured vToken
+			assert_eq!(VtokenMinting::convert_to_vtoken(BNC).unwrap(), VBNC);
+
+			// For unconfigured tokens, should fall back to default logic
+			assert_eq!(VtokenMinting::convert_to_vtoken(KSM).unwrap(), VKSM);
+		});
+}
+
+#[test]
+fn get_token_pool_with_multimap_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Set up vBNC to support BNC token
+			let mut token_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+			token_configs
+				.try_push(VTokenTokenConfig {
+					token: BNC,
+					redeem_enabled: true,
+				})
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VBNC,
+				token_configs
+			));
+
+			// Set up some token pool amounts
+			assert_ok!(VtokenMinting::update_token_pool(
+				&BNC,
+				&1000,
+				crate::impls::Operation::Set
+			));
+
+			// get_token_pool should return the configured vToken pool amount
+			use bifrost_primitives::VtokenMintingOperator;
+			assert_eq!(
+				<VtokenMinting as VtokenMintingOperator<_, _, _, _>>::get_token_pool(BNC),
+				1000
+			);
+
+			// Test with VtokenMintingInterface trait
+			use bifrost_primitives::VtokenMintingInterface;
+			assert_eq!(
+				<VtokenMinting as VtokenMintingInterface<_, _, _>>::get_token_pool(BNC),
+				1000
+			);
+		});
+}
+
+#[test]
+fn convert_to_vtoken_comprehensive_tests() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Test 1: Configured mapping takes priority over legacy logic
+		// Set up vETH to support ETH token (this should override the legacy ETH -> V_ETH mapping)
+		let mut eth_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+		eth_configs
+			.try_push(VTokenTokenConfig {
+				token: ETH,
+				redeem_enabled: true,
+			})
+			.unwrap();
+
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			V_ETH,
+			eth_configs
+		));
+
+		// ETH should return V_ETH due to configured mapping (not legacy logic)
+		assert_eq!(VtokenMinting::convert_to_vtoken(ETH).unwrap(), V_ETH);
+
+		// Test 2: Legacy ETH tokens should return V_ETH when no mapping configured
+		// HP_ETH should still use legacy logic since it's not in the mapping
+		assert_eq!(VtokenMinting::convert_to_vtoken(HP_ETH).unwrap(), V_ETH);
+		assert_eq!(
+			VtokenMinting::convert_to_vtoken(HP_BASE_ETH).unwrap(),
+			V_ETH
+		);
+		assert_eq!(VtokenMinting::convert_to_vtoken(HP_ARB_ETH).unwrap(), V_ETH);
+		assert_eq!(VtokenMinting::convert_to_vtoken(HP_OP_ETH).unwrap(), V_ETH);
+
+		// Test 3: Supported tokens should convert using to_vtoken() method
+		assert_eq!(VtokenMinting::convert_to_vtoken(KSM).unwrap(), VKSM);
+		assert_eq!(VtokenMinting::convert_to_vtoken(BNC).unwrap(), VBNC);
+		assert_eq!(VtokenMinting::convert_to_vtoken(DOT).unwrap(), VDOT);
+		assert_eq!(VtokenMinting::convert_to_vtoken(MOVR).unwrap(), VMOVR);
+		assert_eq!(VtokenMinting::convert_to_vtoken(FIL).unwrap(), VFIL);
+
+		// Test 4: Unsupported tokens should return NotSupportTokenType error
+		use bifrost_primitives::currency::KUSD;
+		assert_noop!(
+			VtokenMinting::convert_to_vtoken(KUSD),
+			Error::<Runtime>::NotSupportTokenType
+		);
+
+		// Test with a VSToken type (unsupported)
+		use bifrost_primitives::currency::VSKSM;
+		assert_noop!(
+			VtokenMinting::convert_to_vtoken(VSKSM),
+			Error::<Runtime>::NotSupportTokenType
+		);
+
+		// Test 5: VToken types should fail
+		assert_noop!(
+			VtokenMinting::convert_to_vtoken(VKSM),
+			Error::<Runtime>::NotSupportTokenType
+		);
+		assert_noop!(
+			VtokenMinting::convert_to_vtoken(VBNC),
+			Error::<Runtime>::NotSupportTokenType
+		);
+		assert_noop!(
+			VtokenMinting::convert_to_vtoken(V_ETH),
+			Error::<Runtime>::NotSupportTokenType
+		);
+	});
+}
+
+#[test]
+fn convert_to_vtoken_edge_cases() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Test empty multimap configuration
+		let empty_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VKSM,
+			empty_configs
+		));
+
+		// Should still use legacy logic for tokens not in empty mapping
+		assert_eq!(VtokenMinting::convert_to_vtoken(KSM).unwrap(), VKSM);
+
+		// Test multiple tokens in one vToken mapping
+		let mut multi_configs = VTokenMultiMap::<CurrencyIdOf<Runtime>>::default();
+		multi_configs
+			.try_push(VTokenTokenConfig {
+				token: DOT,
+				redeem_enabled: true,
+			})
+			.unwrap();
+		multi_configs
+			.try_push(VTokenTokenConfig {
+				token: KSM,
+				redeem_enabled: false,
+			})
+			.unwrap();
+
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VDOT,
+			multi_configs
+		));
+
+		// Both DOT and KSM should map to VDOT
+		assert_eq!(VtokenMinting::convert_to_vtoken(DOT).unwrap(), VDOT);
+		assert_eq!(VtokenMinting::convert_to_vtoken(KSM).unwrap(), VDOT);
+	});
 }

@@ -38,6 +38,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+use bifrost_primitives::Balance;
+use frame_support::traits::fungible::Balanced;
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -64,7 +66,7 @@ use orml_utilities::with_transaction_result;
 use parity_scale_codec::Codec;
 use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
-	DispatchError, DispatchResult,
+	DispatchError, DispatchResult, SaturatedConversion,
 };
 use sp_std::{fmt::Debug, marker, result};
 
@@ -128,6 +130,9 @@ pub mod module {
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
+		/// The handler for the native currency (e.g. BNC) implementing [`Balanced`],
+		/// used to withdraw or deposit balances when processing transaction fees.
+		type Balanced: Balanced<Self::AccountId>;
 	}
 
 	#[pallet::error]
@@ -298,8 +303,18 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if amount.is_zero() {
 			return Ok(());
 		}
+
+		let amount_u128: Balance = amount.saturated_into::<Balance>();
 		if currency_id == T::GetNativeCurrencyId::get() {
-			T::NativeCurrency::withdraw(who, amount, existence_requirement)
+			T::Balanced::withdraw(
+				who,
+				amount_u128.saturated_into::<<T::Balanced as fungible::Inspect<_>>::Balance>(),
+				Precision::Exact,
+				Preservation::Preserve,
+				Fortitude::Polite,
+			)
+			.map(|_imbalance| ())
+			.map_err(|_| Error::<T>::BalanceTooLow.into())
 		} else {
 			T::MultiCurrency::withdraw(currency_id, who, amount, existence_requirement)
 		}

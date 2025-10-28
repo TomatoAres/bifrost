@@ -968,67 +968,8 @@ pub mod pallet {
 				Error::<T>::TooLowCandidateDelegationCountToLeaveCandidates
 			);
 			state.can_leave::<T>()?;
-			let return_stake = |bond: Bond<AccountIdOf<T>, BalanceOf<T>>| -> DispatchResult {
-				// remove delegation from delegator state
-				let mut delegator = DelegatorState::<T>::get(&bond.owner).expect(
-					"Collator state and delegator state are consistent.
-						Collator state has a record of this delegation. Therefore,
-						Delegator state also has a record. qed.",
-				);
 
-				if let Some(remaining) = delegator.rm_delegation::<T>(&candidate) {
-					Self::delegation_remove_request_with_state(
-						&candidate,
-						&bond.owner,
-						&mut delegator,
-					);
-
-					if remaining.is_zero() {
-						// we do not remove the scheduled delegation requests from other collators
-						// since it is assumed that they were removed incrementally before only the
-						// last delegation was left.
-						<DelegatorState<T>>::remove(&bond.owner);
-						T::Currency::remove_lock(DELEGATOR_LOCK_ID, &bond.owner);
-					} else {
-						<DelegatorState<T>>::insert(&bond.owner, delegator);
-					}
-				} else {
-					// TODO: review. we assume here that this delegator has no remaining staked
-					// balance, so we ensure the lock is cleared
-					T::Currency::remove_lock(DELEGATOR_LOCK_ID, &bond.owner);
-				}
-				Ok(())
-			};
-			// total backing stake is at least the candidate self bond
-			let mut total_backing = state.bond;
-			// return all top delegations
-			let top_delegations =
-				<TopDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
-			for bond in top_delegations.delegations {
-				return_stake(bond)?;
-			}
-			total_backing = total_backing.saturating_add(top_delegations.total);
-			// return all bottom delegations
-			let bottom_delegations =
-				<BottomDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
-			for bond in bottom_delegations.delegations {
-				return_stake(bond)?;
-			}
-			total_backing = total_backing.saturating_add(bottom_delegations.total);
-			// return stake to collator
-			T::Currency::remove_lock(COLLATOR_LOCK_ID, &candidate);
-			<CandidateInfo<T>>::remove(&candidate);
-			<DelegationScheduledRequests<T>>::remove(&candidate);
-			<TopDelegations<T>>::remove(&candidate);
-			<BottomDelegations<T>>::remove(&candidate);
-			let new_total_staked = <Total<T>>::get().saturating_sub(total_backing);
-			<Total<T>>::put(new_total_staked);
-			Self::deposit_event(Event::CandidateLeft {
-				ex_candidate: candidate,
-				unlocked_amount: total_backing,
-				new_total_amt_locked: new_total_staked,
-			});
-			Ok(().into())
+			Self::do_execute_leave_candidates(state, candidate)
 		}
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_leave_candidates(*candidate_count))]
@@ -1798,6 +1739,74 @@ pub mod pallet {
 			}
 
 			(delegation_count, candidate_delegation_count)
+		}
+
+		pub fn do_execute_leave_candidates(
+			state: CandidateMetadata<BalanceOf<T>>,
+			candidate: AccountIdOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let return_stake = |bond: Bond<AccountIdOf<T>, BalanceOf<T>>| -> DispatchResult {
+				// remove delegation from delegator state
+				let mut delegator = DelegatorState::<T>::get(&bond.owner).expect(
+					"Collator state and delegator state are consistent.
+						Collator state has a record of this delegation. Therefore,
+						Delegator state also has a record. qed.",
+				);
+
+				if let Some(remaining) = delegator.rm_delegation::<T>(&candidate) {
+					Self::delegation_remove_request_with_state(
+						&candidate,
+						&bond.owner,
+						&mut delegator,
+					);
+
+					if remaining.is_zero() {
+						// we do not remove the scheduled delegation requests from other collators
+						// since it is assumed that they were removed incrementally before only the
+						// last delegation was left.
+						<DelegatorState<T>>::remove(&bond.owner);
+						T::Currency::remove_lock(DELEGATOR_LOCK_ID, &bond.owner);
+					} else {
+						<DelegatorState<T>>::insert(&bond.owner, delegator);
+					}
+				} else {
+					// TODO: review. we assume here that this delegator has no remaining staked
+					// balance, so we ensure the lock is cleared
+					T::Currency::remove_lock(DELEGATOR_LOCK_ID, &bond.owner);
+				}
+				Ok(())
+			};
+			// total backing stake is at least the candidate self bond
+			let mut total_backing = state.bond;
+			// return all top delegations
+			let top_delegations =
+				<TopDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
+			for bond in top_delegations.delegations {
+				return_stake(bond)?;
+			}
+			total_backing = total_backing.saturating_add(top_delegations.total);
+			// return all bottom delegations
+			let bottom_delegations =
+				<BottomDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
+			for bond in bottom_delegations.delegations {
+				return_stake(bond)?;
+			}
+			total_backing = total_backing.saturating_add(bottom_delegations.total);
+			// return stake to collator
+			T::Currency::remove_lock(COLLATOR_LOCK_ID, &candidate);
+			<CandidateInfo<T>>::remove(&candidate);
+			<DelegationScheduledRequests<T>>::remove(&candidate);
+			<TopDelegations<T>>::remove(&candidate);
+			<BottomDelegations<T>>::remove(&candidate);
+			let new_total_staked = <Total<T>>::get().saturating_sub(total_backing);
+			<Total<T>>::put(new_total_staked);
+
+			Self::deposit_event(Event::CandidateLeft {
+				ex_candidate: candidate,
+				unlocked_amount: total_backing,
+				new_total_amt_locked: new_total_staked,
+			});
+			Ok(().into())
 		}
 	}
 

@@ -543,7 +543,7 @@ impl<T: Config> Pallet<T> {
 				.saturating_sub(stakable_amount);
 
 			// token_id convert to vtoken_id
-			if let Ok(vtoken_id) = token_id.to_vtoken() {
+			if let Ok(vtoken_id) = T::VtokenMintingInterface::convert_to_vtoken(token_id) {
 				// Calculate how many ksm can be received by vksm through VtokenMintingInterface
 				// ===> vredeem_amount(vksm amount)
 				let vredeem_amount =
@@ -573,8 +573,7 @@ impl<T: Config> Pallet<T> {
 		let token_info = <TokenStatus<T>>::get(token).ok_or(Error::<T>::TokenInfoNotFound)?;
 
 		// token_id convert to vtoken_id
-		let vtoken_id = token
-			.to_vtoken()
+		let vtoken_id = T::VtokenMintingInterface::convert_to_vtoken(token)
 			.map_err(|_| Error::<T>::TokenInfoNotFound)?;
 
 		let pallet_account: AccountIdOf<T> = T::PalletId::get().into_account_truncating();

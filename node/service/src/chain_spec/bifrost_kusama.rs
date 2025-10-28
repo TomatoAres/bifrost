@@ -24,6 +24,7 @@ use bifrost_kusama_runtime::{
 use bifrost_primitives::{
 	BifrostKusamaChainId, CurrencyId, CurrencyId::*, TokenInfo, TokenSymbol::*,
 };
+use bifrost_runtime_common::bridge_xcm_helper::DEFAULT_XCM_FEES_IK_PERSPECTIVE;
 use bifrost_runtime_common::{constants::currency::DOLLARS, constants::time::HOURS, AuraId};
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking::{account, whitelisted_caller};
@@ -175,6 +176,13 @@ pub fn bifrost_genesis(
 			"parachainBondReservePercent": PARACHAIN_BOND_RESERVE_PERCENT,
 			"blocksPerRound": BLOCKS_PER_ROUND,
 		},
+		"pkBridge": {
+			"bridgeConfig": bifrost_p_k_bridge::BridgeConfig {
+				send_enabled: true,
+				receive_enabled: true,
+			},
+			"initialXcmFees": Some(DEFAULT_XCM_FEES_IK_PERSPECTIVE),
+		}
 	})
 }
 

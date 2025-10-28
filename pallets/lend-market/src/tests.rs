@@ -21,6 +21,7 @@ mod interest_rate;
 mod lend_tokens;
 mod liquidate_borrow;
 mod market;
+mod market_bond_withdraw;
 
 use crate::mock::*;
 use frame_support::{assert_err, assert_noop, assert_ok};
@@ -326,7 +327,7 @@ fn redeem_allowed_works() {
 }
 
 #[test]
-fn lf_redeem_allowed_works() {
+fn lf_redeem_allowed_not_works() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(LendMarket::add_market_bond(
 			RuntimeOrigin::root(),
@@ -348,13 +349,13 @@ fn lf_redeem_allowed_works() {
 			DOT_U,
 			vec![DOT, BNC, KSM, DOT_U, PHA]
 		));
-		// Set CDOT as lf collateral
+		// Set PHA as lf collateral
 		LendMarket::update_liquidation_free_collateral(RuntimeOrigin::root(), vec![PHA]).unwrap();
 		LendMarket::mint(RuntimeOrigin::signed(ALICE), PHA, unit(200)).unwrap();
 
 		LendMarket::mint(RuntimeOrigin::signed(DAVE), DOT_U, unit(200)).unwrap();
 		LendMarket::mint(RuntimeOrigin::signed(DAVE), DOT, unit(200)).unwrap();
-		// Lend $200 CDOT
+		// Lend $200 PHA
 		LendMarket::collateral_asset(RuntimeOrigin::signed(ALICE), PHA, true).unwrap();
 
 		LendMarket::borrow(RuntimeOrigin::signed(ALICE), DOT, unit(50)).unwrap();
@@ -371,13 +372,19 @@ fn lf_redeem_allowed_works() {
 			LendMarket::redeem_allowed(KSM, &ALICE, unit(100)),
 			Error::<Test>::InsufficientLiquidity
 		);
-		// But it'll success when redeem cdot
-		assert_ok!(LendMarket::redeem_allowed(PHA, &ALICE, unit(100)));
+		// But it'll success when redeem PHA
+		assert_err!(
+			LendMarket::redeem_allowed(PHA, &ALICE, unit(100)),
+			Error::<Test>::InsufficientLiquidity
+		);
 
 		// Remove CDOT from lf collateral
 		LendMarket::update_liquidation_free_collateral(RuntimeOrigin::root(), vec![]).unwrap();
 		// Then it can be redeemed
-		assert_ok!(LendMarket::redeem_allowed(KSM, &ALICE, unit(100)));
+		assert_err!(
+			LendMarket::redeem_allowed(KSM, &ALICE, unit(100)),
+			Error::<Test>::InsufficientLiquidity
+		);
 	})
 }
 
@@ -1778,7 +1785,7 @@ fn reward_calculation_one_palyer_in_multi_markets_works() {
 		assert_ok!(LendMarket::redeem(
 			RuntimeOrigin::signed(ALICE),
 			DOT,
-			unit(100)
+			unit(50)
 		));
 		assert_ok!(LendMarket::borrow(
 			RuntimeOrigin::signed(ALICE),
@@ -1829,7 +1836,7 @@ fn reward_calculation_one_palyer_in_multi_markets_works() {
 		assert_ok!(LendMarket::redeem(
 			RuntimeOrigin::signed(ALICE),
 			KSM,
-			unit(100)
+			unit(50)
 		));
 		assert_ok!(LendMarket::borrow(
 			RuntimeOrigin::signed(ALICE),
@@ -1857,10 +1864,19 @@ fn reward_calculation_one_palyer_in_multi_markets_works() {
 			Some(unit(1)),
 			Some(unit(1)),
 		));
+		assert_noop!(
+			LendMarket::redeem(RuntimeOrigin::signed(ALICE), KSM, unit(90)),
+			Error::<Test>::InsufficientLiquidity
+		);
+		assert_ok!(LendMarket::redeem(
+			RuntimeOrigin::signed(ALICE),
+			KSM,
+			unit(80)
+		));
 		assert_ok!(LendMarket::redeem(
 			RuntimeOrigin::signed(ALICE),
 			DOT,
-			unit(100)
+			unit(50)
 		));
 		assert_ok!(LendMarket::repay_borrow_all(
 			RuntimeOrigin::signed(ALICE),
@@ -1905,7 +1921,7 @@ fn reward_calculation_one_palyer_in_multi_markets_works() {
 		assert_ok!(LendMarket::redeem(
 			RuntimeOrigin::signed(ALICE),
 			KSM,
-			unit(100)
+			unit(80)
 		));
 		assert_ok!(LendMarket::repay_borrow_all(
 			RuntimeOrigin::signed(ALICE),

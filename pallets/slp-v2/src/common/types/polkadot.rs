@@ -25,7 +25,8 @@ use crate::{
 	Config, Error,
 };
 use bifrost_primitives::{
-	AstarChainId, BifrostPolkadotChainId, MoonbeamChainId, TimeUnit, ASTR, DOT, ETH, GLMR,
+	AstarChainId, BifrostPolkadotChainId, CurrencyId, MoonbeamChainId, TimeUnit, ASTR, DOT, ETH,
+	GLMR,
 };
 use frame_support::pallet_prelude::DecodeWithMemTracking;
 use frame_support::traits::Get;
@@ -62,6 +63,10 @@ pub enum StakingProtocol {
 	PolkadotStaking,
 	/// Ethereum Staking
 	EthereumStaking,
+	/// General Proxy Staking
+	/// Currency id: CurrencyId
+	/// Destnation chain id: u32
+	GeneralProxyStaking(CurrencyId, u32),
 }
 
 impl StakingProtocol {
@@ -122,6 +127,7 @@ impl StakingProtocol {
 				remote_dest_location: Location::here(),
 				bifrost_dest_location: Location::here(),
 			},
+			StakingProtocol::GeneralProxyStaking(..) => unreachable!(),
 		}
 	}
 

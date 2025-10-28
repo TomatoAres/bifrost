@@ -24,7 +24,7 @@ use frame_support::{
 	BoundedVec,
 };
 use sp_core::{ConstU32, H160};
-use sp_runtime::Saturating;
+use sp_runtime::ArithmeticError;
 
 /// Multi-VM pointer to smart contract instance.
 #[derive(
@@ -118,13 +118,23 @@ pub struct AstarDappStakingLedger {
 
 impl AstarDappStakingLedger {
 	/// Adds the specified amount to the total locked amount.
-	pub fn add_lock_amount(&mut self, amount: Balance) {
-		self.locked.saturating_accrue(amount);
+	pub fn add_lock_amount(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
+		self.locked
+			.checked_add(amount)
+			.map(|new_locked| {
+				self.locked = new_locked;
+			})
+			.ok_or(ArithmeticError::Overflow)
 	}
 
 	/// Subtracts the specified amount of the total locked amount.
-	pub fn subtract_lock_amount(&mut self, amount: Balance) {
-		self.locked.saturating_reduce(amount);
+	pub fn subtract_lock_amount(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
+		self.locked
+			.checked_sub(amount)
+			.map(|new_locked| {
+				self.locked = new_locked;
+			})
+			.ok_or(ArithmeticError::Underflow)
 	}
 }
 

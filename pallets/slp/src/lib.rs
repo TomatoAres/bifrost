@@ -38,7 +38,7 @@ use bifrost_primitives::{
 	traits::XcmDestWeightAndFeeHandler,
 	CurrencyId, CurrencyIdMapping, DerivativeAccountHandler, DerivativeIndex,
 	SlpHostingFeeProvider, SlpOperator, TimeUnit, VtokenMintingOperator, XcmOperationType, ASTR,
-	DOT, FIL, GLMR,
+	DOT, GLMR,
 };
 use bifrost_stable_pool::traits::StablePoolHandler;
 use cumulus_primitives_core::{relay_chain::HashT, ParaId};
@@ -94,7 +94,7 @@ const ITERATE_LENGTH: usize = 100;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::agents::{AstarAgent, FilecoinAgent, ParachainStakingAgent, PhalaAgent};
+	use crate::agents::{AstarAgent, ParachainStakingAgent, PhalaAgent};
 	use bifrost_primitives::{SlpxOperator, TargetChain};
 	use frame_support::dispatch::GetDispatchInfo;
 	use orml_traits::XcmTransfer;
@@ -542,7 +542,7 @@ pub mod pallet {
 
 	/// The current storage version, we set to 3 our new version(after migrate stroage from vec t
 	/// boundedVec).
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);
 
 	/// One operate origin(can be a multisig account) for a currency. An operating origins are
 	/// normal account in Bifrost chain.
@@ -2274,7 +2274,6 @@ pub mod pallet {
 			match currency_id {
 				KSM | DOT => Ok(Box::new(PolkadotAgent::<T>::new())),
 				BNC | MOVR | GLMR | MANTA => Ok(Box::new(ParachainStakingAgent::<T>::new())),
-				FIL => Ok(Box::new(FilecoinAgent::<T>::new())),
 				PHA => Ok(Box::new(PhalaAgent::<T>::new())),
 				ASTR => Ok(Box::new(AstarAgent::<T>::new())),
 				_ => Err(Error::<T>::NotSupportedCurrencyId),

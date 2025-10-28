@@ -105,6 +105,8 @@ fn parachain_staking_setup() {
 		TimeUnit::Round(1)
 	));
 
+	bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(BNC, VBNC);
+
 	// Initialize currency delays.
 	let delay = Delays {
 		unlock_delay: TimeUnit::Round(24),

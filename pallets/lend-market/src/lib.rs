@@ -82,6 +82,7 @@ pub mod weights;
 
 pub const MAX_EXCHANGE_RATE: u128 = 1_000_000_000_000_000_000; // 1
 pub const MIN_EXCHANGE_RATE: u128 = 20_000_000_000_000_000; // 0.02
+pub const MAX_MARKETS: u32 = 100; // Maximum number of markets allowed
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type AssetIdOf<T> =
@@ -189,6 +190,8 @@ pub mod pallet {
 		InvalidSupplyCap,
 		/// The exchange rate should be greater than 0.02 and less than 1
 		InvalidExchangeRate,
+		/// Too many markets
+		TooManyMarkets,
 		/// Amount cannot be zero
 		InvalidAmount,
 		/// Payer cannot be signer
@@ -474,6 +477,10 @@ pub mod pallet {
 			market: Market<BalanceOf<T>>,
 		) -> DispatchResultWithPostInfo {
 			T::UpdateOrigin::ensure_origin(origin)?;
+			ensure!(
+				Markets::<T>::iter().count() < MAX_MARKETS as usize,
+				Error::<T>::TooManyMarkets
+			);
 			ensure!(
 				!Markets::<T>::contains_key(asset_id),
 				Error::<T>::MarketAlreadyExists
@@ -1406,17 +1413,18 @@ impl<T: Config> Pallet<T> {
 		redeemer: &T::AccountId,
 		voucher_amount: BalanceOf<T>,
 	) -> DispatchResult {
-		log::trace!(
-			target: "lend-market::redeem_allowed",
-			"asset_id: {:?}, redeemer: {:?}, voucher_amount: {:?}",
-			asset_id,
-			redeemer,
-			voucher_amount,
-		);
 		let deposit = AccountDeposits::<T>::get(asset_id, redeemer);
 		if deposit.voucher_balance < voucher_amount {
 			return Err(Error::<T>::InsufficientDeposit.into());
 		}
+		log::debug!(
+			target: "lend-market::redeem_allowed",
+			"asset_id: {:?}, redeemer: {:?}, voucher_amount: {:?}, deposit.voucher_balance: {:?}",
+			asset_id,
+			redeemer,
+			voucher_amount,
+			deposit.voucher_balance,
+		);
 
 		let exchange_rate = Self::exchange_rate_stored(asset_id)?;
 		let redeem_amount = Self::calc_underlying_amount(voucher_amount, exchange_rate)?;
@@ -1441,6 +1449,10 @@ impl<T: Config> Pallet<T> {
 			redeem_effects_value,
 			LiquidationFreeCollaterals::<T>::get().contains(&asset_id),
 		)?;
+
+		// Check market bond relationships to ensure withdrawing this collateral
+		// won't leave insufficient collateral for borrowed assets that depend on it
+		Self::ensure_liquidity_for_withdraw_market_bond(asset_id, redeemer, voucher_amount)?;
 
 		Ok(())
 	}
@@ -1984,6 +1996,61 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Err(Error::<T>::InsufficientLiquidity.into())
+	}
+
+	/// Ensures that the account has sufficient liquidity when withdrawing collateral
+	/// for market bond relationships. This checks if withdrawing a specific collateral
+	/// asset would leave insufficient collateral for any borrowed assets that depend on it.
+	fn ensure_liquidity_for_withdraw_market_bond(
+		withdraw_asset_id: AssetIdOf<T>,
+		account: &T::AccountId,
+		redeem_voucher_amount: BalanceOf<T>,
+	) -> DispatchResult {
+		// Check if the withdrawing asset is used as collateral for any borrowed assets
+		for (borrow_asset_id, _) in Self::active_markets() {
+			// Check if this borrow asset has market bond relationships
+			if let Ok(collateral_asset_ids) = MarketBond::<T>::try_get(borrow_asset_id) {
+				// Check if the withdrawing asset is in the collateral list for this borrow asset
+				if collateral_asset_ids.contains(&withdraw_asset_id) {
+					// This borrow asset depends on the withdrawing asset as collateral
+					let currency_borrow_amount =
+						Self::current_borrow_balance(account, borrow_asset_id)?;
+					if currency_borrow_amount.is_zero() {
+						continue; // No borrow balance, skip this check
+					}
+
+					let borrow_value =
+						Self::get_asset_value(borrow_asset_id, currency_borrow_amount)?;
+
+					// Calculate remaining collateral value of the withdrawing asset after withdrawal
+					let current_deposits = AccountDeposits::<T>::get(withdraw_asset_id, account);
+					if current_deposits.is_collateral {
+						let exchange_rate = Self::exchange_rate_stored(withdraw_asset_id)?;
+						let current_underlying = Self::calc_underlying_amount(
+							current_deposits.voucher_balance,
+							exchange_rate,
+						)?;
+						let redeem_underlying =
+							Self::calc_underlying_amount(redeem_voucher_amount, exchange_rate)?;
+						let remaining_underlying = current_underlying
+							.checked_sub(redeem_underlying)
+							.ok_or(ArithmeticError::Underflow)?;
+						let market = Self::market(withdraw_asset_id)?;
+						let remaining_collateral_value =
+							market.collateral_factor.mul_ceil(remaining_underlying);
+						let remaining_collateral_asset_value =
+							Self::get_asset_value(withdraw_asset_id, remaining_collateral_value)?;
+
+						// Check if remaining collateral value of the withdrawing asset is sufficient for the borrowed amount
+						if remaining_collateral_asset_value < borrow_value {
+							return Err(Error::<T>::InsufficientLiquidity.into());
+						}
+					}
+				}
+			}
+		}
+
+		Ok(())
 	}
 
 	pub fn calc_underlying_amount(

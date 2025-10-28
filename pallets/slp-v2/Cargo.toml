@@ -25,6 +25,7 @@ sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 bifrost-asset-registry = { workspace = true }
+bifrost-vtoken-minting = { workspace = true }
 ismp = { workspace = true }
 
 [dev-dependencies]
@@ -68,6 +69,7 @@ std = [
 	"cumulus-primitives-core/std",
 	"pallet-balances/std",
 	"bifrost-asset-registry/std",
+	"bifrost-vtoken-minting/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

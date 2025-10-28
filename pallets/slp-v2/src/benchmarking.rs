@@ -22,8 +22,10 @@ use crate::{
 		AstarDappStakingLedger, AstarDappStakingPendingStatus, AstarValidator, DappStaking,
 	},
 	common::types::{Ledger, PendingStatus, StakingProtocol, Validator, XcmFee},
+	ethereum_staking::types::EthereumStaking,
 	Pallet as SlpV2,
 };
+use bifrost_primitives::{ASTR, VASTR};
 use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
@@ -55,7 +57,30 @@ where
 	));
 }
 
-#[benchmarks(where <T as frame_system::Config>::AccountId: From<sp_runtime::AccountId32>)]
+fn do_set_ethereum_protocol_configuration<T: Config>()
+where
+	<T as frame_system::Config>::AccountId: From<sp_runtime::AccountId32>,
+{
+	assert_ok!(SlpV2::<T>::set_protocol_configuration(
+		RawOrigin::Root.into(),
+		StakingProtocol::EthereumStaking,
+		ProtocolConfiguration {
+			xcm_task_fee: XcmFee {
+				weight: Weight::zero(),
+				fee: 100
+			},
+			protocol_fee_rate: Permill::from_perthousand(100),
+			unlock_period: TimeUnit::Era(15),
+			operator: AccountId::from([0u8; 32]).into(),
+			max_update_token_exchange_rate: Permill::from_perthousand(1),
+			update_time_unit_interval: 100u32,
+			update_exchange_rate_interval: 100u32,
+		}
+	));
+}
+
+#[cfg(feature = "polkadot")]
+#[benchmarks(where <T as frame_system::Config>::AccountId: From<sp_runtime::AccountId32>, T: bifrost_vtoken_minting::Config)]
 mod benchmarks {
 	use super::*;
 
@@ -226,6 +251,9 @@ mod benchmarks {
 
 	#[benchmark]
 	fn update_token_exchange_rate() -> Result<(), BenchmarkError> {
+		// Set up TokenToVToken mapping for ASTR
+		bifrost_vtoken_minting::TokenToVToken::<T>::insert(ASTR, VASTR);
+
 		let delegator = Delegator::Substrate(
 			AccountId::from_ss58check("YLF9AnL6V1vQRfuiB832NXNGZYCPAWkKLLkh7cf3KwXhB9o")
 				.unwrap()
@@ -287,6 +315,25 @@ mod benchmarks {
 			0,
 			xcm::v5::Response::DispatchResult(MaybeErrorCode::Success),
 		);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn ethereum_staking() -> Result<(), BenchmarkError> {
+		let delegator = Delegator::Substrate(
+			AccountId::from_ss58check("YLF9AnL6V1vQRfuiB832NXNGZYCPAWkKLLkh7cf3KwXhB9o")
+				.unwrap()
+				.into(),
+		);
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			StakingProtocol::EthereumStaking,
+			Some(delegator.clone())
+		));
+		do_set_ethereum_protocol_configuration::<T>();
+		let task = EthereumStaking::Stake(100);
+		#[extrinsic_call]
+		_(RawOrigin::Root, delegator, task);
 		Ok(())
 	}
 

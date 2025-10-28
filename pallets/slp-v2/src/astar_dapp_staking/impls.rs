@@ -187,13 +187,17 @@ impl<T: Config> Pallet<T> {
 							_,
 							amount,
 						)) => {
-							pending_ledger.add_lock_amount(amount);
+							pending_ledger
+								.add_lock_amount(amount)
+								.map_err(|_| Error::<T>::ArithmeticOverflow)?;
 						}
 						PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::UnLock(
 							_,
 							amount,
 						)) => {
-							pending_ledger.subtract_lock_amount(amount);
+							pending_ledger
+								.subtract_lock_amount(amount)
+								.map_err(|_| Error::<T>::ArithmeticOverflow)?;
 							let currency_id = ASTAR_DAPP_STAKING.info().currency_id;
 							let current_time_unit =
 								T::VtokenMinting::get_ongoing_time_unit(currency_id)

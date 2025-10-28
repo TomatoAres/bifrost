@@ -29,14 +29,17 @@ use bifrost_primitives::{
 	AccountFeeCurrency, BalanceCmp, CurrencyId, TryConvertFrom, BNC, DOT, ETH, KSM, MANTA, VBNC,
 	VDOT,
 };
+use frame_support::traits::{
+	LockIdentifier, LockableCurrency, ReservableCurrency, WithdrawReasons,
+};
 use frame_support::{
-	assert_noop, assert_ok, assert_storage_noop,
+	assert_err, assert_noop, assert_ok, assert_storage_noop,
 	dispatch::{DispatchInfo, PostDispatchInfo},
 	pallet_prelude::ValidateUnsigned,
 	traits::fungibles::Mutate,
 	weights::Weight,
 };
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use pallet_traits::evm::InspectEvmAccounts;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_arithmetic::FixedU128;
@@ -1021,5 +1024,136 @@ fn dispatch_should_correctly_call_validate_and_dispatch() {
 		};
 
 		assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
+	});
+}
+
+#[test]
+fn get_fee_currency_and_fee_amount_works_for_native_currency() {
+	new_test_ext().execute_with(|| {
+		const DEMO_LOCK_ID: LockIdentifier = *b"demolock";
+
+		let asset_order_list_vec: BoundedVec<
+			CurrencyId,
+			<Test as Config>::MaxFeeCurrencyOrderListLen,
+		> = BoundedVec::try_from(vec![KSM, VDOT, DOT, BNC]).unwrap();
+		assert_ok!(FlexibleFee::set_default_fee_currency_list(
+			RuntimeOrigin::root(),
+			asset_order_list_vec.clone()
+		));
+		assert_eq!(
+			crate::UniversalFeeCurrencyOrderList::<Test>::get(),
+			asset_order_list_vec
+		);
+
+		//1、frozen - reserved = 0 -> transferable = free + reserved - frozen
+		let reserved = 0;
+		let frozen = 0;
+		let free = 10u128.pow(12);
+		assert_ok!(Currencies::deposit(BNC, &ALICE, free));
+
+		assert_eq!(System::account(&ALICE).data.frozen, 0);
+		assert_eq!(System::account(&ALICE).data.reserved, 0);
+		assert_eq!(System::account(&ALICE).data.free, free);
+
+		assert_ok!(FlexibleFee::get_fee_currency_and_fee_amount(
+			&ALICE,
+			free + reserved - frozen - 1
+		));
+
+		//2、 frozen - reserved > 0 -> transferable = free + reserved - frozen
+		let reserved = 10u128.pow(10);
+		let frozen = 10u128.pow(10) + 1;
+		let free = 10u128.pow(12) - reserved;
+
+		assert_ok!(Balances::reserve(&ALICE, reserved));
+		Balances::set_lock(DEMO_LOCK_ID, &ALICE, frozen, WithdrawReasons::all());
+
+		assert_eq!(System::account(&ALICE).data.reserved, reserved);
+		assert_eq!(System::account(&ALICE).data.frozen, frozen);
+		assert_eq!(System::account(&ALICE).data.free, free);
+
+		assert_ok!(FlexibleFee::get_fee_currency_and_fee_amount(
+			&ALICE,
+			free + reserved - frozen - 1
+		));
+
+		//3、 frozen - reserved < 0 -> transferable = free
+		let new_reserved = 2;
+		let reserved = reserved + new_reserved;
+		let frozen = 10u128.pow(9);
+		let free = free - new_reserved;
+
+		assert_ok!(Balances::reserve(&ALICE, new_reserved));
+		Balances::set_lock(DEMO_LOCK_ID, &ALICE, frozen, WithdrawReasons::all());
+
+		assert_eq!(System::account(&ALICE).data.reserved, reserved);
+		assert_eq!(System::account(&ALICE).data.frozen, frozen);
+		assert_eq!(System::account(&ALICE).data.free, free);
+
+		assert_ok!(FlexibleFee::get_fee_currency_and_fee_amount(
+			&ALICE,
+			free - 1
+		));
+
+		assert_eq!(
+			FlexibleFee::get_fee_currency_and_fee_amount(&ALICE, free + reserved - frozen - 1),
+			Err(Error::<Test>::NotEnoughBalance)
+		);
+	});
+}
+
+#[test]
+fn get_fee_currency_and_fee_amount_works_for_multi_currency() {
+	new_test_ext().execute_with(|| {
+		let lock_id = b"testlock".to_vec();
+		let asset_order_list_vec: BoundedVec<
+			CurrencyId,
+			<Test as Config>::MaxFeeCurrencyOrderListLen,
+		> = BoundedVec::try_from(vec![KSM, VDOT, DOT, BNC]).unwrap();
+		assert_ok!(FlexibleFee::set_default_fee_currency_list(
+			RuntimeOrigin::root(),
+			asset_order_list_vec.clone()
+		));
+		assert_eq!(
+			crate::UniversalFeeCurrencyOrderList::<Test>::get(),
+			asset_order_list_vec
+		);
+
+		//1、transferable = free - frozen
+		let frozen = 0;
+		let free = 10u128.pow(10);
+		// The actual value calculated through Oracle, DOT is 5/0.2 times the value of BNC.
+		// And multiply by two digits of precision.
+		let true_value = free * 25 * 100;
+		assert_ok!(Currencies::deposit(DOT, &ALICE, free));
+
+		assert_eq!(Tokens::accounts(&ALICE, DOT).frozen, frozen);
+		assert_eq!(Tokens::accounts(&ALICE, DOT).free, free);
+
+		assert_ok!(FlexibleFee::get_fee_currency_and_fee_amount(
+			&ALICE,
+			true_value - frozen
+		));
+
+		//2、 transferable = free - frozen
+		let frozen = 10u128.pow(10);
+		let free = free;
+		// The actual value calculated through Oracle, DOT is 5/0.2 times the value of BNC.
+		// And multiply by two digits of precision.
+		let true_value = (free - frozen) * 25 * 100;
+
+		assert_ok!(Tokens::set_lock(
+			lock_id.clone().try_into().unwrap(),
+			DOT,
+			&ALICE,
+			frozen,
+		));
+
+		assert_eq!(Tokens::accounts(&ALICE, DOT).frozen, frozen);
+		assert_eq!(Tokens::accounts(&ALICE, DOT).free, free);
+
+		assert_ok!(FlexibleFee::get_fee_currency_and_fee_amount(
+			&ALICE, true_value
+		));
 	});
 }

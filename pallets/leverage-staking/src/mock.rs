@@ -25,9 +25,10 @@ use bifrost_primitives::{
 	MoonbeamChainId, OraclePriceProvider, Price, PriceDetail, Ratio, StableAssetPalletId,
 };
 use bifrost_runtime_common::milli;
+use bifrost_vtoken_minting::{CurrencyIdOf, VTokenMultiMap, VTokenTokenConfig};
 use frame_support::traits::Disabled;
 use frame_support::{
-	derive_impl, ord_parameter_types, parameter_types,
+	assert_ok, derive_impl, ord_parameter_types, parameter_types,
 	traits::{ConstU128, ConstU32, Everything, Nothing},
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -126,6 +127,7 @@ impl bifrost_currencies::Config for Test {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {
@@ -556,7 +558,24 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		t.into()
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| {
+			// Set up TokenToVToken mappings
+			let mut dot_tokens =
+				bifrost_vtoken_minting::VTokenMultiMap::<CurrencyIdOf<Test>>::default();
+			dot_tokens
+				.try_push(bifrost_vtoken_minting::VTokenTokenConfig {
+					token: DOT,
+					redeem_enabled: true,
+				})
+				.unwrap();
+			assert_ok!(bifrost_vtoken_minting::Pallet::<Test>::set_vtoken_multimap(
+				RuntimeOrigin::root(),
+				VDOT,
+				dot_tokens
+			));
+		});
+		ext
 	}
 }
 

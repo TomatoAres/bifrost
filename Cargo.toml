@@ -5,6 +5,7 @@ members = [
 	"node/service",
 	"primitives",
 	"pallets/asset-registry",
+	"pallets/p-k-bridge",
 	"pallets/buy-back",
 	"pallets/currencies",
 	"pallets/flexible-fee",
@@ -12,7 +13,6 @@ members = [
 	"pallets/salp",
 	"pallets/token-issuer",
 	"pallets/vesting",
-	"pallets/cross-in-out",
 	"pallets/evm-accounts",
 	"pallets/xcm-interface",
 	"pallets/slp",
@@ -39,18 +39,8 @@ members = [
 	"runtime/bifrost-polkadot/src/evm/precompiles/call-permit",
 	"runtime/bifrost-polkadot",
 
-	"integration-tests/chains/asset-hub-rococo",
-	"integration-tests/chains/asset-hub-westend",
-	"integration-tests/chains/bifrost-kusama",
-	"integration-tests/chains/bifrost-polkadot",
-	"integration-tests/chains/bridge-hub-rococo",
-	"integration-tests/chains/bridge-hub-westend",
-	"integration-tests/chains/rococo",
-	"integration-tests/chains/westend",
-	"integration-tests/common",
-	"integration-tests/networks/rococo-system",
-	"integration-tests/networks/westend-system",
-	"integration-tests/tests",
+	"integration-tests/emulated/networks/polkadot-kusama-system",
+	"integration-tests/emulated/tests",
 
 ]
 resolver = "2"
@@ -75,10 +65,10 @@ bifrost-paseo-runtime    = { path = "runtime/bifrost-paseo" }
 
 # Bifrost Wasm
 bifrost-asset-registry                 = { path = "pallets/asset-registry", default-features = false }
+bifrost-p-k-bridge                 = { path = "pallets/p-k-bridge", default-features = false }
 bifrost-buy-back                       = { path = "pallets/buy-back", default-features = false }
 bifrost-channel-commission             = { path = "pallets/channel-commission", default-features = false }
 bifrost-clouds-convert                 = { path = "pallets/clouds-convert", default-features = false }
-bifrost-cross-in-out                   = { path = "pallets/cross-in-out", default-features = false }
 bifrost-currencies                     = { path = "pallets/currencies", default-features = false }
 bifrost-farming                        = { path = "pallets/farming", default-features = false }
 bifrost-farming-rpc-runtime-api        = { path = "pallets/farming/rpc/runtime-api", default-features = false }
@@ -123,17 +113,7 @@ pallet-token-gateway                   = { path = "pallets/token-gateway", defau
 token-gateway-primitives               = { path = "pallets/token-gateway/primitives", default-features = false }
 
 # Bifrost Integration Tests
-asset-hub-rococo-emulated-chain        = { path = "integration-tests/chains/asset-hub-rococo" }
-asset-hub-westend-emulated-chain       = { path = "integration-tests/chains/asset-hub-westend" }
-bridge-hub-rococo-emulated-chain       = { path = "integration-tests/chains/bridge-hub-rococo" }
-bridge-hub-westend-emulated-chain      = { path = "integration-tests/chains/bridge-hub-westend" }
-emulated-integration-tests-common      = { path = "integration-tests/common", default-features = false }
-penpal-emulated-chain                  = { path = "integration-tests/chains/penpal" }
-rococo-emulated-chain                  = { path = "integration-tests/chains/rococo" }
-rococo-system-emulated-network         = { path = "integration-tests/networks/rococo-system" }
-rococo-westend-system-emulated-network = { path = "integration-tests/networks/rococo-westend-system" }
-westend-emulated-chain                 = { path = "integration-tests/chains/westend", default-features = false }
-westend-system-emulated-network        = { path = "integration-tests/networks/westend-system" }
+polkadot-kusama-system-emulated-network = { path = "integration-tests/emulated/networks/polkadot-kusama-system" }
 
 
 # Zenlink
@@ -217,6 +197,7 @@ pallet-aura                                = { git = "https://github.com/parityt
 pallet-authorship                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 pallet-balances                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 pallet-bounties                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
+pallet-collator-selection                  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 pallet-collective                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 pallet-conviction-voting                   = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 pallet-identity                            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
@@ -248,7 +229,6 @@ parachain-info                             = { git = "https://github.com/parityt
 polkadot-parachain-primitives              = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 polkadot-primitives                        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 polkadot-runtime-common                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-polkadot-runtime-parachains                = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 sp-api                                     = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 sp-arithmetic                              = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
 sp-block-builder                           = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
@@ -293,7 +273,6 @@ sc-chain-spec                                 = { git = "https://github.com/pari
 sc-cli                                        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 sc-client-api                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 sc-consensus                                  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
-sc-consensus-grandpa                          = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 sc-consensus-manual-seal                      = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 sc-executor                                   = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 sc-network                                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
@@ -311,33 +290,21 @@ substrate-build-script-utils                  = { git = "https://github.com/pari
 substrate-frame-rpc-system                    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 substrate-prometheus-endpoint                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 substrate-wasm-builder                        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
-xcm-emulator                                  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
-xcm-simulator                                 = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
 
 # Integration tests
-assert_matches               = { version = "1.5.0" }
-asset-hub-rococo-runtime     = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-asset-hub-westend-runtime    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-asset-test-utils             = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bp-bridge-hub-rococo         = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bp-bridge-hub-westend        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bp-messages                  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bp-xcm-bridge-hub            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bridge-hub-common            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bridge-hub-rococo-runtime    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-bridge-hub-westend-runtime   = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-pallet-asset-conversion      = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-pallet-bridge-messages       = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-pallet-xcm-bridge-hub        = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-penpal-runtime               = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-rococo-runtime               = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503" }
-rococo-runtime-constants     = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-sp-authority-discovery       = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-sp-consensus-babe            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-sp-consensus-beefy           = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-testnet-parachains-constants = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
-westend-runtime              = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503"}
-westend-runtime-constants    = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
+assert_matches                     = { version = "1.5.0" }
+asset-hub-kusama-emulated-chain    = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+asset-hub-polkadot-emulated-chain  = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+asset-test-utils                   = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
+bridge-hub-kusama-emulated-chain   = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+bridge-hub-polkadot-emulated-chain = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+emulated-integration-tests-common  = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
+kusama-emulated-chain              = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+pallet-asset-conversion            = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
+pallet-bridge-messages             = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2503", default-features = false }
+polkadot-emulated-chain            = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+polkadot-runtime                   = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503" }
+polkadot-runtime-constants         = { git = "https://github.com/bifrost-io/polkadot-runtimes", branch = "stable2503", default-features = false }
 
 # Other
 slices                = "0.2.0"

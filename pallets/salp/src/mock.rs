@@ -180,6 +180,7 @@ impl bifrost_currencies::Config for Test {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BifrostToken;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {

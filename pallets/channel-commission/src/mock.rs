@@ -81,6 +81,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {
@@ -215,6 +216,14 @@ impl VtokenMintingInterface<AccountId, CurrencyId, Balance> for SimpleVTokenSupp
 
 	fn set_v_currency_issuance(_v_currency_id: CurrencyId, _adjustment: i128) -> DispatchResult {
 		Ok(())
+	}
+
+	fn try_get_token_pool(_currency_id: CurrencyId) -> Result<Balance, DispatchError> {
+		Ok(0u64)
+	}
+
+	fn convert_to_vtoken(_currency_id: CurrencyId) -> Result<CurrencyId, DispatchError> {
+		Ok(CurrencyId::default())
 	}
 }
 

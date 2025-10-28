@@ -17,196 +17,115 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use bifrost_primitives::AssetHubChainId;
+use bifrost_primitives::FIL;
 use frame_support::traits::OnRuntimeUpgrade;
 #[cfg(feature = "try-runtime")]
 use sp_runtime::TryRuntimeError;
-use sp_std::collections::btree_map::BTreeMap;
 
 const LOG_TARGET: &str = "SLP::migration";
 
-pub struct SlpMigrationV5<T>(PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for SlpMigrationV5<T> {
-	fn on_runtime_upgrade() -> Weight {
-		let mut count: u64 = 0;
+pub struct RemoveFilStorage<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		// Check the storage version
 		let in_code_version = Pallet::<T>::in_code_storage_version();
 		let on_chain_version = Pallet::<T>::on_chain_storage_version();
 
+		let currency_id = FIL;
+		const REMOVE_TOKEN_LIMIT: u32 = 100;
+		let mut weight: Weight = Weight::zero();
+
 		if on_chain_version == 4 && in_code_version == 5 {
-			// Transform storage values
-			// We transform the storage values from the old into the new format.
-			log::info!(target: LOG_TARGET, "Start to migrate DelegatorsIndex2Multilocation storage...");
+			log::info!(target: LOG_TARGET, "Start Removing OperateOrigin entry for {:?}", currency_id);
+			OperateOrigins::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			let mut record_map: BTreeMap<(CurrencyId, MultiLocation), MultiLocation> =
-				BTreeMap::new();
+			log::info!(target: LOG_TARGET, "Start Removing HostingFees entry for {:?}", currency_id);
+			HostingFees::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			//migrate the value type of DelegatorsIndex2Multilocation
-			DelegatorsIndex2Multilocation::<T>::translate(
-				|currency: CurrencyId, delegator_id: u16, old_loc: MultiLocation| {
-					count += 1;
-					match currency {
-						k if k == DOT || k == KSM => {
-							let new_delegator_multilocation =
-								T::AccountConverter::convert((delegator_id, k));
-							record_map.insert((currency, old_loc), new_delegator_multilocation);
-							Some(new_delegator_multilocation)
-						}
-						_ => Some(old_loc),
-					}
-				},
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorsIndex2Multilocation entry for {:?}", currency_id);
+			let res = DelegatorsIndex2Multilocation::<T>::clear_prefix(
+				currency_id,
+				REMOVE_TOKEN_LIMIT,
+				None,
+			);
+			assert!(res.maybe_cursor.is_none());
+			weight = weight.saturating_add(
+				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start to migrate DelegatorsMultilocation2Index storage...");
-			let mut temp_records: Vec<(CurrencyId, MultiLocation, u16)> = Vec::new();
-			//migrate the value type of DelegatorsMultilocation2Index
-			DelegatorsMultilocation2Index::<T>::iter().for_each(
-				|(currency_id, multiloc, value)| {
-					if currency_id == DOT || currency_id == KSM {
-						DelegatorsMultilocation2Index::<T>::remove(currency_id, multiloc);
-						let new_multiloc =
-							record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
-								log::error!(
-									target: LOG_TARGET,
-									"Missing mapping for currency_id={:?}, multiloc={:?}",
-									currency_id,
-									multiloc
-								);
-								panic!("Missing mapping, cannot continue without unwrap");
-							});
-						temp_records.push((currency_id, *new_multiloc, value));
-						count += 1;
-					}
-				},
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorsMultilocation2Index entry for {:?}", currency_id);
+			let res = DelegatorsMultilocation2Index::<T>::clear_prefix(
+				currency_id,
+				REMOVE_TOKEN_LIMIT,
+				None,
 			);
-			for (currency_id, new_multiloc, mapped_value) in temp_records {
-				DelegatorsMultilocation2Index::<T>::insert(currency_id, new_multiloc, mapped_value);
-				count += 1;
-			}
-
-			log::info!(target: LOG_TARGET, "Start to migrate Validators storage...");
-			//migrate the value type of Validators
-			Validators::<T>::translate(
-				|k: CurrencyId, old_list: BoundedVec<MultiLocation, T::MaxLengthLimit>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
-					count += 1;
-					match k {
-						k if k == DOT || k == KSM => Some(map_location::<T, _>(
-							old_list,
-							parent_location_to_asset_hub::<T>,
-						)),
-						_ => Some(old_list),
-					}
-				},
+			assert!(res.maybe_cursor.is_none());
+			weight = weight.saturating_add(
+				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start to migrate ValidatorBoostList storage...");
-			//migrate the value type of ValidatorBoostList
-			ValidatorBoostList::<T>::translate(
-				|k: CurrencyId,
-				 old_list: BoundedVec<(MultiLocation, BlockNumberFor<T>), T::MaxLengthLimit>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
-					count += 1;
-					match k {
-						k if k == DOT || k == KSM => Some(map_location_block::<T, _>(
-							old_list,
-							parent_location_to_asset_hub::<T>,
-						)),
-						_ => Some(old_list),
-					}
-				},
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorNextIndex entry for {:?}", currency_id);
+			DelegatorNextIndex::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
+
+			log::info!(target: LOG_TARGET, "Start Removing Validators entry for {:?}", currency_id);
+			Validators::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
+
+			log::info!(target: LOG_TARGET, "Start Removing ValidatorsByDelegator entry for {:?}", currency_id);
+			let res =
+				ValidatorsByDelegator::<T>::clear_prefix(currency_id, REMOVE_TOKEN_LIMIT, None);
+			assert!(res.maybe_cursor.is_none());
+			weight = weight.saturating_add(
+				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start to migrate ValidatorsByDelegator storage...");
-			//migrate the value type of ValidatorsByDelegator
-			let mut temp_records: Vec<(
-				CurrencyId,
-				MultiLocation,
-				BoundedVec<MultiLocation, T::MaxLengthLimit>,
-			)> = Vec::new();
-			ValidatorsByDelegator::<T>::iter().for_each(|(currency_id, multiloc, value)| {
-				if currency_id == DOT || currency_id == KSM {
-					ValidatorsByDelegator::<T>::remove(currency_id, multiloc);
-					let new_multiloc =
-						record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
-							log::error!(
-								target: LOG_TARGET,
-								"Missing mapping for currency_id={:?}, multiloc={:?}",
-								currency_id,
-								multiloc
-							);
-							panic!("Missing mapping, cannot continue without unwrap");
-						});
-					temp_records.push((
-						currency_id,
-						*new_multiloc,
-						map_location_vec::<T, _>(value, parent_location_to_asset_hub::<T>),
-					));
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorLedgers entry for {:?}", currency_id);
+			let res = DelegatorLedgers::<T>::clear_prefix(currency_id, REMOVE_TOKEN_LIMIT, None);
+			assert!(res.maybe_cursor.is_none());
+			weight = weight.saturating_add(
+				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
+			);
 
-					count += 1;
-				}
-			});
-			for (currency_id, new_multiloc, mapped_value) in temp_records {
-				ValidatorsByDelegator::<T>::insert(currency_id, new_multiloc, mapped_value);
-				count += 1;
-			}
+			log::info!(target: LOG_TARGET, "Start Removing MinimumsAndMaximums entry for {:?}", currency_id);
+			MinimumsAndMaximums::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start to migrate DelegatorLedgers storage...");
-			//migrate the value type of DelegatorLedgers
-			let mut temp_records: Vec<(CurrencyId, MultiLocation, Ledger<BalanceOf<T>>)> =
-				Vec::new();
-			DelegatorLedgers::<T>::iter().for_each(|(currency_id, multiloc, value)| {
-				if currency_id == DOT || currency_id == KSM {
-					DelegatorLedgers::<T>::remove(currency_id, multiloc);
-					let new_multiloc =
-						record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
-							log::error!(
-								target: LOG_TARGET,
-								"Missing mapping for currency_id={:?}, multiloc={:?}",
-								currency_id,
-								multiloc
-							);
-							panic!("Missing mapping, cannot continue without unwrap");
-						});
-					temp_records.push((currency_id, *new_multiloc, value));
-					count += 1;
-				}
-			});
-			for (currency_id, new_multiloc, mapped_value) in temp_records {
-				DelegatorLedgers::<T>::insert(currency_id, new_multiloc, mapped_value);
-				count += 1;
-			}
+			log::info!(target: LOG_TARGET, "Start Removing CurrencyDelays entry for {:?}", currency_id);
+			CurrencyDelays::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start to migrate DelegatorLatestTuneRecord storage...");
-			//migrate the value type of DelegatorLatestTuneRecord
-			let mut temp_records: Vec<(CurrencyId, MultiLocation, TimeUnit)> = Vec::new();
-			DelegatorLatestTuneRecord::<T>::iter().for_each(|(currency_id, multiloc, value)| {
-				if currency_id == DOT || currency_id == KSM {
-					DelegatorLatestTuneRecord::<T>::remove(currency_id, multiloc);
-					let new_multiloc =
-						record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
-							log::error!(
-								target: LOG_TARGET,
-								"Missing mapping for currency_id={:?}, multiloc={:?}",
-								currency_id,
-								multiloc
-							);
-							panic!("Missing mapping, cannot continue without unwrap");
-						});
-					temp_records.push((currency_id, *new_multiloc, value));
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorLatestTuneRecord entry for {:?}", currency_id);
+			let res =
+				DelegatorLatestTuneRecord::<T>::clear_prefix(currency_id, REMOVE_TOKEN_LIMIT, None);
+			assert!(res.maybe_cursor.is_none());
+			weight = weight.saturating_add(
+				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
+			);
 
-					count += 1;
-				}
-			});
-			for (currency_id, new_multiloc, mapped_value) in temp_records {
-				DelegatorLatestTuneRecord::<T>::insert(currency_id, new_multiloc, mapped_value);
-				count += 1;
-			}
+			log::info!(target: LOG_TARGET, "Start Removing CurrencyLatestTuneRecord entry for {:?}", currency_id);
+			CurrencyLatestTuneRecord::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
+
+			log::info!(target: LOG_TARGET, "Start Removing CurrencyTuneExchangeRateLimit entry for {:?}", currency_id);
+			CurrencyTuneExchangeRateLimit::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
+
+			log::info!(target: LOG_TARGET, "Start Removing LastTimeUpdatedOngoingTimeUnit entry for {:?}", currency_id);
+			LastTimeUpdatedOngoingTimeUnit::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
+
+			log::info!(target: LOG_TARGET, "Start Removing OngoingTimeUnitUpdateInterval entry for {:?}", currency_id);
+			OngoingTimeUnitUpdateInterval::<T>::remove(currency_id);
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
 			// Update the storage version
 			StorageVersion::new(5).put::<Pallet<T>>();
+			weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
-			T::DbWeight::get().reads_writes(count + 1, count + 1)
+			weight
 		} else {
 			// We don't do anything here.
 			Weight::zero()
@@ -215,255 +134,91 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV5<T> {
 
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
-		let delegators_index_2_multilocation_cnt =
-			DelegatorsIndex2Multilocation::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorsIndex2Multilocation pre-migrate storage count: {:?}",
-			delegators_index_2_multilocation_cnt
-		);
+		log::info!(target: LOG_TARGET, "▶️ pre_upgrade start");
 
-		let delegators_multilocation_2_index_cnt =
-			DelegatorsMultilocation2Index::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorsMultilocation2Index pre-migrate storage count: {:?}",
-			delegators_multilocation_2_index_cnt
-		);
+		let currency_id = FIL;
 
-		let validators_cnt = Validators::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"Validators pre-migrate storage count: {:?}",
-			validators_cnt
-		);
+		let delegators_index_count =
+			DelegatorsIndex2Multilocation::<T>::iter_prefix(currency_id).count();
+		let delegators_count = DelegatorsMultilocation2Index::<T>::iter_prefix(currency_id).count();
+		let validators_count = ValidatorsByDelegator::<T>::iter_prefix(currency_id).count();
+		let ledgers_count = DelegatorLedgers::<T>::iter_prefix(currency_id).count();
+		let tune_count = DelegatorLatestTuneRecord::<T>::iter_prefix(currency_id).count();
 
-		let validator_boost_list_cnt = ValidatorBoostList::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"ValidatorBoostList pre-migrate storage count: {:?}",
-			validator_boost_list_cnt
-		);
+		log::info!(target: LOG_TARGET, "pre_upgrade done: DelegatorsIndex2Multilocation={}, \
+		DelegatorsMultilocation2Index={}, ValidatorsByDelegator={}, \
+		DelegatorLedgers={}, DelegatorLatestTuneRecord={}",
+            delegators_index_count, delegators_count, validators_count, ledgers_count, tune_count);
 
-		let validators_by_delegator_cnt = ValidatorsByDelegator::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"ValidatorsByDelegator pre-migrate storage count: {:?}",
-			validators_by_delegator_cnt
-		);
-
-		let delegator_ledgers_cnt = DelegatorLedgers::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorLedgers pre-migrate storage count: {:?}",
-			delegator_ledgers_cnt
-		);
-
-		let delegator_latest_tune_record_cnt =
-			DelegatorLatestTuneRecord::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorLatestTuneRecord pre-migrate storage count: {:?}",
-			delegator_latest_tune_record_cnt
-		);
-
-		let supplement_fee_account_whitelist_cnt =
-			SupplementFeeAccountWhitelist::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"SupplementFeeAccountWhitelist pre-migrate storage count: {:?}",
-			supplement_fee_account_whitelist_cnt
-		);
-
-		let combined_data = (
-			delegators_index_2_multilocation_cnt,
-			delegators_multilocation_2_index_cnt,
-			validators_cnt,
-			validator_boost_list_cnt,
-			validators_by_delegator_cnt,
-			delegator_ledgers_cnt,
-			delegator_latest_tune_record_cnt,
-			supplement_fee_account_whitelist_cnt,
-		);
-
-		Ok(combined_data.encode())
+		Ok(sp_std::vec![])
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(cnt: Vec<u8>) -> Result<(), TryRuntimeError> {
-		let (
-			old_delegators_index_2_multilocation_cnt,
-			old_delegators_multilocation_2_index_cnt,
-			old_validators_cnt,
-			old_validator_boost_list_cnt,
-			old_validators_by_delegator_cnt,
-			old_delegator_ledgers_cnt,
-			old_delegator_latest_tune_record_cnt,
-			old_supplement_fee_account_whitelist_cnt,
-		): (u32, u32, u32, u32, u32, u32, u32, u32) = Decode::decode(&mut cnt.as_slice())
-			.expect("the state parameter should be something that was generated by pre_upgrade");
+	fn post_upgrade(_cnt: Vec<u8>) -> Result<(), TryRuntimeError> {
+		log::info!(target: LOG_TARGET, "▶️ post_upgrade start");
 
-		let new_delegators_index_2_multilocation_cnt =
-			DelegatorsIndex2Multilocation::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorsIndex2Multilocation pre-migrate storage count: {:?}",
-			new_delegators_index_2_multilocation_cnt
-		);
-		ensure!(
-			new_delegators_index_2_multilocation_cnt == old_delegators_index_2_multilocation_cnt,
-			"Post-migration DelegatorsIndex2Multilocation count does not match pre-migration count"
-		);
+		let currency_id = FIL;
 
-		let new_delegators_multilocation_2_index_cnt =
-			DelegatorsMultilocation2Index::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorsMultilocation2Index pre-migrate storage count: {:?}",
-			new_delegators_multilocation_2_index_cnt
+		assert_eq!(
+			DelegatorsIndex2Multilocation::<T>::iter_prefix(currency_id).count(),
+			0,
+			"DelegatorsIndex2Multilocation not fully removed"
 		);
-		ensure!(
-			new_delegators_multilocation_2_index_cnt == old_delegators_multilocation_2_index_cnt,
-			"Post-migration DelegatorsMultilocation2Index count does not match pre-migration count"
+		assert_eq!(
+			DelegatorsMultilocation2Index::<T>::iter_prefix(currency_id).count(),
+			0,
+			"DelegatorsMultilocation2Index not fully removed"
+		);
+		assert_eq!(
+			ValidatorsByDelegator::<T>::iter_prefix(currency_id).count(),
+			0,
+			"ValidatorsByDelegator not fully removed"
+		);
+		assert_eq!(
+			DelegatorLedgers::<T>::iter_prefix(currency_id).count(),
+			0,
+			"DelegatorLedgers not fully removed"
+		);
+		assert_eq!(
+			DelegatorLatestTuneRecord::<T>::iter_prefix(currency_id).count(),
+			0,
+			"DelegatorLatestTuneRecord not fully removed"
 		);
 
-		let new_validators_cnt = Validators::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"Validators pre-migrate storage count: {:?}",
-			new_validators_cnt
-		);
-		ensure!(
-			new_validators_cnt == old_validators_cnt,
-			"Post-migration Validators count does not match pre-migration count"
-		);
-
-		let new_validator_boost_list_cnt = ValidatorBoostList::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"ValidatorBoostList pre-migrate storage count: {:?}",
-			new_validator_boost_list_cnt
-		);
-		ensure!(
-			new_validator_boost_list_cnt == old_validator_boost_list_cnt,
-			"Post-migration ValidatorBoostList count does not match pre-migration count"
-		);
-
-		let new_validators_by_delegator_cnt = ValidatorsByDelegator::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"ValidatorsByDelegator pre-migrate storage count: {:?}",
-			new_validators_by_delegator_cnt
-		);
-		ensure!(
-			new_validators_by_delegator_cnt == old_validators_by_delegator_cnt,
-			"Post-migration ValidatorsByDelegator count does not match pre-migration count"
-		);
-
-		let new_delegator_ledgers_cnt = DelegatorLedgers::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorLedgers pre-migrate storage count: {:?}",
-			new_delegator_ledgers_cnt
-		);
-		ensure!(
-			new_delegator_ledgers_cnt == old_delegator_ledgers_cnt,
-			"Post-migration DelegatorLedgers count does not match pre-migration count"
-		);
-
-		let new_delegator_latest_tune_record_cnt =
-			DelegatorLatestTuneRecord::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"DelegatorLatestTuneRecord pre-migrate storage count: {:?}",
-			new_delegator_latest_tune_record_cnt
-		);
-		ensure!(
-			new_delegator_latest_tune_record_cnt == old_delegator_latest_tune_record_cnt,
-			"Post-migration DelegatorLatestTuneRecord count does not match pre-migration count"
-		);
-
-		let new_supplement_fee_account_whitelist_cnt =
-			SupplementFeeAccountWhitelist::<T>::iter().count() as u32;
-		log::info!(
-			target: LOG_TARGET,
-			"SupplementFeeAccountWhitelist pre-migrate storage count: {:?}",
-			new_supplement_fee_account_whitelist_cnt
-		);
-		ensure!(
-			new_supplement_fee_account_whitelist_cnt == old_supplement_fee_account_whitelist_cnt,
-			"Post-migration SupplementFeeAccountWhitelist count does not match pre-migration count"
-		);
+		log::info!(target: LOG_TARGET, "post_upgrade check success ✅");
 
 		Ok(())
 	}
 }
 
-fn map_location_vec<T, F>(
-	list: BoundedVec<MultiLocation, T::MaxLengthLimit>,
-	convert: F,
-) -> BoundedVec<MultiLocation, T::MaxLengthLimit>
-where
-	T: Config,
-	F: Fn(&MultiLocation) -> MultiLocation,
-{
-	list.into_iter()
-		.map(|loc| convert(&loc))
-		.collect::<Vec<_>>()
-		.try_into()
-		.expect("New BoundedVec should not exceed MaxLengthLimit")
-}
+pub struct UpgradeStorageVersion<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for UpgradeStorageVersion<T> {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		// Check the storage version
+		let in_code_version = Pallet::<T>::in_code_storage_version();
+		let on_chain_version = Pallet::<T>::on_chain_storage_version();
 
-fn map_location_block<T, F>(
-	list: BoundedVec<(MultiLocation, BlockNumberFor<T>), T::MaxLengthLimit>,
-	convert: F,
-) -> BoundedVec<(MultiLocation, BlockNumberFor<T>), T::MaxLengthLimit>
-where
-	T: Config,
-	F: Fn(&MultiLocation) -> MultiLocation,
-{
-	list.into_iter()
-		.map(|(loc, block)| (convert(&loc), block))
-		.collect::<Vec<_>>()
-		.try_into()
-		.expect("New BoundedVec should not exceed MaxLengthLimit")
-}
+		let mut weight: Weight = Weight::zero();
 
-fn map_location<T, F>(
-	list: BoundedVec<MultiLocation, T::MaxLengthLimit>,
-	convert: F,
-) -> BoundedVec<MultiLocation, T::MaxLengthLimit>
-where
-	T: Config,
-	F: Fn(&MultiLocation) -> MultiLocation,
-{
-	list.into_iter()
-		.map(|loc| convert(&loc))
-		.collect::<Vec<_>>()
-		.try_into()
-		.expect("New BoundedVec should not exceed MaxLengthLimit")
-}
+		if on_chain_version == 4 && in_code_version == 5 {
+			// Update the storage version
+			StorageVersion::new(5).put::<Pallet<T>>();
+			weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
-pub fn parent_location_to_asset_hub<T: Config>(who: &MultiLocation) -> MultiLocation {
-	use xcm::v3::Junction::*;
-
-	match who {
-		MultiLocation {
-			parents: 1,
-			interior: X1(AccountId32 { network, id }),
-		} => MultiLocation {
-			parents: 1,
-			interior: X2(
-				Parachain(AssetHubChainId::get()),
-				AccountId32 {
-					network: *network,
-					id: *id,
-				},
-			),
-		},
-		_ => {
-			log::error!("Does not belong to the parent account");
-			*who
+			weight
+		} else {
+			// We don't do anything here.
+			Weight::zero()
 		}
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
+		Ok(sp_std::vec![])
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(_cnt: Vec<u8>) -> Result<(), TryRuntimeError> {
+		Ok(())
 	}
 }

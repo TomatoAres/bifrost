@@ -38,20 +38,27 @@ impl<T: Config> Pallet<T> {
 				if let Some(Ledger::EthereumStaking(mut pending_ledger)) = ledger.clone() {
 					match task {
 						EthereumStaking::Stake(amount) => {
-							pending_ledger.add_lock_amount(amount);
+							pending_ledger
+								.add_lock_amount(amount)
+								.map_err(|_| Error::<T>::ArithmeticOverflow)?;
 						}
 						EthereumStaking::Unstake(amount) => {
 							if pending_ledger.locked < amount {
 								return Err(Error::<T>::InvalidParameter);
 							}
-							pending_ledger.subtract_lock_amount(amount);
+							pending_ledger
+								.subtract_lock_amount(amount)
+								.map_err(|_| Error::<T>::ArithmeticOverflow)?;
 						}
 					}
 					*ledger = Some(Ledger::EthereumStaking(pending_ledger));
-				};
-				Ok(())
+					Ok(())
+				} else {
+					Err(Error::<T>::DelegatorNotFound)
+				}
 			},
 		)?;
+
 		Self::deposit_event(Event::EthereumStaking { delegator, task });
 		Ok(().into())
 	}

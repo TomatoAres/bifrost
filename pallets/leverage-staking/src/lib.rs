@@ -159,7 +159,8 @@ impl<T: Config> Pallet<T> {
 		let base_token_value = deposits_token_value
 			.checked_sub(account_borrows)
 			.ok_or(ArithmeticError::Overflow)?;
-		let current_rate = FixedU128::saturating_from_rational(account_borrows, base_token_value);
+		let current_rate = FixedU128::checked_from_rational(account_borrows, base_token_value)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		match rate.cmp(&current_rate) {
 			Ordering::Less => {

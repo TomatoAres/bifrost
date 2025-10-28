@@ -18,14 +18,12 @@
 
 pub mod astar_agent;
 mod common;
-mod filecoin_agent;
 mod parachain_staking_agent;
 mod phala_agent;
 mod polkadot_agent;
 mod utils;
 
 pub use astar_agent::*;
-pub use filecoin_agent::*;
 pub use parachain_staking_agent::*;
 pub use phala_agent::*;
 pub use polkadot_agent::*;

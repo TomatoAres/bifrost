@@ -32,7 +32,11 @@ use crate::{
 	LedgerByStakingProtocolAndDelegator, NextDelegatorIndexByStakingProtocol,
 	ValidatorsByStakingProtocolAndDelegator,
 };
-use bifrost_primitives::{CommissionPalletId, TimeUnit, VtokenMintingOperator, ETH, VASTR, V_ETH};
+use bifrost_primitives::{
+	CommissionPalletId, CurrencyId, TimeUnit, VtokenMintingOperator, ASTR, DOT, ETH, MANTA, VASTR,
+	V_ETH,
+};
+use bifrost_vtoken_minting::{VTokenMultiMap, VTokenTokenConfig};
 use cumulus_primitives_core::Weight;
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
 use orml_traits::MultiCurrency;
@@ -51,6 +55,8 @@ use xcm::{
 
 pub const ASTAR_DAPP_STAKING: StakingProtocol = StakingProtocol::AstarDappStaking;
 pub const ETHEREUM_STAKING: StakingProtocol = StakingProtocol::EthereumStaking;
+
+pub const GENERAL_PROXY_STAKING: StakingProtocol = StakingProtocol::GeneralProxyStaking(MANTA, 1);
 
 pub const CONFIGURATION: ProtocolConfiguration<AccountId> = ProtocolConfiguration {
 	xcm_task_fee: XcmFee {
@@ -74,6 +80,11 @@ fn set_protocol_configuration() {
 	assert_ok!(SlpV2::set_protocol_configuration(
 		RuntimeOrigin::root(),
 		ETHEREUM_STAKING,
+		CONFIGURATION
+	));
+	assert_ok!(SlpV2::set_protocol_configuration(
+		RuntimeOrigin::root(),
+		GENERAL_PROXY_STAKING,
 		CONFIGURATION
 	));
 }
@@ -106,7 +117,7 @@ fn set_configuration_should_work() {
 	new_test_ext().execute_with(|| {
 		set_protocol_configuration();
 		expect_event(SlpV2Event::SetConfiguration {
-			staking_protocol: ETHEREUM_STAKING,
+			staking_protocol: GENERAL_PROXY_STAKING,
 			configuration: CONFIGURATION,
 		});
 	})
@@ -154,6 +165,51 @@ fn add_delegator_should_work() {
 				locked: 0,
 				unlocking: Default::default()
 			}))
+		);
+	});
+}
+
+#[test]
+fn general_proxy_staking_add_delegator_should_work() {
+	new_test_ext().execute_with(|| {
+		let delegator = Delegator::Ethereum(H160::default());
+		let delegator_index = 0;
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralProxyStaking(MANTA, 1),
+			Some(delegator.clone())
+		));
+		expect_event(SlpV2Event::AddDelegator {
+			staking_protocol: StakingProtocol::GeneralProxyStaking(MANTA, 1),
+			delegator_index,
+			delegator: delegator.clone(),
+		});
+		assert_eq!(
+			DelegatorByStakingProtocolAndDelegatorIndex::<Test>::get(
+				StakingProtocol::GeneralProxyStaking(MANTA, 1),
+				delegator_index
+			),
+			Some(delegator.clone())
+		);
+		assert_eq!(
+			DelegatorIndexByStakingProtocolAndDelegator::<Test>::get(
+				StakingProtocol::GeneralProxyStaking(MANTA, 1),
+				delegator.clone()
+			),
+			Some(delegator_index)
+		);
+		assert_eq!(
+			NextDelegatorIndexByStakingProtocol::<Test>::get(StakingProtocol::GeneralProxyStaking(
+				MANTA, 1
+			)),
+			1
+		);
+		assert_eq!(
+			LedgerByStakingProtocolAndDelegator::<Test>::get(
+				StakingProtocol::GeneralProxyStaking(MANTA, 1),
+				delegator
+			),
+			None
 		);
 	});
 }
@@ -921,6 +977,25 @@ fn update_ongoing_time_unit_should_work() {
 			LastUpdateOngoingTimeUnitBlockNumber::<Test>::get(ETHEREUM_STAKING),
 			200
 		);
+
+		assert_ok!(SlpV2::update_ongoing_time_unit(
+			RuntimeOrigin::root(),
+			GENERAL_PROXY_STAKING,
+			None,
+			Some(TimeUnit::Era(1))
+		));
+		expect_event(SlpV2Event::TimeUnitUpdated {
+			staking_protocol: GENERAL_PROXY_STAKING,
+			time_unit: TimeUnit::Era(1),
+		});
+		assert_eq!(
+			VtokenMinting::get_ongoing_time_unit(MANTA),
+			Some(TimeUnit::Era(1))
+		);
+		assert_eq!(
+			LastUpdateOngoingTimeUnitBlockNumber::<Test>::get(GENERAL_PROXY_STAKING),
+			200
+		);
 	});
 }
 
@@ -979,6 +1054,20 @@ fn update_ongoing_time_unit_update_interval_too_short() {
 #[test]
 fn update_token_exchange_rate_should_work() {
 	new_test_ext().execute_with(|| {
+		// Set up vtoken multimap for ASTR
+		let mut token_configs = VTokenMultiMap::<CurrencyId>::default();
+		token_configs
+			.try_push(VTokenTokenConfig {
+				token: ASTR,
+				redeem_enabled: true,
+			})
+			.unwrap();
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VASTR,
+			token_configs
+		));
+
 		let staking_protocol = StakingProtocol::AstarDappStaking;
 		let currency_id = staking_protocol.info().currency_id;
 		let delegator = Delegator::Substrate(
@@ -1085,6 +1174,20 @@ fn update_token_exchange_rate_should_work() {
 #[test]
 fn eth_update_token_exchange_rate_should_work() {
 	new_test_ext().execute_with(|| {
+		// Set up vtoken multimap for ETH
+		let mut token_configs = VTokenMultiMap::<CurrencyId>::default();
+		token_configs
+			.try_push(VTokenTokenConfig {
+				token: ETH,
+				redeem_enabled: true,
+			})
+			.unwrap();
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			V_ETH,
+			token_configs
+		));
+
 		let staking_protocol = StakingProtocol::EthereumStaking;
 		let currency_id = ETH;
 		let delegator = Delegator::Ethereum(H160::default());
@@ -1145,6 +1248,20 @@ fn eth_update_token_exchange_rate_should_work() {
 #[test]
 fn update_token_exchange_rate_limt_error() {
 	new_test_ext().execute_with(|| {
+		// Set up vtoken multimap for ASTR
+		let mut token_configs = VTokenMultiMap::<CurrencyId>::default();
+		token_configs
+			.try_push(VTokenTokenConfig {
+				token: ASTR,
+				redeem_enabled: true,
+			})
+			.unwrap();
+		assert_ok!(VtokenMinting::set_vtoken_multimap(
+			RuntimeOrigin::root(),
+			VASTR,
+			token_configs
+		));
+
 		let staking_protocol = StakingProtocol::AstarDappStaking;
 		let currency_id = staking_protocol.info().currency_id;
 		let delegator = Delegator::Substrate(
@@ -1191,6 +1308,32 @@ fn update_token_exchange_rate_limt_error() {
 				0
 			),
 			SlpV2Error::<Test>::UpdateTokenExchangeRateAmountTooLarge
+		);
+	})
+}
+
+#[test]
+fn test_ensure_parameter_correct() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			SlpV2::ensure_parameter_correct(
+				StakingProtocol::GeneralProxyStaking(DOT, 1),
+				Some(DOT)
+			),
+			SlpV2Error::<Test>::InvalidParameter
+		);
+		assert_noop!(
+			SlpV2::ensure_parameter_correct(StakingProtocol::EthereumStaking, None),
+			SlpV2Error::<Test>::InvalidParameter
+		);
+		assert_eq!(
+			SlpV2::ensure_parameter_correct(StakingProtocol::EthereumStaking, Some(DOT)).unwrap(),
+			DOT
+		);
+		assert_eq!(
+			SlpV2::ensure_parameter_correct(StakingProtocol::GeneralProxyStaking(DOT, 1), None)
+				.unwrap(),
+			DOT
 		);
 	})
 }

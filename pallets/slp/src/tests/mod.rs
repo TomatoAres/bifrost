@@ -19,8 +19,6 @@
 #[cfg(test)]
 mod astar_tests;
 #[cfg(test)]
-mod filecoin_tests;
-#[cfg(test)]
 mod kusama_tests;
 #[cfg(test)]
 mod manta_tests;

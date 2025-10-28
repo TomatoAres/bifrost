@@ -103,6 +103,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {
@@ -461,6 +462,21 @@ impl ExtBuilder {
 		let mut ext: sp_io::TestExternalities = t.into();
 		ext.execute_with(|| {
 			Self::setup_issuance_for_test();
+
+			// Set up TokenToVToken mappings for supported tokens
+			let token_mappings = vec![(BNC, VBNC), (KSM, VKSM)];
+
+			for (token, vtoken) in token_mappings {
+				let token_configs = frame_support::BoundedVec::try_from(vec![
+					bifrost_vtoken_minting::VTokenTokenConfig {
+						token,
+						redeem_enabled: true,
+					},
+				])
+				.expect("Should not fail for single config");
+				bifrost_vtoken_minting::VTokenToTokens::<Runtime>::insert(vtoken, token_configs);
+				bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(token, vtoken);
+			}
 		});
 		ext
 	}

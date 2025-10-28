@@ -1689,6 +1689,7 @@ fn charge_host_fee_and_tune_vtoken_exchange_rate_works() {
 		// moonriver_setup();
 
 		bifrost_vtoken_minting::OngoingTimeUnit::<Runtime>::insert(MOVR, TimeUnit::Round(1));
+		bifrost_vtoken_minting::TokenToVToken::<Runtime>::insert(MOVR, VMOVR);
 
 		DelegatorsIndex2Multilocation::<Runtime>::insert(MOVR, 0, subaccount_0_location);
 		DelegatorsMultilocation2Index::<Runtime>::insert(MOVR, subaccount_0_location, 0);

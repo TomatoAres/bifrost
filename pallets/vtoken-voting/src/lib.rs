@@ -93,24 +93,41 @@ pub type ReferendumInfoOf<T> = ReferendumInfo<BlockNumberFor<T>, TallyOf<T>>;
 
 type VotingAgentBoxType<T> = Box<dyn VotingAgent<T>>;
 
-type OptionalVote<T> = (
-	Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+type OptionalAccountVote<T> = Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>;
+
+type VoteCtx<T> = (
+	PollIndex,
 	Option<AccountVote<BalanceOf<T>>>,
+	OptionalAccountVote<T>,
+	Option<ReferendumInfoOf<T>>,
 );
+
+pub type OldVote<T> = BoundedVec<
+	(
+		PollIndex,
+		OptionalAccountVote<T>,
+		Option<ReferendumInfoOf<T>>,
+	),
+	<T as Config>::MaxVotes,
+>;
+
+type OptionalVote<T> = (OptionalAccountVote<T>, Option<AccountVote<BalanceOf<T>>>);
 
 type VoteItemList<T> = Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::Conviction::Locked6x;
 	use frame_support::traits::CallerTrait;
 	use frame_support::PalletId;
 	use pallet_conviction_voting::Delegations;
+	use parity_scale_codec::alloc::collections::BTreeMap;
 	use sp_runtime::traits::AccountIdConversion;
 	use sp_runtime::SaturatedConversion;
 
 	/// The current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -198,12 +215,11 @@ pub mod pallet {
 		/// - `poll_index`: The index of the poll being voted on.
 		/// - `token_vote`: The vote cast using the token.
 		/// - `delegator_vote`: The vote cast by a delegator.
-		Voted {
+		VotedV2 {
 			who: AccountIdOf<T>,
 			vtoken: CurrencyIdOf<T>,
-			poll_index: PollIndex,
 			token_vote: AccountVote<BalanceOf<T>>,
-			delegator_vote: AccountVote<BalanceOf<T>>,
+			delegator_vote: Vec<(PollIndex, VoteItemList<T>)>,
 		},
 		/// A user's vote has been unlocked, allowing them to retrieve their tokens.
 		///
@@ -283,9 +299,9 @@ pub mod pallet {
 		/// - `vtoken`: The token associated with the poll.
 		/// - `poll_index`: The index of the poll.
 		/// - `success`: Whether the notification was successful or not.
-		VoteNotified {
+		VoteNotifiedV2 {
 			vtoken: CurrencyIdOf<T>,
-			poll_index: PollIndex,
+			poll_index_vec: Vec<PollIndex>,
 			success: bool,
 		},
 		/// A notification about the removal of a delegator's vote has been sent.
@@ -389,6 +405,12 @@ pub mod pallet {
 		TooManyVotes,
 		/// The parameter needs to pass in pollIndex.
 		NeedPollIndex,
+		/// Poll was already completed.
+		AlreadyCompleted,
+		/// Poll was already killed.
+		AlreadyKilled,
+		/// The block number submitted must be greater than the starting block number.
+		SubmittedBlockNumberMustBeBiggerThanStartBlockNumber,
 	}
 
 	/// Information concerning any given referendum.
@@ -429,7 +451,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type PendingReferendumInfo<T: Config> =
-		StorageMap<_, Twox64Concat, QueryId, (CurrencyIdOf<T>, PollIndex)>;
+		StorageMap<_, Twox64Concat, QueryId, (CurrencyIdOf<T>, BoundedVec<PollIndex, T::MaxVotes>)>;
 
 	#[pallet::storage]
 	pub type PendingVotingInfo<T: Config> = StorageMap<
@@ -438,10 +460,15 @@ pub mod pallet {
 		QueryId,
 		(
 			CurrencyIdOf<T>,
-			PollIndex,
-			DerivativeIndex,
 			AccountIdOf<T>,
-			Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+			BoundedVec<
+				(
+					PollIndex,
+					OptionalAccountVote<T>,
+					Option<ReferendumInfoOf<T>>,
+				),
+				T::MaxVotes,
+			>,
 		),
 	>;
 
@@ -503,6 +530,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	// TODO This version data migration is cleared, the next version will delete this storage
 	#[pallet::storage]
 	pub type VoteDelegatorFor<T: Config> = StorageNMap<
 		_,
@@ -644,7 +672,7 @@ pub mod pallet {
 			}
 
 			Self::try_remove_vote(&who, vtoken, maybe_poll_index, UnvoteScope::OnlyExpired)?;
-			Self::update_lock(&who, vtoken, maybe_poll_index)?;
+			Self::update_lock(&who, vtoken)?;
 
 			Self::deposit_event(Event::<T>::Unlocked {
 				who,
@@ -764,10 +792,38 @@ pub mod pallet {
 			T::ControlOrigin::ensure_origin(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
 
-			ensure!(
-				ReferendumInfoFor::<T>::contains_key(vtoken, poll_index),
-				Error::<T>::NoData
-			);
+			// Get current referendum info and derive baseline start block
+			let start = match ReferendumInfoFor::<T>::get(vtoken, poll_index) {
+				Some(ReferendumInfo::Ongoing(status)) => status.submitted,
+				Some(ReferendumInfo::Completed(_)) => {
+					return Err(Error::<T>::AlreadyCompleted.into())
+				}
+				Some(ReferendumInfo::Killed(_)) => return Err(Error::<T>::AlreadyKilled.into()),
+				None => return Err(Error::<T>::NoData.into()),
+			};
+
+			// Validate the new referendum info
+			match &info {
+				ReferendumInfo::Ongoing(status) => {
+					ensure!(
+						status.submitted >= start,
+						Error::<T>::SubmittedBlockNumberMustBeBiggerThanStartBlockNumber
+					);
+				}
+				ReferendumInfo::Completed(submitted) => {
+					ensure!(
+						*submitted >= start,
+						Error::<T>::SubmittedBlockNumberMustBeBiggerThanStartBlockNumber
+					);
+				}
+				ReferendumInfo::Killed(submitted) => {
+					ensure!(
+						*submitted >= start,
+						Error::<T>::SubmittedBlockNumberMustBeBiggerThanStartBlockNumber
+					);
+				}
+			}
+
 			ReferendumInfoFor::<T>::insert(vtoken, poll_index, info.clone());
 
 			Self::deposit_event(Event::<T>::ReferendumInfoSet {
@@ -825,27 +881,20 @@ pub mod pallet {
 			let responder = Self::ensure_xcm_response_or_governance(origin)?;
 			let success = Response::DispatchResult(MaybeErrorCode::Success) == response;
 
-			if let Some((vtoken, poll_index, derivative_index, who, maybe_old_vote)) =
-				PendingVotingInfo::<T>::get(query_id)
-			{
-				Self::handle_vote_result(
-					success,
-					who,
-					vtoken,
-					poll_index,
-					maybe_old_vote,
-					derivative_index,
-				)?;
-
+			if let Some((vtoken, who, maybe_old_vote)) = PendingVotingInfo::<T>::get(query_id) {
+				Self::handle_vote_result(success, who, vtoken, maybe_old_vote.clone())?;
 				PendingVotingInfo::<T>::remove(query_id);
-				Self::deposit_event(Event::<T>::VoteNotified {
+
+				let poll_index_vec: Vec<PollIndex> =
+					maybe_old_vote.iter().map(|(p, _, _)| *p).collect();
+				Self::deposit_event(Event::<T>::VoteNotifiedV2 {
 					vtoken,
-					poll_index,
+					poll_index_vec,
 					success,
 				});
 			}
 
-			if let Some((_, _)) = PendingReferendumInfo::<T>::get(query_id) {
+			if PendingReferendumInfo::<T>::get(query_id).is_some() {
 				PendingReferendumInfo::<T>::remove(query_id);
 			}
 
@@ -1004,64 +1053,78 @@ pub mod pallet {
 			success: bool,
 			who: AccountIdOf<T>,
 			vtoken: CurrencyIdOf<T>,
-			poll_index: PollIndex,
-			maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
-			derivative_index: DerivativeIndex,
+			maybe_old_vote: OldVote<T>,
 		) -> DispatchResult {
 			if !success {
 				// rollback vote
-				let _ = PendingDelegatorVotes::<T>::clear(u32::MAX, None);
-				Self::try_remove_vote(&who, vtoken, Some(poll_index), UnvoteScope::Any)?;
-				Self::update_lock(&who, vtoken, Some(poll_index))?;
-				if let Some((old_vote, vtoken_balance)) = maybe_old_vote {
-					Self::try_vote(&who, vtoken, poll_index, old_vote, vtoken_balance)?;
-				}
-				ReferendumInfoFor::<T>::remove(vtoken, poll_index);
-			} else {
-				if !VoteDelegatorFor::<T>::contains_key((&who, vtoken, poll_index)) {
-					VoteDelegatorFor::<T>::insert((&who, vtoken, poll_index), derivative_index);
-				}
-				DelegatorVotes::<T>::remove(vtoken, poll_index);
-				DelegatorVotes::<T>::try_mutate(vtoken, poll_index, |item| -> DispatchResult {
-					for (derivative_index, vote) in
-						PendingDelegatorVotes::<T>::take(vtoken, poll_index).iter()
-					{
-						item.try_push((*derivative_index, *vote))
-							.map_err(|_| Error::<T>::TooMany)?;
-					}
-					Ok(())
-				})?;
+				// Only delete the data of a specific chain, without affecting other chains.
+				let _ = PendingDelegatorVotes::<T>::clear_prefix(vtoken, u32::MAX, None);
 
-				ReferendumInfoFor::<T>::try_mutate_exists(
-					vtoken,
-					poll_index,
-					|maybe_info| -> DispatchResult {
-						if let Some(info) = maybe_info {
-							if let ReferendumInfo::Ongoing(status) = info {
-								let current_block_number = Self::get_agent_block_number(&vtoken)?;
-								status.submitted = Some(current_block_number);
-								ReferendumTimeoutV3::<T>::mutate(
-									vtoken,
-									current_block_number.saturating_add(
-										UndecidingTimeout::<T>::get(vtoken)
-											.ok_or(Error::<T>::NoData)?,
-									),
-									|ref_vec| {
-										ref_vec
-											.try_push(poll_index)
-											.map_err(|_| Error::<T>::TooMany)
-									},
-								)?;
-								Self::deposit_event(Event::<T>::ReferendumInfoCreated {
-									vtoken,
-									poll_index,
-									info: info.clone(),
-								});
+				for (poll_index, maybe_vote, old_referendum_info) in maybe_old_vote.iter() {
+					// 1. Restore voting
+					Self::try_remove_vote(&who, vtoken, Some(*poll_index), UnvoteScope::Any)?;
+					if let Some((old_vote, vtoken_balance)) = maybe_vote {
+						Self::try_vote(&who, vtoken, *poll_index, *old_vote, *vtoken_balance)?;
+					}
+
+					// 2. Restore Referendum Information
+					match old_referendum_info {
+						Some(info) => ReferendumInfoFor::<T>::insert(vtoken, *poll_index, info),
+						None => ReferendumInfoFor::<T>::remove(vtoken, poll_index),
+					}
+				}
+
+				// 3. Update lock
+				Self::update_lock(&who, vtoken)?;
+			} else {
+				for (poll_index, _, _) in maybe_old_vote.iter() {
+					DelegatorVotes::<T>::remove(vtoken, poll_index);
+					DelegatorVotes::<T>::try_mutate(
+						vtoken,
+						poll_index,
+						|item| -> DispatchResult {
+							for (derivative_index, vote) in
+								PendingDelegatorVotes::<T>::take(vtoken, poll_index).iter()
+							{
+								item.try_push((*derivative_index, *vote))
+									.map_err(|_| Error::<T>::TooMany)?;
 							}
-						}
-						Ok(())
-					},
-				)?;
+							Ok(())
+						},
+					)?;
+
+					ReferendumInfoFor::<T>::try_mutate_exists(
+						vtoken,
+						poll_index,
+						|maybe_info| -> DispatchResult {
+							if let Some(info) = maybe_info {
+								if let ReferendumInfo::Ongoing(status) = info {
+									let current_block_number =
+										Self::get_agent_block_number(&vtoken)?;
+									status.submitted = current_block_number;
+									ReferendumTimeoutV3::<T>::mutate(
+										vtoken,
+										current_block_number.saturating_add(
+											UndecidingTimeout::<T>::get(vtoken)
+												.ok_or(Error::<T>::NoData)?,
+										),
+										|ref_vec| {
+											ref_vec
+												.try_push(*poll_index)
+												.map_err(|_| Error::<T>::TooMany)
+										},
+									)?;
+									Self::deposit_event(Event::<T>::ReferendumInfoCreated {
+										vtoken,
+										poll_index: *poll_index,
+										info: info.clone(),
+									});
+								}
+							}
+							Ok(())
+						},
+					)?;
+				}
 			}
 
 			Ok(())
@@ -1070,10 +1133,9 @@ pub mod pallet {
 		pub(crate) fn send_xcm_vote_message(
 			who: AccountIdOf<T>,
 			vtoken: CurrencyIdOf<T>,
-			poll_index: PollIndex,
 			submitted: bool,
-			new_delegator_votes: Vec<(DerivativeIndex, AccountVote<BalanceOf<T>>)>,
-			maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
+			new_delegator_votes: BTreeMap<PollIndex, VoteItemList<T>>,
+			maybe_old_vote: OldVote<T>,
 		) -> DispatchResult {
 			let notify_call = Call::<T>::notify_vote {
 				query_id: 0,
@@ -1085,14 +1147,12 @@ pub mod pallet {
 			)
 			.ok_or(Error::<T>::NoData)?;
 
-			let derivative_index = new_delegator_votes[0].0;
+			let keys_vec: Vec<PollIndex> = new_delegator_votes.keys().copied().collect();
+			let poll_index_list = BoundedVec::<PollIndex, T::MaxVotes>::try_from(keys_vec)
+				.map_err(|_| Error::<T>::TooMany)?;
 
 			let voting_agent = Self::get_voting_agent(&vtoken)?;
-			let encode_call = voting_agent.vote_call_encode(
-				new_delegator_votes.clone(),
-				poll_index,
-				derivative_index,
-			)?;
+			let encode_call = voting_agent.vote_call_encode(new_delegator_votes.clone())?;
 
 			Self::send_xcm_with_notify(
 				voting_agent.location(),
@@ -1102,18 +1162,20 @@ pub mod pallet {
 				extra_fee,
 				|query_id| {
 					if !submitted {
-						PendingReferendumInfo::<T>::insert(query_id, (vtoken, poll_index));
+						// Prevent conflicts in voting information caused by query_ids from different chains.
+						ensure!(
+							!PendingReferendumInfo::<T>::contains_key(query_id),
+							Error::<T>::PendingVote
+						);
+						PendingReferendumInfo::<T>::insert(query_id, (vtoken, poll_index_list));
 					}
-					PendingVotingInfo::<T>::insert(
-						query_id,
-						(
-							vtoken,
-							poll_index,
-							derivative_index,
-							who.clone(),
-							maybe_old_vote,
-						),
-					)
+					// Prevent conflicts in voting information caused by query_ids from different chains.
+					ensure!(
+						!PendingVotingInfo::<T>::contains_key(query_id),
+						Error::<T>::PendingVote
+					);
+					PendingVotingInfo::<T>::insert(query_id, (vtoken, who.clone(), maybe_old_vote));
+					Ok(())
 				},
 			)?;
 
@@ -1154,6 +1216,7 @@ pub mod pallet {
 						query_id,
 						(vtoken, poll_index, derivative_index),
 					);
+					Ok(())
 				},
 			)?;
 
@@ -1166,7 +1229,7 @@ pub mod pallet {
 			notify_call: Call<T>,
 			transact_weight: XcmWeight,
 			extra_fee: BalanceOf<T>,
-			f: impl FnOnce(QueryId),
+			f: impl FnOnce(QueryId) -> DispatchResult,
 		) -> DispatchResult {
 			let now = T::LocalBlockNumberProvider::current_block_number();
 			let timeout = now.saturating_add(T::QueryTimeout::get());
@@ -1178,7 +1241,7 @@ pub mod pallet {
 				timeout,
 				xcm::v5::Junctions::Here,
 			);
-			f(query_id);
+			f(query_id)?;
 
 			let xcm_message = Self::construct_xcm_message(
 				encode_call,
@@ -1377,22 +1440,14 @@ pub mod pallet {
 
 		/// Rejig the lock on an account. It will never get more stringent (since that would
 		/// indicate a security hole) but may be reduced from what they are currently.
-		pub(crate) fn update_lock(
-			who: &AccountIdOf<T>,
-			vtoken: CurrencyIdOf<T>,
-			maybe_poll_index: Option<PollIndex>,
-		) -> DispatchResult {
+		pub(crate) fn update_lock(who: &AccountIdOf<T>, vtoken: CurrencyIdOf<T>) -> DispatchResult {
 			let current_block = Self::get_agent_block_number(&vtoken)?;
 			let lock_needed = VotingForV2::<T>::mutate(vtoken, who, |voting| {
 				voting.rejig(current_block);
 				voting.locked_balance()
 			});
 
-			let can_unlock_early = maybe_poll_index.map_or(Ok(false), |poll_index| {
-				Self::ensure_early_unlock(who, vtoken, poll_index)
-			})?;
-
-			if lock_needed.is_zero() || can_unlock_early {
+			if lock_needed.is_zero() {
 				ClassLocksFor::<T>::mutate(who, |locks| {
 					locks.retain(|x| x.0 != vtoken);
 				});
@@ -1459,8 +1514,8 @@ pub mod pallet {
 			poll_index: PollIndex,
 		) -> DispatchResult {
 			ensure!(
-				!PendingVotingInfo::<T>::iter()
-					.any(|(_, (v, p, _, _, _))| v == vtoken && p == poll_index),
+				!PendingVotingInfo::<T>::iter().any(|(_, (v, _, data))| v == vtoken
+					&& data.iter().any(|(p, _, _)| *p == poll_index)),
 				Error::<T>::PendingVote
 			);
 			Ok(())
@@ -1643,9 +1698,8 @@ pub mod pallet {
 			delegator_total_vote: AccountVote<BalanceOf<T>>,
 		) -> Result<VoteItemList<T>, DispatchError> {
 			let vote_role: VoteRole = delegator_total_vote.into();
-			let mut delegator_total_vote = delegator_total_vote;
-
 			let token = CurrencyId::to_token(&vtoken).map_err(|_| Error::<T>::NoData)?;
+
 			let mut delegator_votes = DelegatorVotes::<T>::get(vtoken, poll_index).into_inner();
 			let delegator_vote_keys = delegator_votes
 				.iter()
@@ -1655,6 +1709,7 @@ pub mod pallet {
 				if !delegator_vote_keys.contains(&derivative_index) {
 					delegator_votes.push((
 						derivative_index,
+						// Unused field, just to fill the space
 						AccountVote::<BalanceOf<T>>::from(vote_role),
 					));
 				}
@@ -1669,24 +1724,90 @@ pub mod pallet {
 				})
 				.collect::<Vec<_>>();
 
+			Self::distribute_votes_to_derivatives(delegator_total_vote, data)
+		}
+
+		/// Distribute a delegator's total vote into one or more derivative accounts.
+		///
+		/// The algorithm works as follows:
+		/// - Start with the delegator's total desired votes (computed from balance × conviction).
+		/// - Iterate over the provided derivative accounts (`data`), each with an available balance.
+		/// - For each derivative:
+		///   - If it can cover the *entire remaining vote*, pick the **minimal conviction level**
+		///     that satisfies the requirement and stop.
+		///   - Otherwise, allocate its **maximum votes under Locked6x** and continue with the rest.
+		/// - Return the list of `(derivative_index, AccountVote)` allocations.
+		fn distribute_votes_to_derivatives(
+			delegator_total_vote: AccountVote<BalanceOf<T>>,
+			data: Vec<(DerivativeIndex, BalanceOf<T>)>,
+		) -> Result<VoteItemList<T>, DispatchError> {
 			let mut delegator_votes = Vec::new();
-			for (derivative_index, available_vote) in data {
-				if available_vote >= delegator_total_vote.balance() {
-					delegator_votes.push((derivative_index, delegator_total_vote));
-					return Ok(delegator_votes);
+
+			// Extract total votes and "aye" flag from the delegator's standard vote.
+			let (mut remaining_balance, aye) = match delegator_total_vote {
+				AccountVote::Standard {
+					vote: Vote { aye, conviction },
+					balance,
+				} => (conviction.votes(balance).votes, aye),
+				_ => return Err(Error::<T>::NoData.into()),
+			};
+
+			// Iterate through all derivative accounts with their available balances.
+			for (derivative_index, available_balance) in data {
+				// Stop early if all required votes are already allocated.
+				if remaining_balance.is_zero() {
+					break;
+				}
+
+				// Max votes this derivative can provide under Locked6x conviction.
+				let deriv_max_votes = Locked6x.votes(available_balance).votes;
+
+				// Skip if this derivative has no voting power.
+				if deriv_max_votes.is_zero() {
+					continue;
+				}
+
+				// Case 1: This derivative alone can cover the remaining votes.
+				if deriv_max_votes >= remaining_balance {
+					for i in 0..=6 {
+						let conviction =
+							Conviction::try_from(i).map_err(|_| Error::<T>::InvalidConviction)?;
+
+						// Check if current conviction with this balance is sufficient.
+						if remaining_balance <= conviction.votes(available_balance).votes {
+							// Reverse-calculate required balance = votes / conviction multiplier.
+							let amount_needed =
+								Self::vote_to_capital(conviction, remaining_balance);
+
+							let account_vote =
+								AccountVote::new_standard(Vote { aye, conviction }, amount_needed);
+
+							delegator_votes.push((derivative_index, account_vote));
+
+							// Allocation complete; return immediately.
+							return Ok(delegator_votes);
+						}
+					}
 				} else {
-					let account_vote = AccountVote::new_standard(
-						delegator_total_vote
-							.as_standard_vote()
-							.ok_or(Error::<T>::NoData)?,
-						available_vote,
-					);
+					// Case 2: This derivative cannot cover all votes → use full capacity (Locked6x).
+					let account_vote = AccountVote::Standard {
+						vote: Vote {
+							aye,
+							conviction: Locked6x,
+						},
+						balance: available_balance,
+					};
+
 					delegator_votes.push((derivative_index, account_vote));
-					delegator_total_vote
-						.checked_sub(account_vote)
-						.map_err(|_| ArithmeticError::Underflow)?
+
+					// Subtract the allocated votes and continue to next derivative.
+					remaining_balance = remaining_balance
+						.checked_sub(&deriv_max_votes)
+						.ok_or(ArithmeticError::Underflow)?;
 				}
 			}
+
+			// If there are still unallocated votes after iteration, it's out of range.
 			if delegator_total_vote.balance() != Zero::zero() {
 				return Err(Error::<T>::OutOfRange.into());
 			}
@@ -1937,6 +2058,8 @@ pub mod pallet {
 					);
 
 					*delegations = delegations.saturating_add(token_amount);
+
+					let mut vote_ctx_list = Vec::new();
 					for &(poll_index, account_vote, _index, vtoken_balance) in votes.iter() {
 						if let AccountVote::Standard { vote, .. } = account_vote {
 							Self::try_access_poll(vtoken, poll_index, |poll_status| {
@@ -1948,20 +2071,20 @@ pub mod pallet {
 									let maybe_old_vote = Some((account_vote, token_balance));
 									let maybe_total_vote =
 										Some(tally.account_vote(Conviction::Locked1x));
-
-									Self::do_vote(
-										who,
-										vtoken,
+									vote_ctx_list.push((
 										poll_index,
-										true,
 										maybe_total_vote,
 										maybe_old_vote,
-									)?;
+										ReferendumInfoFor::<T>::get(vtoken, poll_index),
+									));
 								};
 								Ok(())
 							})
 							.map_err(|_| Error::<T>::AccessPollFailure)?;
 						}
+					}
+					if !vote_ctx_list.is_empty() {
+						Self::do_vote(who, vtoken, true, vote_ctx_list)?;
 					}
 					Ok(votes.len() as u32)
 				}
@@ -2022,7 +2145,7 @@ pub mod pallet {
 			who: &T::AccountId,
 			vtoken: CurrencyIdOf<T>,
 			token_amount: Delegations<BalanceOf<T>>,
-		) -> Result<u32, Error<T>> {
+		) -> Result<u32, DispatchError> {
 			VotingForV2::<T>::try_mutate(vtoken, who, |voting| match voting {
 				Voting::Delegating(Delegating { delegations, .. }) => {
 					*delegations = delegations.saturating_sub(token_amount);
@@ -2039,6 +2162,8 @@ pub mod pallet {
 					);
 
 					*delegations = delegations.saturating_sub(token_amount);
+
+					let mut vote_ctx_list = Vec::new();
 					for &(poll_index, account_vote, _index, vtoken_balance) in votes.iter() {
 						if let AccountVote::Standard { vote, .. } = account_vote {
 							Self::try_access_poll(vtoken, poll_index, |poll_status| {
@@ -2050,20 +2175,20 @@ pub mod pallet {
 									let maybe_old_vote = Some((account_vote, token_balance));
 									let maybe_total_vote =
 										Some(tally.account_vote(Conviction::Locked1x));
-
-									Self::do_vote(
-										who,
-										vtoken,
+									vote_ctx_list.push((
 										poll_index,
-										true,
 										maybe_total_vote,
 										maybe_old_vote,
-									)?;
+										ReferendumInfoFor::<T>::get(vtoken, poll_index),
+									));
 								}
 								Ok(())
 							})
 							.map_err(|_| Error::<T>::AccessPollFailure)?;
 						}
+					}
+					if !vote_ctx_list.is_empty() {
+						Self::do_vote(who, vtoken, true, vote_ctx_list)?;
 					}
 					Ok(votes.len() as u32)
 				}
@@ -2077,37 +2202,50 @@ pub mod pallet {
 		fn do_vote(
 			who: &T::AccountId,
 			vtoken: CurrencyIdOf<T>,
-			poll_index: PollIndex,
 			submitted: bool,
-			maybe_total_vote: Option<AccountVote<BalanceOf<T>>>,
-			maybe_old_vote: Option<(AccountVote<BalanceOf<T>>, BalanceOf<T>)>,
-		) -> Result<VoteItemList<T>, DispatchError> {
-			let delegator_total_vote = Self::compute_delegator_total_vote(
-				vtoken,
-				maybe_total_vote.ok_or(Error::<T>::NoData)?,
-			)?;
-			let new_delegator_votes =
-				Self::allocate_delegator_votes(vtoken, poll_index, delegator_total_vote)?;
+			vote_ctx: Vec<VoteCtx<T>>,
+		) -> Result<BTreeMap<PollIndex, VoteItemList<T>>, DispatchError> {
+			ensure!(!vote_ctx.is_empty(), Error::<T>::NoData);
+			let mut all_new_delegator_votes = BTreeMap::new();
+			let mut maybe_old_vote_map = BoundedVec::new();
+			for (poll_index, maybe_total_vote, maybe_old_vote, maybe_old_referendum_info) in
+				vote_ctx
+			{
+				let delegator_total_vote = Self::compute_delegator_total_vote(
+					vtoken,
+					maybe_total_vote.ok_or(Error::<T>::NoData)?,
+				)?;
 
-			PendingDelegatorVotes::<T>::try_mutate(vtoken, poll_index, |item| -> DispatchResult {
-				for (derivative_index, vote) in new_delegator_votes.iter() {
-					item.try_push((*derivative_index, *vote))
-						.map_err(|_| Error::<T>::TooMany)?;
-				}
-				Ok(())
-			})?;
+				let new_delegator_votes =
+					Self::allocate_delegator_votes(vtoken, poll_index, delegator_total_vote)?;
+				PendingDelegatorVotes::<T>::try_mutate(
+					vtoken,
+					poll_index,
+					|item| -> DispatchResult {
+						for (derivative_index, vote) in &new_delegator_votes {
+							item.try_push((*derivative_index, *vote))
+								.map_err(|_| Error::<T>::TooMany)?;
+						}
+						Ok(())
+					},
+				)?;
+
+				all_new_delegator_votes.insert(poll_index, new_delegator_votes);
+				maybe_old_vote_map
+					.try_push((poll_index, maybe_old_vote, maybe_old_referendum_info))
+					.map_err(|_| Error::<T>::TooMany)?;
+			}
 
 			let voting_agent = Self::get_voting_agent(&vtoken)?;
 			voting_agent.delegate_vote(
 				who.clone(),
 				vtoken,
-				poll_index,
 				submitted,
-				new_delegator_votes.clone(),
-				maybe_old_vote,
+				all_new_delegator_votes.clone(),
+				maybe_old_vote_map,
 			)?;
 
-			Ok(new_delegator_votes)
+			Ok(all_new_delegator_votes)
 		}
 
 		/// A general-purpose voting function used by both regular users and the Delegated Voting Track system.
@@ -2127,6 +2265,8 @@ pub mod pallet {
 			Self::ensure_no_pending_vote(vtoken, poll_index)?;
 
 			let token_vote = Self::compute_token_vote(vtoken, vtoken_vote)?;
+			let current_block = Self::get_agent_block_number(&vtoken)?;
+			let old_referendum_info = ReferendumInfoFor::<T>::get(vtoken, poll_index);
 
 			// create referendum if not exist
 			let mut submitted = false;
@@ -2135,7 +2275,7 @@ pub mod pallet {
 					vtoken,
 					poll_index,
 					ReferendumInfo::Ongoing(ReferendumStatus {
-						submitted: None,
+						submitted: current_block,
 						tally: TallyOf::<T>::from_parts(Zero::zero(), Zero::zero(), Zero::zero()),
 					}),
 				);
@@ -2151,18 +2291,20 @@ pub mod pallet {
 			let new_delegator_votes = Self::do_vote(
 				who,
 				vtoken,
-				poll_index,
 				submitted,
-				maybe_total_vote,
-				maybe_old_vote,
+				vec![(
+					poll_index,
+					maybe_total_vote,
+					maybe_old_vote,
+					old_referendum_info,
+				)],
 			)?;
 
-			Self::deposit_event(Event::<T>::Voted {
+			Self::deposit_event(Event::<T>::VotedV2 {
 				who: who.clone(),
 				vtoken,
-				poll_index,
 				token_vote,
-				delegator_vote: new_delegator_votes[0].1,
+				delegator_vote: new_delegator_votes.into_iter().collect(),
 			});
 
 			Ok(())

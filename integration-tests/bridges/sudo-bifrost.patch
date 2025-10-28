@@ -1,0 +1,202 @@
+-diff --git a/node/service/src/chain_spec/bifrost_kusama.rs b/node/service/src/chain_spec/bifrost_kusama.rs
+-index 528fcbfa6..0732d72c7 100644
+---- a/node/service/src/chain_spec/bifrost_kusama.rs
+-+++ b/node/service/src/chain_spec/bifrost_kusama.rs
+-@@ -182,6 +182,9 @@ pub fn bifrost_genesis(
+- 				receive_enabled: true,
+- 			},
+- 			"initialXcmFees": Some(DEFAULT_XCM_FEES_IK_PERSPECTIVE),
+-+		},
+-+		"sudo": {
+-+			"key": get_account_id_from_seed::<sr25519::Public>("Alice")
+- 		}
+- 	})
+- }
+-diff --git a/node/service/src/chain_spec/bifrost_polkadot.rs b/node/service/src/chain_spec/bifrost_polkadot.rs
+-index ab6ca3993..f5423476b 100644
+---- a/node/service/src/chain_spec/bifrost_polkadot.rs
+-+++ b/node/service/src/chain_spec/bifrost_polkadot.rs
+-@@ -186,6 +186,9 @@ pub fn bifrost_polkadot_genesis(
+- 				receive_enabled: true,
+- 			},
+- 			"initialXcmFees": Some(DEFAULT_XCM_FEES_IK_PERSPECTIVE),
+-+		},
+-+		"sudo": {
+-+			"key": get_account_id_from_seed::<sr25519::Public>("Alice")
+- 		}
+- 	})
+- }
+-diff --git a/runtime/bifrost-kusama/Cargo.toml b/runtime/bifrost-kusama/Cargo.toml
+-index 5d5b67a1e..b67d845ff 100644
+---- a/runtime/bifrost-kusama/Cargo.toml
+-+++ b/runtime/bifrost-kusama/Cargo.toml
+-@@ -46,7 +46,7 @@ pallet-referenda = { workspace = true }
+- pallet-scheduler = { workspace = true }
+- pallet-staking = { workspace = true }
+- pallet-session = { workspace = true }
+--pallet-sudo = { workspace = true, optional = true }
+-+pallet-sudo = { workspace = true }
+- pallet-timestamp = { workspace = true }
+- pallet-tips = { workspace = true }
+- pallet-tx-pause = { workspace = true }
+-diff --git a/runtime/bifrost-kusama/src/lib.rs b/runtime/bifrost-kusama/src/lib.rs
+-index 7d8e19faf..3fd4fc610 100644
+---- a/runtime/bifrost-kusama/src/lib.rs
+-+++ b/runtime/bifrost-kusama/src/lib.rs
+-@@ -1715,7 +1715,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
+- 	}
+- }
+- 
+--#[cfg(feature = "sudo")]
+- impl pallet_sudo::Config for Runtime {
+- 	type RuntimeEvent = RuntimeEvent;
+- 	type RuntimeCall = RuntimeCall;
+-@@ -1745,7 +1744,6 @@ construct_runtime! {
+- 		ParachainStaking: bifrost_parachain_staking = 25,
+- 
+- 		// Governance stuff
+--		#[cfg(feature = "sudo")]
+- 		Sudo: pallet_sudo = 35,
+- 		ConvictionVoting: pallet_conviction_voting = 36,
+- 		Referenda: pallet_referenda = 37,
+-diff --git a/runtime/bifrost-polkadot/Cargo.toml b/runtime/bifrost-polkadot/Cargo.toml
+-index 34a26ac8f..58481019e 100644
+---- a/runtime/bifrost-polkadot/Cargo.toml
+-+++ b/runtime/bifrost-polkadot/Cargo.toml
+-@@ -46,7 +46,7 @@ pallet-referenda = { workspace = true }
+- pallet-scheduler = { workspace = true }
+- pallet-staking = { workspace = true }
+- pallet-session = { workspace = true }
+--pallet-sudo = { workspace = true, optional = true }
+-+pallet-sudo = { workspace = true }
+- pallet-timestamp = { workspace = true }
+- pallet-tips = { workspace = true }
+- pallet-tx-pause = { workspace = true }
+-diff --git a/runtime/bifrost-polkadot/src/lib.rs b/runtime/bifrost-polkadot/src/lib.rs
+-index b00317550..ecf603dc5 100644
+---- a/runtime/bifrost-polkadot/src/lib.rs
+-+++ b/runtime/bifrost-polkadot/src/lib.rs
+-@@ -1621,7 +1621,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
+- 	}
+- }
+- 
+--#[cfg(feature = "sudo")]
+- impl pallet_sudo::Config for Runtime {
+- 	type RuntimeEvent = RuntimeEvent;
+- 	type RuntimeCall = RuntimeCall;
+-@@ -1651,7 +1650,6 @@ construct_runtime! {
+- 		ParachainStaking: bifrost_parachain_staking = 25,
+- 
+- 		// Governance stuff
+--		#[cfg(feature = "sudo")]
+- 		Sudo: pallet_sudo = 35,
+- 		ConvictionVoting: pallet_conviction_voting = 36,
+- 		Referenda: pallet_referenda = 37,
+diff --git a/node/service/src/chain_spec/bifrost_kusama.rs b/node/service/src/chain_spec/bifrost_kusama.rs
+index 797e5de59..a185d15b0 100644
+--- a/node/service/src/chain_spec/bifrost_kusama.rs
++++ b/node/service/src/chain_spec/bifrost_kusama.rs
+@@ -182,6 +182,9 @@ pub fn bifrost_genesis(
+ 				receive_enabled: true,
+ 			},
+ 			"initialXcmFees": Some(DEFAULT_XCM_FEES_IK_PERSPECTIVE),
++		},
++		"sudo": {
++			"key": get_account_id_from_seed::<sr25519::Public>("Alice")
+ 		}
+ 	})
+ }
+diff --git a/node/service/src/chain_spec/bifrost_polkadot.rs b/node/service/src/chain_spec/bifrost_polkadot.rs
+index e7a7a6d6a..20ac7371d 100644
+--- a/node/service/src/chain_spec/bifrost_polkadot.rs
++++ b/node/service/src/chain_spec/bifrost_polkadot.rs
+@@ -186,6 +186,9 @@ pub fn bifrost_polkadot_genesis(
+ 				receive_enabled: true,
+ 			},
+ 			"initialXcmFees": Some(DEFAULT_XCM_FEES_IK_PERSPECTIVE),
++		},
++		"sudo": {
++			"key": get_account_id_from_seed::<sr25519::Public>("Alice")
+ 		}
+ 	})
+ }
+diff --git a/runtime/bifrost-kusama/Cargo.toml b/runtime/bifrost-kusama/Cargo.toml
+index 4a6aaa88a..1a60f935f 100644
+--- a/runtime/bifrost-kusama/Cargo.toml
++++ b/runtime/bifrost-kusama/Cargo.toml
+@@ -46,7 +46,7 @@ pallet-referenda = { workspace = true }
+ pallet-scheduler = { workspace = true }
+ pallet-staking = { workspace = true }
+ pallet-session = { workspace = true }
+-pallet-sudo = { workspace = true, optional = true }
++pallet-sudo = { workspace = true }
+ pallet-timestamp = { workspace = true }
+ pallet-tips = { workspace = true }
+ pallet-tx-pause = { workspace = true }
+@@ -415,4 +415,4 @@ fast-runtime = []
+ force-debug = ["sp-debug-derive/force-debug"]
+ 
+ # Enable sudo pallet.
+-sudo = ["pallet-sudo"]
+\ No newline at end of file
++#sudo = ["pallet-sudo"]
+\ No newline at end of file
+diff --git a/runtime/bifrost-kusama/src/lib.rs b/runtime/bifrost-kusama/src/lib.rs
+index 2db84c118..0d61cdd13 100644
+--- a/runtime/bifrost-kusama/src/lib.rs
++++ b/runtime/bifrost-kusama/src/lib.rs
+@@ -1736,7 +1736,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
+ 	}
+ }
+ 
+-#[cfg(feature = "sudo")]
+ impl pallet_sudo::Config for Runtime {
+ 	type RuntimeEvent = RuntimeEvent;
+ 	type RuntimeCall = RuntimeCall;
+@@ -1767,7 +1766,6 @@ construct_runtime! {
+ 		ParachainStaking: bifrost_parachain_staking = 25,
+ 
+ 		// Governance stuff
+-		#[cfg(feature = "sudo")]
+ 		Sudo: pallet_sudo = 35,
+ 		ConvictionVoting: pallet_conviction_voting = 36,
+ 		Referenda: pallet_referenda = 37,
+diff --git a/runtime/bifrost-polkadot/Cargo.toml b/runtime/bifrost-polkadot/Cargo.toml
+index 6c52d3de0..58481019e 100644
+--- a/runtime/bifrost-polkadot/Cargo.toml
++++ b/runtime/bifrost-polkadot/Cargo.toml
+@@ -46,7 +46,7 @@ pallet-referenda = { workspace = true }
+ pallet-scheduler = { workspace = true }
+ pallet-staking = { workspace = true }
+ pallet-session = { workspace = true }
+-pallet-sudo = { workspace = true, optional = true }
++pallet-sudo = { workspace = true }
+ pallet-timestamp = { workspace = true }
+ pallet-tips = { workspace = true }
+ pallet-tx-pause = { workspace = true }
+@@ -496,4 +496,4 @@ fast-runtime = []
+ force-debug = ["sp-debug-derive/force-debug"]
+ 
+ # Enable sudo pallet.
+-sudo = ["pallet-sudo"]
++#sudo = ["pallet-sudo"]
+diff --git a/runtime/bifrost-polkadot/src/lib.rs b/runtime/bifrost-polkadot/src/lib.rs
+index 6538d3282..5c67d6afd 100644
+--- a/runtime/bifrost-polkadot/src/lib.rs
++++ b/runtime/bifrost-polkadot/src/lib.rs
+@@ -1619,7 +1619,6 @@ impl SortedMembers<AccountId> for RootMigControllerMembers {
+ 	}
+ }
+ 
+-#[cfg(feature = "sudo")]
+ impl pallet_sudo::Config for Runtime {
+ 	type RuntimeEvent = RuntimeEvent;
+ 	type RuntimeCall = RuntimeCall;
+@@ -1649,7 +1648,6 @@ construct_runtime! {
+ 		ParachainStaking: bifrost_parachain_staking = 25,
+ 
+ 		// Governance stuff
+-		#[cfg(feature = "sudo")]
+ 		Sudo: pallet_sudo = 35,
+ 		ConvictionVoting: pallet_conviction_voting = 36,
+ 		Referenda: pallet_referenda = 37,

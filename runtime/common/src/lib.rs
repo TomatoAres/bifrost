@@ -29,6 +29,7 @@ pub mod currency_adapter;
 pub mod currency_converter;
 pub mod xcm_weight_trader;
 
+pub mod bridge_xcm_helper;
 #[cfg(test)]
 mod tests;
 

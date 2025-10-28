@@ -138,7 +138,6 @@ pallet-traits = { workspace = true }
 # Bifrost
 bifrost-asset-registry = { workspace = true }
 bifrost-buy-back = { workspace = true }
-bifrost-cross-in-out = { workspace = true }
 bifrost-currencies = { workspace = true }
 bifrost-farming = { workspace = true }
 bifrost-farming-rpc-runtime-api = { workspace = true }
@@ -146,6 +145,7 @@ bifrost-fee-share = { workspace = true }
 bifrost-flexible-fee = { workspace = true }
 bifrost-flexible-fee-rpc-runtime-api = { workspace = true }
 bifrost-primitives = { workspace = true }
+bifrost-p-k-bridge = { workspace = true }
 bifrost-runtime-common = { workspace = true }
 bifrost-salp = { workspace = true }
 bifrost-salp-rpc-runtime-api = { workspace = true }
@@ -262,13 +262,13 @@ std = [
     "zenlink-protocol/std",
     "bifrost-asset-registry/std",
     "bifrost-buy-back/std",
-    "bifrost-cross-in-out/std",
     "bifrost-currencies/std",
     "bifrost-farming-rpc-runtime-api/std",
     "bifrost-farming/std",
     "bifrost-fee-share/std",
     "bifrost-flexible-fee-rpc-runtime-api/std",
     "bifrost-flexible-fee/std",
+    "bifrost-p-k-bridge/std",
     "bifrost-primitives/std",
     "bifrost-runtime-common/std",
     "bifrost-salp-rpc-runtime-api/std",
@@ -356,7 +356,6 @@ runtime-benchmarks = [
 	"bifrost-salp/runtime-benchmarks",
 	"bifrost-vtoken-minting/runtime-benchmarks",
 	"bb-bnc/runtime-benchmarks",
-	"bifrost-cross-in-out/runtime-benchmarks",
 	"bifrost-slpx/runtime-benchmarks",
 	"bifrost-stable-pool/runtime-benchmarks",
 	"bifrost-vtoken-voting/runtime-benchmarks",
@@ -375,7 +374,6 @@ try-runtime = [
     "bifrost-buy-back/try-runtime",
     "bifrost-channel-commission/try-runtime",
     "bifrost-clouds-convert/try-runtime",
-    "bifrost-cross-in-out/try-runtime",
     "bifrost-currencies/try-runtime",
     "bifrost-farming/try-runtime",
     "bifrost-fee-share/try-runtime",

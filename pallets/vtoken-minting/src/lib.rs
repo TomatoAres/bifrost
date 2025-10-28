@@ -38,7 +38,7 @@ use crate::impls::Operation;
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
 	CurrencyId, CurrencyIdExt, HyperBridgeSender, RedeemType, SlpxOperator, TargetChain, TimeUnit,
-	VTokenMintRedeemProvider,
+	VTokenMintRedeemProvider, VtokenMintingOperator,
 };
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
@@ -68,6 +68,27 @@ pub type UnlockId = u32;
 
 // incentive lock id for vtoken minted by user
 const INCENTIVE_LOCK_ID: LockIdentifier = *b"vmincntv";
+
+/// Configuration for a token in the vToken multi-mapping
+#[derive(
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	scale_info::TypeInfo,
+	parity_scale_codec::DecodeWithMemTracking,
+)]
+pub struct VTokenTokenConfig<CurrencyId> {
+	/// The token currency id
+	pub token: CurrencyId,
+	/// Whether this token supports redeem operations
+	pub redeem_enabled: bool,
+}
+
+/// Configuration for vToken to multiple tokens mapping
+pub type VTokenMultiMap<CurrencyId> = BoundedVec<VTokenTokenConfig<CurrencyId>, ConstU32<20>>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -310,9 +331,15 @@ pub mod pallet {
 			v_currency_id: CurrencyIdOf<T>,
 			blocks: Option<BlockNumberFor<T>>,
 		},
-		/// Set Supported eths.
-		SupportedEthSet {
-			eths: BoundedVec<CurrencyId, ConstU32<10>>,
+		/// Set vToken multi-mapping configuration.
+		VTokenMultiMapSet {
+			vtoken: CurrencyIdOf<T>,
+			token_configs: VTokenMultiMap<CurrencyIdOf<T>>,
+		},
+		/// VToken multi-mapping migrated from legacy SupportedEth.
+		VTokenMultiMapMigrated {
+			vtoken: CurrencyIdOf<T>,
+			token_configs: VTokenMultiMap<CurrencyIdOf<T>>,
 		},
 		/// VToken issuance adjusted.
 		VtokenIssuanceSet {
@@ -357,8 +384,8 @@ pub mod pallet {
 		CanNotRebond,
 		/// Not enough balance.
 		NotEnoughBalance,
-		/// veBNC checking error.
-		VeBNCCheckingError,
+		/// bbBNC checking error.
+		BbBNCCheckingError,
 		/// IncentiveCoef not found.
 		IncentiveCoefNotFound,
 		/// Too many locks.
@@ -373,6 +400,14 @@ pub mod pallet {
 		IncentiveLockBlocksNotSet,
 		/// VtokenIssuanceNotSet
 		VtokenIssuanceNotSet,
+		/// Token already mapped to another vToken
+		TokenAlreadyMapped,
+		/// Invalid vToken multi-map configuration
+		InvalidVTokenMultiMapConfig,
+		/// Token not found in vToken multi-map
+		TokenNotInVTokenMultiMap,
+		/// Redeem not enabled for this token
+		RedeemNotEnabled,
 	}
 
 	/// The mint fee and redeem fee.
@@ -489,13 +524,20 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type HookIterationLimit<T: Config> = StorageValue<_, u32, ValueQuery>;
 
+	/// vToken to multiple tokens mapping configuration
 	#[pallet::storage]
-	pub type SupportedEth<T: Config> =
-		StorageValue<_, BoundedVec<CurrencyId, ConstU32<10>>, ValueQuery>;
+	pub type VTokenToTokens<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		CurrencyIdOf<T>,
+		VTokenMultiMap<CurrencyIdOf<T>>,
+		OptionQuery,
+	>;
 
-	/// Next unlock id for all ETH tokens in SupportedEth list
+	/// Reverse mapping from token to vToken for efficient lookups
 	#[pallet::storage]
-	pub type EthUnlockNextId<T: Config> = StorageValue<_, u32, ValueQuery>;
+	pub type TokenToVToken<T: Config> =
+		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, CurrencyIdOf<T>, OptionQuery>;
 
 	//【vtoken -> Blocks】, the locked blocks for each vtoken when minted in an incentive mode
 	#[pallet::storage]
@@ -610,9 +652,7 @@ pub mod pallet {
 			currency_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let rebonder = ensure_signed(origin)?;
-			let v_currency_id = currency_id
-				.to_vtoken()
-				.map_err(|_| Error::<T>::NotSupportTokenType)?;
+			let v_currency_id = Self::convert_to_vtoken(currency_id)?;
 
 			let (user_unlock_amount, unlock_id_list) =
 				UserUnlockLedger::<T>::get(&rebonder, currency_id)
@@ -691,9 +731,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let rebonder = ensure_signed(origin)?;
 
-			let v_currency_id = currency_id
-				.to_vtoken()
-				.map_err(|_| Error::<T>::NotSupportTokenType)?;
+			let v_currency_id = Self::convert_to_vtoken(currency_id)?;
 
 			let (who, unlock_amount, time_unit, _) =
 				TokenUnlockLedger::<T>::get(currency_id, unlock_id)
@@ -985,18 +1023,16 @@ pub mod pallet {
 				Error::<T>::NotSupportTokenType
 			);
 
-			// check whether the user has veBNC
-			let vebnc_balance =
-				T::BbBNC::balance_of(&minter, None).map_err(|_| Error::<T>::VeBNCCheckingError)?;
+			// check whether the user has bbBNC
+			let bb_bnc_balance =
+				T::BbBNC::balance_of(&minter, None).map_err(|_| Error::<T>::BbBNCCheckingError)?;
 			ensure!(
-				vebnc_balance > BalanceOf::<T>::zero(),
+				bb_bnc_balance > BalanceOf::<T>::zero(),
 				Error::<T>::NotEnoughBalance
 			);
 
 			// check whether the vtoken coefficient is set
-			let v_currency_id = currency_id
-				.to_vtoken()
-				.map_err(|_| Error::<T>::NotSupportTokenType)?;
+			let v_currency_id = Self::convert_to_vtoken(currency_id)?;
 
 			ensure!(
 				VtokenIncentiveCoef::<T>::contains_key(v_currency_id),
@@ -1198,19 +1234,70 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set Supported eths.
+		/// Set vToken multi-mapping configuration.
+		/// This allows configuring which tokens can be minted/redeemed to a specific vToken.
 		/// Parameters:
-		/// - `eths`: The supported eths.
+		/// - `vtoken`: The vToken currency id.
+		/// - `token_configs`: List of token configurations with redeem enable flag.
 		#[pallet::call_index(18)]
-		#[pallet::weight(T::DbWeight::get().writes(1u64))]
-		pub fn set_supported_eth(
+		#[pallet::weight(T::DbWeight::get().reads_writes(2u64, 1u64))]
+		pub fn set_vtoken_multimap(
 			origin: OriginFor<T>,
-			eths: BoundedVec<CurrencyId, ConstU32<10>>,
+			vtoken: CurrencyIdOf<T>,
+			token_configs: VTokenMultiMap<CurrencyIdOf<T>>,
 		) -> DispatchResult {
-			T::ControlOrigin::ensure_origin(origin)?;
+			// Ensure the caller has appropriate permissions (TechAdmin or Root)
+			ensure_root(origin)?;
 
-			SupportedEth::<T>::put(eths.clone());
-			Self::deposit_event(Event::SupportedEthSet { eths });
+			// Validate that the vtoken is actually a vtoken
+			ensure!(vtoken.is_vtoken(), Error::<T>::NotSupportTokenType);
+
+			// Check for token conflicts - no token should be mapped to multiple vTokens
+			for config in &token_configs {
+				if let Some(existing_vtoken) = TokenToVToken::<T>::get(config.token) {
+					if existing_vtoken != vtoken {
+						return Err(Error::<T>::TokenAlreadyMapped.into());
+					}
+				}
+			}
+
+			// Get existing configuration to clean up old mappings
+			let existing_configs = VTokenToTokens::<T>::get(vtoken);
+
+			// Update the configuration
+			if token_configs.is_empty() {
+				// If empty config provided, remove the mapping and clean up reverse mappings
+				VTokenToTokens::<T>::remove(vtoken);
+				if let Some(old_configs) = existing_configs {
+					for old_config in old_configs {
+						TokenToVToken::<T>::remove(old_config.token);
+					}
+				}
+			} else {
+				// Update forward mapping
+				VTokenToTokens::<T>::insert(vtoken, token_configs.clone());
+
+				// Clean up old reverse mappings that are no longer present
+				if let Some(ref old_configs) = existing_configs {
+					for old_config in old_configs {
+						let still_present =
+							token_configs.iter().any(|c| c.token == old_config.token);
+						if !still_present {
+							TokenToVToken::<T>::remove(old_config.token);
+						}
+					}
+				}
+
+				// Set new reverse mappings
+				for config in &token_configs {
+					TokenToVToken::<T>::insert(config.token, vtoken);
+				}
+			}
+
+			Self::deposit_event(Event::VTokenMultiMapSet {
+				vtoken,
+				token_configs,
+			});
 
 			Ok(())
 		}
@@ -1222,7 +1309,7 @@ pub mod pallet {
 		/// - `v_currency_id`: The v_currency to set issuance for.
 		/// - `adjustment`: The amount to adjust (positive to increase, negative to decrease).
 		#[pallet::call_index(19)]
-		#[pallet::weight(T::DbWeight::get().reads_writes(1u64, 1u64))]
+		#[pallet::weight(T::DbWeight::get().reads_writes(2u64, 1u64))]
 		pub fn set_v_currency_issuance(
 			origin: OriginFor<T>,
 			v_currency_id: CurrencyIdOf<T>,
@@ -1238,6 +1325,46 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Get the vToken configuration for a given token
+	pub fn get_vtoken_config_for_token(
+		token: &CurrencyIdOf<T>,
+	) -> Option<(CurrencyIdOf<T>, VTokenTokenConfig<CurrencyIdOf<T>>)> {
+		if let Some(vtoken) = TokenToVToken::<T>::get(token) {
+			if let Some(configs) = VTokenToTokens::<T>::get(vtoken) {
+				for config in configs {
+					if config.token == *token {
+						return Some((vtoken, config));
+					}
+				}
+			}
+		}
+		None
+	}
+
+	/// Check if a token is configured for a specific vToken and redeem is enabled
+	pub fn is_redeem_enabled_for_token(vtoken: &CurrencyIdOf<T>, token: &CurrencyIdOf<T>) -> bool {
+		if let Some(configs) = VTokenToTokens::<T>::get(vtoken) {
+			for config in configs {
+				if config.token == *token {
+					return config.redeem_enabled;
+				}
+			}
+		}
+		false
+	}
+
+	/// Get the vToken for a given token based on reverse mapping
+	pub fn get_vtoken_for_token(token: &CurrencyIdOf<T>) -> Option<CurrencyIdOf<T>> {
+		TokenToVToken::<T>::get(token)
+	}
+
+	/// Migrate legacy SupportedEth configuration to new VTokenToTokens mapping
+	/// This function is now deprecated as SupportedEth has been removed
+	pub fn migrate_supported_eth_to_vtoken_multimap() -> DispatchResult {
+		// No-op migration since SupportedEth has been removed
+		Ok(())
+	}
+
 	/// Get the v_currency issuance for rate calculation
 	pub fn get_v_currency_issuance_inner(
 		v_currency_id: CurrencyIdOf<T>,

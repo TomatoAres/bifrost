@@ -1,0 +1,24 @@
+[package]
+name = "bifrost-polkadot-emulated-chain"
+description = "Bifrost Polkadot emulated chain"
+authors = ["Liebi Technologies <bifrost@liebi.com>"]
+edition = "2021"
+
+[dependencies]
+sp-core.workspace = true
+sp-keyring.workspace = true
+frame-support.workspace = true
+parachains-common.workspace = true
+parachains-common.default-features = true
+cumulus-primitives-core.workspace = true
+emulated-integration-tests-common.workspace = true
+bifrost-polkadot-runtime.workspace = true
+bifrost-polkadot-runtime.default-features = true
+bifrost-kusama-runtime.workspace = true
+bifrost-primitives.workspace = true
+bifrost-primitives.default-features = true
+xcm.workspace = true
+bifrost-p-k-bridge.workspace = true
+bifrost-p-k-bridge.default-features = true
+bifrost-runtime-common.workspace = true
+bifrost-runtime-common.default-features = true

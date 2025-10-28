@@ -201,6 +201,7 @@ impl bifrost_currencies::Config for Test {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 impl bifrost_asset_registry::Config for Test {

@@ -61,8 +61,56 @@ parameter_types! {
 parameter_types! {
 	pub SelfLocation: Location = Location::here();
 	pub AssetHubLocation: Location = Location::new(1, Parachain(AssetHubChainId::get()));
+	pub BifrostKusamaLocation: Location = Location::new(1, Parachain(BifrostKusamaChainId::get()));
+	pub BifrostKusamaGlobalLocation: Location = Location::new(
+		2,
+		[
+			GlobalConsensus(KusamaNetwork::get()),
+			Parachain(BifrostKusamaChainId::get()),
+		],
+	);
+	pub AssetHubKusamaGlobalLocation: Location = Location::new(
+		2,
+		[
+			GlobalConsensus(KusamaNetwork::get()),
+			Parachain(AssetHubChainId::get()),
+		],
+	);
+	pub AssetHubPolkadotGlobalLocation: Location = Location::new(
+		2,
+		[
+			GlobalConsensus(PolkadotNetwork::get()),
+			Parachain(AssetHubChainId::get()),
+		],
+	);
+	pub BifrostPolkadotLocation: Location = Location::new(1, Parachain(BifrostPolkadotChainId::get()));
+	pub BifrostPolkadotGlobalLocation: Location = Location::new(
+		2,
+		[
+			GlobalConsensus(PolkadotNetwork::get()),
+			Parachain(BifrostPolkadotChainId::get()),
+		],
+	);
 	pub EthereumLocation: Location = Location::new(2, [GlobalConsensus(Ethereum { chain_id: EthereumChainId::get() })]);
 	pub LocalBncLocation: Location = Location::new(0, [GeneralKey {
+		length: 2,
+		data: [
+			0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0
+		],
+	}]);
+	pub RemoteBifrostPolkadotBncLocation: Location = Location::new(1, [
+		Parachain(BifrostPolkadotChainId::get()),
+		GeneralKey {
+		length: 2,
+		data: [
+			0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0
+		],
+	}]);
+	pub RemoteBifrostKusamaBncLocation: Location = Location::new(1, [
+		Parachain(BifrostKusamaChainId::get()),
+		GeneralKey {
 		length: 2,
 		data: [
 			0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

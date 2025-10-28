@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 // Ensure we're `no_std` when compiling for Wasm.
 use crate::{mocks::polkadot_mock::*, *};
 use bifrost_primitives::currency::VPHA;
@@ -82,11 +83,22 @@ fn response_fail() -> Response {
 	))
 }
 
+fn vote_weight(v: &AccountVote<Balance>) -> Balance {
+	match v {
+		AccountVote::Standard {
+			vote: Vote { aye: _, conviction },
+			balance,
+		} => conviction.votes(*balance).votes,
+		_ => panic!("Unexpected vote type"),
+	}
+}
+
 #[test]
 fn basic_voting_works() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
 			let poll_index = 3;
+			let derivative_index: DerivativeIndex = 0;
 
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -95,12 +107,15 @@ fn basic_voting_works() {
 				aye(2, 5)
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
@@ -116,7 +131,7 @@ fn basic_voting_works() {
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -150,7 +165,7 @@ fn voting_balance_gets_locked() {
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -278,7 +293,7 @@ fn unsuccessful_conviction_vote_balance_can_be_unlocked() {
 				Some(poll_index),
 				UnvoteScope::Any
 			));
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -471,7 +486,7 @@ fn successful_conviction_vote_balance_stays_locked_for_correct_time() {
 				));
 			}
 			for i in 1..=5 {
-				assert_ok!(VtokenVoting::update_lock(&i, vtoken, Some(poll_index)));
+				assert_ok!(VtokenVoting::update_lock(&i, vtoken));
 				assert_eq!(usable_balance(vtoken, &i), 10 * i as u128);
 			}
 		});
@@ -654,11 +669,21 @@ fn removed_votes_when_referendum_killed() {
 				0,
 				aye(5, 1)
 			));
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				0,
+				response.clone()
+			));
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
 				vtoken,
 				1,
 				aye(10, 1)
+			));
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				1,
+				response.clone()
 			));
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -666,23 +691,12 @@ fn removed_votes_when_referendum_killed() {
 				2,
 				aye(5, 2)
 			));
-			assert_eq!(usable_balance(vtoken, &ALICE), 0);
-
-			assert_ok!(VtokenVoting::notify_vote(
-				origin_response(),
-				0,
-				response.clone()
-			));
-			assert_ok!(VtokenVoting::notify_vote(
-				origin_response(),
-				1,
-				response.clone()
-			));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
 				2,
 				response.clone()
 			));
+			assert_eq!(usable_balance(vtoken, &ALICE), 0);
 
 			assert_ok!(VtokenVoting::set_referendum_status(
 				RuntimeOrigin::root(),
@@ -767,6 +781,8 @@ fn removed_votes_when_referendum_killed() {
 fn errors_with_vote_works() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
+			let response = response_success();
+
 			assert_noop!(
 				VtokenVoting::vote(RuntimeOrigin::signed(1), VPHA, 0, aye(10, 0)),
 				Error::<Runtime>::VTokenNotSupport
@@ -776,12 +792,17 @@ fn errors_with_vote_works() {
 				Error::<Runtime>::InsufficientFunds
 			);
 
-			for poll_index in 0..256 {
+			for index in 0..256 {
 				assert_ok!(VtokenVoting::vote(
 					RuntimeOrigin::signed(1),
 					vtoken,
-					poll_index,
+					index as PollIndex,
 					aye(10, 0)
+				));
+				assert_ok!(VtokenVoting::notify_vote(
+					origin_response(),
+					index as QueryId,
+					response.clone()
 				));
 			}
 			assert_noop!(
@@ -874,7 +895,8 @@ fn set_referendum_status_works() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
 			let poll_index = 3;
-			let info = ReferendumInfo::Completed(3);
+			let completed = ReferendumInfo::Completed(3);
+			let killed = ReferendumInfo::Killed(4);
 
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -882,18 +904,39 @@ fn set_referendum_status_works() {
 				poll_index,
 				aye(2, 5)
 			));
+
+			assert_noop!(
+				VtokenVoting::set_referendum_status(
+					RuntimeOrigin::root(),
+					vtoken,
+					poll_index,
+					ReferendumInfo::Completed(0),
+				),
+				Error::<Runtime>::SubmittedBlockNumberMustBeBiggerThanStartBlockNumber
+			);
+
 			assert_ok!(VtokenVoting::set_referendum_status(
 				RuntimeOrigin::root(),
 				vtoken,
 				poll_index,
-				info.clone(),
+				completed.clone(),
 			));
 
 			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::ReferendumInfoSet {
 				vtoken,
 				poll_index,
-				info,
+				info: completed,
 			}));
+
+			assert_noop!(
+				VtokenVoting::set_referendum_status(
+					RuntimeOrigin::root(),
+					vtoken,
+					poll_index,
+					killed,
+				),
+				Error::<Runtime>::AlreadyCompleted
+			);
 		});
 	}
 }
@@ -1032,7 +1075,7 @@ fn notify_vote_success_works() {
 			assert_eq!(
 				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
 				Some(ReferendumInfo::Ongoing(ReferendumStatus {
-					submitted: None,
+					submitted: 1,
 					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
 				}))
 			);
@@ -1045,12 +1088,15 @@ fn notify_vote_success_works() {
 			);
 			assert_eq!(DelegatorVotes::<Runtime>::get(vtoken, poll_index).len(), 0);
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 
 			assert_ok!(VtokenVoting::notify_vote(
@@ -1061,7 +1107,7 @@ fn notify_vote_success_works() {
 			assert_eq!(
 				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
 				Some(ReferendumInfo::Ongoing(ReferendumStatus {
-					submitted: Some(1),
+					submitted: 1,
 					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
 				}))
 			);
@@ -1076,16 +1122,16 @@ fn notify_vote_success_works() {
 				)
 				.unwrap()
 			);
-			System::assert_has_event(RuntimeEvent::VtokenVoting(Event::VoteNotified {
+			System::assert_has_event(RuntimeEvent::VtokenVoting(Event::VoteNotifiedV2 {
 				vtoken,
-				poll_index,
+				poll_index_vec: vec![poll_index],
 				success: true,
 			}));
 			System::assert_has_event(RuntimeEvent::VtokenVoting(Event::ReferendumInfoCreated {
 				vtoken,
 				poll_index,
 				info: ReferendumInfo::Ongoing(ReferendumStatus {
-					submitted: Some(1),
+					submitted: 1,
 					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
 				}),
 			}));
@@ -1102,18 +1148,18 @@ fn notify_vote_success_works() {
 fn notify_vote_success_max_works() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
-			for poll_index in 0..256 {
+			for index in 0..256 {
 				RelaychainDataProvider::set_block_number(1);
 
 				assert_ok!(VtokenVoting::vote(
 					RuntimeOrigin::signed(ALICE),
 					vtoken,
-					poll_index,
+					index as PollIndex,
 					aye(2, 5)
 				));
 				assert_ok!(VtokenVoting::notify_vote(
 					origin_response(),
-					poll_index as QueryId,
+					index as QueryId,
 					response_success()
 				));
 
@@ -1170,7 +1216,7 @@ fn notify_vote_fail_works() {
 			assert_eq!(
 				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
 				Some(ReferendumInfo::Ongoing(ReferendumStatus {
-					submitted: None,
+					submitted: 1,
 					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
 				}))
 			);
@@ -1183,12 +1229,15 @@ fn notify_vote_fail_works() {
 				.unwrap()
 			);
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 
 			assert_ok!(VtokenVoting::notify_vote(
@@ -1207,6 +1256,185 @@ fn notify_vote_fail_works() {
 				query_id,
 				response,
 			}));
+		});
+	}
+}
+
+#[test]
+fn notify_vote_fail_should_roll_back_works() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let poll_index = 3;
+			let query_id = 0;
+			let response_fail = response_fail();
+			let response_success = response_success();
+			let derivative_index = 0;
+
+			// The first vote and a successful notify_vote
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index,
+				aye(2, 5)
+			));
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
+				}))
+			);
+			assert_eq!(
+				PendingDelegatorVotes::<Runtime>::get(vtoken, poll_index),
+				BoundedVec::<(DerivativeIndex, AccountVote<Balance>), ConstU32<100>>::try_from(
+					vec![(derivative_index, aye(200, 0))]
+				)
+				.unwrap()
+			);
+			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
+
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				query_id,
+				response_success.clone()
+			));
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
+				}))
+			);
+			assert_eq!(DelegatorVotes::<Runtime>::get(vtoken, poll_index).len(), 1);
+			assert_eq!(
+				PendingDelegatorVotes::<Runtime>::get(vtoken, poll_index).len(),
+				0
+			);
+
+			// The second vote fails notify_vote rolls back
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index,
+				aye(4, 5)
+			));
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(40, 0, 8),
+				}))
+			);
+			assert_eq!(
+				PendingDelegatorVotes::<Runtime>::get(vtoken, poll_index),
+				BoundedVec::<(DerivativeIndex, AccountVote<Balance>), ConstU32<100>>::try_from(
+					vec![(derivative_index, aye(400, 0))]
+				)
+				.unwrap()
+			);
+			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(40, 0, 8));
+
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				query_id + 1,
+				response_fail.clone()
+			));
+			// ReferendumInfo rolls back
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
+				}))
+			);
+			assert_eq!(DelegatorVotes::<Runtime>::get(vtoken, poll_index).len(), 1);
+			assert_eq!(
+				PendingDelegatorVotes::<Runtime>::get(vtoken, poll_index).len(),
+				0
+			);
+		});
+	}
+}
+
+#[test]
+fn delegate_notify_vote_fail_should_roll_back_works() {
+	for &vtoken in TOKENS {
+		new_test_ext().execute_with(|| {
+			let poll_index = 3;
+			let query_id = 0;
+			let response_fail = response_fail();
+			let response_success = response_success();
+			let derivative_index = 0;
+
+			// The first vote and a successful notify_vote
+			assert_ok!(VtokenVoting::vote(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				poll_index,
+				aye(2, 5)
+			));
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
+				}))
+			);
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				query_id,
+				response_success.clone()
+			));
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
+				}))
+			);
+
+			// The second delegate fails notify_vote rolls back
+			assert_ok!(VtokenVoting::delegate(
+				RuntimeOrigin::signed(BOB),
+				vtoken,
+				ALICE,
+				Conviction::Locked5x,
+				2
+			));
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(40, 0, 8),
+				}))
+			);
+			assert_eq!(
+				PendingDelegatorVotes::<Runtime>::get(vtoken, poll_index),
+				BoundedVec::<(DerivativeIndex, AccountVote<Balance>), ConstU32<100>>::try_from(
+					vec![(derivative_index, aye(400, 0))]
+				)
+				.unwrap()
+			);
+			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(40, 0, 8));
+
+			assert_ok!(VtokenVoting::notify_vote(
+				origin_response(),
+				query_id + 1,
+				response_fail.clone()
+			));
+			// ReferendumInfo rolls back
+			assert_eq!(
+				ReferendumInfoFor::<Runtime>::get(vtoken, poll_index),
+				Some(ReferendumInfo::Ongoing(ReferendumStatus {
+					submitted: 1,
+					tally: TallyOf::<Runtime>::from_parts(20, 0, 4),
+				}))
+			);
+			assert_eq!(DelegatorVotes::<Runtime>::get(vtoken, poll_index).len(), 1);
+			assert_eq!(
+				PendingDelegatorVotes::<Runtime>::get(vtoken, poll_index).len(),
+				0
+			);
 		});
 	}
 }
@@ -1255,12 +1483,15 @@ fn notify_remove_delegator_vote_success_works() {
 				.unwrap()
 			);
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
@@ -1349,12 +1580,15 @@ fn notify_remove_delegator_vote_fail_works() {
 				.unwrap()
 			);
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
@@ -1761,57 +1995,89 @@ fn allocate_delegator_votes_works() {
 		new_test_ext().execute_with(|| {
 			let poll_index = 3;
 
-			for conviction in 0..=6 {
-				let vote = aye(5e9 as Balance, conviction);
-				let delegator_votes =
-					VtokenVoting::allocate_delegator_votes(vtoken, poll_index, vote);
-				assert_eq!(
-					delegator_votes,
-					Ok(vec![
-						(0, aye(4294967295, conviction)),
-						(1, aye(705032705, conviction))
-					])
-				);
-				assert_eq!(
-					delegator_votes
-						.unwrap()
-						.into_iter()
-						.map(|(_derivative_index, vote)| vote)
-						.fold(aye(0, conviction), |mut acc, vote| {
-							let _ = acc.checked_add(vote);
-							acc
-						},),
-					vote
-				);
-			}
+			let conviction = 0;
+			let vote = aye(DerivativeIndexActive::get() * 2 * 5 * 10, conviction);
+			let delegator_votes = VtokenVoting::allocate_delegator_votes(vtoken, poll_index, vote);
+			assert_eq!(
+				delegator_votes,
+				Ok(vec![
+					(0, aye(DerivativeIndexActive::get(), 6)),
+					(1, aye(DerivativeIndexActive::get(), 4))
+				])
+			);
+			let delegator_total: u128 = delegator_votes
+				.unwrap()
+				.into_iter()
+				.map(|(_derivative_index, v)| vote_weight(&v))
+				.sum();
+			assert_eq!(delegator_total, vote_weight(&vote));
 
-			for conviction in 0..=6 {
-				let vote = aye(3e10 as Balance, conviction);
+			let vote = aye(DerivativeIndexActive::get() * 7 * 6 * 10, conviction);
+			let delegator_votes = VtokenVoting::allocate_delegator_votes(vtoken, poll_index, vote);
+			assert_eq!(
+				delegator_votes,
+				Ok(vec![
+					(0, aye(DerivativeIndexActive::get(), 6)),
+					(1, aye(DerivativeIndexActive::get(), 6)),
+					(2, aye(DerivativeIndexActive::get(), 6)),
+					(3, aye(DerivativeIndexActive::get(), 6)),
+					(4, aye(DerivativeIndexActive::get(), 6)),
+					(5, aye(DerivativeIndexActive::get(), 6)),
+					(10, aye(DerivativeIndexActive::get(), 6))
+				])
+			);
+			let delegator_total: u128 = delegator_votes
+				.unwrap()
+				.into_iter()
+				.map(|(_derivative_index, v)| vote_weight(&v))
+				.sum();
+			assert_eq!(delegator_total, vote_weight(&vote));
+
+			for conviction in 1..=6 {
+				let vote = aye(
+					DerivativeIndexActive::get() * 2 * 5 / conviction as u128,
+					conviction,
+				);
 				let delegator_votes =
 					VtokenVoting::allocate_delegator_votes(vtoken, poll_index, vote);
 				assert_eq!(
 					delegator_votes,
 					Ok(vec![
-						(0, aye(4294967295, conviction)),
-						(1, aye(4294967295, conviction)),
-						(2, aye(4294967295, conviction)),
-						(3, aye(4294967295, conviction)),
-						(4, aye(4294967295, conviction)),
-						(5, aye(4294967295, conviction)),
-						(10, aye(4230196230, conviction))
+						(0, aye(DerivativeIndexActive::get(), 6)),
+						(1, aye(DerivativeIndexActive::get(), 4))
 					])
 				);
-				assert_eq!(
-					delegator_votes
-						.unwrap()
-						.into_iter()
-						.map(|(_derivative_index, vote)| vote)
-						.fold(aye(0, conviction), |mut acc, vote| {
-							let _ = acc.checked_add(vote);
-							acc
-						},),
-					vote
+				let delegator_total: u128 = delegator_votes
+					.unwrap()
+					.into_iter()
+					.map(|(_derivative_index, v)| vote_weight(&v))
+					.sum();
+				assert_eq!(delegator_total, vote_weight(&vote));
+
+				let vote = aye(
+					DerivativeIndexActive::get() * 7 * 6 / conviction as u128,
+					conviction,
 				);
+				let delegator_votes =
+					VtokenVoting::allocate_delegator_votes(vtoken, poll_index, vote);
+				assert_eq!(
+					delegator_votes,
+					Ok(vec![
+						(0, aye(DerivativeIndexActive::get(), 6)),
+						(1, aye(DerivativeIndexActive::get(), 6)),
+						(2, aye(DerivativeIndexActive::get(), 6)),
+						(3, aye(DerivativeIndexActive::get(), 6)),
+						(4, aye(DerivativeIndexActive::get(), 6)),
+						(5, aye(DerivativeIndexActive::get(), 6)),
+						(10, aye(DerivativeIndexActive::get(), 6))
+					])
+				);
+				let delegator_total: u128 = delegator_votes
+					.unwrap()
+					.into_iter()
+					.map(|(_derivative_index, v)| vote_weight(&v))
+					.sum();
+				assert_eq!(delegator_total, vote_weight(&vote));
 			}
 		});
 	}
@@ -1854,6 +2120,7 @@ fn early_unlock_works() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
 			let poll_index = 3;
+			let derivative_index: DerivativeIndex = 0;
 
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -1862,12 +2129,15 @@ fn early_unlock_works() {
 				aye(2, 5)
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
@@ -1883,7 +2153,11 @@ fn early_unlock_works() {
 			));
 
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				Some(poll_index)
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -1894,6 +2168,7 @@ fn early_unlock_works_with_none_status() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
 			let poll_index = 3;
+			let derivative_index: DerivativeIndex = 0;
 
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -1902,12 +2177,15 @@ fn early_unlock_works_with_none_status() {
 				aye(2, 5)
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
@@ -1923,7 +2201,11 @@ fn early_unlock_works_with_none_status() {
 			));
 
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::unlock(
+				RuntimeOrigin::signed(ALICE),
+				vtoken,
+				Some(poll_index)
+			));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 		});
 	}
@@ -1934,6 +2216,7 @@ fn early_unlock_fails() {
 	for &vtoken in TOKENS {
 		new_test_ext().execute_with(|| {
 			let poll_index = 3;
+			let derivative_index: DerivativeIndex = 0;
 
 			assert_ok!(VtokenVoting::vote(
 				RuntimeOrigin::signed(ALICE),
@@ -1942,12 +2225,15 @@ fn early_unlock_fails() {
 				aye(2, 5)
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(20, 0, 4));
-			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::Voted {
+			System::assert_last_event(RuntimeEvent::VtokenVoting(Event::VotedV2 {
 				who: ALICE,
 				vtoken,
-				poll_index,
 				token_vote: aye(4, 5),
-				delegator_vote: aye(200, 0),
+				delegator_vote: {
+					let mut map = BTreeMap::new();
+					map.insert(poll_index, vec![(derivative_index, aye(200, 0))]);
+					map.into_iter().collect()
+				},
 			}));
 			assert_ok!(VtokenVoting::notify_vote(
 				origin_response(),
@@ -1963,7 +2249,7 @@ fn early_unlock_fails() {
 			));
 
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 8);
 		});
 	}
@@ -2094,7 +2380,7 @@ fn voting_with_delegate() {
 			));
 			assert_eq!(tally(vtoken, poll_index), Tally::from_parts(0, 0, 0));
 
-			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken, Some(poll_index)));
+			assert_ok!(VtokenVoting::update_lock(&ALICE, vtoken));
 			assert_eq!(usable_balance(vtoken, &ALICE), 10);
 
 			assert_ok!(VtokenVoting::undelegate(RuntimeOrigin::signed(BOB), vtoken));

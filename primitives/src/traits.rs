@@ -104,6 +104,9 @@ pub trait VtokenMintingOperator<CurrencyId, Balance, AccountId, TimeUnit> {
 	/// Get the currency tokenpool amount.
 	fn get_token_pool(currency_id: CurrencyId) -> Balance;
 
+	/// Try to get the currency tokenpool amount. Returns error if get_vtoken_for_token fails.
+	fn try_get_token_pool(currency_id: CurrencyId) -> Result<Balance, DispatchError>;
+
 	/// Increase the token amount for the storage "token_pool" in the VtokenMining module.
 	fn increase_token_pool(currency_id: CurrencyId, token_amount: Balance) -> DispatchResult;
 
@@ -336,10 +339,14 @@ pub trait VtokenMintingInterface<AccountId, CurrencyId, Balance> {
 		vtoken_amount: Balance,
 	) -> Result<Balance, DispatchError>;
 	fn get_token_pool(currency_id: CurrencyId) -> Balance;
+
+	/// Try to get the currency tokenpool amount. Returns error if get_vtoken_for_token fails.
+	fn try_get_token_pool(currency_id: CurrencyId) -> Result<Balance, DispatchError>;
 	fn get_minimums_redeem(vtoken_id: CurrencyId) -> Balance;
 	fn get_moonbeam_parachain_id() -> u32;
 	fn get_v_currency_issuance(v_currency_id: CurrencyId) -> Result<Balance, DispatchError>;
 	fn set_v_currency_issuance(v_currency_id: CurrencyId, adjustment: i128) -> DispatchResult;
+	fn convert_to_vtoken(currency_id: CurrencyId) -> Result<CurrencyId, DispatchError>;
 }
 
 impl<AccountId, CurrencyId: Default, Balance: Zero>
@@ -393,6 +400,10 @@ impl<AccountId, CurrencyId: Default, Balance: Zero>
 		Zero::zero()
 	}
 
+	fn try_get_token_pool(_currency_id: CurrencyId) -> Result<Balance, DispatchError> {
+		Ok(Zero::zero())
+	}
+
 	fn get_minimums_redeem(_vtoken_id: CurrencyId) -> Balance {
 		Zero::zero()
 	}
@@ -407,6 +418,10 @@ impl<AccountId, CurrencyId: Default, Balance: Zero>
 
 	fn set_v_currency_issuance(_v_currency_id: CurrencyId, _adjustment: i128) -> DispatchResult {
 		Ok(())
+	}
+
+	fn convert_to_vtoken(_currency_id: CurrencyId) -> Result<CurrencyId, DispatchError> {
+		Ok(CurrencyId::default())
 	}
 }
 

@@ -87,6 +87,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {
@@ -287,6 +288,26 @@ impl ExtBuilder {
 				if total_issuance > 0 {
 					crate::VtokenIssuance::<Runtime>::insert(vtoken, total_issuance);
 				}
+			}
+
+			// Initialize VTokenToTokens mappings for all supported tokens
+			let token_mappings = vec![
+				(KSM, VKSM),
+				(BNC, VBNC),
+				(MOVR, VMOVR),
+				(FIL, VFIL),
+				(ETH, V_ETH),
+			];
+
+			for (token, vtoken) in token_mappings {
+				let token_configs =
+					frame_support::BoundedVec::try_from(vec![crate::VTokenTokenConfig {
+						token,
+						redeem_enabled: true,
+					}])
+					.expect("Should not fail for single config");
+				crate::VTokenToTokens::<Runtime>::insert(vtoken, token_configs);
+				crate::TokenToVToken::<Runtime>::insert(token, vtoken);
 			}
 		});
 		ext

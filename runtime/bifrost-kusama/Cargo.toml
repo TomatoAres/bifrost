@@ -72,7 +72,6 @@ sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-genesis-builder = { workspace = true }
 
-
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
@@ -84,6 +83,7 @@ cumulus-primitives-timestamp = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 parachain-info = { workspace = true }
 parachains-common = { workspace = true }
+pallet-collator-selection = { workspace = true }
 
 # Polkadot dependencies
 pallet-xcm = { workspace = true }
@@ -113,7 +113,7 @@ bifrost-stable-asset = { workspace = true }
 
 # Bifrost
 bifrost-asset-registry = { workspace = true }
-bifrost-cross-in-out = { workspace = true }
+bifrost-p-k-bridge = { workspace = true }
 bifrost-currencies = { workspace = true }
 bifrost-farming = { workspace = true }
 bifrost-farming-rpc-runtime-api = { workspace = true }
@@ -207,6 +207,7 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
+	"pallet-collator-selection/std",
 
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
@@ -239,7 +240,7 @@ std = [
 
 	"bifrost-primitives/std",
 	"bifrost-asset-registry/std",
-	"bifrost-cross-in-out/std",
+	"bifrost-p-k-bridge/std",
 	"bifrost-currencies/std",
 	"bifrost-farming-rpc-runtime-api/std",
 	"bifrost-farming/std",
@@ -310,7 +311,6 @@ runtime-benchmarks = [
 	"bifrost-asset-registry/runtime-benchmarks",
 	"bifrost-parachain-staking/runtime-benchmarks",
 	"sp-api/disable-logging",
-	"bifrost-cross-in-out/runtime-benchmarks",
 	"bifrost-fee-share/runtime-benchmarks",
 	"bifrost-slpx/runtime-benchmarks",
 	"bifrost-stable-pool/runtime-benchmarks",
@@ -377,7 +377,6 @@ try-runtime = [
 	"bifrost-farming/try-runtime",
 	"bifrost-system-staking/try-runtime",
 	"bifrost-fee-share/try-runtime",
-	"bifrost-cross-in-out/try-runtime",
 	"bifrost-slpx/try-runtime",
 	"bifrost-stable-asset/try-runtime",
 	"bifrost-stable-pool/try-runtime",
@@ -387,6 +386,7 @@ try-runtime = [
 	"leverage-staking/try-runtime",
 	"bifrost-channel-commission/try-runtime",
 	"bifrost-vbnc-convert/try-runtime",
+	"pallet-collator-selection/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.

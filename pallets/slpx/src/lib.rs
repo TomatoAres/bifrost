@@ -621,8 +621,7 @@ pub mod pallet {
 			// Check the validity of origin
 			T::ControlOrigin::ensure_origin(origin)?;
 			// Check in advance to avoid hook errors
-			currency_id
-				.to_vtoken()
+			T::VtokenMintingInterface::convert_to_vtoken(currency_id)
 				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 			let mut currency_list = CurrencyIdList::<T>::get();
 			if is_support {
@@ -974,8 +973,7 @@ pub mod pallet {
 
 			// Get current configuration
 			let config = AsyncMintConfig::<T>::get();
-			let v_currency_id = currency_id
-				.to_vtoken()
+			let v_currency_id = T::VtokenMintingInterface::convert_to_vtoken(currency_id)
 				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 			// Check if async mint has been executed in the current block interval
@@ -1126,8 +1124,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(OrderType, CurrencyId, CurrencyId), Error<T>> {
 		match currency_id {
 			CurrencyId::Native(_) | CurrencyId::Token(_) | CurrencyId::Token2(_) => {
-				let v_currency_id = currency_id
-					.to_vtoken()
+				let v_currency_id = T::VtokenMintingInterface::convert_to_vtoken(currency_id)
 					.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 				Ok((OrderType::Mint, currency_id, v_currency_id))
 			}
@@ -1647,8 +1644,7 @@ impl<T: Config> Pallet<T> {
 		if let Some(mut config) = configuration {
 			let currency_id = currency_list[0];
 			let staking_currency_amount = T::VtokenMintingInterface::get_token_pool(currency_id);
-			let v_currency_id = currency_id
-				.to_vtoken()
+			let v_currency_id = T::VtokenMintingInterface::convert_to_vtoken(currency_id)
 				.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 			let v_currency_total_supply =
 				T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id)?;
@@ -1741,8 +1737,7 @@ impl<T: Config> Pallet<T> {
 					let require_weight_at_most = weight;
 					let staking_currency_amount =
 						T::VtokenMintingInterface::get_token_pool(currency);
-					let v_currency_id = currency
-						.to_vtoken()
+					let v_currency_id = T::VtokenMintingInterface::convert_to_vtoken(currency)
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 					let v_currency_total_supply =
@@ -2012,8 +2007,7 @@ impl<T: Config>
 				if target_currency.map_or(true, |c| c == *currency) {
 					let staking_currency_amount =
 						T::VtokenMintingInterface::get_token_pool(*currency);
-					let v_currency_id = currency
-						.to_vtoken()
+					let v_currency_id = T::VtokenMintingInterface::convert_to_vtoken(*currency)
 						.map_err(|_| Error::<T>::ErrorConvertVtoken)?;
 
 					let v_currency_total_supply =

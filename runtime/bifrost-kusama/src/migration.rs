@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-use super::*;
 use frame_support::{pallet_prelude::*, storage_alias, traits::OnRuntimeUpgrade};
 use parity_scale_codec::{Decode, Encode, EncodeLike, MaxEncodedLen};
-use sp_std::fmt::Debug;
-
 #[cfg(feature = "try-runtime")]
 use sp_runtime::TryRuntimeError;
+use sp_std::fmt::Debug;
+
+use super::*;
 
 parameter_types! {
 	pub const FellowshipReferendaData: &'static str = r#"[{"index":0,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":null},{"index":10,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":null},{"index":4,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":null},{"index":21,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"hJmectFjn7CCEQL1tKDxvboA1i9hcfTyUrLuW3xjDqRgxmm","amount":10000000000000}},{"index":28,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":20,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":30,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":39,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":38,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":34,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":16,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":10000000000000}},{"index":11,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":14,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":6,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":null},{"index":19,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":1000000000000}},{"index":35,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":36,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":10000000000000}},{"index":31,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":33,"deposit1":{"who":"dEmQ58Mi6YKd16XifjaX9jPg13C1HHV1EdeEQqQn3GwLueP","amount":0},"deposit2":{"who":"dEmQ58Mi6YKd16XifjaX9jPg13C1HHV1EdeEQqQn3GwLueP","amount":1000000000000}},{"index":41,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":15,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":1000000000000}},{"index":40,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":2,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":null},{"index":13,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":10000000000000}},{"index":32,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":27,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":29,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":42,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":43,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":5,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":null},{"index":18,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":7,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":null},{"index":26,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":22,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":24,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":8,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":null},{"index":1,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":null},{"index":12,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":{"who":"ddeADYcZ13GmFSR44KjMiRixvq8Hbdh9HW9wPRX4gupWDDb","amount":10000000000000}},{"index":3,"deposit1":{"who":"fXznm8JzrUuyEijnyy8M2tfdFQeot2bUrERe3ZK9FwTaZZw","amount":0},"deposit2":null},{"index":17,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":1000000000000}},{"index":25,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":1000000000000}},{"index":23,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":37,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":10000000000000}},{"index":9,"deposit1":{"who":"fAGgdvAYwqCwpt3Wda1mzpACnNyESbfgfgvm1RLSudBsUEu","amount":0},"deposit2":null}]"#;
@@ -15,12 +15,13 @@ parameter_types! {
 
 /// Initial version of storage types.
 pub mod v0 {
-	use super::*;
 	use pallet_referenda::{
 		BalanceOf, BoundedCallOf, Config, Deposit, Pallet, PalletsOriginOf, ReferendumIndex,
 		ReferendumStatus, ScheduleAddressOf, TallyOf, TrackIdOf,
 	};
 	use sp_runtime::traits::BlockNumberProvider;
+
+	use super::*;
 
 	// ReferendumStatus and its dependency types referenced from the latest version while staying
 	// unchanged. [`super::test::referendum_status_v0()`] checks its immutability between v0 and
@@ -99,11 +100,12 @@ pub mod v0 {
 }
 
 pub mod v1 {
-	use super::*;
 	use pallet_referenda::{
 		BalanceOf, Config, Deposit, Pallet, ReferendumIndex, ReferendumInfo, ReferendumInfoFor,
 	};
 	use sp_runtime::Deserialize;
+
+	use super::*;
 
 	/// The log target.
 	const TARGET: &str = "runtime::referenda::migration::v1";
@@ -319,9 +321,10 @@ pub mod slpx_migrates_whitelist {
 }
 
 pub mod opengov {
-	use super::*;
 	use pallet_ranked_collective::{Config, IdToIndex, IndexToId};
 	use sp_core::crypto::Ss58Codec;
+
+	use super::*;
 
 	pub struct RankedCollectiveV1<T, I = ()>(PhantomData<(T, I)>);
 	impl<T: Config<I>, I: 'static> OnRuntimeUpgrade for RankedCollectiveV1<T, I>
@@ -810,10 +813,11 @@ pub mod vsbond_auction {
 }
 
 pub mod update_referenda_referendum_info {
-	use crate::{Referenda, Runtime, Weight};
 	use frame_support::pallet_prelude::StorageVersion;
 	use frame_support::traits::OnRuntimeUpgrade;
 	use pallet_referenda::{ReferendumIndex, ReferendumInfoFor, ReferendumInfoOf};
+
+	use crate::{Referenda, Runtime, Weight};
 
 	pub struct MigrateReferendumInfoFor;
 
@@ -856,6 +860,45 @@ pub mod update_referenda_referendum_info {
 			} else {
 				<Runtime as frame_system::Config>::DbWeight::get().reads(1)
 			}
+		}
+	}
+}
+
+pub mod ini_collator_selection {
+	use frame_support::pallet_prelude::StorageVersion;
+	use frame_support::traits::OnRuntimeUpgrade;
+	use hex_literal::hex;
+	use pallet_collator_selection::{CandidacyBond, Invulnerables};
+	use sp_runtime::BoundedVec;
+	use sp_std::vec;
+
+	use crate::{Runtime, Weight};
+
+	pub struct IniCollatorSelection;
+
+	impl OnRuntimeUpgrade for IniCollatorSelection {
+		fn on_runtime_upgrade() -> Weight {
+			let bnc = 1_000_000_000_000u128;
+			let invulnerables_vec = vec![
+				// eunwjK45qDugPXhnjxGUcMbifgdtgefzoW7PgMMpr39AXwh
+				hex!("8cf80f0bafcd0a3d80ca61cb688e4400e275b39d3411b4299b47e712e9dab809").into(),
+				// dBkoWVdQCccH1xNAeR1Y4vrETt3a4j4iU8Ct2ewY1FUjasL
+				hex!("40ac4effe39181731a8feb8a8ee0780e177bdd0d752b09c8fd71047e67189022").into(),
+				// dwrEwfj2RFU4DS6EiTCfmxMpQ1sAsaHykftzwoptFe4a8aH
+				hex!["624d6a004c72a1abcf93131e185515ebe1410e43a301fe1f25d20d8da345376e"].into(),
+				// fAjW6bwT4GKgW88sjZfNLRr5hWyMM9T9ZwqHYkFiSxw4Yhp
+				hex!["985d2738e512909c81289e6055e60a6824818964535ecfbf10e4d69017084756"].into(),
+			];
+
+			let invulnerables: BoundedVec<_, _> = BoundedVec::try_from(invulnerables_vec)
+				.expect("Initial collators fit within bounds");
+
+			Invulnerables::<Runtime>::put(invulnerables);
+			CandidacyBond::<Runtime>::put(10_000 * bnc);
+
+			StorageVersion::new(2).put::<pallet_collator_selection::Pallet<Runtime>>();
+
+			<Runtime as frame_system::Config>::DbWeight::get().writes(2)
 		}
 	}
 }

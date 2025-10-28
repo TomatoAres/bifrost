@@ -327,6 +327,21 @@ impl<T: frame_system::Config> bifrost_slp_v2::WeightInfo for BifrostWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(5))
 	}
+	/// Storage: `SlpV2::DelegatorIndexByStakingProtocolAndDelegator` (r:1 w:0)
+	/// Proof: `SlpV2::DelegatorIndexByStakingProtocolAndDelegator` (`max_values`: None, `max_size`: Some(68), added: 2543, mode: `MaxEncodedLen`)
+	/// Storage: `SlpV2::DelegatorByStakingProtocolAndDelegatorIndex` (r:1 w:0)
+	/// Proof: `SlpV2::DelegatorByStakingProtocolAndDelegatorIndex` (`max_values`: None, `max_size`: Some(68), added: 2543, mode: `MaxEncodedLen`)
+	/// Storage: `SlpV2::LedgerByStakingProtocolAndDelegator` (r:1 w:1)
+	/// Proof: `SlpV2::LedgerByStakingProtocolAndDelegator` (`max_values`: None, `max_size`: Some(252), added: 2727, mode: `MaxEncodedLen`)
+	fn ethereum_staking() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `585`
+		//  Estimated: `3717`
+		// Minimum execution time: 19_538_000 picoseconds.
+		Weight::from_parts(20_740_000, 3717)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 	// Storage: `SlpV2::PendingStatusByQueryId` (r:1 w:0)
 	// Proof: `SlpV2::PendingStatusByQueryId` (`max_values`: None, `max_size`: Some(75), added: 2550, mode: `MaxEncodedLen`)
 	// Storage: `SlpV2::LedgerByStakingProtocolAndDelegator` (r:1 w:1)

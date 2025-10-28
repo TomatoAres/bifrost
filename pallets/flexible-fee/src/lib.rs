@@ -27,6 +27,7 @@ use bifrost_primitives::{
 use bifrost_xcm_interface::calls::{PolkadotXcmCall, RelaychainCall};
 use core::convert::Into;
 use cumulus_primitives_core::ParaId;
+use frame_support::traits::tokens::WithdrawConsequence;
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	dispatch::PostDispatchInfo,
@@ -222,6 +223,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::error]
+	#[cfg_attr(test, derive(PartialEq))]
 	pub enum Error<T> {
 		/// The account does not have enough balance to perform the operation.
 		NotEnoughBalance,
@@ -604,7 +606,10 @@ impl<T: Config> Pallet<T> {
 		for currency_id in fee_currency_list {
 			// If it is mainnet currency
 			if currency_id == BNC {
-				if T::MultiCurrency::ensure_can_withdraw(currency_id, who, fee_amount).is_ok() {
+				if matches!(
+					<T::MultiCurrency>::can_withdraw(currency_id, who, fee_amount),
+					WithdrawConsequence::Success
+				) {
 					return Ok((currency_id, fee_amount, Price::one(), Price::one()));
 				}
 			} else {

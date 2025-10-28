@@ -185,7 +185,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			vtoken,
 			poll_index,
-			ReferendumInfo::Completed(0u32.into()),
+			ReferendumInfo::Completed(1u32.into()),
 		)?;
 		Pallet::<T>::set_vote_locking_period(RawOrigin::Root.into(), vtoken, 0u32.into())?;
 
@@ -225,7 +225,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			vtoken,
 			poll_index,
-			ReferendumInfo::Completed(0u32.into()),
+			ReferendumInfo::Completed(1u32.into()),
 		)?;
 		Pallet::<T>::set_vote_locking_period(RawOrigin::Root.into(), vtoken, 0u32.into())?;
 		let token = CurrencyId::to_token(&vtoken).unwrap();
@@ -258,7 +258,7 @@ mod benchmarks {
 			RawOrigin::Root.into(),
 			vtoken,
 			poll_index,
-			ReferendumInfo::Completed(0u32.into()),
+			ReferendumInfo::Completed(1u32.into()),
 		)?;
 
 		#[extrinsic_call]
@@ -301,7 +301,8 @@ mod benchmarks {
 			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
 		let vtoken = VKSM;
 		let poll_index = 0u32;
-		let info = ReferendumInfo::Completed(<frame_system::Pallet<T>>::block_number());
+		let info =
+			ReferendumInfo::Completed(<frame_system::Pallet<T>>::block_number() + 1u32.into());
 
 		init_vote::<T>(vtoken)?;
 		let caller = funded_account::<T>("caller", 0);
@@ -471,7 +472,7 @@ mod benchmarks {
 				RawOrigin::Root.into(),
 				vtoken,
 				*index,
-				ReferendumInfo::Completed(0u32.into()),
+				ReferendumInfo::Completed(1u32.into()),
 			)?;
 			Pallet::<T>::notify_vote(
 				control_origin.clone() as <T as frame_system::Config>::RuntimeOrigin,
@@ -530,7 +531,7 @@ mod benchmarks {
 				RawOrigin::Root.into(),
 				vtoken,
 				*index,
-				ReferendumInfo::Completed(0u32.into()),
+				ReferendumInfo::Completed(1u32.into()),
 			)?;
 			Pallet::<T>::notify_vote(
 				control_origin.clone() as <T as frame_system::Config>::RuntimeOrigin,

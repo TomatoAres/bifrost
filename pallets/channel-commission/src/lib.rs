@@ -1073,8 +1073,7 @@ impl<T: Config> SlpHostingFeeProvider<CurrencyId, BalanceOf<T>, AccountIdOf<T>> 
 		}
 
 		// get the commission token of the staking token
-		let vtoken = staking_token
-			.to_vtoken()
+		let vtoken = T::VtokenMintingInterface::convert_to_vtoken(staking_token)
 			.map_err(|_| Error::<T>::ConversionError)?;
 
 		let vtoken_amount = T::VtokenMintingInterface::get_v_currency_amount_by_currency_amount(

@@ -25,6 +25,7 @@ use bifrost_primitives::{
 	CurrencyId::{self, *},
 	TokenInfo, TokenSymbol, ASTR, BNC, DOT, DOT_TOKEN_ID, DOT_U, ETH, FIL, GLMR, MANTA,
 };
+use bifrost_runtime_common::bridge_xcm_helper::DEFAULT_XCM_FEES_IK_PERSPECTIVE;
 use bifrost_runtime_common::{
 	constants::{currency::DOLLARS, time::HOURS},
 	AuraId,
@@ -179,6 +180,13 @@ pub fn bifrost_polkadot_genesis(
 			"blocksPerRound": BLOCKS_PER_ROUND,
 		},
 		"evm": { "accounts": evm_accounts },
+		"pkBridge": {
+			"bridgeConfig": bifrost_p_k_bridge::BridgeConfig {
+				send_enabled: true,
+				receive_enabled: true,
+			},
+			"initialXcmFees": Some(DEFAULT_XCM_FEES_IK_PERSPECTIVE),
+		}
 	})
 }
 

@@ -115,7 +115,7 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSignedBy};
 use hex_literal::hex;
 use orml_oracle::{DataFeeder, DataProvider, DataProviderExtended};
 use pallet_identity::legacy::IdentityInfo;
@@ -134,6 +134,9 @@ use governance::{
 	custom_origins, CoreAdmin, CoreAdminOrRoot, DelegatedVotingAdmin, LiquidStaking, SALPAdmin,
 	Spender, TechAdmin, TechAdminOrRoot,
 };
+
+mod p_k_bridge;
+use crate::p_k_bridge::{BifrostPolkadotGlobalSovereignAccount, TransferTokensToPolkadot};
 
 // xcm config
 pub mod xcm_config;
@@ -170,7 +173,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost"),
 	impl_name: Cow::Borrowed("bifrost"),
 	authoring_version: 1,
-	spec_version: 21002,
+	spec_version: 22000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -461,13 +464,12 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
 				RuntimeCall::Utility(..) |
 				RuntimeCall::Proxy(..) |
-				RuntimeCall::Multisig(..) |
-				RuntimeCall::ParachainStaking(..)
+				RuntimeCall::Multisig(..)
 			),
 			ProxyType::Staking => {
 				matches!(
 					c,
-					RuntimeCall::ParachainStaking(..) | RuntimeCall::Utility(..)
+					RuntimeCall::CollatorSelection(..) | RuntimeCall::Utility(..)
 				)
 			}
 			ProxyType::Governance => matches!(
@@ -908,20 +910,20 @@ parameter_types! {
 impl pallet_session::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Keys = SessionKeys;
-	type NextSessionRotation = ParachainStaking;
+	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
-	type SessionManager = ParachainStaking;
-	type ShouldEndSession = ParachainStaking;
+	type SessionManager = CollatorSelection;
+	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	// we don't have stash and controller, thus we don't need the convert as well.
-	type ValidatorIdOf = ConvertInto;
+	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 	type DisablingStrategy = pallet_session::disabling::UpToLimitDisablingStrategy;
 }
 
 impl pallet_authorship::Config for Runtime {
-	type EventHandler = ParachainStaking;
+	type EventHandler = CollatorSelection;
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
 }
 
@@ -931,6 +933,28 @@ impl pallet_aura::Config for Runtime {
 	type MaxAuthorities = ConstU32<100_000>;
 	type AllowMultipleBlocksPerSlot = ConstBool<true>;
 	type SlotDuration = ConstU64<SLOT_DURATION>;
+}
+
+parameter_types! {
+	pub const PotId: PalletId = PalletId(*b"PotStake");
+	pub const MaxInvulnerables: u32 = 4;
+	pub const MaxCandidates: u32 = 64;
+}
+
+impl pallet_collator_selection::Config for Runtime {
+	type Currency = Balances;
+	type RuntimeEvent = RuntimeEvent;
+	// should be a multiple of session or things will get inconsistent
+	type KickThreshold = Period;
+	type MaxCandidates = MaxCandidates;
+	type MaxInvulnerables = MaxInvulnerables;
+	type PotId = PotId;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type ValidatorId = <Self as frame_system::Config>::AccountId;
+	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
+	type ValidatorRegistration = Session;
+	type WeightInfo = ();
+	type MinEligibleCollators = ConstU32<5>;
 }
 
 // culumus runtime end
@@ -1150,7 +1174,7 @@ impl bifrost_slp::Config for Runtime {
 	type ParachainId = ParachainInfo;
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
-	type ParachainStaking = ParachainStaking;
+	type ParachainStaking = ();
 	type XcmTransfer = XTokens;
 	type MaxLengthLimit = MaxLengthLimit;
 	type XcmWeightAndFeeHandler = XcmInterface;
@@ -1223,15 +1247,6 @@ impl bifrost_fee_share::Config for Runtime {
 	type FeeSharePalletId = FeeSharePalletId;
 	type OraclePriceProvider = Prices;
 	type BlockNumberProvider = System;
-}
-
-impl bifrost_cross_in_out::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MultiCurrency = Currencies;
-	type ControlOrigin = TechAdminOrRoot;
-	type EntrancePalletId = SlpEntrancePalletId;
-	type WeightInfo = weights::bifrost_cross_in_out::BifrostWeight<Runtime>;
-	type MaxLengthLimit = MaxLengthLimit;
 }
 
 parameter_types! {
@@ -1557,6 +1572,19 @@ impl bifrost_vbnc_convert::Config for Runtime {
 	type WeightInfo = weights::bifrost_vbnc_convert::BifrostWeight<Runtime>;
 }
 
+impl bifrost_p_k_bridge::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::bifrost_p_k_bridge::BifrostWeight<Runtime>;
+	type ControlOrigin = TechAdminOrRoot;
+	type TokenSenderLocationOrigin = EitherOfDiverse<
+		EnsureSignedBy<BifrostPolkadotGlobalSovereignAccount, AccountId>,
+		EnsureRoot<AccountId>,
+	>;
+	type TransferTokensToDestination = TransferTokensToPolkadot;
+	type Location = Location;
+	type Fungible = Balances;
+}
+
 // Below is the implementation of tokens manipulation functions other than native token.
 pub struct LocalAssetAdaptor<Local>(PhantomData<Local>);
 
@@ -1727,6 +1755,7 @@ construct_runtime! {
 
 		// Collator support. the order of these 4 are important and shall not change.
 		Authorship: pallet_authorship = 20,
+		CollatorSelection: pallet_collator_selection = 21,
 		Session: pallet_session = 22,
 		Aura: pallet_aura = 23,
 		AuraExt: cumulus_pallet_aura_ext = 24,
@@ -1780,7 +1809,6 @@ construct_runtime! {
 		Farming: bifrost_farming = 119,
 		SystemStaking: bifrost_system_staking = 120,
 		FeeShare: bifrost_fee_share = 122,
-		CrossInOut: bifrost_cross_in_out = 123,
 		Slpx: bifrost_slpx = 125,
 		FellowshipCollective: pallet_ranked_collective::<Instance1> = 126,
 		FellowshipReferenda: pallet_referenda::<Instance2> = 127,
@@ -1794,6 +1822,7 @@ construct_runtime! {
 		LeverageStaking: leverage_staking = 135,
 		ChannelCommission: bifrost_channel_commission = 136,
 		VBNCConvert: bifrost_vbnc_convert = 140,
+		PKBridge: bifrost_p_k_bridge = 141,
 	}
 }
 
@@ -1840,6 +1869,10 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	type ChannelList = ParachainSystem;
 }
 
+parameter_types! {
+	pub const CrossInOutName: &'static str = "CrossInOut";
+}
+
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// This contains the combined migrations of the last 10 releases. It allows to skip runtime
@@ -1850,12 +1883,19 @@ pub type Migrations = migrations::Unreleased;
 pub mod migrations {
 	#![allow(unused_imports)]
 	use super::*;
+	use crate::migration::ini_collator_selection;
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		bifrost_slp::migrations::v5::SlpMigrationV5<Runtime>,
+		ini_collator_selection::IniCollatorSelection,
+		bifrost_parachain_staking::migrations::LeaveAllCandidates<Runtime>,
+		frame_support::migrations::RemovePallet<CrossInOutName, RocksDbWeight>,
+		bifrost_slp::migrations::v6::UpgradeStorageVersion<Runtime>,
+		bifrost_vtoken_minting::migration::MigrateTokenPoolToVTokenPool<Runtime>,
+		bifrost_vtoken_minting::migration::MigrateTokenUnlockNextIdToVToken<Runtime>,
+		bifrost_vtoken_voting::migration::v6::MigrateToV6<Runtime>,
 	);
 }
 
@@ -1878,7 +1918,6 @@ mod benches {
 	use crate::Runtime;
 	define_benchmarks!(
 		[bifrost_asset_registry, AssetRegistry]
-		[bifrost_cross_in_out, CrossInOut]
 		[bifrost_fee_share, FeeShare]
 		[bifrost_flexible_fee, FlexibleFee]
 		[bifrost_slp, Slp]

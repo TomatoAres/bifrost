@@ -42,6 +42,7 @@ use pallet_conviction_voting::{Tally, TallyOf};
 use pallet_referenda::{BoundedCallOf, Curve, ReferendumIndex, TrackInfo, TracksInfo};
 use pallet_xcm::EnsureResponse;
 use parity_scale_codec::DecodeWithMemTracking;
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{
 	str_array,
 	traits::{BlockNumberProvider, ConstU32, IdentityLookup},
@@ -63,6 +64,9 @@ type Block = frame_system::mocking::MockBlock<Runtime>;
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 pub const CHARLIE: u64 = 3;
+pub const DAVE: u64 = 4;
+pub const EVE: u64 = 5;
+pub const FERDIE: u64 = 6;
 pub const CONTROLLER: u64 = 1000;
 
 frame_support::construct_runtime!(
@@ -77,6 +81,7 @@ frame_support::construct_runtime!(
 		Referenda: pallet_referenda,
 		Scheduler: pallet_scheduler,
 		Preimage: pallet_preimage,
+		Utility: pallet_utility = 50,
 	}
 );
 
@@ -93,6 +98,13 @@ impl frame_system::Config for Runtime {
 	type Lookup = IdentityLookup<Self::AccountId>;
 }
 
+impl pallet_utility::Config for Runtime {
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type PalletsOrigin = OriginCaller;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const NativeCurrencyId: CurrencyId = BNC;
 }
@@ -105,6 +117,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_types! {
@@ -334,7 +347,7 @@ ord_parameter_types! {
 pub struct ParachainId;
 impl Get<ParaId> for ParachainId {
 	fn get() -> ParaId {
-		2001u32.into()
+		ParaId::from(2030u32)
 	}
 }
 
@@ -356,6 +369,9 @@ impl XcmDestWeightAndFeeHandler<CurrencyId, BalanceOf<Runtime>> for XcmDestWeigh
 	}
 }
 
+ord_parameter_types! {
+	pub const DerivativeIndexActive: Balance = 3000;
+}
 pub struct DerivativeAccount;
 impl DerivativeAccountHandler<CurrencyId, Balance, AccountId> for DerivativeAccount {
 	fn check_derivative_index_exists(
@@ -372,16 +388,23 @@ impl DerivativeAccountHandler<CurrencyId, Balance, AccountId> for DerivativeAcco
 		Some(xcm::v3::Parent.into())
 	}
 
-	fn get_account_id(_token: CurrencyId, _derivative_index: DerivativeIndex) -> Option<AccountId> {
-		Some(CHARLIE)
+	fn get_account_id(_token: CurrencyId, derivative_index: DerivativeIndex) -> Option<AccountId> {
+		let sovereign_account =
+			polkadot_parachain_primitives::primitives::Sibling::from(ParachainId::get())
+				.into_account_truncating();
+		Some(Utility::derivative_account_id(
+			sovereign_account,
+			derivative_index,
+		))
 	}
 
 	fn get_stake_info(
 		token: CurrencyId,
 		derivative_index: DerivativeIndex,
 	) -> Option<(Balance, Balance)> {
-		Self::get_multilocation(token, derivative_index)
-			.and_then(|_location| Some((u32::MAX.into(), u32::MAX.into())))
+		Self::get_multilocation(token, derivative_index).and_then(|_location| {
+			Some((DerivativeIndexActive::get(), DerivativeIndexActive::get()))
+		})
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -723,8 +746,23 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<Runtime>::default()
 		.build_storage()
 		.unwrap();
+	let sovereign_account =
+		polkadot_parachain_primitives::primitives::Sibling::from(ParachainId::get())
+			.into_account_truncating();
+	let sovereign_account_0 = Utility::derivative_account_id(sovereign_account, 0);
+	let sovereign_account_1 = Utility::derivative_account_id(sovereign_account, 1);
+	let sovereign_account_2 = Utility::derivative_account_id(sovereign_account, 2);
+
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(ALICE, 10), (BOB, 20), (CHARLIE, 3000)],
+		balances: vec![
+			(ALICE, 10),
+			(BOB, 20),
+			(CHARLIE, 3000),
+			(sovereign_account, 3000),
+			(sovereign_account_0, DerivativeIndexActive::get()),
+			(sovereign_account_1, DerivativeIndexActive::get()),
+			(sovereign_account_2, DerivativeIndexActive::get()),
+		],
 		dev_accounts: None,
 	}
 	.assimilate_storage(&mut t)
@@ -732,21 +770,22 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
-			(1, VKSM, 10),
-			(2, VKSM, 20),
-			(3, VKSM, 30),
-			(4, VKSM, 40),
-			(5, VKSM, 50),
-			(1, VDOT, 10),
-			(2, VDOT, 20),
-			(3, VDOT, 30),
-			(4, VDOT, 40),
-			(5, VDOT, 50),
-			(1, VBNC, 10),
-			(2, VBNC, 20),
-			(3, VBNC, 30),
-			(4, VBNC, 40),
-			(5, VBNC, 50),
+			(ALICE, VKSM, 10),
+			(BOB, VKSM, 20),
+			(CHARLIE, VKSM, 30),
+			(DAVE, VKSM, 40),
+			(EVE, VKSM, 50),
+			(ALICE, VDOT, 10),
+			(BOB, VDOT, 20),
+			(CHARLIE, VDOT, 30),
+			(DAVE, VDOT, 40),
+			(EVE, VDOT, 50),
+			(ALICE, VBNC, 10),
+			(BOB, VBNC, 20),
+			(CHARLIE, VBNC, 30),
+			(DAVE, VBNC, 40),
+			(EVE, VBNC, 50),
+			(FERDIE, VBNC, 3000),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -756,7 +795,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		delegators: vec![
 			(VKSM, vec![0, 1, 2, 3, 4, 5, 10, 11, 15, 20, 21]),
 			(VDOT, vec![0, 1, 2, 3, 4, 5, 10, 11, 15, 20, 21]),
-			(VBNC, vec![0, 1, 2, 3, 4, 5, 10, 11, 15, 20, 21]),
+			(VBNC, vec![0]),
 		],
 		undeciding_timeouts: vec![(VDOT, 100), (VKSM, 100), (VBNC, 100)],
 		vote_cap_ratio: vec![

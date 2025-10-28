@@ -371,6 +371,8 @@ pub mod pallet {
 		UpdateTokenExchangeRateAmountTooLarge,
 		/// Invalid parameter.
 		InvalidParameter,
+		/// Arithmetic overflow occurred during balance operation.
+		ArithmeticOverflow,
 		/// Not authorized.
 		NotAuthorized,
 	}
@@ -637,13 +639,7 @@ pub mod pallet {
 				Error::<T>::UpdateIntervalTooShort
 			);
 
-			let currency_id = if let (StakingProtocol::EthereumStaking, Some(currency_id)) =
-				(staking_protocol, currency_id)
-			{
-				currency_id
-			} else {
-				staking_protocol.info().currency_id
-			};
+			let currency_id = Self::ensure_parameter_correct(staking_protocol, currency_id)?;
 
 			let time_unit = match time_uint_option {
 				Some(time_unit) => time_unit,
@@ -686,13 +682,8 @@ pub mod pallet {
 			delegator_value: Balance,
 		) -> DispatchResultWithPostInfo {
 			Self::ensure_governance_or_operator(origin, staking_protocol)?;
-			let currency_id = if let (StakingProtocol::EthereumStaking, Some(currency_id)) =
-				(staking_protocol, currency_id)
-			{
-				currency_id
-			} else {
-				staking_protocol.info().currency_id
-			};
+			Self::ensure_delegator_exist(&staking_protocol, &delegator)?;
+			let currency_id = Self::ensure_parameter_correct(staking_protocol, currency_id)?;
 
 			// Check the update token exchange rate limit.
 			let (update_interval, max_update_permill, protocol_fee_rate) =
@@ -755,23 +746,24 @@ pub mod pallet {
 			// Update the token exchange rate.
 			T::VtokenMinting::increase_token_pool(currency_id, pool_value)
 				.map_err(|_| Error::<T>::IncreaseTokenPoolFailed)?;
-			LedgerByStakingProtocolAndDelegator::<T>::mutate(
-				staking_protocol,
-				delegator.clone(),
-				|ledger| match ledger {
-					#[cfg(feature = "polkadot")]
-					Some(Ledger::AstarDappStaking(astar_dapp_staking_ledger)) => {
-						astar_dapp_staking_ledger.add_lock_amount(delegator_value);
-						Ok(())
-					}
-					#[cfg(feature = "polkadot")]
-					Some(Ledger::EthereumStaking(ethereum_staking_ledger)) => {
-						ethereum_staking_ledger.add_lock_amount(delegator_value);
-						Ok(())
-					}
-					_ => Err(Error::<T>::LedgerNotFound),
-				},
-			)?;
+
+			if !matches!(staking_protocol, StakingProtocol::GeneralProxyStaking(_, _)) {
+				LedgerByStakingProtocolAndDelegator::<T>::mutate(
+					staking_protocol,
+					delegator.clone(),
+					|ledger| match ledger {
+						#[cfg(feature = "polkadot")]
+						Some(Ledger::AstarDappStaking(astar_dapp_staking_ledger)) => astar_dapp_staking_ledger
+							.add_lock_amount(delegator_value)
+							.map_err(|_| Error::<T>::ArithmeticOverflow),
+						#[cfg(feature = "polkadot")]
+						Some(Ledger::EthereumStaking(ethereum_staking_ledger)) => ethereum_staking_ledger
+							.add_lock_amount(delegator_value)
+							.map_err(|_| Error::<T>::ArithmeticOverflow),
+						_ => Err(Error::<T>::LedgerNotFound),
+					},
+				)?;
+			}
 
 			LastUpdateTokenExchangeRateBlockNumber::<T>::insert(
 				staking_protocol,
@@ -841,7 +833,7 @@ pub mod pallet {
 		/// - `task`: The Dapp staking task.
 		#[cfg(feature = "polkadot")]
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as Config>::WeightInfo::astar_dapp_staking())]
+		#[pallet::weight(<T as Config>::WeightInfo::ethereum_staking())]
 		pub fn ethereum_staking(
 			origin: OriginFor<T>,
 			delegator: Delegator<T::AccountId>,

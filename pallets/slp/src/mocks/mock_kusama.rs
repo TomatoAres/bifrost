@@ -200,6 +200,7 @@ impl bifrost_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BifrostToken;
 	type WeightInfo = ();
+	type Balanced = Balances;
 }
 
 parameter_type_with_key! {
