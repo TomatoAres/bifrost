@@ -337,7 +337,7 @@ serde_json            = { version = "1.0.145", default-features = false }
 sha3                  = { version = "0.10.6", default-features = false }
 similar-asserts       = { version = "1.7.0" }
 smallvec              = { version = "1.15.1" }
-strum                 = { version = "0.26.3", default-features = false, features = ["derive"] }
+strum                 = { version = "0.27.2", default-features = false, features = ["derive"] }
 strum_macros          = { version = "0.26.2" }
 syn                   = { version = "2.0.98", features = ["full", "fold", "extra-traits", "visit"] }
 tiny-keccak           = { version = "2.0", features = ["fips202"] }
