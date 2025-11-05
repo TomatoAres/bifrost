@@ -47,6 +47,8 @@ use sp_runtime::{
 use sp_std::boxed::Box;
 use xcm::v3::MultiLocation;
 use xcm::v5::prelude::*;
+use xcm::VersionedXcm;
+use xcm_executor::traits::TransferType;
 
 type QueryDetails<T> = (QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v5::Xcm<()>);
 
@@ -543,21 +545,8 @@ impl<T: Config> Pallet<T> {
 		match currency_id {
 			KSM | DOT => {
 				let to_account = Pallet::<T>::multilocation_to_account(to)?;
-				let call = pallet_xcm::Call::limited_reserve_transfer_assets {
+				let call = pallet_xcm::Call::transfer_assets_using_type_and_then {
 					dest: Box::new(Location::new(1, [Parachain(AssetHubChainId::get())]).into()),
-					beneficiary: Box::new(
-						Location::new(
-							0,
-							[AccountId32 {
-								network: None,
-								id: to_account
-									.encode()
-									.try_into()
-									.map_err(|_e| Error::<T>::InvalidAccount)?,
-							}],
-						)
-						.into(),
-					),
 					assets: Box::new(
 						Asset {
 							id: Location::parent().into(),
@@ -565,7 +554,26 @@ impl<T: Config> Pallet<T> {
 						}
 						.into(),
 					),
-					fee_asset_item: 0,
+					assets_transfer_type: Box::new(TransferType::DestinationReserve),
+					remote_fees_id: Box::new(Location::parent().into()),
+					fees_transfer_type: Box::new(TransferType::DestinationReserve),
+					custom_xcm_on_dest: Box::new(VersionedXcm::from(
+						Xcm::<()>::builder_unsafe()
+							.deposit_asset(
+								AllCounted(1),
+								Location::new(
+									0,
+									[AccountId32 {
+										network: None,
+										id: to_account
+											.encode()
+											.try_into()
+											.map_err(|_e| Error::<T>::InvalidAccount)?,
+									}],
+								),
+							)
+							.build(),
+					)),
 					weight_limit: Unlimited,
 				};
 

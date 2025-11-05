@@ -1291,7 +1291,7 @@ pub mod pallet {
 				RefundSurplus,
 				DepositAsset {
 					assets: All.into(),
-					beneficiary: Location::new(0, [Parachain(para_id)]),
+					beneficiary: Location::new(1, [Parachain(para_id)]),
 				},
 			];
 
