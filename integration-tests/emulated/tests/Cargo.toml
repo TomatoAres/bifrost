@@ -49,5 +49,5 @@ cumulus-pallet-xcmp-queue.workspace = true
 cumulus-pallet-xcmp-queue.default-features = true
 pallet-bridge-messages.workspace = true
 pallet-bridge-messages.default-features = true
-log = "0.4.27"
+log = "0.4.28"
 bifrost-p-k-bridge = {workspace = true}
