@@ -173,7 +173,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost"),
 	impl_name: Cow::Borrowed("bifrost"),
 	authoring_version: 1,
-	spec_version: 22001,
+	spec_version: 22002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1869,10 +1869,6 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	type ChannelList = ParachainSystem;
 }
 
-parameter_types! {
-	pub const CrossInOutName: &'static str = "CrossInOut";
-}
-
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// This contains the combined migrations of the last 10 releases. It allows to skip runtime
@@ -1889,13 +1885,6 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		ini_collator_selection::IniCollatorSelection,
-		bifrost_parachain_staking::migrations::LeaveAllCandidates<Runtime>,
-		frame_support::migrations::RemovePallet<CrossInOutName, RocksDbWeight>,
-		bifrost_slp::migrations::v6::UpgradeStorageVersion<Runtime>,
-		bifrost_vtoken_minting::migration::MigrateTokenPoolToVTokenPool<Runtime>,
-		bifrost_vtoken_minting::migration::MigrateTokenUnlockNextIdToVToken<Runtime>,
-		bifrost_vtoken_voting::migration::v6::MigrateToV6<Runtime>,
 	);
 }
 

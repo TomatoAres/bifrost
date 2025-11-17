@@ -55,13 +55,6 @@ impl<T: frame_system::Config> bifrost_p_k_bridge::WeightInfo for BifrostWeight<T
 	}
 
 	fn transfer_in() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `240`
-		//  Estimated: `4764`
-		// Minimum execution time: 82_957_000 picoseconds.
-		Weight::from_parts(86_401_000, 0)
-			.saturating_add(Weight::from_parts(0, 4764))
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(3))
+		Weight::default()
 	}
 }

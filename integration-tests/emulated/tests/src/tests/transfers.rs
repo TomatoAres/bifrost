@@ -68,7 +68,7 @@ fn reserve_transfer_dot_from_relay_to_bifrost() {
 				RuntimeEvent::Tokens(orml_tokens::Event::Deposited { currency_id, who , amount }) => {
 					currency_id: *currency_id == DOT,
 					who: *who == receiver,
-					amount: *amount == amount_to_send - 30500106,
+					amount: *amount == amount_to_send - 34829224,
 				},
 			]
 		);
@@ -122,7 +122,7 @@ fn reserve_transfer_dot_from_asset_hub_to_bifrost() {
 				RuntimeEvent::Tokens(orml_tokens::Event::Deposited { currency_id, who , amount }) => {
 					currency_id: *currency_id == DOT,
 					who: *who == receiver,
-					amount: *amount == amount_to_send - 30500106,
+					amount: *amount == amount_to_send - 34829224,
 				},
 			]
 		);

@@ -29,7 +29,7 @@ use xcm::{
 		Asset, AssetFilter, AssetTransferFilter::ReserveDeposit, Location, OriginKind, Parent,
 		SendXcm, WildAsset, Xcm,
 	},
-	prelude::{AccountId32, Fungible, XcmError},
+	prelude::{Fungible, XcmError},
 };
 
 pub const IK_FEE: u128 = 1000000000000;
@@ -92,7 +92,6 @@ pub fn sibling_asset_hub_xcm<Call, BifrostRuntimeCall: Encode>(
 	sibling_asset_hub_fee_amount: Balance,
 	sibling_bifrost_location_relative_to_cousin_asset_hub: Location,
 	cousin_asset_hub_fee_amount: Balance,
-	treasury_account: AccountId,
 ) -> Xcm<Call> {
 	let refund_location = sibling_bifrost_location;
 	let destination = cousin_asset_hub_location;
@@ -106,7 +105,6 @@ pub fn sibling_asset_hub_xcm<Call, BifrostRuntimeCall: Encode>(
 		cousin_bifrost_location,
 		sibling_bifrost_location_relative_to_cousin_asset_hub,
 		cousin_asset_hub_fee_amount,
-		treasury_account,
 	);
 	Xcm::<Call>::builder_unsafe()
 		.receive_teleported_asset(teleported_asset.clone())
@@ -136,7 +134,6 @@ fn cousin_asset_hub_xcm<Call, BifrostRuntimeCall: Encode>(
 	cousin_bifrost_location: Location,
 	sibling_bifrost_location: Location,
 	fee_amount: Balance,
-	treasury_account: AccountId,
 ) -> Xcm<Call> {
 	// Refund to sovereign account of cousin bifrost on asset hub
 	let refund_location = cousin_bifrost_location;
@@ -159,28 +156,13 @@ fn cousin_asset_hub_xcm<Call, BifrostRuntimeCall: Encode>(
 			Some(ReserveDeposit(AssetFilter::Definite(fee_assets))),
 			true,
 			vec![],
-			bifrost_transact_xcm(call, treasury_account),
+			bifrost_transact_xcm(call),
 		)
 		.build()
 }
 
-fn bifrost_transact_xcm<Call, BifrostRuntimeCall: Encode>(
-	call: BifrostRuntimeCall,
-	treasury_account: AccountId,
-) -> Xcm<Call> {
+fn bifrost_transact_xcm<Call, BifrostRuntimeCall: Encode>(call: BifrostRuntimeCall) -> Xcm<Call> {
 	Xcm::<Call>::builder_unsafe()
-		.set_appendix(
-			Xcm::<Call>::builder_unsafe()
-				.refund_surplus()
-				.deposit_asset(
-					AssetFilter::Wild(WildAsset::All),
-					AccountId32 {
-						network: None,
-						id: treasury_account.into(),
-					},
-				)
-				.build(),
-		)
 		.transact(OriginKind::SovereignAccount, None, call.encode())
 		.build()
 }

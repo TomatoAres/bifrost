@@ -107,8 +107,8 @@ pub fn genesis() -> Storage {
 		},
 		prices: bifrost_polkadot_runtime::PricesConfig {
 			emergency_price: vec![
-				(DOT, FixedU128::from_inner(4_000_000_000_000_000_000u128)),
-				(BNC, FixedU128::from_inner(100_000_000_000_000_000u128)),
+				(DOT, FixedU128::from_inner(3_232_120_000_000_000_000_u128)),
+				(BNC, FixedU128::from_inner(92_272_000_000_000_000u128)),
 			],
 			..Default::default()
 		},

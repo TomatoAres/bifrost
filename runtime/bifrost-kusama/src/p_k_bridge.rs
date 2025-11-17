@@ -18,7 +18,7 @@
 
 use crate::{
 	xcm_config::{AccountIdToLocation, AssetHubLocation, XcmConfig},
-	BifrostTreasuryAccount, PKBridge,
+	PKBridge,
 };
 use alloc::vec;
 use bifrost_p_k_bridge::PKBridgeTransferTokens;
@@ -65,7 +65,6 @@ impl PKBridgeTransferTokens for TransferTokensToPolkadot {
 			fees.hop2,
 			BifrostPolkadotLocation::get(),
 			fees.hop3,
-			BifrostTreasuryAccount::get(),
 		);
 		send_remote_xcm::<XcmConfig, <XcmConfig as xcm_executor::Config>::RuntimeCall>(
 			who_location,
