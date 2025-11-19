@@ -89,11 +89,15 @@ make try-kusama-runtime-upgrade
 make try-polkadot-runtime-upgrade
 ```
 
-## Run development chain
+## Run local development parachain
 
-run node with `--chain=bifrost-polkadot-dev` to enable development mode.
+run node with `--chain=bifrost-polkadot-local` to start a local development parachain (not Substrate’s standalone --dev mode).
 
-Before use dev mode, modify OnTimestampSet to be ()
+Bifrost does not support --dev.
+Always use this chain spec instead of Substrate’s --dev mode.
+
+Before run local development parachain
+You need to modify OnTimestampSet in the runtime to allow instant block production:
 
 ```rust
 impl pallet_timestamp::Config for Runtime {
