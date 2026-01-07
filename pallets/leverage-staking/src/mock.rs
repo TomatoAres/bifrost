@@ -25,7 +25,7 @@ use bifrost_primitives::{
 	MoonbeamChainId, OraclePriceProvider, Price, PriceDetail, Ratio, StableAssetPalletId,
 };
 use bifrost_runtime_common::milli;
-use bifrost_vtoken_minting::{CurrencyIdOf, VTokenMultiMap, VTokenTokenConfig};
+use bifrost_vtoken_minting::CurrencyIdOf;
 use frame_support::traits::Disabled;
 use frame_support::{
 	assert_ok, derive_impl, ord_parameter_types, parameter_types,
@@ -56,7 +56,6 @@ frame_support::construct_runtime!(
 		Tokens: orml_tokens,
 		Currencies: bifrost_currencies::{Pallet, Call},
 		Balances: pallet_balances,
-		XTokens: orml_xtokens::{Pallet, Call, Event<T>},
 		PolkadotXcm: pallet_xcm,
 		AssetRegistry: bifrost_asset_registry,
 		StableAsset: bifrost_stable_asset::{Pallet, Storage, Event<T>},
@@ -104,7 +103,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -178,32 +176,6 @@ parameter_type_with_key! {
 }
 
 parameter_types! {
-	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
-	// pub const BaseXcmWeight: Weight = Weight::from_ref_time( 1_000_000_000u64);
-	pub const MaxAssetsForTransfer: usize = 2;
-	// pub UniversalLocation: InteriorLocation = Parachain(2001).into();
-}
-
-impl orml_xtokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = ();
-	type AccountIdToLocation = ();
-	type UniversalLocation = UniversalLocation;
-	type SelfLocation = SelfRelativeLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type BaseXcmWeight = ();
-	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MinXcmFee = ParachainMinFee;
-	type LocationsFilter = Everything;
-	type ReserveProvider = RelativeReserveProvider;
-	type RateLimiter = ();
-	type RateLimiterId = ();
-}
-
-parameter_types! {
 	pub const ExistentialDeposit: Balance = 1;
 }
 
@@ -228,7 +200,6 @@ ord_parameter_types! {
 	pub const One: u128 = 1;
 }
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<One, u128>;
 	type WeightInfo = ();
@@ -242,7 +213,6 @@ impl bifrost_stable_asset::traits::ValidateAssetId<CurrencyId> for EnsurePoolAss
 }
 
 impl bifrost_stable_asset::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = CurrencyId;
 	type Balance = Balance;
 	type Assets = Currencies;
@@ -270,7 +240,6 @@ impl bifrost_stable_pool::Config for Test {
 }
 
 impl leverage_staking::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type ControlOrigin = EnsureRoot<u128>;
 	type VtokenMinting = VtokenMinting;
@@ -289,7 +258,6 @@ ord_parameter_types! {
 }
 
 impl bifrost_vtoken_minting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type ControlOrigin = EnsureSignedBy<One, u128>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -301,7 +269,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type RelayChainToken = RelayCurrencyId;
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = XTokens;
+	type XChainSender = ();
 	type MoonbeamChainId = MoonbeamChainId;
 	type BifrostSlpx = ();
 	type ChannelCommission = ();
@@ -433,7 +401,6 @@ parameter_types! {
 }
 
 impl lend_market::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type OraclePriceProvider = MockOraclePriceProvider;
 	type PalletId = LendMarketPalletId;
 	type ReserveOrigin = EnsureRoot<u128>;
@@ -448,7 +415,6 @@ impl lend_market::Config for Test {
 }
 
 impl pallet_prices::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Source = MockDataProvider;
 	type FeederOrigin = EnsureRoot<u128>;
 	type UpdateOrigin = EnsureRoot<u128>;

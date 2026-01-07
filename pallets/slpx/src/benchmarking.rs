@@ -117,38 +117,6 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn mint() {
-		let (caller, receiver) = init_whitelist::<T>();
-
-		// Set up TokenToVToken mapping for KSM
-		bifrost_vtoken_minting::TokenToVToken::<T>::insert(KSM, VKSM);
-
-		// Set up HyperBridgeOracle
-		HyperBridgeOracle::<T>::insert(
-			1,
-			HyperBridgeOracleConfig {
-				to: H160::default(),
-				timeout: 60,
-				period: 5u32.into(),
-				last_block: 0u32.into(),
-				tokens: BoundedVec::try_from(vec![(KSM, H160::default())]).unwrap(),
-				payer: caller.clone(),
-				fee: 0u32.into(),
-			},
-		);
-
-		#[extrinsic_call]
-		_(
-			RawOrigin::Signed(caller),
-			KSM,
-			BalanceOf::<T>::unique_saturated_from(1_000_000_000_000_u128),
-			TargetChain::Astar(receiver),
-			BoundedVec::default(),
-			0,
-		);
-	}
-
-	#[benchmark]
 	fn mint_with_channel_id() {
 		let (caller, receiver) = init_whitelist::<T>();
 

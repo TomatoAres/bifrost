@@ -453,14 +453,17 @@ fn test_add_order() {
 		));
 
 		let source_chain_caller = H160::default();
-		assert_ok!(Slpx::mint(
-			RuntimeOrigin::signed(ALICE),
-			DOT,
-			1u128 * 10_000_000_000,
-			TargetChain::Astar(source_chain_caller),
-			BoundedVec::default(),
-			0
-		));
+		assert_noop!(
+			Slpx::mint(
+				RuntimeOrigin::signed(ALICE),
+				DOT,
+				1u128 * 10_000_000_000,
+				TargetChain::Astar(source_chain_caller),
+				BoundedVec::default(),
+				0
+			),
+			Error::<Test>::Unsupported
+		);
 	})
 }
 
@@ -981,7 +984,7 @@ fn slpx_use_hyperbridge_should_fail_when_not_set_oracle() {
 				BoundedVec::default(),
 				0
 			),
-			Error::<Test>::Unsupported
+			Error::<Test>::ErrorVtokenMiting
 		);
 	});
 }
@@ -1027,11 +1030,7 @@ fn slpx_use_hyperbridge() {
 		);
 		assert_eq!(
 			Currencies::free_balance(VDOT, &ALICE),
-			1000 * 10_000_000_000 + 8_000_000_000
-		);
-		assert_eq!(
-			Currencies::free_balance(DOT, &BifrostFeeAccount::get()),
-			2_000_000_000
+			1000 * 10_000_000_000 + 8_333_333_333
 		);
 	});
 }

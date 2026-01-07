@@ -638,6 +638,122 @@ mod benchmarks {
 		Ok(())
 	}
 
+	#[benchmark]
+	fn set_permanent_lock() -> Result<(), BenchmarkError> {
+		let test_account: T::AccountId = account("seed", 1, 1);
+
+		assert_ok!(BbBNC::<T>::set_config(
+			RawOrigin::Root.into(),
+			Some((4 * 365 * 86400 / 12u32).into()),
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
+		));
+
+		T::MultiCurrency::deposit(
+			CurrencyId::Native(TokenSymbol::BNC),
+			&test_account,
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		)?;
+
+		T::MultiCurrency::deposit(
+			CurrencyId::VToken(TokenSymbol::BNC),
+			&test_account,
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		)?;
+
+		let rewards = vec![CurrencyId::Native(TokenSymbol::BNC)];
+
+		assert_ok!(BbBNC::<T>::notify_rewards(
+			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
+			account("seed", 1, 1),
+			Some((7 * 86400 / 12u32).into()),
+			rewards
+		));
+
+		assert_ok!(BbBNC::<T>::create_lock(
+			RawOrigin::Signed(test_account.clone()).into(),
+			BalanceOf::<T>::unique_saturated_from(10_000_000_000_000u128),
+			(365 * 86400 / 12u32).into()
+		));
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(test_account), 0, true);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn refresh_permanent_locks(n: Linear<1, 100>) -> Result<(), BenchmarkError> {
+		assert_ok!(BbBNC::<T>::set_config(
+			RawOrigin::Root.into(),
+			Some((4 * 365 * 86400 / 12u32).into()),
+			Some((7 * 86400 / 12u32).into()),
+			Some(10u32)
+		));
+
+		let rewards = vec![CurrencyId::Native(TokenSymbol::BNC)];
+
+		T::MultiCurrency::deposit(
+			CurrencyId::Native(TokenSymbol::BNC),
+			&account::<T::AccountId>("seed", 1, 1),
+			BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+		)?;
+
+		assert_ok!(BbBNC::<T>::notify_rewards(
+			T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
+			account("seed", 1, 1),
+			Some((7 * 86400 / 12u32).into()),
+			rewards
+		));
+
+		let mut positions = vec![];
+
+		for i in 0..n {
+			let test_account: T::AccountId = account("user", i, i);
+
+			T::MultiCurrency::deposit(
+				CurrencyId::Native(TokenSymbol::BNC),
+				&test_account,
+				BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			)?;
+
+			T::MultiCurrency::deposit(
+				CurrencyId::VToken(TokenSymbol::BNC),
+				&test_account,
+				BalanceOf::<T>::unique_saturated_from(100_000_000_000_000u128),
+			)?;
+
+			assert_ok!(BbBNC::<T>::create_lock(
+				RawOrigin::Signed(test_account.clone()).into(),
+				BalanceOf::<T>::unique_saturated_from(10_000_000_000_000u128),
+				(365 * 86400 / 12u32).into()
+			));
+
+			let position_id: u128 = i.into();
+			positions.push(position_id);
+
+			// Enable permanent lock for this position
+			assert_ok!(BbBNC::<T>::set_permanent_lock(
+				RawOrigin::Signed(test_account).into(),
+				position_id,
+				true
+			));
+		}
+
+		// Move time forward so refresh will actually extend the lock
+		<frame_system::Pallet<T>>::set_block_number((4 * 7 * 86400 / 12u32).into());
+
+		let caller: T::AccountId = account("caller", 0, 0);
+		let bounded_positions: BoundedVec<u128, T::MaxRefreshPositions> = positions
+			.try_into()
+			.map_err(|_| BenchmarkError::Weightless)?;
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller), bounded_positions);
+
+		Ok(())
+	}
+
 	impl_benchmark_test_suite!(
 		Pallet,
 		crate::mock::new_test_ext_benchmark(),

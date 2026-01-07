@@ -25,11 +25,13 @@ use crate::{
 	Config, Error,
 };
 use bifrost_primitives::{
-	AstarChainId, BifrostPolkadotChainId, CurrencyId, MoonbeamChainId, TimeUnit, ASTR, DOT, ETH,
-	GLMR,
+	AstarChainId, Balance, BifrostPolkadotChainId, CurrencyId, MoonbeamChainId, TimeUnit, ASTR,
+	DOT, ETH, GLMR,
 };
-use frame_support::pallet_prelude::DecodeWithMemTracking;
+use cumulus_primitives_core::relay_chain::ChainId;
+use frame_support::pallet_prelude::{ConstU32, DecodeWithMemTracking};
 use frame_support::traits::Get;
+use frame_support::BoundedVec;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use polkadot_parachain_primitives::primitives::Sibling;
 use scale_info::TypeInfo;
@@ -65,30 +67,28 @@ pub enum StakingProtocol {
 	EthereumStaking,
 	/// General Proxy Staking
 	/// Currency id: CurrencyId
-	/// Destnation chain id: u32
-	GeneralProxyStaking(CurrencyId, u32),
+	/// Destination chain id: u32
+	GeneralProxyStaking(CurrencyId, ChainId),
+	/// Applicable to all Polkadot parachains that use xcm for main staking operation management.
+	/// Currency id: CurrencyId
+	/// Destination chain id: u32
+	GeneralXCMStaking(CurrencyId, ChainId),
 }
 
 impl StakingProtocol {
-	pub(crate) fn info(&self) -> StakingProtocolInfo {
+	pub(crate) fn info(&self) -> Option<StakingProtocolInfo> {
 		match self {
-			StakingProtocol::AstarDappStaking => StakingProtocolInfo {
+			StakingProtocol::AstarDappStaking => Some(StakingProtocolInfo {
 				utility_pallet_index: 11,
 				xcm_pallet_index: 51,
 				currency_id: ASTR,
 				unlock_period: TimeUnit::Era(9),
 				remote_fee_location: Location::here(),
-				remote_refund_beneficiary: Location::new(
-					0,
-					[AccountId32 {
-						network: None,
-						id: Sibling::from(2030).into_account_truncating(),
-					}],
-				),
+				remote_refund_beneficiary: self.get_para_chain_remote_refund_beneficiary(),
 				remote_dest_location: Location::new(1, [Parachain(AstarChainId::get())]),
 				bifrost_dest_location: Location::new(1, Parachain(BifrostPolkadotChainId::get())),
-			},
-			StakingProtocol::MoonbeamParachainStaking => StakingProtocolInfo {
+			}),
+			StakingProtocol::MoonbeamParachainStaking => Some(StakingProtocolInfo {
 				utility_pallet_index: 30,
 				xcm_pallet_index: 103,
 				currency_id: GLMR,
@@ -103,8 +103,8 @@ impl StakingProtocol {
 				),
 				remote_dest_location: Location::new(1, [Parachain(MoonbeamChainId::get())]),
 				bifrost_dest_location: Location::new(1, Parachain(BifrostPolkadotChainId::get())),
-			},
-			StakingProtocol::PolkadotStaking => StakingProtocolInfo {
+			}),
+			StakingProtocol::PolkadotStaking => Some(StakingProtocolInfo {
 				utility_pallet_index: 26,
 				xcm_pallet_index: 99,
 				currency_id: DOT,
@@ -116,8 +116,8 @@ impl StakingProtocol {
 				),
 				remote_dest_location: Location::parent(),
 				bifrost_dest_location: Location::new(0, Parachain(BifrostPolkadotChainId::get())),
-			},
-			StakingProtocol::EthereumStaking => StakingProtocolInfo {
+			}),
+			StakingProtocol::EthereumStaking => Some(StakingProtocolInfo {
 				utility_pallet_index: 27,
 				xcm_pallet_index: 100,
 				currency_id: ETH,
@@ -126,8 +126,9 @@ impl StakingProtocol {
 				remote_refund_beneficiary: Location::here(),
 				remote_dest_location: Location::here(),
 				bifrost_dest_location: Location::here(),
-			},
-			StakingProtocol::GeneralProxyStaking(..) => unreachable!(),
+			}),
+			StakingProtocol::GeneralProxyStaking(..) => None,
+			StakingProtocol::GeneralXCMStaking(..) => None,
 		}
 	}
 
@@ -173,6 +174,21 @@ impl StakingProtocol {
 					],
 				))
 			}
+			(
+				StakingProtocol::GeneralXCMStaking(_currency, chain_id),
+				Delegator::Substrate(account_id),
+			) => account_id.encode().try_into().ok().map(|account_id| {
+				Location::new(
+					1,
+					[
+						Parachain(*chain_id),
+						AccountId32 {
+							network: None,
+							id: account_id,
+						},
+					],
+				)
+			}),
 			_ => None,
 		}
 	}
@@ -182,7 +198,7 @@ impl StakingProtocol {
 		delegator_index: DelegatorIndex,
 	) -> Result<Delegator<T::AccountId>, Error<T>> {
 		match &self {
-			StakingProtocol::AstarDappStaking => {
+			StakingProtocol::AstarDappStaking | StakingProtocol::GeneralXCMStaking(..) => {
 				let sub_sibling_account = crate::Pallet::<T>::derivative_account_id(
 					Sibling::from(T::ParachainId::get()).into_account_truncating(),
 					delegator_index,
@@ -193,16 +209,34 @@ impl StakingProtocol {
 		}
 	}
 
-	pub fn get_default_ledger(&self) -> Ledger {
+	pub fn get_default_ledger(&self) -> Option<Ledger> {
 		match self {
 			StakingProtocol::AstarDappStaking => {
-				Ledger::AstarDappStaking(AstarDappStakingLedger::default())
+				Some(Ledger::AstarDappStaking(AstarDappStakingLedger::default()))
 			}
 			StakingProtocol::EthereumStaking => {
-				Ledger::EthereumStaking(EthereumStakingLedger::default())
+				Some(Ledger::EthereumStaking(EthereumStakingLedger::default()))
 			}
-			_ => unreachable!(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id) => {
+				Some(Ledger::GeneralXCM(GeneralXCMStakingLedger {
+					currency_id: *currency_id,
+					chain_id: *chain_id,
+					locked: Balance::default(),
+					unlocking: BoundedVec::default(),
+				}))
+			}
+			_ => None,
 		}
+	}
+
+	pub fn get_para_chain_remote_refund_beneficiary(&self) -> Location {
+		Location::new(
+			0,
+			[AccountId32 {
+				network: None,
+				id: Sibling::from(BifrostPolkadotChainId::get()).into_account_truncating(),
+			}],
+		)
 	}
 }
 
@@ -225,6 +259,43 @@ pub enum Validator<AccountId> {
 pub enum Ledger {
 	AstarDappStaking(AstarDappStakingLedger),
 	EthereumStaking(EthereumStakingLedger),
+	GeneralXCM(GeneralXCMStakingLedger),
+}
+
+/// General XCM staking ledger.
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	Debug,
+	Default,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
+pub struct GeneralXCMStakingLedger {
+	/// Currency id: CurrencyId
+	pub currency_id: CurrencyId,
+	/// Destination chain id: u32
+	#[codec(compact)]
+	pub chain_id: ChainId,
+	/// How much active locked amount an account has. This can be used for staking.
+	#[codec(compact)]
+	pub locked: Balance,
+	/// Vector of all the unlocking chunks. This is also considered _locked_ but cannot be used for
+	/// staking.
+	pub unlocking: BoundedVec<GeneralXCMRecord, ConstU32<8>>,
+}
+
+/// General XCM unlocking record.
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo,
+)]
+pub struct GeneralXCMRecord {
+	pub amount: Balance,
+	pub unlock_time: TimeUnit,
 }
 
 #[derive(

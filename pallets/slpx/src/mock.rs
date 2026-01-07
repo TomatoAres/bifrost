@@ -136,7 +136,6 @@ parameter_type_with_key! {
 }
 pub type ReserveIdentifier = [u8; 8];
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = u128;
 	type Amount = i128;
 	type CurrencyId = CurrencyId;
@@ -165,7 +164,6 @@ ord_parameter_types! {
 }
 
 impl bifrost_vtoken_minting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -178,7 +176,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type BifrostSlpx = ();
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = MockXcmTransfer;
+	type XChainSender = ();
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
 	type MaxLockRecords = ConstU32<100>;
@@ -210,7 +208,6 @@ parameter_types! {
 impl parachain_info::Config for Test {}
 
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
@@ -275,7 +272,6 @@ impl IsmpRouter for Router {
 }
 
 impl pallet_ismp::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
 	type AdminOrigin = EnsureRoot<AccountId>;
 	// The state machine identifier of the chain -- parachain id
@@ -291,16 +287,15 @@ impl pallet_ismp::Config for Test {
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = ();
 	type OffchainDB = ();
-	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<()>;
+	type FeeHandler = ();
 }
 
 impl slpx::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type MultiCurrency = Currencies;
 	type VtokenMintingInterface = VtokenMinting;
-	type XcmTransfer = MockXcmTransfer;
 	type XcmSender = ();
 	type CurrencyIdConvert = AssetIdMaps<Test>;
 	type TreasuryAccount = BifrostFeeAccount;

@@ -482,8 +482,7 @@ impl<T: Config> Pallet<T> {
 					bond.amount,
 				) {
 					log::warn!(
-						"STORAGE CORRUPTED \nDelegator leaving collator failed with error: {:?}",
-						error
+						"STORAGE CORRUPTED \nDelegator leaving collator failed with error: {error:?}",
 					);
 				}
 
@@ -526,9 +525,7 @@ impl<T: Config> Pallet<T> {
 				Self::delegator_leaves_candidate(collator.clone(), delegator.clone(), bond.amount)
 			{
 				log::warn!(
-					"STORAGE CORRUPTED \nDelegator {:?} leaving collator failed with error: {:?}",
-					delegator,
-					error
+					"STORAGE CORRUPTED \nDelegator {delegator:?} leaving collator failed with error: {error:?}",
 				);
 			}
 

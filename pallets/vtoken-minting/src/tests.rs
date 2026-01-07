@@ -26,7 +26,9 @@ use bifrost_primitives::{
 	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR, WETH},
 	VtokenMintingOperator, ETH, HP_ARB_ETH, HP_BASE_ETH, HP_ETH, HP_OP_ETH, VDOT, V_ETH,
 };
-use frame_support::{assert_noop, assert_ok, sp_runtime::Permill, BoundedVec};
+use frame_support::{
+	assert_noop, assert_ok, pallet_prelude::ConstU32, sp_runtime::Permill, BoundedVec,
+};
 use sp_runtime::ModuleError;
 
 #[test]
@@ -2299,4 +2301,683 @@ fn convert_to_vtoken_edge_cases() {
 		assert_eq!(VtokenMinting::convert_to_vtoken(DOT).unwrap(), VDOT);
 		assert_eq!(VtokenMinting::convert_to_vtoken(KSM).unwrap(), VDOT);
 	});
+}
+
+// ========== Exchange Rate Check Tests ==========
+
+#[test]
+fn set_exchange_rate_check_config_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: Set config with valid parameters
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![
+					ExchangeRateCheckConfig {
+						vtoken: VKSM,
+						max_rate_change: Permill::from_percent(1), // 1% max change
+					},
+					ExchangeRateCheckConfig {
+						vtoken: VBNC,
+						max_rate_change: Permill::from_percent(2), // 2% max change
+					},
+				])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100, // 100 blocks check period
+				configs.clone()
+			));
+
+			// Verify storage is updated
+			assert_eq!(ExchangeRateCheckPeriod::<Runtime>::get(), 100);
+			assert_eq!(ExchangeRatePeriodStartBlock::<Runtime>::get(), 0); // Current block is 0
+			assert_eq!(
+				ExchangeRateCheckConfigs::<Runtime>::get(VKSM),
+				Some(Permill::from_percent(1))
+			);
+			assert_eq!(
+				ExchangeRateCheckConfigs::<Runtime>::get(VBNC),
+				Some(Permill::from_percent(2))
+			);
+
+			// Verify period start snapshots are initialized
+			let vksm_snapshot = ExchangeRateAtPeriodStart::<Runtime>::get(VKSM);
+			assert_eq!(vksm_snapshot.token_pool, TokenPool::<Runtime>::get(VKSM));
+			assert_eq!(
+				vksm_snapshot.vtoken_issuance,
+				VtokenIssuance::<Runtime>::get(VKSM)
+			);
+		});
+}
+
+#[test]
+fn set_exchange_rate_check_config_should_fail_for_invalid_inputs() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: Period must be greater than zero
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(1),
+				}])
+				.unwrap();
+
+			assert_noop!(
+				VtokenMinting::set_exchange_rate_check_config(
+					RuntimeOrigin::signed(ALICE),
+					0, // Invalid: zero period
+					configs.clone()
+				),
+				Error::<Runtime>::InvalidCheckPeriod
+			);
+
+			// Test case 2: Configs must not be empty
+			let empty_configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![]).unwrap();
+			assert_noop!(
+				VtokenMinting::set_exchange_rate_check_config(
+					RuntimeOrigin::signed(ALICE),
+					100,
+					empty_configs
+				),
+				Error::<Runtime>::EmptyCheckConfig
+			);
+
+			// Test case 3: vToken must be valid
+			let invalid_configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: KSM, // Invalid: not a vToken
+					max_rate_change: Permill::from_percent(1),
+				}])
+				.unwrap();
+
+			assert_noop!(
+				VtokenMinting::set_exchange_rate_check_config(
+					RuntimeOrigin::signed(ALICE),
+					100,
+					invalid_configs
+				),
+				Error::<Runtime>::NotSupportTokenType
+			);
+		});
+}
+
+#[test]
+fn set_exchange_rate_check_switch_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Initially disabled
+			assert_eq!(ExchangeRateCheckEnabled::<Runtime>::get(), false);
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+			assert_eq!(ExchangeRateCheckEnabled::<Runtime>::get(), true);
+
+			// Disable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				false
+			));
+			assert_eq!(ExchangeRateCheckEnabled::<Runtime>::get(), false);
+		});
+}
+
+#[test]
+fn set_exchange_rate_check_switch_requires_control_origin() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Non-control origin should fail
+			assert_noop!(
+				VtokenMinting::set_exchange_rate_check_switch(RuntimeOrigin::signed(BOB), true),
+				sp_runtime::DispatchError::BadOrigin
+			);
+		});
+}
+
+#[test]
+fn exchange_rate_check_should_pass_within_limit() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pool and issuance
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Configure exchange rate check with 5% max change
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(5),
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// Simulate on_initialize to save block start snapshot
+			VtokenMinting::on_initialize(1);
+
+			// Simulate a small rate change (1% increase in token pool)
+			// Original rate: 1000000000000 / 1000000000000 = 1.0
+			// New rate: 1010000000000 / 1000000000000 = 1.01 (1% increase)
+			TokenPool::<Runtime>::insert(VKSM, 1010000000000u128);
+
+			// Run on_finalize - should pass since 1% < 5% limit
+			VtokenMinting::on_finalize(1);
+
+			// Token pool should remain unchanged (not rolled back)
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1010000000000u128);
+		});
+}
+
+#[test]
+fn exchange_rate_check_should_rollback_when_exceeded() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pool and issuance
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Configure exchange rate check with 1% max change
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(1),
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// Save the period start values (set when enabling the check)
+			let period_start_snapshot = ExchangeRateAtPeriodStart::<Runtime>::get(VKSM);
+
+			// Simulate on_initialize to save block start snapshot
+			VtokenMinting::on_initialize(1);
+
+			// Simulate a large rate change (10% increase in token pool)
+			// This exceeds the 1% limit
+			TokenPool::<Runtime>::insert(VKSM, 1100000000000u128);
+
+			// Run on_finalize - should trigger rollback since 10% > 1% limit
+			VtokenMinting::on_finalize(1);
+
+			// Token pool should be rolled back to period start value (not block start)
+			assert_eq!(
+				TokenPool::<Runtime>::get(VKSM),
+				period_start_snapshot.token_pool
+			);
+			assert_eq!(
+				VtokenIssuance::<Runtime>::get(VKSM),
+				period_start_snapshot.vtoken_issuance
+			);
+		});
+}
+
+#[test]
+fn exchange_rate_check_disabled_should_not_rollback() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pool and issuance
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Configure exchange rate check with 1% max change
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(1),
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Keep the check DISABLED (default)
+			assert_eq!(ExchangeRateCheckEnabled::<Runtime>::get(), false);
+
+			// Simulate on_initialize (should not save snapshots since disabled)
+			VtokenMinting::on_initialize(1);
+
+			// Simulate a large rate change (10% increase in token pool)
+			TokenPool::<Runtime>::insert(VKSM, 1100000000000u128);
+
+			// Run on_finalize - should NOT rollback since check is disabled
+			VtokenMinting::on_finalize(1);
+
+			// Token pool should remain changed (not rolled back)
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1100000000000u128);
+		});
+}
+
+#[test]
+fn exchange_rate_period_reset_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pool and issuance
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Configure exchange rate check with 10 blocks period
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(50), // High limit to avoid rollback
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				10, // 10 blocks period
+				configs
+			));
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// Initial period start block
+			assert_eq!(ExchangeRatePeriodStartBlock::<Runtime>::get(), 0);
+
+			// Simulate blocks 1-9 (within the same period)
+			for block in 1..10 {
+				System::set_block_number(block);
+				VtokenMinting::on_initialize(block);
+				VtokenMinting::on_finalize(block);
+			}
+
+			// Period start block should still be 0
+			assert_eq!(ExchangeRatePeriodStartBlock::<Runtime>::get(), 0);
+
+			// Simulate block 10 (period should reset)
+			System::set_block_number(10);
+			VtokenMinting::on_initialize(10);
+
+			// Update token pool during the block
+			TokenPool::<Runtime>::insert(VKSM, 1100000000000u128);
+
+			VtokenMinting::on_finalize(10);
+
+			// Period start block should be updated to 10
+			assert_eq!(ExchangeRatePeriodStartBlock::<Runtime>::get(), 10);
+
+			// Period start snapshot should be updated with current (possibly rolled-back) values
+			let snapshot = ExchangeRateAtPeriodStart::<Runtime>::get(VKSM);
+			assert_eq!(snapshot.token_pool, TokenPool::<Runtime>::get(VKSM));
+		});
+}
+
+#[test]
+fn exchange_rate_check_with_rate_decrease_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pool and issuance
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Configure exchange rate check with 1% max change
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(1),
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// Save the period start values (set when enabling the check)
+			let period_start_snapshot = ExchangeRateAtPeriodStart::<Runtime>::get(VKSM);
+
+			// Simulate on_initialize to save block start snapshot
+			VtokenMinting::on_initialize(1);
+
+			// Simulate a large rate DECREASE (10% decrease in token pool)
+			// This also exceeds the 1% limit (absolute value)
+			TokenPool::<Runtime>::insert(VKSM, 900000000000u128);
+
+			// Run on_finalize - should trigger rollback since |10%| > 1% limit
+			VtokenMinting::on_finalize(1);
+
+			// Token pool should be rolled back to period start value (not block start)
+			assert_eq!(
+				TokenPool::<Runtime>::get(VKSM),
+				period_start_snapshot.token_pool
+			);
+		});
+}
+
+#[test]
+fn calculate_rate_change_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			// Test case 1: No change
+			let rate_change = VtokenMinting::calculate_rate_change(
+				1000u128, // start_token_pool
+				1000u128, // start_vtoken_issuance
+				1000u128, // current_token_pool
+				1000u128, // current_vtoken_issuance
+			);
+			assert_eq!(rate_change, Some(Permill::from_parts(0)));
+
+			// Test case 2: 10% increase in token pool
+			// Rate = pool / issuance
+			// Start rate = 1000 / 1000 = 1.0
+			// Current rate = 1100 / 1000 = 1.1
+			// Rate change = |1.1 / 1.0 - 1| = 0.1 = 10%
+			let rate_change = VtokenMinting::calculate_rate_change(
+				1000u128, 1000u128, 1100u128, // 10% more pool
+				1000u128,
+			);
+			assert_eq!(rate_change, Some(Permill::from_percent(10)));
+
+			// Test case 3: 10% decrease in token pool
+			let rate_change = VtokenMinting::calculate_rate_change(
+				1000u128, 1000u128, 900u128, // 10% less pool
+				1000u128,
+			);
+			assert_eq!(rate_change, Some(Permill::from_percent(10)));
+
+			// Test case 4: Zero values should return None
+			let rate_change = VtokenMinting::calculate_rate_change(
+				0u128, // zero start pool
+				1000u128, 1000u128, 1000u128,
+			);
+			assert_eq!(rate_change, None);
+
+			// Test case 5: Complex calculation
+			// Start rate = 2000 / 1000 = 2.0
+			// Current rate = 2200 / 1000 = 2.2
+			// Rate change = |2.2 / 2.0 - 1| = 0.1 = 10%
+			let rate_change =
+				VtokenMinting::calculate_rate_change(2000u128, 1000u128, 2200u128, 1000u128);
+			assert_eq!(rate_change, Some(Permill::from_percent(10)));
+		});
+}
+
+#[test]
+fn exchange_rate_check_multiple_vtokens_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pools and issuances for multiple vTokens
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+			TokenPool::<Runtime>::insert(VBNC, 2000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VBNC, 2000000000000u128);
+
+			// Configure exchange rate check with different limits
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![
+					ExchangeRateCheckConfig {
+						vtoken: VKSM,
+						max_rate_change: Permill::from_percent(5), // 5% for VKSM
+					},
+					ExchangeRateCheckConfig {
+						vtoken: VBNC,
+						max_rate_change: Permill::from_percent(2), // 2% for VBNC
+					},
+				])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// Save the period start values (set when enabling the check)
+			let vbnc_period_start = ExchangeRateAtPeriodStart::<Runtime>::get(VBNC);
+
+			// Simulate on_initialize
+			VtokenMinting::on_initialize(1);
+
+			// VKSM: 3% change (within 5% limit)
+			TokenPool::<Runtime>::insert(VKSM, 1030000000000u128);
+			// VBNC: 3% change (exceeds 2% limit)
+			TokenPool::<Runtime>::insert(VBNC, 2060000000000u128);
+
+			// Run on_finalize
+			VtokenMinting::on_finalize(1);
+
+			// VKSM should NOT be rolled back (3% < 5%)
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1030000000000u128);
+			// VBNC SHOULD be rolled back to period start (3% > 2%)
+			assert_eq!(
+				TokenPool::<Runtime>::get(VBNC),
+				vbnc_period_start.token_pool
+			);
+		});
+}
+
+#[test]
+fn block_start_snapshot_should_be_saved_correctly() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial values
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 500000000000u128);
+
+			// Configure exchange rate check (but don't enable yet)
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(5),
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Verify snapshots are empty before enabling
+			assert_eq!(TokenPoolAtBlockStart::<Runtime>::get(VKSM), 0);
+			assert_eq!(VtokenIssuanceAtBlockStart::<Runtime>::get(VKSM), 0);
+
+			// Enable the check - this should now update snapshots immediately
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// After enabling, snapshots should be set to current values
+			// (this is the new behavior to fix Bug 2)
+			assert_eq!(
+				TokenPoolAtBlockStart::<Runtime>::get(VKSM),
+				1000000000000u128
+			);
+			assert_eq!(
+				VtokenIssuanceAtBlockStart::<Runtime>::get(VKSM),
+				500000000000u128
+			);
+
+			// Modify the values
+			TokenPool::<Runtime>::insert(VKSM, 2000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Run on_initialize for next block - should update snapshots to new values
+			VtokenMinting::on_initialize(1);
+
+			// Verify snapshots are updated correctly
+			assert_eq!(
+				TokenPoolAtBlockStart::<Runtime>::get(VKSM),
+				2000000000000u128
+			);
+			assert_eq!(
+				VtokenIssuanceAtBlockStart::<Runtime>::get(VKSM),
+				1000000000000u128
+			);
+		});
+}
+
+#[test]
+fn exchange_rate_check_reenable_should_update_snapshots() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			use frame_support::traits::Hooks;
+
+			// Set up initial token pool and issuance
+			TokenPool::<Runtime>::insert(VKSM, 1000000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1000000000000u128);
+
+			// Configure exchange rate check with 1% max change
+			let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> =
+				BoundedVec::try_from(vec![ExchangeRateCheckConfig {
+					vtoken: VKSM,
+					max_rate_change: Permill::from_percent(1),
+				}])
+				.unwrap();
+
+			assert_ok!(VtokenMinting::set_exchange_rate_check_config(
+				RuntimeOrigin::signed(ALICE),
+				100,
+				configs
+			));
+
+			// Enable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// Verify initial period start snapshot
+			let initial_snapshot = ExchangeRateAtPeriodStart::<Runtime>::get(VKSM);
+			assert_eq!(initial_snapshot.token_pool, 1000000000000u128);
+
+			// Simulate a block
+			VtokenMinting::on_initialize(1);
+			VtokenMinting::on_finalize(1);
+
+			// Disable the check
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				false
+			));
+
+			// During disabled period, modify token pool significantly (50% increase)
+			// This is a legitimate change that should be preserved
+			TokenPool::<Runtime>::insert(VKSM, 1500000000000u128);
+			VtokenIssuance::<Runtime>::insert(VKSM, 1500000000000u128);
+
+			// Simulate blocks while disabled
+			System::set_block_number(10);
+			VtokenMinting::on_initialize(10);
+			VtokenMinting::on_finalize(10);
+
+			// Re-enable the check
+			System::set_block_number(11);
+			assert_ok!(VtokenMinting::set_exchange_rate_check_switch(
+				RuntimeOrigin::signed(ALICE),
+				true
+			));
+
+			// After re-enabling, snapshots should be updated to current values
+			let new_snapshot = ExchangeRateAtPeriodStart::<Runtime>::get(VKSM);
+			assert_eq!(new_snapshot.token_pool, 1500000000000u128);
+			assert_eq!(new_snapshot.vtoken_issuance, 1500000000000u128);
+
+			// Block start snapshots should also be updated
+			assert_eq!(
+				TokenPoolAtBlockStart::<Runtime>::get(VKSM),
+				1500000000000u128
+			);
+			assert_eq!(
+				VtokenIssuanceAtBlockStart::<Runtime>::get(VKSM),
+				1500000000000u128
+			);
+
+			// Period start block should be reset to current block
+			assert_eq!(ExchangeRatePeriodStartBlock::<Runtime>::get(), 11);
+
+			// Simulate next block - no rollback should happen
+			System::set_block_number(12);
+			VtokenMinting::on_initialize(12);
+			VtokenMinting::on_finalize(12);
+
+			// Values should remain at the new level (not rolled back to old 1000000000000)
+			assert_eq!(TokenPool::<Runtime>::get(VKSM), 1500000000000u128);
+			assert_eq!(VtokenIssuance::<Runtime>::get(VKSM), 1500000000000u128);
+		});
 }

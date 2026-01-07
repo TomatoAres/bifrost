@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-runtime-common"
 version = "0.8.0"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 # third-party dependencies
@@ -111,4 +111,5 @@ std = [
 	"zenlink-protocol-runtime-api/std",
 	"bifrost-xcm-interface/std",
 	"bifrost-asset-registry/std",
+	"bifrost-p-k-bridge/std",
 ]

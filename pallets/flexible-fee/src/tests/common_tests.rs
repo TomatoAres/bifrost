@@ -33,13 +33,13 @@ use frame_support::traits::{
 	LockIdentifier, LockableCurrency, ReservableCurrency, WithdrawReasons,
 };
 use frame_support::{
-	assert_err, assert_noop, assert_ok, assert_storage_noop,
+	assert_noop, assert_ok, assert_storage_noop,
 	dispatch::{DispatchInfo, PostDispatchInfo},
 	pallet_prelude::ValidateUnsigned,
 	traits::fungibles::Mutate,
 	weights::Weight,
 };
-use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
+use orml_traits::{MultiCurrency, MultiLockableCurrency};
 use pallet_traits::evm::InspectEvmAccounts;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_arithmetic::FixedU128;

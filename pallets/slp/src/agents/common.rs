@@ -28,15 +28,14 @@ use crate::{
 	BNC, DOT, GLMR, KSM, MANTA, MOVR, PHA,
 };
 use bifrost_primitives::{
-	AssetHubChainId, CurrencyId, CurrencyIdExt, VtokenMintingOperator, XcmDestWeightAndFeeHandler,
+	BridgeType, CurrencyId, CurrencyIdExt, VtokenMintingOperator, XChainSender,
+	XcmDestWeightAndFeeHandler,
 };
-use frame_support::dispatch::RawOrigin;
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{dispatch::GetDispatchInfo, ensure, traits::Len};
-use orml_traits::{MultiCurrency, XcmTransfer};
+use orml_traits::MultiCurrency;
 use polkadot_parachain_primitives::primitives::Sibling;
-use sp_core::{Get, U256};
-use sp_runtime::traits::Dispatchable;
+use sp_core::{Get, H160, U256};
 use sp_runtime::{
 	traits::{
 		AccountIdConversion, BlockNumberProvider, CheckedAdd, UniqueSaturatedFrom,
@@ -44,11 +43,8 @@ use sp_runtime::{
 	},
 	DispatchResult, SaturatedConversion, Saturating,
 };
-use sp_std::boxed::Box;
 use xcm::v3::MultiLocation;
 use xcm::v5::prelude::*;
-use xcm::VersionedXcm;
-use xcm_executor::traits::TransferType;
 
 type QueryDetails<T> = (QueryId, BlockNumberFor<T>, BalanceOf<T>, xcm::v5::Xcm<()>);
 
@@ -541,56 +537,25 @@ impl<T: Config> Pallet<T> {
 		ensure!(from.parents.is_zero(), Error::<T>::InvalidTransferSource);
 
 		let from_account = Pallet::<T>::multilocation_to_account(from)?;
-
-		match currency_id {
-			KSM | DOT => {
+		let parachain_id = Pallet::<T>::multilocation_to_parachain_id(to)?;
+		let bridge_type = match currency_id {
+			ASTR | MANTA | KSM | DOT => {
 				let to_account = Pallet::<T>::multilocation_to_account(to)?;
-				let call = pallet_xcm::Call::transfer_assets_using_type_and_then {
-					dest: Box::new(Location::new(1, [Parachain(AssetHubChainId::get())]).into()),
-					assets: Box::new(
-						Asset {
-							id: Location::parent().into(),
-							fun: Fungible(amount.unique_saturated_into()),
-						}
-						.into(),
-					),
-					assets_transfer_type: Box::new(TransferType::DestinationReserve),
-					remote_fees_id: Box::new(Location::parent().into()),
-					fees_transfer_type: Box::new(TransferType::DestinationReserve),
-					custom_xcm_on_dest: Box::new(VersionedXcm::from(
-						Xcm::<()>::builder_unsafe()
-							.deposit_asset(
-								AllCounted(1),
-								Location::new(
-									0,
-									[AccountId32 {
-										network: None,
-										id: to_account
-											.encode()
-											.try_into()
-											.map_err(|_e| Error::<T>::InvalidAccount)?,
-									}],
-								),
-							)
-							.build(),
-					)),
-					weight_limit: Unlimited,
-				};
-
-				let runtime_call = <T as Config>::RuntimeCall::from(call);
-				runtime_call
-					.dispatch(RawOrigin::Signed(from_account.clone()).into())
-					.map_err(|_| Error::<T>::TransferToError)?;
+				BridgeType::Parachain(parachain_id, to_account)
 			}
-			_ => {
-				let v5_location = Location::try_from(to.into_versioned())
-					.map_err(|()| Error::<T>::FailToConvert)?;
-				T::XcmTransfer::transfer(from_account, currency_id, amount, v5_location, Unlimited)
-					.map_err(|_| Error::<T>::TransferToError)?;
+			GLMR | MOVR => {
+				let to_account = Pallet::<T>::multilocation_to_account_20(to)?;
+				BridgeType::ParachainEvm(parachain_id, H160::from(to_account))
 			}
-		}
-
-		Ok(())
+			_ => return Err(Error::<T>::Unsupported),
+		};
+		T::XChainSender::do_transfer_assets(
+			from_account,
+			bridge_type,
+			vec![(currency_id, amount).into()],
+			0,
+		)
+		.map_err(|_| Error::<T>::TransferToError)
 	}
 
 	pub(crate) fn update_all_occupied_status_storage(

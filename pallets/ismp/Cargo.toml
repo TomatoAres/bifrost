@@ -1,6 +1,6 @@
 [package]
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 name = "bifrost-ismp"
 version = "0.8.0"
 

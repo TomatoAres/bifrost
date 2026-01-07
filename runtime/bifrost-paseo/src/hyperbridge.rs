@@ -18,20 +18,21 @@
 
 use crate::governance::TechAdminOrRoot;
 use crate::weights::ismp_parachain as ismp_parachain_weight;
-use crate::{Balances, Ismp, IsmpParachain, Runtime, RuntimeEvent, Timestamp};
+use crate::{Balances, Ismp, IsmpParachain, Runtime, Timestamp};
 use crate::{Currencies, Slpx};
 use crate::{TokenGateway, Treasury};
 use bifrost_asset_registry::AssetIdMaps;
-use bifrost_primitives::{AccountId, Balance, CurrencyId, DOT_U};
+use bifrost_primitives::{AccountId, Balance, CurrencyId, TreasuryPalletId, DOT_U};
+use bifrost_system_staking::Weight;
 use frame_support::parameter_types;
 use frame_support::traits::fungible::ItemOf;
+use frame_support::weights::WeightToFee;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use sp_core::Get;
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
 
 impl pallet_hyperbridge::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
 }
@@ -43,12 +44,20 @@ parameter_types! {
 	pub const HostStateMachine: StateMachine = StateMachine::Kusama(2030); // polkadot
 }
 
+pub struct IsmpWeightToFee;
+impl WeightToFee for IsmpWeightToFee {
+	type Balance = Balance;
+
+	fn weight_to_fee(weight: &Weight) -> Self::Balance {
+		<Runtime as pallet_transaction_payment::Config>::WeightToFee::weight_to_fee(weight)
+	}
+}
+
 parameter_types! {
 	pub const StableCoin: CurrencyId = DOT_U;
 }
 
 impl pallet_ismp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
 	type AdminOrigin = TechAdminOrRoot;
 	// The state machine identifier of the chain -- parachain id
@@ -64,11 +73,16 @@ impl pallet_ismp::Config for Runtime {
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
 	type OffchainDB = ();
-	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<()>;
+	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<
+		AccountId,
+		Balances,
+		IsmpWeightToFee,
+		TreasuryPalletId,
+		false,
+	>;
 }
 
 impl ismp_parachain::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
 	type WeightInfo = ismp_parachain_weight::WeightInfo<Runtime>;
@@ -96,7 +110,6 @@ impl IsmpRouter for Router {
 }
 
 impl bifrost_ismp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type NativeCurrency = Balances;
 	type IsmpHost = Ismp;
@@ -115,8 +128,6 @@ parameter_types! {
 }
 
 impl pallet_token_gateway::Config for Runtime {
-	// configure the runtime event
-	type RuntimeEvent = RuntimeEvent;
 	// Configured as Pallet Ismp
 	type Dispatcher = Ismp;
 	// Configured as Pallet balances

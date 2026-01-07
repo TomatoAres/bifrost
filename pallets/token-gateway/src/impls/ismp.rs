@@ -18,8 +18,9 @@ use ismp::{
 };
 use orml_traits::MultiCurrency;
 use primitive_types::{H160, H256};
-use sp_core::U256;
+use sp_core::{Get, U256};
 use sp_runtime::traits::{Dispatchable, UniqueSaturatedFrom};
+use sp_runtime::Weight;
 use token_gateway_primitives::token_gateway_id;
 
 impl<T: Config> IsmpModule for Pallet<T>
@@ -36,7 +37,7 @@ where
 			nonce,
 			..
 		}: PostRequest,
-	) -> Result<(), anyhow::Error> {
+	) -> Result<Weight, anyhow::Error> {
 		ensure!(
 			from == TokenGatewayAddresses::<T>::get(source)
 				.unwrap_or_default()
@@ -61,12 +62,7 @@ where
 
 		log::debug!(
 			target: "token_gateway::on_accept",
-			"Token Gateway Received: from: {:?}, source: {:?}, dest: {:?}, nonce: {:?}, request body: {:?}",
-			from,
-			source,
-			dest,
-			nonce,
-			body
+			"Token Gateway Received: from: {from:?}, source: {source:?}, dest: {dest:?}, nonce: {nonce:?}, request body: {body:?}",
 		);
 
 		let local_asset_id =
@@ -185,9 +181,7 @@ where
 					.map_err(|err| anyhow!("RuntimeCall decode error: {err:?}"))?;
 
 				log::debug!(target: "token_gateway::on_accept",
-					"origin: {:?}, runtime_call: {:?}",
-					origin,
-					runtime_call
+					"origin: {origin:?}, runtime_call: {runtime_call:?}",
 				);
 
 				runtime_call
@@ -205,14 +199,14 @@ where
 			source,
 		});
 
-		Ok(())
+		Ok(T::DbWeight::get().reads_writes(0, 0))
 	}
 
-	fn on_response(&self, _response: Response) -> Result<(), anyhow::Error> {
+	fn on_response(&self, _response: Response) -> Result<Weight, anyhow::Error> {
 		Err(anyhow!("Module does not accept responses".to_string()))
 	}
 
-	fn on_timeout(&self, request: Timeout) -> Result<(), anyhow::Error> {
+	fn on_timeout(&self, request: Timeout) -> Result<Weight, anyhow::Error> {
 		match request {
 			Timeout::Request(Request::Post(PostRequest {
 				body,
@@ -315,7 +309,7 @@ where
 				},
 			})?,
 		}
-		Ok(())
+		Ok(T::DbWeight::get().reads_writes(0, 0))
 	}
 }
 

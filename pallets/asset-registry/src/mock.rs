@@ -67,7 +67,6 @@ ord_parameter_types! {
 	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
 }
 impl asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();

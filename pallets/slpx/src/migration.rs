@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use frame_support::dispatch::PostDispatchInfo;
 use frame_support::{storage_alias, traits::OnRuntimeUpgrade};
 #[cfg(feature = "try-runtime")]
 use sp_runtime::TryRuntimeError;
@@ -310,7 +311,7 @@ pub fn migrate_to_v1<T: Config>() -> Weight {
 			order_queue
 				.try_push(order.clone())
 				.map_err(|_| Error::<T>::ErrorArguments)?;
-			Ok(().into())
+			Ok(PostDispatchInfo::default())
 		})
 		.expect("BoundedVec should not overflow");
 
@@ -344,7 +345,7 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 			order_queue
 				.try_push(order.clone())
 				.map_err(|_| Error::<T>::ErrorArguments)?;
-			Ok(().into())
+			Ok(PostDispatchInfo::default())
 		})
 		.expect("BoundedVec should not overflow");
 
@@ -402,7 +403,7 @@ pub fn migrate_to_v3<T: Config>() -> Weight {
 			order_queue
 				.try_push(order.clone())
 				.map_err(|_| Error::<T>::ErrorArguments)?;
-			Ok(().into())
+			Ok(PostDispatchInfo::default())
 		})
 		.expect("BoundedVec should not overflow");
 

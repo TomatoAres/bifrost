@@ -95,8 +95,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
 
 		type ControlOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -238,8 +236,7 @@ pub mod pallet {
 
 							log::error!(
 								target: "fee-share::execute_distribute",
-								"Received invalid justification for {:?}",
-								e,
+								"Received invalid justification for {e:?}",
 							);
 						} else {
 							Self::deposit_event(Event::Executed { distribution_id });

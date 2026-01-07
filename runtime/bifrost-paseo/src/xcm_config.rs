@@ -22,8 +22,7 @@ use bifrost_currencies::BasicCurrencyAdapter;
 use bifrost_primitives::{
 	currency::WETH_TOKEN_ID, AccountId, AccountIdToLocation, AssetHubLocation, AssetPrefixFrom,
 	CurrencyId, CurrencyIdMapping, EthereumLocation, LocalVdotLocation, NativeAssetFrom,
-	PolkadotNetwork, PolkadotUniversalLocation, SelfLocation, TokenSymbol, VdotFungible,
-	DOT_TOKEN_ID,
+	PolkadotNetwork, PolkadotUniversalLocation, TokenSymbol, VdotFungible, DOT_TOKEN_ID,
 };
 use bifrost_runtime_common::{
 	currency_adapter::{BifrostDropAssets, DepositToAlternative, MultiCurrencyAdapter},
@@ -32,12 +31,9 @@ use bifrost_runtime_common::{
 use cumulus_primitives_core::AggregateMessageOrigin;
 pub use cumulus_primitives_core::ParaId;
 use frame_support::traits::Disabled;
-use frame_support::{
-	sp_runtime::traits::Convert,
-	traits::{Get, TransformOrigin},
-};
+use frame_support::{sp_runtime::traits::Convert, traits::TransformOrigin};
 pub use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key, MultiCurrency};
-use orml_xcm_support::{IsNativeConcrete, MultiNativeAsset};
+use orml_xcm_support::{IsNativeConcrete, MultiNativeAsset, UnknownAsset};
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 pub use polkadot_parachain_primitives::primitives::Sibling;
@@ -142,6 +138,17 @@ pub type FungibleTransactor = FungibleAdapter<
 	// We don't track any teleports of `Tokens`.
 	(),
 >;
+
+const NO_UNKNOWN_ASSET_IMPL: &str = "NoUnknownAssetImpl";
+pub struct UnknownTokens;
+impl UnknownAsset for UnknownTokens {
+	fn deposit(_asset: &Asset, _to: &Location) -> frame_support::dispatch::DispatchResult {
+		Err(DispatchError::Other(NO_UNKNOWN_ASSET_IMPL))
+	}
+	fn withdraw(_asset: &Asset, _from: &Location) -> frame_support::dispatch::DispatchResult {
+		Err(DispatchError::Other(NO_UNKNOWN_ASSET_IMPL))
+	}
+}
 
 pub type BifrostAssetTransactor = (
 	MultiCurrencyAdapter<
@@ -378,7 +385,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ConstU32<50>;
@@ -387,47 +393,7 @@ impl orml_tokens::Config for Runtime {
 	type CurrencyHooks = CurrencyHooks;
 }
 
-parameter_type_with_key! {
-	pub ParachainMinFee: |_location: Location| -> Option<u128> {
-		Some(u128::MAX)
-	};
-}
-
-impl orml_xtokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = CurrencyIdConvert<ParachainInfo, Runtime>;
-	type AccountIdToLocation = AccountIdToLocation;
-	type UniversalLocation = PolkadotUniversalLocation;
-	type SelfLocation = SelfLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type Weigher =
-		WeightInfoBounds<weights::xcm::BifrostXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
-	type BaseXcmWeight = BaseXcmWeight;
-	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MinXcmFee = ParachainMinFee;
-	type LocationsFilter = Everything;
-	type ReserveProvider = RelativeReserveProvider;
-	type RateLimiter = ();
-	type RateLimiterId = ();
-}
-
-impl orml_unknown_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
-
-impl orml_xcm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type SovereignOrigin = EnsureRoot<AccountId>;
-}
-
-parameter_types! {
-	pub ParachainAccount: AccountId = ParachainInfo::get().into_account_truncating();
-}
-
 impl bifrost_xcm_interface::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = TechAdminOrRoot;
 	type MultiCurrency = Currencies;
 	type AccountIdToLocation = AccountIdToLocation;

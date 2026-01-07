@@ -144,7 +144,6 @@ impl orml_tokens::Config for Test {
 	type Amount = Amount;
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = ();

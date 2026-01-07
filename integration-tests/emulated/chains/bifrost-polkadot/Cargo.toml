@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-polkadot-emulated-chain"
 description = "Bifrost Polkadot emulated chain"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 sp-core.workspace = true

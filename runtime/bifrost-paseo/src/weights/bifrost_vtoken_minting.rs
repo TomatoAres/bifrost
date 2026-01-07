@@ -323,4 +323,43 @@ impl<T: frame_system::Config> bifrost_vtoken_minting::WeightInfo for BifrostWeig
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+	/// Storage: `VtokenMinting::TokenPool` (r:6 w:0)
+	/// Proof: `VtokenMinting::TokenPool` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `VtokenMinting::VtokenIssuance` (r:6 w:0)
+	/// Proof: `VtokenMinting::VtokenIssuance` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `VtokenMinting::ExchangeRateAtPeriodStart` (r:0 w:6)
+	/// Proof: `VtokenMinting::ExchangeRateAtPeriodStart` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `VtokenMinting::ExchangeRateCheckPeriod` (r:0 w:1)
+	/// Proof: `VtokenMinting::ExchangeRateCheckPeriod` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `VtokenMinting::ExchangeRatePeriodStartBlock` (r:0 w:1)
+	/// Proof: `VtokenMinting::ExchangeRatePeriodStartBlock` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `VtokenMinting::ExchangeRateCheckConfigs` (r:0 w:6)
+	/// Proof: `VtokenMinting::ExchangeRateCheckConfigs` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `n` is `[1, 10]`.
+	fn set_exchange_rate_check_config(n: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `114`
+		//  Estimated: `3690 + n * (1615 ±26)`
+		// Minimum execution time: 17_173_000 picoseconds.
+		Weight::from_parts(12_178_199, 0)
+			.saturating_add(Weight::from_parts(0, 3690))
+			// Standard Error: 11_756
+			.saturating_add(Weight::from_parts(6_840_778, 0).saturating_mul(n.into()))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(n.into())))
+			.saturating_add(T::DbWeight::get().writes(4))
+			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(n.into())))
+			.saturating_add(Weight::from_parts(0, 1615).saturating_mul(n.into()))
+	}
+	/// Storage: `VtokenMinting::ExchangeRateCheckEnabled` (r:0 w:1)
+	/// Proof: `VtokenMinting::ExchangeRateCheckEnabled` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	fn set_exchange_rate_check_switch() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_248_000 picoseconds.
+		Weight::from_parts(4_689_000, 0)
+			.saturating_add(Weight::from_parts(0, 0))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
 }

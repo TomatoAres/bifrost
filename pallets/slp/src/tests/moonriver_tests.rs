@@ -1651,16 +1651,13 @@ fn moonriver_transfer_to_works() {
 			}),
 		};
 
-		assert_noop!(
-			Slp::transfer_to(
-				RuntimeOrigin::signed(ALICE),
-				MOVR,
-				Box::new(entrance_account_location),
-				Box::new(subaccount_0_location),
-				5_000_000_000_000_000_000,
-			),
-			Error::<Runtime>::TransferToError
-		);
+		assert_ok!(Slp::transfer_to(
+			RuntimeOrigin::signed(ALICE),
+			MOVR,
+			Box::new(entrance_account_location),
+			Box::new(subaccount_0_location),
+			5_000_000_000_000_000_000,
+		));
 	});
 }
 

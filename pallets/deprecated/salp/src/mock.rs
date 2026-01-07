@@ -158,7 +158,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = ();
@@ -336,7 +335,6 @@ parameter_types! {
 }
 
 impl bifrost_stable_asset::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = CurrencyId;
 	type Balance = Balance;
 	type Assets = Tokens;
@@ -392,7 +390,6 @@ parameter_types! {
 }
 
 impl orml_xtokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type CurrencyIdConvert = ();
@@ -419,7 +416,6 @@ impl SlpOperator<CurrencyId> for Slp {
 }
 
 impl bifrost_vtoken_minting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type ControlOrigin = EnsureConfirmAsGovernance;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -560,7 +556,6 @@ impl Convert<AccountId, Location> for BifrostAccountIdToMultiLocation {
 }
 
 impl bifrost_xcm_interface::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = EnsureRoot<AccountId>;
 	type MultiCurrency = Currencies;
 	type RelayNetwork = RelayNetwork;

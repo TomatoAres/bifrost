@@ -18,6 +18,7 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 
+use crate::Junction::Parachain;
 use crate::*;
 use bifrost_primitives::{DOT, MANTA, VDOT};
 use frame_benchmarking::v2::*;
@@ -27,10 +28,13 @@ use sp_runtime::traits::{AccountIdConversion, StaticLookup, UniqueSaturatedFrom}
 
 const DELEGATOR1: MultiLocation = MultiLocation {
 	parents: 1,
-	interior: X1(AccountId32 {
-		network: None,
-		id: [1u8; 32],
-	}),
+	interior: X2(
+		Parachain(2000),
+		AccountId32 {
+			network: None,
+			id: [1u8; 32],
+		},
+	),
 };
 const DELEGATOR2: MultiLocation = MultiLocation {
 	parents: 1,

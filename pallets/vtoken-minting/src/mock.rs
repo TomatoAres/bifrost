@@ -26,7 +26,7 @@ use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::{BNC, DOT, FIL, KSM, MOVR, VBNC, VFIL, VKSM, VMOVR},
 	BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount, CurrencyId, CurrencyIdMapping,
-	IncentivePoolAccount, MockXcmTransfer, MoonbeamChainId, ETH, KUSD, V_ETH, WETH,
+	IncentivePoolAccount, MoonbeamChainId, ETH, KUSD, V_ETH, WETH,
 };
 use bifrost_runtime_common::{micro, milli};
 use frame_support::{derive_impl, ord_parameter_types, parameter_types, traits::Nothing};
@@ -142,7 +142,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ();
@@ -169,7 +168,6 @@ ord_parameter_types! {
 }
 
 impl vtoken_minting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type ControlOrigin = EnsureSignedBy<One, AccountId>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -185,7 +183,7 @@ impl vtoken_minting::Config for Runtime {
 	type RelayChainToken = RelayCurrencyId;
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = MockXcmTransfer;
+	type XChainSender = ();
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
 	type BlockNumberProvider = System;
@@ -196,7 +194,6 @@ ord_parameter_types! {
 	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
 }
 impl bifrost_asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
@@ -321,6 +318,8 @@ pub fn run_to_block(n: BlockNumber) {
 		VtokenMinting::on_finalize(System::block_number());
 		System::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
+		System::on_initialize(System::block_number());
+		VtokenMinting::on_initialize(System::block_number());
 		System::on_idle(System::block_number(), Weight::MAX);
 		VtokenMinting::on_idle(System::block_number(), Weight::MAX);
 	}

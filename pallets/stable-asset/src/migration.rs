@@ -102,14 +102,12 @@ impl<T: super::Config> OnRuntimeUpgrade for StableAssetOnRuntimeUpgrade<T> {
 						continue;
 					} else {
 						log::info!(
-							"New pool {:?} asset_id {:?} free_balance is zero.",
-							pool_id,
-							asset_id
+							"New pool {pool_id:?} asset_id {asset_id:?} free_balance is zero.",
 						);
 					}
 				}
 			} else {
-				log::info!("Pool {:?} not found", pool_id);
+				log::info!("Pool {pool_id:?} not found");
 			}
 		}
 

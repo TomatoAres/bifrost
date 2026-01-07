@@ -1,8 +1,8 @@
 [package]
 name = "polkadot-kusama-system-emulated-network"
 description = "Rococo<>Westend emulated bridged network"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 emulated-integration-tests-common.workspace = true

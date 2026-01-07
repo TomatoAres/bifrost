@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-emulated-integration-tests"
 description = "Bifrost runtime integration tests with xcm-emulator"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 hex-literal.workspace = true
@@ -51,3 +51,4 @@ pallet-bridge-messages.workspace = true
 pallet-bridge-messages.default-features = true
 log = "0.4.28"
 bifrost-p-k-bridge = {workspace = true}
+bifrost-slp-v2 = {workspace = true}

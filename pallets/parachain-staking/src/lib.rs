@@ -122,8 +122,6 @@ pub mod pallet {
 	/// Configuration trait of this pallet.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// Overarching event type
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// The currency type
 		type Currency: Currency<Self::AccountId>
 			+ ReservableCurrency<Self::AccountId>
@@ -634,7 +632,7 @@ pub mod pallet {
 					balance,
 					candidate_count,
 				) {
-					log::warn!("Join candidates failed in genesis with error {:?}", error);
+					log::warn!("Join candidates failed in genesis with error {error:?}");
 				} else {
 					candidate_count = candidate_count.saturating_add(1u32);
 				}
@@ -664,7 +662,7 @@ pub mod pallet {
 					cd_count,
 					dd_count,
 				) {
-					log::warn!("Delegate failed in genesis with error {:?}", error);
+					log::warn!("Delegate failed in genesis with error {error:?}");
 				} else {
 					if let Some(x) = col_delegator_count.get_mut(target) {
 						*x = x.saturating_add(1u32);
@@ -712,6 +710,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_staking_expectations())]
 		/// Set the expectations for total staked. These expectations determine the issuance for
 		/// the round according to logic in `fn compute_issuance`
@@ -736,6 +735,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(1)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_inflation())]
 		/// Set the annual inflation rate to derive per-round inflation
 		pub fn set_inflation(
@@ -760,6 +760,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(2)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_parachain_bond_account())]
 		/// Set the account that will hold funds set aside for parachain bond
 		pub fn set_parachain_bond_account(
@@ -782,6 +783,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(3)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_parachain_bond_reserve_percent())]
 		/// Set the percent of inflation set aside for parachain bond
 		pub fn set_parachain_bond_reserve_percent(
@@ -804,6 +806,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(4)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_total_selected())]
 		/// Set the total number of collator candidates selected per round
 		/// - changes are not applied until the start of the next round
@@ -824,6 +827,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(5)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_collator_commission())]
 		/// Set the commission for all collators
 		pub fn set_collator_commission(
@@ -838,6 +842,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(6)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_blocks_per_round())]
 		/// Set blocks per round
 		/// - if called with `new` less than length of current round, will transition immediately
@@ -874,6 +879,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(7)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::join_candidates(*candidate_count))]
 		/// Join the set of collator candidates
 		pub fn join_candidates(
@@ -924,6 +930,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(8)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_leave_candidates(*candidate_count))]
 		/// Request to leave the set of candidates. If successful, the account is immediately
 		/// removed from the candidate pool to prevent selection as a collator.
@@ -956,6 +963,7 @@ pub mod pallet {
 			<T as Config>::WeightInfo::execute_leave_candidates(*candidate_delegation_count)
 		)]
 		/// Execute leave candidates request
+		#[allow(clippy::useless_conversion)]
 		pub fn execute_leave_candidates(
 			origin: OriginFor<T>,
 			candidate: AccountIdOf<T>,
@@ -972,6 +980,7 @@ pub mod pallet {
 			Self::do_execute_leave_candidates(state, candidate)
 		}
 		#[pallet::call_index(10)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_leave_candidates(*candidate_count))]
 		/// Cancel open request to leave candidates
 		/// - only callable by collator account
@@ -1004,6 +1013,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(11)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::go_offline())]
 		/// Temporarily leave the set of collator candidates without unbonding
 		pub fn go_offline(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -1022,6 +1032,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(12)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::go_online())]
 		/// Rejoin the set of collator candidates if previously had called `go_offline`
 		pub fn go_online(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -1046,6 +1057,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(13)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::candidate_bond_more())]
 		/// Increase collator candidate self bond by `more`
 		pub fn candidate_bond_more(
@@ -1063,6 +1075,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(14)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_candidate_bond_less())]
 		/// Request by collator candidate to decrease self bond by `less`
 		pub fn schedule_candidate_bond_less(
@@ -1081,6 +1094,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(15)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::execute_candidate_bond_less())]
 		/// Execute pending request to adjust the collator candidate self bond
 		pub fn execute_candidate_bond_less(
@@ -1094,6 +1108,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		#[pallet::call_index(16)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_candidate_bond_less())]
 		/// Cancel pending request to adjust the collator candidate self bond
 		pub fn cancel_candidate_bond_less(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -1112,6 +1127,7 @@ pub mod pallet {
 		)]
 		/// If caller is not a delegator and not a collator, then join the set of delegators
 		/// If caller is a delegator, then makes delegation to change their delegation state
+		#[allow(clippy::useless_conversion)]
 		pub fn delegate(
 			origin: OriginFor<T>,
 			candidate: AccountIdOf<T>,
@@ -1134,6 +1150,7 @@ pub mod pallet {
 		/// allowed to exit via a [DelegationAction::Revoke] towards all existing delegations.
 		/// Success forbids future delegation requests until the request is invoked or cancelled.
 		#[pallet::call_index(18)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_leave_delegators())]
 		pub fn schedule_leave_delegators(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let delegator = ensure_signed(origin)?;
@@ -1143,6 +1160,7 @@ pub mod pallet {
 		/// DEPRECATED use batch util with execute_delegation_request for all delegations
 		/// Execute the right to exit the set of delegators and revoke all ongoing delegations.
 		#[pallet::call_index(19)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::execute_leave_delegators(*delegation_count))]
 		pub fn execute_leave_delegators(
 			origin: OriginFor<T>,
@@ -1157,6 +1175,7 @@ pub mod pallet {
 		/// Cancel a pending request to exit the set of delegators. Success clears the pending exit
 		/// request (thereby resetting the delay upon another `leave_delegators` call).
 		#[pallet::call_index(20)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_leave_delegators())]
 		pub fn cancel_leave_delegators(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let delegator = ensure_signed(origin)?;
@@ -1164,6 +1183,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(21)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_revoke_delegation())]
 		/// Request to revoke an existing delegation. If successful, the delegation is scheduled
 		/// to be allowed to be revoked via the `execute_delegation_request` extrinsic.
@@ -1176,6 +1196,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(22)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::delegator_bond_more())]
 		/// Bond more for delegators wrt a specific collator candidate.
 		pub fn delegator_bond_more(
@@ -1188,6 +1209,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(23)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_delegator_bond_less())]
 		/// Request bond less for delegators wrt a specific collator candidate.
 		pub fn schedule_delegator_bond_less(
@@ -1200,6 +1222,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(24)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::execute_delegator_bond_less())]
 		/// Execute pending request to change an existing delegation
 		pub fn execute_delegation_request(
@@ -1212,6 +1235,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(25)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_delegator_bond_less())]
 		/// Cancel request to change an existing delegation.
 		pub fn cancel_delegation_request(
@@ -1527,7 +1551,7 @@ pub mod pallet {
 							rewards: amt,
 						}),
 						Err(e) => {
-							log::error!("reward from pool account fail as {:?}", e);
+							log::error!("reward from pool account fail as {e:?}");
 						}
 					}
 				}

@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-slpx"
 description = "A pallet to manage the execution of XCM messages"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 version = "0.8.0"
 
 [package.metadata.docs.rs]
@@ -27,7 +27,6 @@ sp-runtime = { workspace = true }
 xcm = { workspace = true }
 tiny-keccak = { workspace = true }
 orml-traits = { workspace = true }
-orml-xtokens = { workspace = true }
 zenlink-protocol = { workspace = true }
 bifrost-primitives = { workspace = true }
 bifrost-asset-registry = { workspace = true }
@@ -72,7 +71,6 @@ std = [
 	"serde/std",
 	"zenlink-protocol/std",
 	"orml-traits/std",
-	"orml-xtokens/std",
 	"bifrost-primitives/std",
 	"cumulus-primitives-core/std",
 	"sp-std/std",

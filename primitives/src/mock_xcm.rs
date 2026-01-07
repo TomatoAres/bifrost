@@ -20,7 +20,7 @@ use crate::{AccountId, Balance, CurrencyId};
 use orml_traits::{xcm_transfer::Transferred, XcmTransfer};
 use sp_runtime::DispatchError;
 use sp_std::vec::Vec;
-use xcm::latest::XcmContext;
+use xcm::latest::{InstructionError, XcmContext};
 use xcm::{
 	latest::Asset,
 	prelude::{ExecuteXcm, Fungible, Outcome, PreparedMessage, SendResult, Xcm, XcmResult},
@@ -123,7 +123,10 @@ pub struct MockXcmExecutor;
 impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
 	type Prepared = Weightless;
 
-	fn prepare(_message: Xcm<Call>) -> Result<Self::Prepared, Xcm<Call>> {
+	fn prepare(
+		_message: Xcm<Call>,
+		_weight_limit: Weight,
+	) -> Result<Self::Prepared, InstructionError> {
 		Ok(Weightless)
 	}
 

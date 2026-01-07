@@ -150,7 +150,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ();
@@ -164,14 +163,12 @@ ord_parameter_types! {
 }
 
 impl bifrost_asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<One, AccountId>;
 	type WeightInfo = ();
 }
 
 impl bifrost_clouds_convert::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type CloudsPalletId = CloudsPalletId;
 	type BbBNC = BbBNC;
@@ -192,7 +189,6 @@ parameter_types! {
 }
 
 impl bb_bnc::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type ControlOrigin = EnsureSignedBy<One, AccountId>;
 	type TokenType = BbBNCTokenType;
@@ -206,6 +202,7 @@ impl bb_bnc::Config for Runtime {
 	type VoteWeightMultiplier = VoteWeightMultiplier;
 	type MaxPositions = MaxPositions;
 	type MarkupRefreshLimit = MarkupRefreshLimit;
+	type MaxRefreshPositions = MarkupRefreshLimit;
 	type VtokenMinting = ();
 	type FarmingInfo = ();
 	type FiveYears = FiveYears;

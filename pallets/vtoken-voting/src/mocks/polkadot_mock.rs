@@ -257,7 +257,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ConstU32<100>;
 	type MaxReserves = ();
@@ -471,7 +470,6 @@ parameter_types! {
 }
 
 impl vtoken_voting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type MultiCurrency = Currencies;

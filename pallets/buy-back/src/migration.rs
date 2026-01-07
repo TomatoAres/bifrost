@@ -101,7 +101,7 @@ pub mod v1 {
 		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 			if StorageVersion::get::<Pallet<T>>() == 0 {
 				let count = InfosV1::<T>::iter().count() as u32;
-				log::info!("Infos count before migration: {:?}", count);
+				log::info!("Infos count before migration: {count:?}");
 			}
 
 			Ok(sp_std::prelude::Vec::new())
@@ -140,7 +140,7 @@ pub mod v1 {
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_: Vec<u8>) -> Result<(), TryRuntimeError> {
 			let new_count = Infos::<T>::iter().count() as u32;
-			log::info!("Infos count after migration: {:?}", new_count);
+			log::info!("Infos count after migration: {new_count:?}");
 
 			Ok(())
 		}
@@ -156,7 +156,7 @@ pub mod v2 {
 		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 			if StorageVersion::get::<Pallet<T>>() == 1 {
 				let count = Infos::<T>::iter().count() as u32;
-				log::info!("Infos count before v2 migration: {:?}", count);
+				log::info!("Infos count before v2 migration: {count:?}");
 			}
 
 			Ok(sp_std::prelude::Vec::new())
@@ -194,7 +194,7 @@ pub mod v2 {
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_: Vec<u8>) -> Result<(), TryRuntimeError> {
 			let new_count = Infos::<T>::iter().count() as u32;
-			log::info!("Infos count after v2 migration: {:?}", new_count);
+			log::info!("Infos count after v2 migration: {new_count:?}");
 
 			Ok(())
 		}

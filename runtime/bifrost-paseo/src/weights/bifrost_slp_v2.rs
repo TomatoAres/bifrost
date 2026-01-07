@@ -363,4 +363,33 @@ impl<T: frame_system::Config> bifrost_slp_v2::WeightInfo for BifrostWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
+	/// Storage: `SlpV2::DelegatorByStakingProtocolAndDelegatorIndex` (r:2 w:0)
+	/// Proof: `SlpV2::DelegatorByStakingProtocolAndDelegatorIndex` (`max_values`: None, `max_size`: Some(86), added: 2561, mode: `MaxEncodedLen`)
+	/// Storage: `SlpV2::XCMExecutorWhitelist` (r:1 w:1)
+	/// Proof: `SlpV2::XCMExecutorWhitelist` (`max_values`: None, `max_size`: Some(2164), added: 4639, mode: `MaxEncodedLen`)
+	fn update_xcm_executor_whitelist() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `447`
+		//  Estimated: `6112`
+		// Minimum execution time: 28_000_000 picoseconds.
+		Weight::from_parts(29_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 6112))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	/// Storage: `SlpV2::DelegatorByStakingProtocolAndDelegatorIndex` (r:2 w:0)
+	/// Proof: `SlpV2::DelegatorByStakingProtocolAndDelegatorIndex` (`max_values`: None, `max_size`: Some(86), added: 2561, mode: `MaxEncodedLen`)
+	/// Storage: `SlpV2::XCMExecutorWhitelist` (r:1 w:0)
+	/// Proof: `SlpV2::XCMExecutorWhitelist` (`max_values`: None, `max_size`: Some(2164), added: 4639, mode: `MaxEncodedLen`)
+	/// Storage: `SlpV2::ConfigurationByStakingProtocol` (r:1 w:0)
+	/// Proof: `SlpV2::ConfigurationByStakingProtocol` (`max_values`: None, `max_size`: Some(120), added: 2595, mode: `MaxEncodedLen`)
+	fn general_xcm_executor() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `624`
+		//  Estimated: `6112`
+		// Minimum execution time: 22_000_000 picoseconds.
+		Weight::from_parts(23_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 6112))
+			.saturating_add(RocksDbWeight::get().reads(4))
+	}
 }

@@ -22,7 +22,7 @@
 use astar_dapp_staking::types::DappStaking;
 use bifrost_primitives::{
 	Balance, BlockNumber, CurrencyId, CurrencyIdConversion, CurrencyIdExt, HyperBridgeSender,
-	TimeUnit, VtokenMintingOperator,
+	TimeUnit, VtokenMintingOperator, XChainSender,
 };
 use common::types::{Delegator, DelegatorIndex, ProtocolConfiguration};
 #[cfg(feature = "polkadot")]
@@ -33,7 +33,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::pallet_prelude::*;
-use orml_traits::{MultiCurrency, XcmTransfer};
+use orml_traits::MultiCurrency;
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_runtime::traits::AccountIdConversion;
 pub use weights::WeightInfo;
@@ -46,12 +46,17 @@ mod mock;
 
 #[cfg(feature = "polkadot")]
 mod astar_dapp_staking;
-mod common;
+pub mod common;
 #[cfg(feature = "polkadot")]
 mod ethereum_staking;
+pub mod migrations;
 #[cfg(test)]
 mod tests;
 pub mod weights;
+
+pub type CallDataOf<T> = BoundedVec<u8, <T as Config>::MaxCallDataLength>;
+
+pub type CallDataHeadListOf<T> = BoundedVec<CallDataOf<T>, <T as Config>::MaxCallDataPrefixItems>;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -60,12 +65,13 @@ mod benchmarking;
 pub mod pallet {
 	use super::*;
 	use crate::common::types::{Ledger, PendingStatus, StakingProtocol, Validator, XcmTask};
+	use bifrost_primitives::SlpHostingFeeProvider;
+	use cumulus_primitives_core::relay_chain::ChainId;
 	use sp_runtime::{traits::BlockNumberProvider, Permill};
 	use xcm::latest::{MaybeErrorCode, QueryId, Response};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_xcm::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 		type RuntimeCall: IsType<<Self as pallet_xcm::Config>::RuntimeCall>
@@ -86,7 +92,7 @@ pub mod pallet {
 		/// Xcm sender.
 		type XcmSender: SendXcm;
 		/// XTokens transfer interface
-		type XcmTransfer: XcmTransfer<Self::AccountId, Balance, CurrencyId>;
+		type XChainSender: XChainSender<Self::AccountId, Balance>;
 		/// HyperBridge
 		type HyperBridgeSender: HyperBridgeSender<Self::AccountId, Balance>;
 		/// The interface to call VtokenMinting module functions.
@@ -107,9 +113,19 @@ pub mod pallet {
 		/// Maximum validators
 		#[pallet::constant]
 		type MaxValidators: Get<u32>;
+		type ChannelCommission: SlpHostingFeeProvider<CurrencyId, Balance, Self::AccountId>;
+		/// Maximum call data length
+		#[pallet::constant]
+		type MaxCallDataLength: Get<u32>;
+		/// Maximum number of call data prefix items in whitelist
+		#[pallet::constant]
+		type MaxCallDataPrefixItems: Get<u32>;
 	}
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	/// Configuration for different staking protocols.
@@ -195,6 +211,22 @@ pub mod pallet {
 		Delegator<T::AccountId>,
 		BlockNumber,
 		ValueQuery,
+	>;
+
+	/// XCM Executor Whitelist
+	///
+	/// - `CurrencyId`: Token type, used to identify the type of asset to be processed.
+	/// - `ChainId`: Parachain network ID, used to distinguish different purpose chains or source chains.
+	/// - `Vec<Vec<u8>>`: The collection of call data header fields, where each element represents a prefix of the call data that is allowed to be executed.
+	#[pallet::storage]
+	pub type XCMExecutorWhitelist<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		CurrencyId,
+		Blake2_128Concat,
+		ChainId,
+		CallDataHeadListOf<T>,
+		OptionQuery,
 	>;
 
 	#[pallet::event]
@@ -321,6 +353,19 @@ pub mod pallet {
 			delegator: Delegator<T::AccountId>,
 			task: EthereumStaking,
 		},
+		/// XCM Executor Whitelist updated.
+		XCMExecutorWhitelistUpdated {
+			currency_id: CurrencyId,
+			chain_id: ChainId,
+			current_head: CallDataHeadListOf<T>,
+		},
+		/// Send general xcm executor task.
+		SendGeneralXcmExecutorTask {
+			/// CallData.
+			call_data: CallDataOf<T>,
+			/// Destination chain id.
+			dest_chain_id: ChainId,
+		},
 	}
 
 	#[pallet::error]
@@ -375,6 +420,14 @@ pub mod pallet {
 		ArithmeticOverflow,
 		/// Not authorized.
 		NotAuthorized,
+		/// Exceeds whitelist length limit.
+		WhitelistTooLong,
+		/// The general_xcm_executor method executed an unsupported CallData.
+		CallDataIsNotSupported,
+		/// GeneralXCMStaking type Delegator mismatch
+		InvalidDelegatorForGeneralXCMStaking,
+		/// Remote fee location configuration not set in ConfigurationByStakingProtocol
+		RemoteFeeLocationConfigurationNotSet,
 	}
 
 	#[pallet::hooks]
@@ -390,6 +443,7 @@ pub mod pallet {
 		/// - `staking_protocol`: Slp supports staking protocols.
 		/// - `configuration`: The staking protocol configuration.
 		#[pallet::call_index(0)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_protocol_configuration())]
 		pub fn set_protocol_configuration(
 			origin: OriginFor<T>,
@@ -423,6 +477,7 @@ pub mod pallet {
 		/// - `delegator`: If delegator is None, the delegator will be derived from sovereign
 		///   account.
 		#[pallet::call_index(1)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_delegator())]
 		pub fn add_delegator(
 			origin: OriginFor<T>,
@@ -441,6 +496,7 @@ pub mod pallet {
 		/// - `staking_protocol`: Slp supports staking protocols.
 		/// - `delegator`: Delegator that need to be removed.
 		#[pallet::call_index(2)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_delegator())]
 		pub fn remove_delegator(
 			origin: OriginFor<T>,
@@ -460,6 +516,7 @@ pub mod pallet {
 		/// - `delegator`: Select the delegator which is existed.
 		/// - `validator`: Validator that need to be added.
 		#[pallet::call_index(3)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_validator())]
 		pub fn add_validator(
 			origin: OriginFor<T>,
@@ -499,6 +556,7 @@ pub mod pallet {
 		/// - `delegator`: Select the delegator which is existed.
 		/// - `validator`: Validator that need to be removed.
 		#[pallet::call_index(4)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_validator())]
 		pub fn remove_validator(
 			origin: OriginFor<T>,
@@ -536,6 +594,7 @@ pub mod pallet {
 		/// - `delegator`: Select the delegator which is existed.
 		/// - `ledger`: Ledger that need to be set.
 		#[pallet::call_index(5)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_ledger())]
 		pub fn set_ledger(
 			origin: OriginFor<T>,
@@ -573,6 +632,7 @@ pub mod pallet {
 		/// - `staking_protocol`: Slp supports staking protocols.
 		/// - `delegator`: Select the delegator which is existed.
 		#[pallet::call_index(6)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::transfer_to())]
 		pub fn transfer_to(
 			origin: OriginFor<T>,
@@ -597,6 +657,7 @@ pub mod pallet {
 		/// - `delegator`: Select the delegator which is existed.
 		/// - `amount`: The amount of tokens to transfer back.
 		#[pallet::call_index(7)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::transfer_back())]
 		pub fn transfer_back(
 			origin: OriginFor<T>,
@@ -619,6 +680,7 @@ pub mod pallet {
 		/// - `time_uint_option`: If time_uint is None, the ongoing time unit will be increased by
 		///   one. Otherwise, the ongoing time unit will be updated to the specified time unit.
 		#[pallet::call_index(8)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_ongoing_time_unit())]
 		pub fn update_ongoing_time_unit(
 			origin: OriginFor<T>,
@@ -672,6 +734,7 @@ pub mod pallet {
 		/// - `delegator`: Select the delegator which is existed.
 		/// - `amount`: The amount of tokens to update the token exchange rate.
 		#[pallet::call_index(9)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_token_exchange_rate())]
 		pub fn update_token_exchange_rate(
 			origin: OriginFor<T>,
@@ -770,6 +833,9 @@ pub mod pallet {
 				delegator.clone(),
 				current_block_number,
 			);
+
+			T::ChannelCommission::record_hosting_fee(currency_id, protocol_fee)?;
+
 			Self::deposit_event(Event::<T>::TokenExchangeRateUpdated {
 				staking_protocol,
 				delegator,
@@ -791,6 +857,7 @@ pub mod pallet {
 		/// - `task`: The Dapp staking task.
 		#[cfg(feature = "polkadot")]
 		#[pallet::call_index(10)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::astar_dapp_staking())]
 		pub fn astar_dapp_staking(
 			origin: OriginFor<T>,
@@ -806,6 +873,7 @@ pub mod pallet {
 		/// Can be called by governance or xcm origin.
 		#[cfg(feature = "polkadot")]
 		#[pallet::call_index(11)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::notify_astar_dapp_staking())]
 		pub fn notify_astar_dapp_staking(
 			origin: OriginFor<T>,
@@ -833,6 +901,7 @@ pub mod pallet {
 		/// - `task`: The Dapp staking task.
 		#[cfg(feature = "polkadot")]
 		#[pallet::call_index(12)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::ethereum_staking())]
 		pub fn ethereum_staking(
 			origin: OriginFor<T>,
@@ -841,6 +910,129 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			Self::ensure_governance_or_operator(origin, StakingProtocol::EthereumStaking)?;
 			Self::do_ethereum_staking(delegator, task)
+		}
+
+		/// Update the whitelist of allowed XCM executor call-data prefixes.
+		///
+		/// This function allows governance to append or remove multiple call-data
+		/// prefixes ("heads") for the specified `(currency_id, chain_id)` pair.
+		///
+		/// * Each `head` represents a prefix of the XCM call-data that is allowed
+		///   to be executed through the `general_xcm_executor`.
+		/// * Call-data validation requires the full call-data to start with at least
+		///   one of the whitelisted heads.
+		///
+		/// ### Behavior
+		/// - `add_heads`: optional list of heads to be inserted (deduplicated).
+		/// - `remove_heads`: optional list of heads to be removed.
+		/// - If both are `None`, this function performs no modification.
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_xcm_executor_whitelist())]
+		pub fn update_xcm_executor_whitelist(
+			origin: OriginFor<T>,
+			currency_id: CurrencyId,
+			chain_id: ChainId,
+			add_heads: Option<CallDataHeadListOf<T>>,
+			remove_heads: Option<CallDataHeadListOf<T>>,
+		) -> DispatchResult {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			// 1. Confirm that the token has been registered with GeneralXCMStaking delegator
+			Self::ensure_general_xcm_staking_delegator_registered(currency_id, chain_id)?;
+
+			// 2. Read the current whitelist from storage (it may be empty)
+			let mut current =
+				XCMExecutorWhitelist::<T>::get(currency_id, chain_id).unwrap_or_default();
+
+			// 3. Execute the increment logic
+			if let Some(add_list) = add_heads {
+				for head in add_list.into_inner() {
+					if !current.contains(&head) {
+						current
+							.try_push(head)
+							.map_err(|_| Error::<T>::WhitelistTooLong)?;
+					}
+				}
+			}
+
+			// 4. Execute delete logic
+			if let Some(remove_list) = remove_heads {
+				for head in remove_list.into_inner() {
+					if let Some(pos) = current.iter().position(|x| x == &head) {
+						current.remove(pos);
+					}
+				}
+			}
+
+			XCMExecutorWhitelist::<T>::insert(currency_id, chain_id, current.clone());
+
+			Self::deposit_event(Event::<T>::XCMExecutorWhitelistUpdated {
+				currency_id,
+				chain_id,
+				current_head: current,
+			});
+
+			Ok(())
+		}
+
+		/// Execute a general XCM message through the configured executor.
+		///
+		/// The call accepts the full serialized call-data intended to be executed
+		/// on the destination chain. A whitelist is enforced so that only specific
+		/// call-data prefixes ("heads") previously registered via
+		/// `update_xcm_executor_whitelist` are allowed.
+		///
+		/// ### Behavior
+		/// 1. Resolve the General XCM Staking protocol for `(currency_id, chain_id)`.
+		/// 2. Require that the caller is governance or a protocol operator.
+		/// 3. Require that the delegator for the protocol is registered.
+		/// 4. Validate that the provided `call_data` starts with at least one head
+		///    in the whitelist. If not, the execution is rejected.
+		/// 5. Wrap the call-data into the proper XCM format and send the message.
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::general_xcm_executor())]
+		pub fn general_xcm_executor(
+			origin: OriginFor<T>,
+			currency_id: CurrencyId,
+			chain_id: ChainId,
+			call_data: CallDataOf<T>,
+		) -> DispatchResult {
+			let protocol = StakingProtocol::GeneralXCMStaking(currency_id, chain_id);
+			Self::ensure_governance_or_operator(origin, protocol)?;
+
+			// 1. Confirm that the token has been registered with GeneralXCMStaking delegator
+			Self::ensure_general_xcm_staking_protocol_delegator_registered(protocol)?;
+
+			// 2. Read the current whitelist from storage
+			let call_data_head_list = XCMExecutorWhitelist::<T>::get(currency_id, chain_id)
+				.ok_or(Error::<T>::CallDataIsNotSupported)?;
+
+			// 3. Verify if call_data matches any head in the whitelist
+			let call_data_ref = call_data.as_slice();
+			let mut matched = false;
+			for head in call_data_head_list.into_inner() {
+				let head_ref = head.as_slice();
+				if head_ref.is_empty() {
+					continue;
+				}
+				// If call_data starts with head, it indicates that the condition is met.
+				if call_data_ref.starts_with(head_ref) {
+					matched = true;
+					break;
+				}
+			}
+			ensure!(matched, Error::<T>::CallDataIsNotSupported);
+
+			// 4. Wrap the call data in an XCM message format
+			let xcm_message = Self::wrap_xcm_message(&protocol, call_data.to_vec())?;
+			Self::send_xcm_message(protocol, xcm_message)?;
+
+			Self::deposit_event(Event::<T>::SendGeneralXcmExecutorTask {
+				call_data,
+				dest_chain_id: chain_id,
+			});
+
+			Ok(())
 		}
 	}
 }

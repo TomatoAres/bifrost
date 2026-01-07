@@ -65,7 +65,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Currency operation handler
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
 
@@ -347,8 +346,7 @@ pub mod pallet {
 				if let Some(e) = Self::set_clearing_environment().err() {
 					log::error!(
 						target: "channel-commission::set_clearing_environment",
-						"Received invalid justification for {:?}",
-						e,
+						"Received invalid justification for {e:?}",
 					);
 					Self::deposit_event(Event::SetClearingEnvironmentFailed {
 						block_number: current_block_number,
@@ -871,7 +869,7 @@ impl<T: Config> Pallet<T> {
 							denominator,
 							Rounding::Down,
 						).unwrap_or_else(|()| {
-							log::error!("Failed to calculate Permill from numerator: {:?} and denominator: {:?}.",numerator, denominator);
+							log::error!("Failed to calculate Permill from numerator: {numerator:?} and denominator: {denominator:?}.");
 							// Emit the failure event
 							Self::deposit_event(Event::CalculationFailed {
 								numerator,
@@ -924,8 +922,7 @@ impl<T: Config> Pallet<T> {
 			.is_err()
 			{
 				log::error!(
-					"Failed to transfer bifrost commission for token: {:?}",
-					commission_token
+					"Failed to transfer bifrost commission for token: {commission_token:?}",
 				);
 				Self::deposit_event(Event::BifrostCommissionTransferFailed {
 					from: Self::account_id(),

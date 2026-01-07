@@ -95,7 +95,6 @@ impl PKBridgeTransferTokens for MockTransferTokens {
 pub type TestLocation = u32;
 
 impl crate::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type ControlOrigin =
 		EitherOfDiverse<EnsureSignedBy<Alice, AccountId32>, EnsureRoot<AccountId32>>;

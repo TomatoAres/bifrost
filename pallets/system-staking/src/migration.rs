@@ -47,7 +47,7 @@ impl<T: Config> OnRuntimeUpgrade for SystemStakingOnRuntimeUpgrade<T> {
 		let mut old_round = 0u32;
 		if StorageVersion::get::<Pallet<T>>() == 1 {
 			if let Some(round) = <Round<T>>::get() {
-				log::info!("Old round is {:?}", round);
+				log::info!("Old round is {round:?}");
 				old_round = round.length;
 			}
 		}
@@ -77,7 +77,7 @@ impl<T: Config> OnRuntimeUpgrade for SystemStakingOnRuntimeUpgrade<T> {
 
 		if StorageVersion::get::<Pallet<T>>() == 2 {
 			if let Some(round) = <Round<T>>::get() {
-				log::info!("New round is {:?}", round);
+				log::info!("New round is {round:?}");
 				let old_round: u32 = Decode::decode(&mut round_len.as_slice()).unwrap();
 				assert_eq!(round.length, old_round * 2);
 			}

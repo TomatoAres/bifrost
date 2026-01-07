@@ -26,6 +26,7 @@ use crate::{
 	Pallet as SlpV2,
 };
 use bifrost_primitives::{ASTR, VASTR};
+use cumulus_primitives_core::relay_chain::ChainId;
 use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
@@ -53,6 +54,30 @@ where
 			max_update_token_exchange_rate: Permill::from_perthousand(1),
 			update_time_unit_interval: 100u32,
 			update_exchange_rate_interval: 100u32,
+			remote_fee_location: Some(Location::here()),
+		}
+	));
+}
+
+fn do_set_general_xcm_staking_protocol_configuration<T: Config>()
+where
+	<T as frame_system::Config>::AccountId: From<sp_runtime::AccountId32>,
+{
+	assert_ok!(SlpV2::<T>::set_protocol_configuration(
+		RawOrigin::Root.into(),
+		StakingProtocol::GeneralXCMStaking(ASTR, 2006u32),
+		ProtocolConfiguration {
+			xcm_task_fee: XcmFee {
+				weight: Weight::zero(),
+				fee: 100
+			},
+			protocol_fee_rate: Permill::from_perthousand(100),
+			unlock_period: TimeUnit::Era(9),
+			operator: AccountId::from([0u8; 32]).into(),
+			max_update_token_exchange_rate: Permill::from_perthousand(1),
+			update_time_unit_interval: 100u32,
+			update_exchange_rate_interval: 100u32,
+			remote_fee_location: Some(Location::here()),
 		}
 	));
 }
@@ -75,6 +100,7 @@ where
 			max_update_token_exchange_rate: Permill::from_perthousand(1),
 			update_time_unit_interval: 100u32,
 			update_exchange_rate_interval: 100u32,
+			remote_fee_location: Some(Location::here()),
 		}
 	));
 }
@@ -83,6 +109,7 @@ where
 #[benchmarks(where <T as frame_system::Config>::AccountId: From<sp_runtime::AccountId32>, T: bifrost_vtoken_minting::Config)]
 mod benchmarks {
 	use super::*;
+	use scale_info::prelude::vec;
 
 	#[benchmark]
 	fn add_delegator() {
@@ -167,6 +194,7 @@ mod benchmarks {
 				max_update_token_exchange_rate: Permill::from_perthousand(1),
 				update_time_unit_interval: 100u32,
 				update_exchange_rate_interval: 100u32,
+				remote_fee_location: Some(Location::here()),
 			},
 		);
 		Ok(())
@@ -334,6 +362,89 @@ mod benchmarks {
 		let task = EthereumStaking::Stake(100);
 		#[extrinsic_call]
 		_(RawOrigin::Root, delegator, task);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn update_xcm_executor_whitelist() -> Result<(), BenchmarkError> {
+		let currency_id: CurrencyId = ASTR;
+		let chain_id: ChainId = 2006u32;
+
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let mut add_heads: BoundedVec<
+			BoundedVec<u8, T::MaxCallDataLength>,
+			T::MaxCallDataPrefixItems,
+		> = BoundedVec::default();
+
+		let single_head: BoundedVec<u8, T::MaxCallDataLength> =
+			vec![1u8; T::MaxCallDataLength::get() as usize]
+				.try_into()
+				.unwrap();
+
+		for i in 0..T::MaxCallDataPrefixItems::get() {
+			let mut head_vec = vec![0u8; T::MaxCallDataLength::get() as usize];
+			head_vec[0] = i as u8;
+			let head: BoundedVec<u8, T::MaxCallDataLength> = head_vec.try_into().unwrap();
+			add_heads.try_push(head).unwrap();
+		}
+
+		let add_heads = Some(add_heads);
+
+		let mut remove_heads_vec: BoundedVec<
+			BoundedVec<u8, T::MaxCallDataLength>,
+			T::MaxCallDataPrefixItems,
+		> = BoundedVec::default();
+
+		remove_heads_vec.try_push(single_head.clone()).unwrap();
+		let remove_heads = Some(remove_heads_vec);
+
+		#[extrinsic_call]
+		_(
+			RawOrigin::Root,
+			currency_id,
+			chain_id,
+			add_heads,
+			remove_heads,
+		);
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn general_xcm_executor() -> Result<(), BenchmarkError> {
+		let currency_id: CurrencyId = ASTR;
+		let chain_id: ChainId = 2006u32;
+
+		assert_ok!(SlpV2::<T>::add_delegator(
+			RawOrigin::Root.into(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		do_set_general_xcm_staking_protocol_configuration::<T>();
+
+		let head: BoundedVec<u8, T::MaxCallDataLength> = vec![1u8].try_into().unwrap();
+
+		let mut heads: BoundedVec<BoundedVec<u8, T::MaxCallDataLength>, T::MaxCallDataPrefixItems> =
+			BoundedVec::default();
+
+		heads.try_push(head.clone()).unwrap();
+
+		XCMExecutorWhitelist::<T>::insert(currency_id, chain_id, heads.clone());
+
+		let mut full_call_data = vec![1u8];
+		full_call_data.push(9u8);
+
+		let call_data: CallDataOf<T> = full_call_data.try_into().unwrap();
+
+		#[extrinsic_call]
+		_(RawOrigin::Root, currency_id, chain_id, call_data.clone());
+
 		Ok(())
 	}
 

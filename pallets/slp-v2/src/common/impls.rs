@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::common::types::PalletIndex;
 use crate::{
 	common::types::{
 		Delegator, DelegatorIndex, StakingProtocol, AS_DERIVATIVE_CALL_INDEX,
@@ -26,8 +27,13 @@ use crate::{
 	NextDelegatorIndexByStakingProtocol, Pallet, ValidatorsByStakingProtocolAndDelegator,
 };
 use bifrost_primitives::{
-	Balance, CurrencyId, HyperBridgeSender, VtokenMintingOperator, HYPERBRIDGE_TIMEOUT,
+	AstarChainId, Balance, BridgeType, CurrencyId, HyperBridgeSender, VtokenMintingOperator,
+	XChainSender, DOT, ETH, HYPERBRIDGE_TIMEOUT,
 };
+use cumulus_primitives_core::relay_chain::ChainId;
+use frame_support::dispatch::DispatchResult;
+use frame_support::dispatch::PostDispatchInfo;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	dispatch::{DispatchResultWithPostInfo, GetDispatchInfo, RawOrigin},
 	ensure,
@@ -35,11 +41,12 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::OriginFor;
 use ismp::host::StateMachine;
-use orml_traits::{MultiCurrency, XcmTransfer};
+use orml_traits::MultiCurrency;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::blake2_256;
 use sp_runtime::{traits::TrailingZeroInput, DispatchError, Saturating};
 use sp_std::{vec, vec::Vec};
+use xcm::prelude::Parachain;
 use xcm::{
 	latest::{OriginKind, QueryId, QueryResponseInfo, WeightLimit, WildAsset},
 	prelude::{AccountId32, Fungible, Here, ReportTransactStatus},
@@ -52,6 +59,13 @@ impl<T: Config> Pallet<T> {
 		staking_protocol: StakingProtocol,
 		delegator: Option<Delegator<T::AccountId>>,
 	) -> DispatchResultWithPostInfo {
+		// GeneralX CSM Staking does not permit explicit delegation to a delegator.
+		ensure!(
+			!matches!(staking_protocol, StakingProtocol::GeneralXCMStaking(..))
+				|| delegator.is_none(),
+			Error::<T>::InvalidDelegatorForGeneralXCMStaking
+		);
+
 		let mut delegator_index = 0;
 		NextDelegatorIndexByStakingProtocol::<T>::mutate(
 			staking_protocol,
@@ -88,20 +102,21 @@ impl<T: Config> Pallet<T> {
 					delegator.clone(),
 					delegator_index,
 				);
-				match staking_protocol {
-					StakingProtocol::GeneralProxyStaking(..) => {}
-					_ => LedgerByStakingProtocolAndDelegator::<T>::insert(
-						staking_protocol,
-						delegator.clone(),
-						staking_protocol.get_default_ledger(),
-					),
+				if !matches!(staking_protocol, StakingProtocol::GeneralProxyStaking(..)) {
+					if let Some(default_ledger) = staking_protocol.get_default_ledger() {
+						LedgerByStakingProtocolAndDelegator::<T>::insert(
+							staking_protocol,
+							delegator.clone(),
+							default_ledger,
+						);
+					}
 				}
 				Self::deposit_event(Event::AddDelegator {
 					staking_protocol,
 					delegator_index,
 					delegator,
 				});
-				Ok(().into())
+				Ok(PostDispatchInfo::default())
 			},
 		)
 	}
@@ -121,7 +136,7 @@ impl<T: Config> Pallet<T> {
 			delegator_index,
 			delegator,
 		});
-		Ok(().into())
+		Ok(PostDispatchInfo::default())
 	}
 
 	pub fn do_transfer_to(
@@ -135,7 +150,15 @@ impl<T: Config> Pallet<T> {
 		Self::ensure_delegator_exist(&staking_protocol, &delegator)?;
 		let currency_id = match currency_id {
 			Some(c) => c,
-			None => staking_protocol.info().currency_id,
+			None => match staking_protocol {
+				StakingProtocol::GeneralXCMStaking(currency, ..) => currency,
+				_ => {
+					staking_protocol
+						.info()
+						.ok_or(Error::<T>::UnsupportedStakingProtocol)?
+						.currency_id
+				}
+			},
 		};
 		let (entrance_account, _) = T::VtokenMinting::get_entrance_and_exit_accounts();
 		let entrance_account_free_balance =
@@ -145,17 +168,17 @@ impl<T: Config> Pallet<T> {
 
 		match staking_protocol {
 			StakingProtocol::AstarDappStaking => {
-				let dest_beneficiary_location = staking_protocol
-					.get_dest_beneficiary_location::<T>(delegator.clone())
-					.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
-				T::XcmTransfer::transfer(
-					entrance_account.clone(),
-					currency_id,
-					entrance_account_free_balance,
-					dest_beneficiary_location,
-					WeightLimit::Unlimited,
-				)
-				.map_err(|_| Error::<T>::DerivativeAccountIdFailed)?;
+				if let Delegator::Substrate(delegator) = delegator.clone() {
+					T::XChainSender::do_transfer_assets(
+						entrance_account.clone(),
+						BridgeType::Parachain(AstarChainId::get(), delegator),
+						vec![(currency_id, entrance_account_free_balance).into()],
+						0,
+					)
+					.map_err(|_| Error::<T>::DeliveringFailed)?;
+				} else {
+					return Err(Error::<T>::InvalidParameter.into());
+				}
 			}
 			StakingProtocol::EthereumStaking | StakingProtocol::GeneralProxyStaking(..) => {
 				let (amount, to, dest, payer, fee) = if let (
@@ -180,18 +203,56 @@ impl<T: Config> Pallet<T> {
 					Error::<T>::InvalidParameter
 				);
 				event_amount = amount;
-				T::HyperBridgeSender::send_and_call(
-					currency_id,
-					entrance_account.clone(),
-					to,
-					StateMachine::Evm(dest),
-					amount,
-					HYPERBRIDGE_TIMEOUT,
-					None,
-					payer,
-					fee,
-				)?;
+				if currency_id == ETH {
+					T::MultiCurrency::transfer(
+						DOT,
+						&payer,
+						&entrance_account,
+						fee,
+						ExistenceRequirement::AllowDeath,
+					)?;
+					T::XChainSender::do_transfer_assets(
+						entrance_account.clone(),
+						BridgeType::SnowBridge(to),
+						vec![(DOT, fee).into(), (currency_id, amount).into()],
+						0,
+					)
+					.map_err(|_| Error::<T>::DeliveringFailed)?;
+					return Ok(().into());
+				} else {
+					T::HyperBridgeSender::send_and_call(
+						currency_id,
+						entrance_account.clone(),
+						to,
+						StateMachine::Evm(dest),
+						amount,
+						HYPERBRIDGE_TIMEOUT,
+						None,
+						payer,
+						fee,
+					)?;
+				}
 			}
+			StakingProtocol::GeneralXCMStaking(.., chain_id) => match delegator.clone() {
+				Delegator::Ethereum(account) => {
+					T::XChainSender::do_transfer_assets(
+						entrance_account.clone(),
+						BridgeType::ParachainEvm(chain_id, account),
+						vec![(currency_id, entrance_account_free_balance).into()],
+						0,
+					)
+					.map_err(|_| Error::<T>::DeliveringFailed)?;
+				}
+				Delegator::Substrate(account) => {
+					T::XChainSender::do_transfer_assets(
+						entrance_account.clone(),
+						BridgeType::Parachain(chain_id, account),
+						vec![(currency_id, entrance_account_free_balance).into()],
+						0,
+					)
+					.map_err(|_| Error::<T>::DeliveringFailed)?;
+				}
+			},
 			_ => return Err(Error::<T>::UnsupportedStakingProtocol.into()),
 		}
 		Self::deposit_event(Event::TransferTo {
@@ -200,7 +261,7 @@ impl<T: Config> Pallet<T> {
 			to: delegator,
 			amount: event_amount,
 		});
-		Ok(().into())
+		Ok(PostDispatchInfo::default())
 	}
 
 	pub fn do_transfer_back(
@@ -216,10 +277,13 @@ impl<T: Config> Pallet<T> {
 				amount,
 				entrance_account.clone(),
 			)?;
+		let info = staking_protocol
+			.info()
+			.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
 		let utility_as_derivative_call_data = Self::wrap_utility_as_derivative_call_data(
-			&staking_protocol,
 			delegator_index,
 			transfer_back_call_data,
+			info.utility_pallet_index,
 		);
 		let xcm_message =
 			Self::wrap_xcm_message(&staking_protocol, utility_as_derivative_call_data)?;
@@ -230,7 +294,7 @@ impl<T: Config> Pallet<T> {
 			to: entrance_account,
 			amount,
 		});
-		Ok(().into())
+		Ok(PostDispatchInfo::default())
 	}
 
 	/// Implemented by Utility pallet to get derived account id
@@ -246,11 +310,10 @@ impl<T: Config> Pallet<T> {
 
 	/// Wrapping any runtime call with as_derivative.
 	pub fn wrap_utility_as_derivative_call_data(
-		staking_protocol: &StakingProtocol,
 		delegator_index: DelegatorIndex,
 		call: Vec<u8>,
+		utility_pallet_index: PalletIndex,
 	) -> Vec<u8> {
-		let utility_pallet_index = staking_protocol.info().utility_pallet_index;
 		let mut call_data = utility_pallet_index.encode();
 		call_data.extend(AS_DERIVATIVE_CALL_INDEX.encode());
 		// derivative index
@@ -266,8 +329,11 @@ impl<T: Config> Pallet<T> {
 		amount: Balance,
 		to: T::AccountId,
 	) -> Result<Vec<u8>, Error<T>> {
-		let xcm_pallet_index = staking_protocol.info().xcm_pallet_index;
-		let bifrost_dest_location = staking_protocol.info().bifrost_dest_location;
+		let info = staking_protocol
+			.info()
+			.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+		let xcm_pallet_index = info.xcm_pallet_index;
+		let bifrost_dest_location = info.bifrost_dest_location;
 		let account_id = to
 			.encode()
 			.try_into()
@@ -311,8 +377,22 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Xcm, Error<T>> {
 		let configuration = ConfigurationByStakingProtocol::<T>::get(staking_protocol)
 			.ok_or(Error::<T>::ConfigurationNotFound)?;
-		let fee_location = staking_protocol.info().remote_fee_location;
-		let refund_beneficiary = staking_protocol.info().remote_refund_beneficiary;
+
+		let (fee_location, refund_beneficiary) = match staking_protocol.info() {
+			Some(info) => (info.remote_fee_location, info.remote_refund_beneficiary),
+			None => match staking_protocol {
+				StakingProtocol::GeneralXCMStaking(..) => (
+					configuration
+						.remote_fee_location
+						.ok_or(Error::<T>::RemoteFeeLocationConfigurationNotSet)?,
+					staking_protocol.get_para_chain_remote_refund_beneficiary(),
+				),
+				_ => {
+					return Err(Error::<T>::UnsupportedStakingProtocol);
+				}
+			},
+		};
+
 		let asset = Asset {
 			id: AssetId(fee_location),
 			fun: Fungible(configuration.xcm_task_fee.fee),
@@ -342,11 +422,14 @@ impl<T: Config> Pallet<T> {
 		let notify_call_weight = notify_call.get_dispatch_info().call_weight;
 		let now = frame_system::Pallet::<T>::block_number();
 		let timeout = now.saturating_add(T::QueryTimeout::get());
-		let responder = staking_protocol.info().remote_dest_location;
+		let info = staking_protocol
+			.info()
+			.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+		let responder = info.remote_dest_location;
 		let query_id =
 			pallet_xcm::Pallet::<T>::new_notify_query(responder, notify_call, timeout, Here);
 		*mut_query_id = Some(query_id);
-		let destination = staking_protocol.info().bifrost_dest_location;
+		let destination = info.bifrost_dest_location;
 		let report_transact_status = ReportTransactStatus(QueryResponseInfo {
 			destination,
 			query_id,
@@ -361,7 +444,18 @@ impl<T: Config> Pallet<T> {
 		staking_protocol: StakingProtocol,
 		xcm_message: Xcm,
 	) -> Result<(), Error<T>> {
-		let dest_location = staking_protocol.info().remote_dest_location;
+		let dest_location = match staking_protocol.info() {
+			Some(info) => info.remote_dest_location,
+			None => match staking_protocol {
+				StakingProtocol::GeneralXCMStaking(_, chain_id) => {
+					Location::new(1, [Parachain(chain_id)])
+				}
+				_ => {
+					return Err(Error::<T>::UnsupportedStakingProtocol);
+				}
+			},
+		};
+
 		let (ticket, _price) =
 			T::XcmSender::validate(&mut Some(dest_location), &mut Some(xcm_message))
 				.map_err(|_| Error::<T>::ValidatingFailed)?;
@@ -431,8 +525,32 @@ impl<T: Config> Pallet<T> {
 				| StakingProtocol::MoonbeamParachainStaking
 				| StakingProtocol::PolkadotStaking,
 				None,
-			) => Ok(staking_protocol.info().currency_id),
+			) => {
+				let info = staking_protocol
+					.info()
+					.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+				Ok(info.currency_id)
+			}
 			_ => Err(Error::<T>::InvalidParameter.into()),
 		}
+	}
+
+	pub fn ensure_general_xcm_staking_delegator_registered(
+		currency: CurrencyId,
+		chain: ChainId,
+	) -> DispatchResult {
+		let protocol = StakingProtocol::GeneralXCMStaking(currency, chain);
+		Self::ensure_general_xcm_staking_protocol_delegator_registered(protocol)
+	}
+
+	pub fn ensure_general_xcm_staking_protocol_delegator_registered(
+		staking_protocol: StakingProtocol,
+	) -> DispatchResult {
+		let mut iter =
+			DelegatorByStakingProtocolAndDelegatorIndex::<T>::iter_prefix(staking_protocol);
+		if iter.next().is_none() {
+			return Err(Error::<T>::DelegatorNotFound.into());
+		}
+		Ok(())
 	}
 }

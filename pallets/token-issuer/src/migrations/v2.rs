@@ -34,7 +34,7 @@ impl<T: Config> OnRuntimeUpgrade for TokenIssuerMigration<T> {
 			log::info!(target: LOG_TARGET, "Start to migrate IssueWhiteList storage...");
 			IssueWhiteList::<T>::translate::<Vec<AccountIdOf<T>>, _>(
 				|k: CurrencyId, value: Vec<AccountIdOf<T>>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
+					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {k:?}...");
 
 					let target_bounded_vec: BoundedVec<AccountIdOf<T>, T::MaxLengthLimit> =
 						if !value.is_empty() {
@@ -50,7 +50,7 @@ impl<T: Config> OnRuntimeUpgrade for TokenIssuerMigration<T> {
 			log::info!(target: LOG_TARGET, "Start to migrate TransferWhiteList storage...");
 			TransferWhiteList::<T>::translate::<Vec<AccountIdOf<T>>, _>(
 				|k: CurrencyId, value: Vec<AccountIdOf<T>>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
+					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {k:?}...");
 
 					let target_bounded_vec: BoundedVec<AccountIdOf<T>, T::MaxLengthLimit> =
 						if !value.is_empty() {
@@ -80,13 +80,12 @@ impl<T: Config> OnRuntimeUpgrade for TokenIssuerMigration<T> {
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 		let issue_white_list_cnt = IssueWhiteList::<T>::iter().count();
 		// print out the pre-migrate storage count
-		log::info!(target: LOG_TARGET, "IssueWhiteList storage count: {:?}", issue_white_list_cnt);
+		log::info!(target: LOG_TARGET, "IssueWhiteList storage count: {issue_white_list_cnt:?}");
 
 		let transfer_white_list_cnt = TransferWhiteList::<T>::iter().count();
 		log::info!(
 			target: LOG_TARGET,
-			"TransferWhiteList storage count: {:?}",
-			transfer_white_list_cnt
+			"TransferWhiteList storage count: {transfer_white_list_cnt:?}"
 		);
 
 		let cnt = (issue_white_list_cnt as u32, transfer_white_list_cnt as u32);
@@ -104,8 +103,7 @@ impl<T: Config> OnRuntimeUpgrade for TokenIssuerMigration<T> {
 		// print out the post-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"IssueWhiteList post-migrate storage count: {:?}",
-			issue_white_list_cnt_new
+			"IssueWhiteList post-migrate storage count: {issue_white_list_cnt_new:?}",
 		);
 		ensure!(
 			issue_white_list_cnt_new as u32 == issue_white_list_cnt_old,
@@ -115,8 +113,7 @@ impl<T: Config> OnRuntimeUpgrade for TokenIssuerMigration<T> {
 		let transfer_white_list_cnt_new = TransferWhiteList::<T>::iter().count();
 		log::info!(
 			target: LOG_TARGET,
-			"TransferWhiteList post-migrate storage count: {:?}",
-			transfer_white_list_cnt_new
+			"TransferWhiteList post-migrate storage count: {transfer_white_list_cnt_new:?}",
 		);
 		ensure!(
 			transfer_white_list_cnt_new as u32 == transfer_white_list_cnt_old,

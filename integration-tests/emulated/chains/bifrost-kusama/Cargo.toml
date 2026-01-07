@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-kusama-emulated-chain"
 description = "Bifrost Kusama emulated chain"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 sp-core.workspace = true

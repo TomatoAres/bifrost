@@ -147,7 +147,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -227,7 +226,6 @@ impl SlpxOperator<AccountId, Balance> for SlpxInterface {
 }
 
 impl bifrost_slp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type MultiCurrency = Currencies;
@@ -262,7 +260,6 @@ parameter_types! {
 }
 
 impl orml_xtokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type CurrencyIdConvert = ();
@@ -286,7 +283,6 @@ parameter_types! {
 }
 
 impl bifrost_vtoken_minting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type ControlOrigin = EnsureSignedBy<One, AccountId>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;

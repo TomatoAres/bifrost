@@ -166,7 +166,6 @@ pub fn bifrost_polkadot_genesis(
 		},
 		// EVM compatibility
 		"evmChainId": { "chainId": 996u64 },
-		"dynamicFee": { "minGasPrice": U256::from(560174200u64) },
 		"parachainStaking": {
 			"candidates": candidates
 				.iter()

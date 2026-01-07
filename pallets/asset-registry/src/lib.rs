@@ -71,9 +71,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Currency type for withdraw and balance storage.
 		type Currency: Currency<Self::AccountId>;
 
@@ -602,10 +599,10 @@ impl<T: Config> CurrencyIdRegister<CurrencyId, AssetMetadata<BalanceOf<T>>> for 
 	}
 
 	fn register_blp_metadata(pool_id: PoolId, decimals: u8) -> DispatchResult {
-		let name = scale_info::prelude::format!("Bifrost Stable Pool Token {}", pool_id)
+		let name = scale_info::prelude::format!("Bifrost Stable Pool Token {pool_id}")
 			.as_bytes()
 			.to_vec();
-		let symbol = scale_info::prelude::format!("BLP{}", pool_id)
+		let symbol = scale_info::prelude::format!("BLP{pool_id}")
 			.as_bytes()
 			.to_vec();
 		Pallet::<T>::do_register_metadata(

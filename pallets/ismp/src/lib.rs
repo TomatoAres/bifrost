@@ -108,8 +108,6 @@ pub mod pallet {
 	/// Pallet Configuration
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_ismp::Config {
-		/// Overarching event
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Native balance
 		type Balance: Balance
 			+ Into<<Self::NativeCurrency as Inspect<Self::AccountId>>::Balance>
@@ -221,7 +219,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> IsmpModule for Pallet<T> {
-		fn on_accept(&self, request: PostRequest) -> Result<(), anyhow::Error> {
+		fn on_accept(&self, request: PostRequest) -> Result<Weight, anyhow::Error> {
 			let source_chain = request.source;
 
 			match source_chain {
@@ -232,10 +230,10 @@ pub mod pallet {
 				source => Err(IsmpError::Custom(format!("Unsupported source {source:?}")))?,
 			}
 
-			Ok(())
+			Ok(T::DbWeight::get().reads_writes(0, 0))
 		}
 
-		fn on_response(&self, response: Response) -> Result<(), anyhow::Error> {
+		fn on_response(&self, response: Response) -> Result<Weight, anyhow::Error> {
 			match response {
 				Response::Post(_) => Err(IsmpError::Custom(
 					"Balance transfer protocol does not accept post responses".to_string(),
@@ -248,10 +246,10 @@ pub mod pallet {
 				)),
 			};
 
-			Ok(())
+			Ok(T::DbWeight::get().reads_writes(0, 0))
 		}
 
-		fn on_timeout(&self, timeout: Timeout) -> Result<(), anyhow::Error> {
+		fn on_timeout(&self, timeout: Timeout) -> Result<Weight, anyhow::Error> {
 			let request = match timeout {
 				Timeout::Request(Request::Post(post)) => Request::Post(post),
 				_ => Err(IsmpError::Custom(
@@ -275,7 +273,7 @@ pub mod pallet {
 				amount: payload.amount,
 				source_chain,
 			});
-			Ok(())
+			Ok(T::DbWeight::get().reads_writes(0, 0))
 		}
 	}
 }

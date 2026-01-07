@@ -27,22 +27,22 @@ jobs:
         with:
           components: rustfmt
           target: wasm32v1-none
-          toolchain: 1.84.1
+          toolchain: 1.88.0
 
       - name: Download kusama srtool result
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: bifrost-kusama-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
 
       - name: Download polkadot srtool result
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: bifrost-polkadot-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts
       
       - name: Download paseo srtool result
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: bifrost-paseo-runtime-${{ github.ref_name }}
           path: ${{ github.workspace }}/artifacts

@@ -58,7 +58,6 @@ impl EvmNonceProvider for EvmNonceProviderMock {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = sp_core::ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
@@ -79,7 +78,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;

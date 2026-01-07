@@ -1414,7 +1414,7 @@ fn phala_transfer_to_works() {
 				Box::new(subaccount_0_location),
 				5_000_000_000_000_000_000,
 			),
-			Error::<Runtime>::TransferToError
+			Error::<Runtime>::Unsupported
 		);
 	});
 }

@@ -148,7 +148,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ();
@@ -162,14 +161,12 @@ ord_parameter_types! {
 }
 
 impl bifrost_asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<One, AccountId>;
 	type WeightInfo = ();
 }
 
 impl bifrost_vbnc_convert::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type VBNCConvertPalletId = VBNCConvertPalletId;
 	type WeightInfo = ();

@@ -101,7 +101,6 @@ parameter_types! {
 	pub InitSeedStk: u128 = 10;
 }
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type MinBlocksPerRound = MinBlocksPerRound;

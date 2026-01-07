@@ -75,7 +75,6 @@ parameter_types! {
 impl Config for Test {
 	type BlockNumberToBalance = Identity;
 	type Currency = Balances;
-	type RuntimeEvent = RuntimeEvent;
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 	type MinVestedTransfer = MinVestedTransfer;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;

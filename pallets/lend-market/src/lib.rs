@@ -98,8 +98,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The oracle price feeder
 		type OraclePriceProvider: OraclePriceProvider;
 
@@ -469,6 +467,7 @@ pub mod pallet {
 		/// - `asset_id`: Market related currency
 		/// - `market`: The market that is going to be stored
 		#[pallet::call_index(0)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::add_market())]
 		#[transactional]
 		pub fn add_market(
@@ -537,6 +536,7 @@ pub mod pallet {
 		///
 		/// - `asset_id`: Market related currency
 		#[pallet::call_index(1)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::activate_market())]
 		#[transactional]
 		pub fn activate_market(
@@ -561,6 +561,7 @@ pub mod pallet {
 		/// - `asset_id`: Market related currency
 		/// - `rate_model`: The new rate model to be updated
 		#[pallet::call_index(2)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::update_rate_model())]
 		#[transactional]
 		pub fn update_rate_model(
@@ -588,6 +589,7 @@ pub mod pallet {
 		/// - `liquidate_incentive`: liquidation incentive ratio
 		/// - `cap`: market capacity
 		#[pallet::call_index(3)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::update_market())]
 		#[transactional]
 		pub fn update_market(
@@ -658,6 +660,7 @@ pub mod pallet {
 		/// - `asset_id`: market related currency
 		/// - `market`: the new market parameters
 		#[pallet::call_index(4)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::force_update_market())]
 		#[transactional]
 		pub fn force_update_market(
@@ -690,6 +693,7 @@ pub mod pallet {
 		///
 		/// - `amount`: Reward amount added
 		#[pallet::call_index(5)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::add_reward())]
 		#[transactional]
 		pub fn add_reward(
@@ -722,6 +726,7 @@ pub mod pallet {
 		/// - `target_account`: account receive reward token.
 		/// - `amount`: Withdraw amount
 		#[pallet::call_index(6)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::withdraw_missing_reward())]
 		#[transactional]
 		pub fn withdraw_missing_reward(
@@ -755,6 +760,7 @@ pub mod pallet {
 		/// - `asset_id`: Market related currency
 		/// - `reward_per_block`: reward amount per block.
 		#[pallet::call_index(7)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::update_market_reward_speed())]
 		#[transactional]
 		pub fn update_market_reward_speed(
@@ -798,6 +804,7 @@ pub mod pallet {
 
 		/// Claim reward from all market.
 		#[pallet::call_index(8)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::claim_reward())]
 		#[transactional]
 		pub fn claim_reward(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -816,6 +823,7 @@ pub mod pallet {
 		///
 		/// - `asset_id`: Market related currency
 		#[pallet::call_index(9)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::claim_reward_for_market())]
 		#[transactional]
 		pub fn claim_reward_for_market(
@@ -836,6 +844,7 @@ pub mod pallet {
 		/// - `asset_id`: the asset to be deposited.
 		/// - `mint_amount`: the amount to be deposited.
 		#[pallet::call_index(10)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::mint())]
 		#[transactional]
 		pub fn mint(
@@ -854,6 +863,7 @@ pub mod pallet {
 		/// - `asset_id`: the asset to be redeemed.
 		/// - `redeem_amount`: the amount to be redeemed.
 		#[pallet::call_index(11)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::redeem())]
 		#[transactional]
 		pub fn redeem(
@@ -872,6 +882,7 @@ pub mod pallet {
 		///
 		/// - `asset_id`: the asset to be redeemed.
 		#[pallet::call_index(12)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::redeem_all())]
 		#[transactional]
 		pub fn redeem_all(
@@ -889,6 +900,7 @@ pub mod pallet {
 		/// - `asset_id`: the asset to be borrowed.
 		/// - `borrow_amount`: the amount to be borrowed.
 		#[pallet::call_index(13)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::borrow())]
 		#[transactional]
 		pub fn borrow(
@@ -908,6 +920,7 @@ pub mod pallet {
 		/// - `asset_id`: the asset to be repaid.
 		/// - `repay_amount`: the amount to be repaid.
 		#[pallet::call_index(14)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::repay_borrow())]
 		#[transactional]
 		pub fn repay_borrow(
@@ -926,6 +939,7 @@ pub mod pallet {
 		///
 		/// - `asset_id`: the asset to be repaid.
 		#[pallet::call_index(15)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::repay_borrow_all())]
 		#[transactional]
 		pub fn repay_borrow_all(
@@ -946,6 +960,7 @@ pub mod pallet {
 		/// - `asset_id`: the asset to be set.
 		/// - `enable`: turn on/off the collateral option.
 		#[pallet::call_index(16)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::collateral_asset())]
 		#[transactional]
 		pub fn collateral_asset(
@@ -976,6 +991,7 @@ pub mod pallet {
 		/// - `repay_amount`: the amount to be repaid borrow.
 		/// - `collateral_asset_id`: The collateral to seize from the borrower.
 		#[pallet::call_index(17)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::liquidate_borrow())]
 		#[transactional]
 		pub fn liquidate_borrow(
@@ -1010,6 +1026,7 @@ pub mod pallet {
 		/// - `asset_id`: the assets to be added.
 		/// - `add_amount`: the amount to be added.
 		#[pallet::call_index(18)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::add_reserves())]
 		#[transactional]
 		pub fn add_reserves(
@@ -1053,6 +1070,7 @@ pub mod pallet {
 		/// - `asset_id`: the assets to be reduced.
 		/// - `reduce_amount`: the amount to be reduced.
 		#[pallet::call_index(19)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::reduce_reserves())]
 		#[transactional]
 		pub fn reduce_reserves(
@@ -1096,6 +1114,7 @@ pub mod pallet {
 		/// - `asset_id`: the asset to be redeemed.
 		/// - `redeem_amount`: the amount to be redeemed.
 		#[pallet::call_index(20)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::redeem()+T::WeightInfo::reduce_reserves())]
 		#[transactional]
 		pub fn reduce_incentive_reserves(
@@ -1131,6 +1150,7 @@ pub mod pallet {
 		///
 		/// The `assets` won't be counted when do general
 		#[pallet::call_index(21)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::update_liquidation_free_collateral())]
 		#[transactional]
 		pub fn update_liquidation_free_collateral(
@@ -1153,6 +1173,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(22)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::add_market())]
 		#[transactional]
 		pub fn add_market_bond(
@@ -1633,11 +1654,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		log::trace!(
 			target: "lend-market::liquidate_borrow_allowed",
-			"borrower: {:?}, liquidation_asset_id {:?}, repay_amount {:?}, market: {:?}",
-			borrower,
-			liquidation_asset_id,
-			repay_amount,
-			market
+			"borrower: {borrower:?}, liquidation_asset_id {liquidation_asset_id:?}, repay_amount {repay_amount:?}, market: {market:?}",
 		);
 		let (liquidity, shortfall, lf_liquidity, _) =
 			Self::get_account_liquidation_threshold_liquidity(borrower)?;
@@ -1767,14 +1784,8 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		log::trace!(
 			target: "lend-market::liquidated_transfer",
-			"liquidator: {:?}, borrower: {:?}, liquidation_asset_id: {:?},
-				collateral_asset_id: {:?}, repay_amount: {:?}, collateral_underlying_amount: {:?}",
-			liquidator,
-			borrower,
-			liquidation_asset_id,
-			collateral_asset_id,
-			repay_amount,
-			collateral_underlying_amount
+			"liquidator: {liquidator:?}, borrower: {borrower:?}, liquidation_asset_id: {liquidation_asset_id:?},
+				collateral_asset_id: {collateral_asset_id:?}, repay_amount: {repay_amount:?}, collateral_underlying_amount: {collateral_underlying_amount:?}",
 		);
 
 		// update borrow index after accrue interest.

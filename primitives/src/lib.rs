@@ -26,6 +26,7 @@ use hex_literal::hex;
 use parity_scale_codec::MaxEncodedLen;
 use scale_info::TypeInfo;
 use sp_core::{Decode, Encode, RuntimeDebug, H160};
+use sp_runtime::traits::Get;
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -39,6 +40,8 @@ pub mod xcm;
 pub use crate::xcm::*;
 pub mod mock_xcm;
 pub use crate::mock_xcm::*;
+pub mod x_chain_sender;
+pub use crate::x_chain_sender::*;
 
 #[cfg(any(test, feature = "std"))]
 pub mod mock_price;
@@ -241,6 +244,64 @@ pub enum RedeemType<AccountId> {
 	Manta(AccountId),
 	/// HyperBridge,
 	HyperBridge(u32, H160),
+	/// AssetHub
+	AssetHub(AccountId),
+}
+
+#[derive(
+	PartialEq, Eq, Clone, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, scale_info::TypeInfo,
+)]
+pub enum RedeemTo<AccountId> {
+	/// Native chain.
+	Native(AccountId),
+	/// Astar chain.
+	Astar(AccountId),
+	/// Moonbeam chain.
+	Moonbeam(H160),
+	/// Hydradx chain.
+	Hydradx(AccountId),
+	/// Interlay chain.
+	Interlay(AccountId),
+	/// Manta chain.
+	Manta(AccountId),
+	/// HyperBridge
+	HyperBridge(u32, H160),
+	/// AssetHub
+	AssetHub(AccountId),
+}
+
+impl<AccountId: Clone> RedeemType<AccountId> {
+	pub fn bridge_type<ChainId: Get<u32>>(&self) -> Option<BridgeType<AccountId>> {
+		match self {
+			RedeemType::Astar(a) => Some(BridgeType::Parachain(AstarChainId::get(), a.clone())),
+			RedeemType::Moonbeam(a) => Some(BridgeType::ParachainEvm(ChainId::get(), *a)),
+			RedeemType::Hydradx(a) => {
+				Some(BridgeType::Parachain(HydrationChainId::get(), a.clone()))
+			}
+			RedeemType::Interlay(a) => {
+				Some(BridgeType::Parachain(InterlayChainId::get(), a.clone()))
+			}
+			RedeemType::Manta(a) => Some(BridgeType::Parachain(MantaChainId::get(), a.clone())),
+			RedeemType::AssetHub(a) => {
+				Some(BridgeType::Parachain(AssetHubChainId::get(), a.clone()))
+			}
+			RedeemType::HyperBridge(d, a) => Some(BridgeType::HyperBridge(*d, *a)),
+			_ => None,
+		}
+	}
+
+	pub fn into_redeem_to(&self, who: AccountId) -> RedeemTo<AccountId> {
+		match self {
+			RedeemType::Native => RedeemTo::Native(who),
+			RedeemType::Astar(a) => RedeemTo::Astar(a.clone()),
+			RedeemType::Moonbeam(a) => RedeemTo::Moonbeam(*a),
+			RedeemType::Hydradx(a) => RedeemTo::Hydradx(a.clone()),
+			RedeemType::Interlay(a) => RedeemTo::Interlay(a.clone()),
+			RedeemType::Manta(a) => RedeemTo::Manta(a.clone()),
+			RedeemType::AssetHub(a) => RedeemTo::AssetHub(a.clone()),
+			RedeemType::HyperBridge(d, a) => RedeemTo::HyperBridge(*d, *a),
+		}
+	}
 }
 
 impl<AccountId> Default for RedeemType<AccountId> {
@@ -322,9 +383,22 @@ pub enum TargetChain<AccountId> {
 	Interlay(AccountId),
 	Manta(AccountId),
 	HyperBridge(u32, H160),
+	AssetHub(AccountId),
 }
 
-impl<AccountId> TargetChain<AccountId> {
+impl<AccountId: Clone> TargetChain<AccountId> {
+	pub fn bridge_type(&self, moonbeam_chain_id: u32) -> BridgeType<AccountId> {
+		match self {
+			TargetChain::Astar(a) => BridgeType::ParachainEvm(AstarChainId::get(), *a),
+			TargetChain::Moonbeam(a) => BridgeType::ParachainEvm(moonbeam_chain_id, *a),
+			TargetChain::Hydradx(a) => BridgeType::Parachain(HydrationChainId::get(), a.clone()),
+			TargetChain::Interlay(a) => BridgeType::Parachain(InterlayChainId::get(), a.clone()),
+			TargetChain::Manta(a) => BridgeType::Parachain(MantaChainId::get(), a.clone()),
+			TargetChain::AssetHub(a) => BridgeType::Parachain(AssetHubChainId::get(), a.clone()),
+			TargetChain::HyperBridge(d, a) => BridgeType::HyperBridge(*d, *a),
+		}
+	}
+
 	pub fn support_chain(self: &TargetChain<AccountId>) -> SupportChain {
 		match self {
 			TargetChain::Astar(_) => SupportChain::Astar,

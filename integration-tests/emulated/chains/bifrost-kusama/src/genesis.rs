@@ -23,9 +23,8 @@ use sp_core::storage::Storage;
 use sp_keyring::Sr25519Keyring as Keyring;
 
 // Cumulus
-use bifrost_primitives::currency::{BNC, DOT, DOT_U, GLMR};
-use bifrost_primitives::CurrencyId::{VToken, VToken2};
-use bifrost_primitives::{DOT_TOKEN_ID, KSM, VKSM};
+use bifrost_primitives::currency::BNC;
+use bifrost_primitives::{KSM, VKSM};
 use bifrost_runtime_common::bridge_xcm_helper::DEFAULT_XCM_FEES_IK_PERSPECTIVE;
 use emulated_integration_tests_common::{
 	accounts, build_genesis_storage, collators, SAFE_XCM_VERSION,

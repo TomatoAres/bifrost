@@ -220,10 +220,7 @@ pub fn migrate_to_v3<T: Config, C: Get<CurrencyIdOf<T>>>() -> Weight {
 	ClassLocksFor::<T>::translate::<Vec<(PollIndex, BalanceOf<T>)>, _>(
 		|_: T::AccountId, locks: Vec<(PollIndex, BalanceOf<T>)>| {
 			let max_locked_balance = locks.iter().fold(BalanceOf::<T>::zero(), |a, i| a.max(i.1));
-			log::info!(
-				"Migrated max_locked_balance for {:?}...",
-				max_locked_balance
-			);
+			log::info!("Migrated max_locked_balance for {max_locked_balance:?}...",);
 			weight += T::DbWeight::get().writes(1);
 			Some(BoundedVec::try_from(vec![(vtoken, max_locked_balance)]).unwrap())
 		},
@@ -503,33 +500,21 @@ pub mod v6 {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
 			let vote_delegator_count = VoteDelegatorFor::<T>::iter().count();
-			log::info!(
-				"VoteDelegatorFor pre-migrate storage count: {:?}",
-				vote_delegator_count
-			);
+			log::info!("VoteDelegatorFor pre-migrate storage count: {vote_delegator_count:?}",);
 
 			let pending_voting_count = PendingVotingInfo::<T>::iter().count();
-			log::info!(
-				"PendingVotingInfo pre-migrate storage count: {:?}",
-				pending_voting_count
-			);
+			log::info!("PendingVotingInfo pre-migrate storage count: {pending_voting_count:?}",);
 
 			let pending_referendum_count = PendingReferendumInfo::<T>::iter().count();
 			log::info!(
-				"PendingReferendumInfo pre-migrate storage count: {:?}",
-				pending_referendum_count
+				"PendingReferendumInfo pre-migrate storage count: {pending_referendum_count:?}",
 			);
 
 			let referendum_info_count = ReferendumInfoFor::<T>::iter().count();
-			log::info!(
-				"ReferendumInfoFor pre-migrate storage count: {:?}",
-				pending_referendum_count
-			);
+			log::info!("ReferendumInfoFor pre-migrate storage count: {pending_referendum_count:?}",);
 
-			log::info!(
-				"vtoken-voting before migration: version: {:?}",
-				StorageVersion::get::<Pallet<T>>(),
-			);
+			let version = StorageVersion::get::<Pallet<T>>();
+			log::info!("vtoken-voting before migration: version: {version:?}");
 
 			let cnt = (
 				pending_voting_count as u32,
@@ -550,10 +535,7 @@ pub mod v6 {
 			);
 
 			let new_vote_delegator_count = VoteDelegatorFor::<T>::iter().count();
-			log::info!(
-				"VoteDelegatorFor post_upgrade storage count: {:?}",
-				new_vote_delegator_count
-			);
+			log::info!("VoteDelegatorFor post_upgrade storage count: {new_vote_delegator_count:?}",);
 			ensure!(
 				new_vote_delegator_count as u32 == 0,
 				"VoteDelegatorFor post-migrate storage count not match"
@@ -561,8 +543,7 @@ pub mod v6 {
 
 			let new_pending_voting_count = PendingVotingInfo::<T>::iter().count();
 			log::info!(
-				"PendingVotingInfo post_upgrade storage count: {:?}",
-				new_pending_voting_count
+				"PendingVotingInfo post_upgrade storage count: {new_pending_voting_count:?}",
 			);
 			ensure!(
 				new_pending_voting_count as u32 == pending_voting_count,
@@ -571,8 +552,7 @@ pub mod v6 {
 
 			let new_pending_referendum_count = PendingReferendumInfo::<T>::iter().count();
 			log::info!(
-				"PendingReferendumInfo post_upgrade storage count: {:?}",
-				new_pending_referendum_count
+				"PendingReferendumInfo post_upgrade storage count: {new_pending_referendum_count:?}",
 			);
 			ensure!(
 				new_pending_referendum_count as u32 == pending_referendum_count,
@@ -581,18 +561,15 @@ pub mod v6 {
 
 			let new_referendum_info_count = ReferendumInfoFor::<T>::iter().count();
 			log::info!(
-				"ReferendumInfoFor post_upgrade storage count: {:?}",
-				new_referendum_info_count
+				"ReferendumInfoFor post_upgrade storage count: {new_referendum_info_count:?}",
 			);
 			ensure!(
 				new_referendum_info_count as u32 == referendum_info_count,
 				"ReferendumInfoFor post-migrate storage count not match"
 			);
 
-			log::info!(
-				"vtoken-voting after migration: version: {:?}",
-				StorageVersion::get::<Pallet<T>>(),
-			);
+			let version = StorageVersion::get::<Pallet<T>>();
+			log::info!("vtoken-voting after migration: version: {version:?}");
 
 			Ok(())
 		}
@@ -611,8 +588,7 @@ pub mod v6 {
 					}
 					Err(_) => {
 						panic!(
-							"Migration failed: PendingReferendumInfo exceeds MaxVotes (poll_index = {:?}, query_id skipped)",
-							poll_index
+							"Migration failed: PendingReferendumInfo exceeds MaxVotes (poll_index = {poll_index:?}, query_id skipped)",
 						);
 					}
 				}
@@ -644,8 +620,7 @@ pub mod v6 {
 					Some((currency_id, who, value))
 				} else {
 					panic!(
-						"Migration failed: PendingVotingInfo exceeds MaxVotes (poll_index = {:?}, query_id skipped)",
-						poll_index
+						"Migration failed: PendingVotingInfo exceeds MaxVotes (poll_index = {poll_index:?}, query_id skipped)",
 					);
 				}
 			},
@@ -668,10 +643,10 @@ pub mod v6 {
 		// --- VoteDelegatorFor Migrating ---
 		let count = VoteDelegatorFor::<T>::iter().count();
 		for (key, _) in VoteDelegatorFor::<T>::drain() {
-			log::info!("Removed VoteDelegatorFor key {:?}", key);
+			log::info!("Removed VoteDelegatorFor key {key:?}");
 			weight += T::DbWeight::get().writes(1);
 		}
-		log::info!("Migration removed {} VoteDelegatorFor entries", count);
+		log::info!("Migration removed {count} VoteDelegatorFor entries");
 
 		weight
 	}

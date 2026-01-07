@@ -131,10 +131,20 @@ impl StakingProtocol {
 		}
 	}
 
-	pub fn get_default_ledger(&self) -> Ledger {
+	pub fn get_default_ledger(&self) -> Option<Ledger> {
 		match self {
-			_ => unreachable!(),
+			_ => None,
 		}
+	}
+
+	pub fn get_para_chain_remote_refund_beneficiary(&self) -> Location {
+		Location::new(
+			0,
+			[AccountId32 {
+				network: None,
+				id: Sibling::from(BifrostKusamaChainId::get()).into_account_truncating(),
+			}],
+		)
 	}
 }
 

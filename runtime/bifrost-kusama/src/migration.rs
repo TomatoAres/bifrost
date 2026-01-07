@@ -133,11 +133,10 @@ pub mod v1 {
 			let referendum_count = v0::ReferendumInfoFor::<T, I>::iter().count();
 			log::info!(
 				target: TARGET,
-				"pre-upgrade state contains '{}' referendums.",
-				referendum_count
+				"pre-upgrade state contains '{referendum_count}' referendums.",
 			);
 			let infos = v0::ReferendumInfoFor::<T, I>::iter().collect::<Vec<_>>();
-			log::info!("pre_upgrade infos: {:?}", infos);
+			log::info!("pre_upgrade infos: {infos:?}");
 			Ok((referendum_count as u32).encode())
 		}
 
@@ -463,8 +462,8 @@ pub mod system_maker {
 				ExistenceRequirement::AllowDeath,
 			)
 			.ok();
-			log::info!("KSM balance: {:?}", ksm_balance);
-			log::info!("VKSM balance: {:?}", vksm_balance);
+			log::info!("KSM balance: {ksm_balance:?}");
+			log::info!("VKSM balance: {vksm_balance:?}");
 
 			log::info!("Bifrost SystemMakerClearPalletId `on_runtime_upgrade finished`");
 
@@ -519,10 +518,10 @@ pub mod vsbond_auction {
 				) {
 					Ok(_) => {
 						count += 1;
-						log::info!("Transfer successful: {:?} of BNC transferred", bnc_balance);
+						log::info!("Transfer successful: {bnc_balance:?} of BNC transferred");
 					}
 					Err(e) => {
-						log::error!("Failed to transfer {:?} of BNC: {:?}", bnc_balance, e);
+						log::error!("Failed to transfer {bnc_balance:?} of BNC: {e:?}");
 					}
 				}
 			} else {
@@ -540,10 +539,10 @@ pub mod vsbond_auction {
 				) {
 					Ok(_) => {
 						count += 1;
-						log::info!("Transfer successful: {:?} of KSM transferred", ksm_balance);
+						log::info!("Transfer successful: {ksm_balance:?} of KSM transferred");
 					}
 					Err(e) => {
-						log::error!("Failed to transfer {:?} of KSM: {:?}", ksm_balance, e);
+						log::error!("Failed to transfer {ksm_balance:?} of KSM: {e:?}");
 					}
 				}
 			} else {
@@ -563,15 +562,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2092, 15, 22); transferred",
-							vs_bond_1_balance
+							"Transfer successful: {vs_bond_1_balance:?} of VSBond(TokenSymbol::KSM, 2092, 15, 22); transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2092, 15, 22);: {:?}",
-							vs_bond_1_balance,
-							e
+							"Failed to transfer {vs_bond_1_balance:?} of VSBond(TokenSymbol::KSM, 2092, 15, 22);: {e:?}",
 						);
 					}
 				}
@@ -592,15 +588,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2096, 17, 24) transferred",
-							vs_bond_2_balance
+							"Transfer successful: {vs_bond_2_balance:?} of VSBond(TokenSymbol::KSM, 2096, 17, 24) transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2096, 17, 24): {:?}",
-							vs_bond_2_balance,
-							e
+							"Failed to transfer {vs_bond_2_balance:?} of VSBond(TokenSymbol::KSM, 2096, 17, 24): {e:?}",
 						);
 					}
 				}
@@ -621,15 +614,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2100, 18, 25) transferred",
-							vs_bond_3_balance
+							"Transfer successful: {vs_bond_3_balance:?} of VSBond(TokenSymbol::KSM, 2100, 18, 25) transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2100, 18, 25): {:?}",
-							vs_bond_3_balance,
-							e
+							"Failed to transfer {vs_bond_3_balance:?} of VSBond(TokenSymbol::KSM, 2100, 18, 25): {e:?}",
 						);
 					}
 				}
@@ -650,15 +640,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2125, 23, 30) transferred",
-							vs_bond_4_balance
+							"Transfer successful: {vs_bond_4_balance:?} of VSBond(TokenSymbol::KSM, 2125, 23, 30) transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2125, 23, 30): {:?}",
-							vs_bond_4_balance,
-							e
+							"Failed to transfer {vs_bond_4_balance:?} of VSBond(TokenSymbol::KSM, 2125, 23, 30): {e:?}",
 						);
 					}
 				}
@@ -679,15 +666,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2114, 20, 27) transferred",
-							vs_bond_5_balance
+							"Transfer successful: {vs_bond_5_balance:?} of VSBond(TokenSymbol::KSM, 2114, 20, 27) transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2114, 20, 27): {:?}",
-							vs_bond_5_balance,
-							e
+							"Failed to transfer {vs_bond_5_balance:?} of VSBond(TokenSymbol::KSM, 2114, 20, 27): {e:?}",
 						);
 					}
 				}
@@ -708,15 +692,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::KSM, 2118, 22, 29) transferred",
-							vs_bond_6_balance
+							"Transfer successful: {vs_bond_6_balance:?} of VSBond(TokenSymbol::KSM, 2118, 22, 29) transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::KSM, 2118, 22, 29): {:?}",
-							vs_bond_6_balance,
-							e
+							"Failed to transfer {vs_bond_6_balance:?} of VSBond(TokenSymbol::KSM, 2118, 22, 29): {e:?}",
 						);
 					}
 				}
@@ -737,15 +718,12 @@ pub mod vsbond_auction {
 					Ok(_) => {
 						count += 1;
 						log::info!(
-							"Transfer successful: {:?} of VSBond(TokenSymbol::BNC, 2001, 13, 20) transferred",
-							vs_bond_7_balance
+							"Transfer successful: {vs_bond_7_balance:?} of VSBond(TokenSymbol::BNC, 2001, 13, 20) transferred",
 						);
 					}
 					Err(e) => {
 						log::error!(
-							"Failed to transfer {:?} of VSBond(TokenSymbol::BNC, 2001, 13, 20): {:?}",
-							vs_bond_7_balance,
-							e
+							"Failed to transfer {vs_bond_7_balance:?} of VSBond(TokenSymbol::BNC, 2001, 13, 20): {e:?}",
 						);
 					}
 				}
@@ -753,15 +731,15 @@ pub mod vsbond_auction {
 				log::info!("No transfer needed for VSBond(TokenSymbol::BNC, 2001, 13, 20) as the balance is 0");
 			}
 
-			log::info!("BNC balance: {:?}", bnc_balance);
-			log::info!("KSM balance: {:?}", ksm_balance);
-			log::info!("vs_bond_1_balance balance: {:?}", vs_bond_1_balance);
-			log::info!("vs_bond_2_balance balance: {:?}", vs_bond_2_balance);
-			log::info!("vs_bond_3_balance balance: {:?}", vs_bond_3_balance);
-			log::info!("vs_bond_4_balance balance: {:?}", vs_bond_4_balance);
-			log::info!("vs_bond_5_balance balance: {:?}", vs_bond_5_balance);
-			log::info!("vs_bond_6_balance balance: {:?}", vs_bond_6_balance);
-			log::info!("vs_bond_7_balance balance: {:?}", vs_bond_7_balance);
+			log::info!("BNC balance: {bnc_balance:?}");
+			log::info!("KSM balance: {ksm_balance:?}");
+			log::info!("vs_bond_1_balance balance: {vs_bond_1_balance:?}");
+			log::info!("vs_bond_2_balance balance: {vs_bond_2_balance:?}");
+			log::info!("vs_bond_3_balance balance: {vs_bond_3_balance:?}");
+			log::info!("vs_bond_4_balance balance: {vs_bond_4_balance:?}");
+			log::info!("vs_bond_5_balance balance: {vs_bond_5_balance:?}");
+			log::info!("vs_bond_6_balance balance: {vs_bond_6_balance:?}");
+			log::info!("vs_bond_7_balance balance: {vs_bond_7_balance:?}");
 
 			log::info!("Bifrost VSBondAuctionClearPalletId `on_runtime_upgrade finished`");
 

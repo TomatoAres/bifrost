@@ -99,10 +99,7 @@ where
 
 		log::debug!(
 			target: "evm",
-			"Withdrew fee from account {:?} in currency {:?} amount {:?}",
-			account_id,
-			fee_currency,
-			fee_amount
+			"Withdrew fee from account {account_id:?} in currency {fee_currency:?} amount {fee_amount:?}",
 		);
 
 		MC::withdraw(

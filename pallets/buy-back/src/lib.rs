@@ -71,8 +71,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
 
 		type ControlOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -247,8 +245,7 @@ pub mod pallet {
 						{
 							log::error!(
 								target: "buy-back::set_add_liquidity_swap_out_min",
-								"Received invalid justification for {:?}",
-								e,
+								"Received invalid justification for {e:?}",
 							);
 							Self::deposit_event(Event::SetSwapOutMinFailed {
 								currency_id,
@@ -273,8 +270,7 @@ pub mod pallet {
 							{
 								log::error!(
 									target: "buy-back::add_liquidity",
-									"Received invalid justification for {:?}",
-									e,
+									"Received invalid justification for {e:?}",
 								);
 								Self::deposit_event(Event::AddLiquidityFailed {
 									currency_id,
@@ -308,8 +304,7 @@ pub mod pallet {
 						if let Some(e) = Self::set_swap_out_min(currency_id, &info).err() {
 							log::error!(
 								target: "buy-back::set_swap_out_min",
-								"Received invalid justification for {:?}",
-								e,
+								"Received invalid justification for {e:?}",
 							);
 							Self::deposit_event(Event::SetSwapOutMinFailed {
 								currency_id,
@@ -335,8 +330,7 @@ pub mod pallet {
 							{
 								log::error!(
 									target: "buy-back::buy_back",
-									"Received invalid justification for {:?}",
-									e,
+									"Received invalid justification for {e:?}",
 								);
 								Self::deposit_event(Event::BuyBackFailed {
 									currency_id,
@@ -575,7 +569,7 @@ pub mod pallet {
 			if effective_duration == 0 {
 				return 1;
 			}
-			log::debug!("combined_seed: {}", combined_seed);
+			log::debug!("combined_seed: {combined_seed}");
 
 			(combined_seed % effective_duration) + 1
 		}

@@ -156,6 +156,9 @@ impl<T: Config> PositionManager<T> {
 		// Remove user point epoch
 		UserPointEpoch::<T>::remove(position);
 
+		// Remove permanent lock if exists
+		PermanentLock::<T>::remove(position);
+
 		Ok(())
 	}
 }
@@ -170,8 +173,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId, Balance = Balance>
 			+ MultiLockableCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
 
@@ -210,6 +211,10 @@ pub mod pallet {
 		/// Maximum number of users per refresh.
 		#[pallet::constant]
 		type MarkupRefreshLimit: Get<u32>;
+
+		/// Maximum number of positions that can be refreshed in one call.
+		#[pallet::constant]
+		type MaxRefreshPositions: Get<u32>;
 
 		type VtokenMinting: VtokenMintingInterface<
 			AccountIdOf<Self>,
@@ -333,6 +338,22 @@ pub mod pallet {
 		MarkupWithdrawn {
 			who: AccountIdOf<T>,
 			currency_id: CurrencyIdOf<T>,
+		},
+		/// Permanent lock has been set.
+		PermanentLockSet {
+			/// The user who set the permanent lock
+			who: AccountIdOf<T>,
+			/// Position ID
+			position: u128,
+			/// Whether permanent lock is enabled
+			enabled: bool,
+		},
+		/// Permanent lock has been refreshed.
+		PermanentLockRefreshed {
+			/// Position ID
+			position: u128,
+			/// New unlock time
+			new_unlock_time: BlockNumberFor<T>,
 		},
 	}
 
@@ -489,6 +510,12 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type PositionOwner<T: Config> = StorageMap<_, Blake2_128Concat, PositionId, AccountIdOf<T>>;
 
+	/// Track positions with permanent lock enabled. [position => ()]
+	/// Only stores positions that have permanent lock enabled to reduce storage burden.
+	#[pallet::storage]
+	pub type PermanentLock<T: Config> =
+		StorageMap<_, Blake2_128Concat, PositionId, (), OptionQuery>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
@@ -508,8 +535,7 @@ pub mod pallet {
 				{
 					log::error!(
 						target: "bb-bnc::notify_reward_amount",
-						"Received invalid justification for {:?}",
-						e,
+						"Received invalid justification for {e:?}",
 					);
 					Self::deposit_event(Event::NotifyRewardFailed {
 						rewards: conf.last_reward,
@@ -562,8 +588,7 @@ pub mod pallet {
 									) {
 										log::warn!(
 											target: "bb-bnc::on_initialize",
-											"Failed to auto-withdraw position {:?} for user {:?}: {:?}",
-											position, owner, e
+											"Failed to auto-withdraw position {position:?} for user {owner:?}: {e:?}",
 										);
 									} else {
 										// Withdrawal successful, add position to processed list
@@ -576,8 +601,7 @@ pub mod pallet {
 								if !owner_found {
 									log::warn!(
 										target: "bb-bnc::on_initialize",
-										"Owner not found for expired position {:?}",
-										position
+										"Owner not found for expired position {position:?}",
 									);
 									// Still mark it as processed to avoid checking it again
 									processed_positions.push(*position);
@@ -853,6 +877,42 @@ pub mod pallet {
 		pub fn refresh(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let _exchanger = ensure_signed(origin)?;
 			Self::refresh_inner(currency_id)
+		}
+
+		/// Set permanent lock for a position.
+		///
+		/// If enabling permanent lock, the lock period will be extended to the maximum allowed.
+		/// If disabling, only remove the permanent lock record.
+		///
+		/// - `position`: The lock position
+		/// - `enable`: Whether to enable permanent lock
+		#[pallet::call_index(12)]
+		#[pallet::weight(T::WeightInfo::set_permanent_lock())]
+		pub fn set_permanent_lock(
+			origin: OriginFor<T>,
+			position: PositionId,
+			enable: bool,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let user_positions = UserPositions::<T>::get(&who);
+			ensure!(user_positions.contains(&position), Error::<T>::LockNotExist);
+			Self::set_permanent_lock_inner(&who, position, enable)
+		}
+
+		/// Refresh permanent locks for the given positions.
+		///
+		/// For each position with permanent lock enabled, extend the lock period to the maximum
+		/// allowed. Positions without permanent lock enabled will be skipped.
+		///
+		/// - `positions`: The position IDs to refresh
+		#[pallet::call_index(13)]
+		#[pallet::weight(T::WeightInfo::refresh_permanent_locks(positions.len() as u32))]
+		pub fn refresh_permanent_locks(
+			origin: OriginFor<T>,
+			positions: BoundedVec<PositionId, T::MaxRefreshPositions>,
+		) -> DispatchResult {
+			ensure_signed(origin)?;
+			Self::refresh_permanent_locks_inner(positions.into_inner())
 		}
 	}
 
@@ -1646,6 +1706,101 @@ pub mod pallet {
 			} else {
 				Self::deposit_event(Event::PartiallyRefreshed { currency_id });
 			}
+			Ok(())
+		}
+
+		/// Set permanent lock for a position
+		///
+		/// If enabling permanent lock, the lock period will be extended to the maximum allowed.
+		/// If disabling, only remove the permanent lock record.
+		#[transactional]
+		pub fn set_permanent_lock_inner(
+			who: &AccountIdOf<T>,
+			position: PositionId,
+			enable: bool,
+		) -> DispatchResult {
+			if enable {
+				// First extend the lock period to maximum
+				Self::extend_to_max_lock_time(who, position)?;
+				// Then record in storage
+				PermanentLock::<T>::insert(position, ());
+			} else {
+				// Just remove the permanent lock record
+				PermanentLock::<T>::remove(position);
+			}
+
+			Self::deposit_event(Event::PermanentLockSet {
+				who: who.clone(),
+				position,
+				enabled: enable,
+			});
+			Ok(())
+		}
+
+		/// Refresh permanent locks for the given positions
+		///
+		/// For each position with permanent lock enabled, extend the lock period to the maximum
+		/// allowed. Positions without permanent lock enabled will be skipped.
+		pub fn refresh_permanent_locks_inner(positions: Vec<PositionId>) -> DispatchResult {
+			for position in positions {
+				// Check if permanent lock is enabled
+				if PermanentLock::<T>::contains_key(position) {
+					// Get position owner
+					if let Some(owner) = PositionOwner::<T>::get(position) {
+						Self::extend_to_max_lock_time(&owner, position)?;
+					}
+				}
+				// If permanent lock is not enabled, skip this position
+			}
+			Ok(())
+		}
+
+		/// Extend the lock period to the maximum allowed
+		#[transactional]
+		fn extend_to_max_lock_time(who: &AccountIdOf<T>, position: PositionId) -> DispatchResult {
+			let locked: LockedBalance<BalanceOf<T>, BlockNumberFor<T>> = Locked::<T>::get(position);
+			let current_block_number: BlockNumberFor<T> =
+				T::BlockNumberProvider::current_block_number();
+
+			ensure!(locked.end > current_block_number, Error::<T>::Expired);
+			ensure!(
+				locked.amount > BalanceOf::<T>::zero(),
+				Error::<T>::LockNotExist
+			);
+
+			// Calculate max lock time
+			let max_block = T::MaxBlock::get()
+				.saturating_add(current_block_number)
+				.checked_div(&T::Week::get())
+				.ok_or(ArithmeticError::Overflow)?
+				.saturating_add(1u32.into())
+				.checked_mul(&T::Week::get())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Only extend if current end is less than max
+			if locked.end < max_block {
+				// Save old unlock time to remove from mapping
+				let old_unlock_time = locked.end;
+
+				// Remove position from old expiring mapping and add to new one
+				Self::remove_expiring_position(position, old_unlock_time);
+				Self::record_expiring_position(position, max_block)?;
+
+				Self::deposit_for_inner(
+					who,
+					position,
+					BalanceOf::<T>::zero(),
+					max_block,
+					locked.clone(),
+				)?;
+				T::FarmingInfo::refresh_gauge_pool(who)?;
+
+				Self::deposit_event(Event::PermanentLockRefreshed {
+					position,
+					new_unlock_time: max_block,
+				});
+			}
+
 			Ok(())
 		}
 

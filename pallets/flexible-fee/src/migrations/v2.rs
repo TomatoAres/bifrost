@@ -60,8 +60,7 @@ impl<T: Config> OnRuntimeUpgrade for FlexibleFeeMigration<T> {
 		// print out the pre-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"UserFeeChargeOrderList pre-migrate storage count: {:?}",
-			cnt
+			"UserFeeChargeOrderList pre-migrate storage count: {cnt:?}",
 		);
 		Ok((cnt as u64).encode())
 	}
@@ -73,8 +72,7 @@ impl<T: Config> OnRuntimeUpgrade for FlexibleFeeMigration<T> {
 		// print out the post-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"UserFeeChargeOrderList post-migrate storage count: {:?}",
-			new_count
+			"UserFeeChargeOrderList post-migrate storage count: {new_count:?}",
 		);
 
 		ensure!(

@@ -1,6 +1,6 @@
 [package]
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 name = "leverage-staking"
 version = "0.8.0"
 
@@ -35,7 +35,6 @@ bifrost-runtime-common = { workspace = true }
 env_logger = { workspace = true }
 orml-oracle = { workspace = true }
 orml-tokens = { workspace = true }
-orml-xtokens = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-xcm = { workspace = true }
 sp-io = { workspace = true }
@@ -71,7 +70,6 @@ std = [
 	"bifrost-stable-pool/std",
 	"pallet-prices/std",
 	"log/std",
-	"orml-xtokens/std",
 ]
 try-runtime = ['frame-support/try-runtime']
 

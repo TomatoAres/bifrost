@@ -19,16 +19,15 @@
 use crate::{
 	AccountIdOf, BalanceOf, Config, CurrencyIdOf, Error, Event, Fees, HookIterationLimit,
 	MinTimeUnit, MinimumMint, MinimumRedeem, MintWithLockBlocks, OnRedeemSuccess, OngoingTimeUnit,
-	Pallet, RedeemTo, TimeUnitUnlockLedger, TokenPool, TokenUnlockLedger, TokenUnlockNextId,
-	UnlockDuration, UnlockId, UnlockingTotal, UserUnlockLedger, VTokenToTokens,
-	VtokenIncentiveCoef, VtokenLockLedger, WeightInfo,
+	Pallet, TimeUnitUnlockLedger, TokenPool, TokenUnlockLedger, TokenUnlockNextId, UnlockDuration,
+	UnlockId, UnlockingTotal, UserUnlockLedger, VTokenToTokens, VtokenIncentiveCoef,
+	VtokenLockLedger, WeightInfo,
 };
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	currency::BNC, AstarChainId, CurrencyId, CurrencyIdExt, HydrationChainId, HyperBridgeSender,
-	InterlayChainId, MantaChainId, RedeemType, SlpxOperator, TimeUnit, VTokenMintRedeemProvider,
-	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, ETH, FIL, HP_ARB_ETH,
-	HP_BASE_ETH, HP_ETH, HP_OP_ETH, HYPERBRIDGE_TIMEOUT, V_ETH,
+	CurrencyId, CurrencyIdExt, RedeemTo, RedeemType, TimeUnit, VTokenMintRedeemProvider,
+	VTokenSupplyProvider, VtokenMintingInterface, VtokenMintingOperator, XChainSender, ETH,
+	HP_ARB_ETH, HP_BASE_ETH, HP_ETH, HP_OP_ETH, V_ETH,
 };
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
@@ -41,13 +40,11 @@ use frame_support::{
 	transactional, BoundedVec,
 };
 use frame_system::pallet_prelude::*;
-use ismp::host::StateMachine;
-use orml_traits::{MultiCurrency, MultiLockableCurrency, XcmTransfer};
+use orml_traits::{MultiCurrency, MultiLockableCurrency};
 use sp_core::U256;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{helpers_128bit::multiply_by_rational_with_rounding, Rounding};
 use sp_std::{vec, vec::Vec};
-use xcm::{prelude::*, v5::Location};
 
 // incentive lock id for vtoken minted by user
 const INCENTIVE_LOCK_ID: LockIdentifier = *b"vmincntv";
@@ -466,113 +463,16 @@ impl<T: Config> Pallet<T> {
 				}
 				return Ok((redeem_currency_amount, RedeemTo::Native(redeemer)));
 			}
-			if let RedeemType::HyperBridge(dest, to) = redeem_type {
-				let (payer, fee) = T::BifrostSlpx::get_hyperbridge_payer_and_fee(dest)?;
-				T::HyperBridgeSender::send_and_call(
-					redeem_currency_id,
-					entrance_account.clone(),
-					to,
-					StateMachine::Evm(dest),
-					redeem_currency_amount,
-					HYPERBRIDGE_TIMEOUT,
-					None,
-					payer,
-					fee,
-				)?;
-				return Ok((redeem_currency_amount, RedeemTo::HyperBridge(dest, to)));
-			};
-			let (dest, redeem_to) = match redeem_type {
-				RedeemType::Astar(receiver) => (
-					Location::new(
-						1,
-						[
-							Parachain(AstarChainId::get()),
-							AccountId32 {
-								network: None,
-								id: receiver.encode().try_into().unwrap(),
-							},
-						],
-					),
-					RedeemTo::Astar(receiver),
-				),
-				RedeemType::Hydradx(receiver) => (
-					Location::new(
-						1,
-						[
-							Parachain(HydrationChainId::get()),
-							AccountId32 {
-								network: None,
-								id: receiver.encode().try_into().unwrap(),
-							},
-						],
-					),
-					RedeemTo::Hydradx(receiver),
-				),
-				RedeemType::Interlay(receiver) => (
-					Location::new(
-						1,
-						[
-							Parachain(InterlayChainId::get()),
-							AccountId32 {
-								network: None,
-								id: receiver.encode().try_into().unwrap(),
-							},
-						],
-					),
-					RedeemTo::Interlay(receiver),
-				),
-				RedeemType::Manta(receiver) => (
-					Location::new(
-						1,
-						[
-							Parachain(MantaChainId::get()),
-							AccountId32 {
-								network: None,
-								id: receiver.encode().try_into().unwrap(),
-							},
-						],
-					),
-					RedeemTo::Manta(receiver),
-				),
-				RedeemType::Moonbeam(receiver) => (
-					Location::new(
-						1,
-						[
-							Parachain(T::MoonbeamChainId::get()),
-							AccountKey20 {
-								network: None,
-								key: receiver.to_fixed_bytes(),
-							},
-						],
-					),
-					RedeemTo::Moonbeam(receiver),
-				),
-				RedeemType::Native | RedeemType::HyperBridge(..) => {
-					unreachable!()
-				}
-			};
-			if redeem_currency_id == FIL {
-				let assets = vec![
-					(redeem_currency_id, redeem_currency_amount),
-					(BNC, T::BifrostSlpx::get_moonbeam_transfer_to_fee()),
-				];
-
-				T::XcmTransfer::transfer_multicurrencies(
-					entrance_account.clone(),
-					assets,
-					1,
-					dest,
-					Unlimited,
-				)?;
-			} else {
-				T::XcmTransfer::transfer(
-					entrance_account.clone(),
-					redeem_currency_id,
-					redeem_currency_amount,
-					dest,
-					Unlimited,
-				)?;
-			};
+			let bridge_type = redeem_type
+				.bridge_type::<T::MoonbeamChainId>()
+				.ok_or(Error::<T>::Unexpected)?;
+			let redeem_to = redeem_type.into_redeem_to(redeemer);
+			T::XChainSender::do_transfer_assets(
+				entrance_account.clone(),
+				bridge_type,
+				vec![(redeem_currency_id, redeem_currency_amount).into()],
+				0,
+			)?;
 			Ok((redeem_currency_amount, redeem_to))
 		} else {
 			if let RedeemType::Native = redeem_type {

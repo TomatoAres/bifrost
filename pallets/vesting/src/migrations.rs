@@ -169,7 +169,7 @@ pub mod v2 {
 							para_block_number,
 							Some(start_block),
 						);
-						log::debug!(target: LOG_TARGET, "account: {:?}, start block: {:?}, remaining locked balance: {:?}", last_key, start_block, locked);
+						log::debug!(target: LOG_TARGET, "account: {last_key:?}, start block: {start_block:?}, remaining locked balance: {locked:?}");
 						// reduce unlock `per_block` into half
 						let per_block = Percent::from_percent(50) * schedule.per_block();
 						// remaining blocks to start vesting if vesting hasn't started yet

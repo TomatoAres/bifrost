@@ -98,8 +98,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
-		/// Event
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
 		/// Handler for both NativeCurrency and MultiCurrency
@@ -323,6 +321,7 @@ pub mod pallet {
 		/// fee in non-native currency by allowing them to self-dispatch pre-signed permit.
 		/// The EVM fee is paid in the currency set for the account.
 		#[pallet::call_index(3)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::EvmPermit::dispatch_weight(*gas_limit))]
 		pub fn dispatch_permit(
 			origin: OriginFor<T>,

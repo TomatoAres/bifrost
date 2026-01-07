@@ -26,7 +26,7 @@ use bifrost_primitives::{
 	StableAssetPalletId, KSM, KUSD,
 };
 use bifrost_runtime_common::milli;
-use bifrost_vtoken_minting::{CurrencyIdOf, VTokenMultiMap, VTokenTokenConfig};
+use bifrost_vtoken_minting::CurrencyIdOf;
 use frame_support::traits::Disabled;
 use frame_support::{
 	assert_ok, derive_impl, ord_parameter_types, parameter_types,
@@ -48,7 +48,6 @@ frame_support::construct_runtime!(
 		Tokens: orml_tokens,
 		Currencies: bifrost_currencies,
 		Balances: pallet_balances,
-		XTokens: orml_xtokens,
 		PolkadotXcm: pallet_xcm,
 		AssetRegistry: bifrost_asset_registry,
 		StableAsset: bifrost_stable_asset,
@@ -91,7 +90,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -165,32 +163,6 @@ parameter_type_with_key! {
 }
 
 parameter_types! {
-	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
-	// pub const BaseXcmWeight: Weight = Weight::from_ref_time( 1_000_000_000u64);
-	pub const MaxAssetsForTransfer: usize = 2;
-	// pub UniversalLocation: InteriorLocation = Parachain(2001).into();
-}
-
-impl orml_xtokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = ();
-	type AccountIdToLocation = ();
-	type UniversalLocation = UniversalLocation;
-	type SelfLocation = SelfRelativeLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type BaseXcmWeight = ();
-	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MinXcmFee = ParachainMinFee;
-	type LocationsFilter = Everything;
-	type ReserveProvider = RelativeReserveProvider;
-	type RateLimiter = ();
-	type RateLimiterId = ();
-}
-
-parameter_types! {
 	pub const ExistentialDeposit: Balance = 1;
 	pub const StableCurrencyId: CurrencyId = KUSD;
 	pub const PolkadotCurrencyId: CurrencyId = DOT;
@@ -217,7 +189,6 @@ ord_parameter_types! {
 	pub const One: u128 = 1;
 }
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<One, u128>;
 	type WeightInfo = ();
@@ -231,7 +202,6 @@ impl bifrost_stable_asset::traits::ValidateAssetId<CurrencyId> for EnsurePoolAss
 }
 
 impl bifrost_stable_asset::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = CurrencyId;
 	type Balance = Balance;
 	type Assets = Currencies;
@@ -268,7 +238,6 @@ ord_parameter_types! {
 }
 
 impl bifrost_vtoken_minting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type ControlOrigin = EnsureSignedBy<One, u128>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -280,7 +249,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type RelayChainToken = RelayCurrencyId;
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = XTokens;
+	type XChainSender = ();
 	type MoonbeamChainId = MoonbeamChainId;
 	type BifrostSlpx = ();
 	type ChannelCommission = ();

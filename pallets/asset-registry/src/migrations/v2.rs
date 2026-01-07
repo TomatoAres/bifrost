@@ -37,7 +37,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
 			log::info!(target: LOG_TARGET, "Start to migrate RegisterWhiteList storage...");
 			CurrencyIdToLocations::<T>::translate::<xcm::v4::Location, _>(
 				|k: CurrencyId, value: xcm::v4::Location| {
-					log::info!(target: LOG_TARGET, "CurrencyIdToLocations Migrated to xcm::v4::Location for {:?}...", k);
+					log::info!(target: LOG_TARGET, "CurrencyIdToLocations Migrated to xcm::v4::Location for {k:?}...");
 					let v5_location = xcm::v5::Location::try_from(value).unwrap();
 
 					count += 1;
@@ -48,7 +48,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
 			log::info!(target: LOG_TARGET, "Start to migrate LocationToCurrencyIds storage...");
 			let migrated_items: Vec<_> = LocationToCurrencyIds::<T>::drain()
 				.map(|(v4_location, value)| {
-					log::info!(target: LOG_TARGET, "LocationToCurrencyIds Migrated to xcm::v5::Location for {:?}...", value);
+					log::info!(target: LOG_TARGET, "LocationToCurrencyIds Migrated to xcm::v5::Location for {value:?}...");
 					let v5_location: Location = v4_location;
 
 					count += 1;
@@ -73,10 +73,10 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 		let currency_id_to_locations_count = CurrencyIdToLocations::<T>::iter().count();
-		log::info!(target: LOG_TARGET, "CurrencyIdToLocations pre-migrate storage count: {:?}", currency_id_to_locations_count);
+		log::info!(target: LOG_TARGET, "CurrencyIdToLocations pre-migrate storage count: {currency_id_to_locations_count:?}");
 
 		let location_to_currency_ids_count = LocationToCurrencyIds::<T>::iter().count();
-		log::info!(target: LOG_TARGET, "LocationToCurrencyIds pre-migrate storage count: {:?}", location_to_currency_ids_count);
+		log::info!(target: LOG_TARGET, "LocationToCurrencyIds pre-migrate storage count: {location_to_currency_ids_count:?}");
 
 		let combined_data = (
 			currency_id_to_locations_count as u64,
@@ -104,15 +104,13 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
 		let new_currency_id_to_locations_count = CurrencyIdToLocations::<T>::iter().count();
 		log::info!(
 			target: LOG_TARGET,
-			"CurrencyIdToLocations post-migrate storage count: {:?}",
-			new_currency_id_to_locations_count
+			"CurrencyIdToLocations post-migrate storage count: {new_currency_id_to_locations_count:?}",
 		);
 
 		let new_location_to_currency_ids_count = LocationToCurrencyIds::<T>::iter().count();
 		log::info!(
 			target: LOG_TARGET,
-			"LocationToCurrencyIds post-migrate storage count: {:?}",
-			new_location_to_currency_ids_count
+			"LocationToCurrencyIds post-migrate storage count: {new_location_to_currency_ids_count:?}",
 		);
 
 		ensure!(

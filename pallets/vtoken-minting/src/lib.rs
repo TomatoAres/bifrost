@@ -18,6 +18,7 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+#![recursion_limit = "256"]
 
 #[cfg(test)]
 mod mock;
@@ -37,8 +38,8 @@ pub use weights::WeightInfo;
 use crate::impls::Operation;
 use bb_bnc::traits::BbBNCInterface;
 use bifrost_primitives::{
-	CurrencyId, CurrencyIdExt, HyperBridgeSender, RedeemType, SlpxOperator, TargetChain, TimeUnit,
-	VTokenMintRedeemProvider, VtokenMintingOperator,
+	CurrencyId, CurrencyIdExt, HyperBridgeSender, RedeemTo, RedeemType, SlpxOperator, TargetChain,
+	TimeUnit, VTokenMintRedeemProvider, VtokenMintingOperator, XChainSender,
 };
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
@@ -53,7 +54,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::*;
-use orml_traits::{MultiCurrency, MultiLockableCurrency, XcmTransfer};
+use orml_traits::{MultiCurrency, MultiLockableCurrency};
 pub use pallet::*;
 use sp_std::vec;
 pub use traits::*;
@@ -90,6 +91,43 @@ pub struct VTokenTokenConfig<CurrencyId> {
 /// Configuration for vToken to multiple tokens mapping
 pub type VTokenMultiMap<CurrencyId> = BoundedVec<VTokenTokenConfig<CurrencyId>, ConstU32<20>>;
 
+/// Exchange rate check configuration for a vToken
+#[derive(
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	scale_info::TypeInfo,
+	parity_scale_codec::DecodeWithMemTracking,
+)]
+pub struct ExchangeRateCheckConfig {
+	/// The vToken currency id
+	pub vtoken: CurrencyId,
+	/// Maximum rate change allowed per check period (e.g., Permill(10_000) = 1%)
+	pub max_rate_change: Permill,
+}
+
+/// Exchange rate snapshot at a specific point in time
+#[derive(
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	scale_info::TypeInfo,
+	parity_scale_codec::DecodeWithMemTracking,
+	Default,
+)]
+pub struct ExchangeRateSnapshot<Balance> {
+	/// Token pool amount at snapshot time
+	pub token_pool: Balance,
+	/// VToken issuance at snapshot time
+	pub vtoken_issuance: Balance,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -103,7 +141,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Set default weight.
 		type WeightInfo: WeightInfo;
 		/// The only origin that can edit token issuer list
@@ -119,7 +156,7 @@ pub mod pallet {
 			BalanceOf<Self>,
 		>;
 		/// Xtokens xcm transfer interface
-		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
+		type XChainSender: XChainSender<AccountIdOf<Self>, BalanceOf<Self>>;
 		/// Slpx operator
 		type BifrostSlpx: SlpxOperator<
 			crate::AccountIdOf<Self>,
@@ -346,6 +383,63 @@ pub mod pallet {
 			v_currency_id: CurrencyIdOf<T>,
 			issuance: BalanceOf<T>,
 		},
+		/// Exchange rate check configuration set.
+		ExchangeRateCheckConfigSet {
+			/// Check period in blocks
+			period: BlockNumberFor<T>,
+			/// VToken configurations
+			configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>>,
+		},
+		/// Exchange rate check switch set.
+		ExchangeRateCheckSwitchSet {
+			/// Whether the check is enabled
+			enabled: bool,
+		},
+		/// Exchange rate check failed and state rolled back.
+		ExchangeRateCheckFailed {
+			/// The vToken that failed the check
+			vtoken: CurrencyIdOf<T>,
+			/// Token pool at block start
+			token_pool_at_block_start: BalanceOf<T>,
+			/// VToken issuance at block start
+			vtoken_issuance_at_block_start: BalanceOf<T>,
+			/// Token pool at block end (before rollback)
+			token_pool_at_block_end: BalanceOf<T>,
+			/// VToken issuance at block end (before rollback)
+			vtoken_issuance_at_block_end: BalanceOf<T>,
+			/// Token pool at period start
+			token_pool_at_period_start: BalanceOf<T>,
+			/// VToken issuance at period start
+			vtoken_issuance_at_period_start: BalanceOf<T>,
+			/// The calculated rate change (absolute value in Permill)
+			rate_change: Permill,
+			/// The maximum allowed rate change
+			max_rate_change: Permill,
+		},
+		/// Exchange rate calculation failed due to invalid input or overflow.
+		ExchangeRateCalculationFailed {
+			/// The vToken that failed the calculation
+			vtoken: CurrencyIdOf<T>,
+			/// Token pool at period start
+			token_pool_at_period_start: BalanceOf<T>,
+			/// VToken issuance at period start
+			vtoken_issuance_at_period_start: BalanceOf<T>,
+			/// Current token pool
+			current_token_pool: BalanceOf<T>,
+			/// Current vToken issuance
+			current_vtoken_issuance: BalanceOf<T>,
+		},
+		/// Exchange rate period reset.
+		ExchangeRatePeriodReset {
+			/// The vToken
+			vtoken: CurrencyIdOf<T>,
+			/// New period start block
+			period_start_block: BlockNumberFor<T>,
+			/// Token pool at period start
+			token_pool: BalanceOf<T>,
+			/// VToken issuance at period start
+			vtoken_issuance: BalanceOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -408,6 +502,10 @@ pub mod pallet {
 		TokenNotInVTokenMultiMap,
 		/// Redeem not enabled for this token
 		RedeemNotEnabled,
+		/// Exchange rate check period must be greater than zero
+		InvalidCheckPeriod,
+		/// Exchange rate check config is empty
+		EmptyCheckConfig,
 	}
 
 	/// The mint fee and redeem fee.
@@ -565,8 +663,61 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	// ========== Exchange Rate Check Storage ==========
+
+	/// Exchange rate check enabled flag
+	#[pallet::storage]
+	pub type ExchangeRateCheckEnabled<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	/// Exchange rate check period in blocks (all vTokens share the same period)
+	#[pallet::storage]
+	pub type ExchangeRateCheckPeriod<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+	/// Exchange rate check configuration for each vToken
+	/// Maps vToken -> max_rate_change (Permill)
+	#[pallet::storage]
+	pub type ExchangeRateCheckConfigs<T: Config> =
+		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, Permill, OptionQuery>;
+
+	/// The block number when the current check period started
+	#[pallet::storage]
+	pub type ExchangeRatePeriodStartBlock<T: Config> =
+		StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+	/// Exchange rate snapshot at the start of current check period
+	/// Maps vToken -> ExchangeRateSnapshot
+	#[pallet::storage]
+	pub type ExchangeRateAtPeriodStart<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		CurrencyIdOf<T>,
+		ExchangeRateSnapshot<BalanceOf<T>>,
+		ValueQuery,
+	>;
+
+	/// Token pool snapshot at the start of current block (for rollback)
+	/// Maps vToken -> token_pool_amount
+	#[pallet::storage]
+	pub type TokenPoolAtBlockStart<T: Config> =
+		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, BalanceOf<T>, ValueQuery>;
+
+	/// VToken issuance snapshot at the start of current block (for rollback)
+	/// Maps vToken -> vtoken_issuance
+	#[pallet::storage]
+	pub type VtokenIssuanceAtBlockStart<T: Config> =
+		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, BalanceOf<T>, ValueQuery>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			// If exchange rate check is enabled, save the block start snapshots
+			if ExchangeRateCheckEnabled::<T>::get() {
+				Self::save_block_start_snapshots();
+			}
+
+			T::WeightInfo::on_initialize()
+		}
+
 		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 			if remaining_weight.any_lt(T::DbWeight::get().reads_writes(12, 6)) {
 				return Weight::zero();
@@ -580,14 +731,20 @@ pub mod pallet {
 						Self::deposit_event(Event::FastRedeemFailed { err });
 						log::error!(
 							target: "runtime::vtoken-minting",
-							"Received invalid justification for {:?}",
-							err,
+							"Received invalid justification for {err:?}",
 						);
 					}
 				}
 			}
 
-			T::WeightInfo::on_initialize()
+			Weight::zero()
+		}
+
+		fn on_finalize(n: BlockNumberFor<T>) {
+			// If exchange rate check is enabled, perform the check
+			if ExchangeRateCheckEnabled::<T>::get() {
+				Self::check_exchange_rate_changes(n);
+			}
 		}
 	}
 
@@ -621,6 +778,7 @@ pub mod pallet {
 		/// - `v_currency_id`: The v_currency to redeem.
 		/// - `v_currency_amount`: The amount of v_currency to redeem.
 		#[pallet::call_index(1)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::WeightInfo::redeem())]
 		pub fn redeem(
 			origin: OriginFor<T>,
@@ -1321,6 +1479,127 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Set exchange rate check configuration.
+		/// This configures the check period and maximum rate change for each vToken.
+		/// Parameters:
+		/// - `period`: The check period in blocks (all vTokens share the same period).
+		/// - `configs`: List of vToken configurations with max rate change.
+		///
+		/// Execution permission: Root or TechAdmin
+		#[pallet::call_index(20)]
+		#[pallet::weight(T::WeightInfo::set_exchange_rate_check_config(configs.len() as u32))]
+		pub fn set_exchange_rate_check_config(
+			origin: OriginFor<T>,
+			period: BlockNumberFor<T>,
+			configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>>,
+		) -> DispatchResult {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			// Validate period
+			ensure!(period > Zero::zero(), Error::<T>::InvalidCheckPeriod);
+
+			// Validate configs
+			ensure!(!configs.is_empty(), Error::<T>::EmptyCheckConfig);
+
+			// Get current block number
+			let current_block = T::BlockNumberProvider::current_block_number();
+
+			// Set the check period
+			ExchangeRateCheckPeriod::<T>::put(period);
+
+			// Initialize period start block to current block
+			ExchangeRatePeriodStartBlock::<T>::put(current_block);
+
+			// Clear old configs and set new ones
+			// First, remove all existing configs
+			let _ = ExchangeRateCheckConfigs::<T>::clear(u32::MAX, None);
+			let _ = ExchangeRateAtPeriodStart::<T>::clear(u32::MAX, None);
+
+			// Set new configs and initialize period start snapshots
+			for config in configs.iter() {
+				ensure!(config.vtoken.is_vtoken(), Error::<T>::NotSupportTokenType);
+
+				// Set the max rate change config
+				ExchangeRateCheckConfigs::<T>::insert(config.vtoken, config.max_rate_change);
+
+				// Initialize the period start snapshot with current values
+				let token_pool = TokenPool::<T>::get(config.vtoken);
+				let vtoken_issuance = VtokenIssuance::<T>::get(config.vtoken);
+
+				let snapshot = ExchangeRateSnapshot {
+					token_pool,
+					vtoken_issuance,
+				};
+				ExchangeRateAtPeriodStart::<T>::insert(config.vtoken, snapshot);
+
+				Self::deposit_event(Event::ExchangeRatePeriodReset {
+					vtoken: config.vtoken,
+					period_start_block: current_block,
+					token_pool,
+					vtoken_issuance,
+				});
+			}
+
+			Self::deposit_event(Event::ExchangeRateCheckConfigSet { period, configs });
+
+			Ok(())
+		}
+
+		/// Set exchange rate check switch.
+		/// This enables or disables the exchange rate check.
+		/// Parameters:
+		/// - `enabled`: Whether to enable the check.
+		///
+		/// Execution permission: Root or TechAdmin
+		#[pallet::call_index(21)]
+		#[pallet::weight(T::WeightInfo::set_exchange_rate_check_switch())]
+		pub fn set_exchange_rate_check_switch(
+			origin: OriginFor<T>,
+			enabled: bool,
+		) -> DispatchResult {
+			T::ControlOrigin::ensure_origin(origin)?;
+
+			let was_enabled = ExchangeRateCheckEnabled::<T>::get();
+			ExchangeRateCheckEnabled::<T>::put(enabled);
+
+			// If switching from disabled to enabled, update all snapshots to current state
+			// to prevent rolling back changes made while the check was disabled
+			if enabled && !was_enabled {
+				let current_block = T::BlockNumberProvider::current_block_number();
+
+				// Reset period start block to current block
+				ExchangeRatePeriodStartBlock::<T>::put(current_block);
+
+				// Update all snapshots for configured vTokens
+				for (vtoken, _) in ExchangeRateCheckConfigs::<T>::iter() {
+					let token_pool = TokenPool::<T>::get(vtoken);
+					let vtoken_issuance = VtokenIssuance::<T>::get(vtoken);
+
+					// Update period start snapshot
+					let snapshot = ExchangeRateSnapshot {
+						token_pool,
+						vtoken_issuance,
+					};
+					ExchangeRateAtPeriodStart::<T>::insert(vtoken, snapshot);
+
+					// Update block start snapshot
+					TokenPoolAtBlockStart::<T>::insert(vtoken, token_pool);
+					VtokenIssuanceAtBlockStart::<T>::insert(vtoken, vtoken_issuance);
+
+					Self::deposit_event(Event::ExchangeRatePeriodReset {
+						vtoken,
+						period_start_block: current_block,
+						token_pool,
+						vtoken_issuance,
+					});
+				}
+			}
+
+			Self::deposit_event(Event::ExchangeRateCheckSwitchSet { enabled });
+
+			Ok(())
+		}
 	}
 }
 
@@ -1404,5 +1683,190 @@ impl<T: Config> Pallet<T> {
 			issuance: new_issuance,
 		});
 		Ok(())
+	}
+
+	// ========== Exchange Rate Check Helper Functions ==========
+
+	/// Save block start snapshots for all configured vTokens
+	/// This is called at the beginning of each block when exchange rate check is enabled
+	fn save_block_start_snapshots() {
+		// Iterate through all configured vTokens and save their current state
+		for (vtoken, _max_rate_change) in ExchangeRateCheckConfigs::<T>::iter() {
+			let token_pool = TokenPool::<T>::get(vtoken);
+			let vtoken_issuance = VtokenIssuance::<T>::get(vtoken);
+
+			TokenPoolAtBlockStart::<T>::insert(vtoken, token_pool);
+			VtokenIssuanceAtBlockStart::<T>::insert(vtoken, vtoken_issuance);
+		}
+	}
+
+	/// Check exchange rate changes at the end of each block
+	/// If the rate change exceeds the maximum allowed, rollback to block start state
+	fn check_exchange_rate_changes(current_block: BlockNumberFor<T>) {
+		let period = ExchangeRateCheckPeriod::<T>::get();
+		let period_start_block = ExchangeRatePeriodStartBlock::<T>::get();
+
+		// Check if we need to start a new period
+		let should_reset_period = current_block >= period_start_block.saturating_add(period);
+
+		// Iterate through all configured vTokens
+		for (vtoken, max_rate_change) in ExchangeRateCheckConfigs::<T>::iter() {
+			let period_start_snapshot = ExchangeRateAtPeriodStart::<T>::get(vtoken);
+			let block_start_token_pool = TokenPoolAtBlockStart::<T>::get(vtoken);
+			let block_start_vtoken_issuance = VtokenIssuanceAtBlockStart::<T>::get(vtoken);
+
+			// Get current values
+			let current_token_pool = TokenPool::<T>::get(vtoken);
+			let current_vtoken_issuance = VtokenIssuance::<T>::get(vtoken);
+
+			// Calculate rate change from period start
+			// Rate = token_pool / vtoken_issuance
+			// Rate change = (current_rate / period_start_rate) - 1
+			// = (current_token_pool * period_start_issuance) / (period_start_token_pool * current_issuance) - 1
+
+			let rate_change_result = Self::calculate_rate_change(
+				period_start_snapshot.token_pool,
+				period_start_snapshot.vtoken_issuance,
+				current_token_pool,
+				current_vtoken_issuance,
+			);
+
+			match rate_change_result {
+				Some(rate_change) => {
+					// Check if the rate change exceeds the maximum allowed
+					if rate_change > max_rate_change {
+						// Emit event with detailed information
+						Self::deposit_event(Event::ExchangeRateCheckFailed {
+							vtoken,
+							token_pool_at_block_start: block_start_token_pool,
+							vtoken_issuance_at_block_start: block_start_vtoken_issuance,
+							token_pool_at_block_end: current_token_pool,
+							vtoken_issuance_at_block_end: current_vtoken_issuance,
+							token_pool_at_period_start: period_start_snapshot.token_pool,
+							vtoken_issuance_at_period_start: period_start_snapshot.vtoken_issuance,
+							rate_change,
+							max_rate_change,
+						});
+
+						// Rollback to period start state (not block start)
+						TokenPool::<T>::insert(vtoken, period_start_snapshot.token_pool);
+						VtokenIssuance::<T>::insert(vtoken, period_start_snapshot.vtoken_issuance);
+
+						log::warn!(
+							target: "runtime::vtoken-minting",
+							"Exchange rate check failed for {vtoken:?}, rate change: {rate_change:?}, max allowed: {max_rate_change:?}. Rolled back to block start state."
+						);
+					}
+				}
+				None => {
+					// Calculation failed due to invalid input or overflow
+					Self::deposit_event(Event::ExchangeRateCalculationFailed {
+						vtoken,
+						token_pool_at_period_start: period_start_snapshot.token_pool,
+						vtoken_issuance_at_period_start: period_start_snapshot.vtoken_issuance,
+						current_token_pool,
+						current_vtoken_issuance,
+					});
+
+					log::error!(
+						target: "runtime::vtoken-minting",
+						"Exchange rate calculation failed for {:?}, period_start_pool: {:?}, period_start_issuance: {:?}, current_pool: {:?}, current_issuance: {:?}",
+						vtoken,
+						period_start_snapshot.token_pool,
+						period_start_snapshot.vtoken_issuance,
+						current_token_pool,
+						current_vtoken_issuance,
+					);
+				}
+			}
+		}
+
+		// If period ended, reset the period and update period start snapshots
+		if should_reset_period {
+			ExchangeRatePeriodStartBlock::<T>::put(current_block);
+
+			for (vtoken, _) in ExchangeRateCheckConfigs::<T>::iter() {
+				// Use current (possibly rolled-back) values as new period start
+				let token_pool = TokenPool::<T>::get(vtoken);
+				let vtoken_issuance = VtokenIssuance::<T>::get(vtoken);
+
+				let snapshot = ExchangeRateSnapshot {
+					token_pool,
+					vtoken_issuance,
+				};
+				ExchangeRateAtPeriodStart::<T>::insert(vtoken, snapshot);
+
+				Self::deposit_event(Event::ExchangeRatePeriodReset {
+					vtoken,
+					period_start_block: current_block,
+					token_pool,
+					vtoken_issuance,
+				});
+			}
+		}
+	}
+
+	/// Calculate the absolute rate change between two exchange rate snapshots
+	/// Returns the absolute value of the rate change as Permill
+	/// Rate = token_pool / vtoken_issuance
+	/// Rate change = |current_rate / start_rate - 1| = |(current_pool * start_issuance) / (start_pool * current_issuance) - 1|
+	/// Returns None if any overflow occurs or if inputs are invalid
+	fn calculate_rate_change(
+		start_token_pool: BalanceOf<T>,
+		start_vtoken_issuance: BalanceOf<T>,
+		current_token_pool: BalanceOf<T>,
+		current_vtoken_issuance: BalanceOf<T>,
+	) -> Option<Permill> {
+		use sp_runtime::traits::SaturatedConversion;
+
+		// If any value is zero, we can't calculate a meaningful rate
+		if start_token_pool.is_zero()
+			|| start_vtoken_issuance.is_zero()
+			|| current_vtoken_issuance.is_zero()
+			|| current_token_pool.is_zero()
+		{
+			return None;
+		}
+
+		// Convert to u128 for calculation
+		let start_pool: u128 = start_token_pool.saturated_into();
+		let start_issuance: u128 = start_vtoken_issuance.saturated_into();
+		let current_pool: u128 = current_token_pool.saturated_into();
+		let current_issuance: u128 = current_vtoken_issuance.saturated_into();
+
+		// Calculate: (current_pool * start_issuance) vs (start_pool * current_issuance)
+		// Rate change ratio = (current_pool * start_issuance) / (start_pool * current_issuance)
+		// We want |ratio - 1|
+
+		// Use u256 to avoid overflow
+		use sp_core::U256;
+
+		let numerator = U256::from(current_pool).checked_mul(U256::from(start_issuance))?;
+		let denominator = U256::from(start_pool).checked_mul(U256::from(current_issuance))?;
+
+		if denominator.is_zero() {
+			return None;
+		}
+
+		// Calculate the absolute difference in parts per million
+		// |numerator - denominator| * 1_000_000 / denominator
+		let abs_diff = if numerator >= denominator {
+			numerator.checked_sub(denominator)?
+		} else {
+			denominator.checked_sub(numerator)?
+		};
+
+		// Calculate rate change in parts per million (Permill precision)
+		let rate_change_ppm = abs_diff
+			.checked_mul(U256::from(1_000_000u128))?
+			.checked_div(denominator)?;
+
+		// Convert to Permill (max value is 1_000_000 = 100%)
+		let rate_change_ppm_u32: u32 = rate_change_ppm
+			.try_into()
+			.unwrap_or(1_000_000u32)
+			.min(1_000_000u32);
+
+		Some(Permill::from_parts(rate_change_ppm_u32))
 	}
 }

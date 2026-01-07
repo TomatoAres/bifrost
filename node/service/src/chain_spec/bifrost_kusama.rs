@@ -117,7 +117,6 @@ fn bifrost_kusama_properties() -> Properties {
 
 pub fn bifrost_genesis(
 	candidates: Vec<(AccountId, AuraId, Balance)>,
-	delegations: Vec<(AccountId, AccountId, Balance)>,
 	balances: Vec<(AccountId, Balance)>,
 	vestings: Vec<(AccountId, BlockNumber, BlockNumber, Balance)>,
 	id: ParaId,
@@ -163,19 +162,16 @@ pub fn bifrost_genesis(
 			"vcurrency": asset_registry.1,
 			"vsbond": asset_registry.2
 		},
-		"salp": { "initialMultisigAccount": Some(salp_multisig_key) },
-		"parachainStaking": {
-			"candidates": candidates
-				.iter()
-				.cloned()
-				.map(|(account, _, bond)| (account, bond))
-				.collect::<Vec<_>>(),
-			"delegations": delegations,
-			"inflationConfig": inflation_config(),
-			"collatorCommission": COLLATOR_COMMISSION,
-			"parachainBondReservePercent": PARACHAIN_BOND_RESERVE_PERCENT,
-			"blocksPerRound": BLOCKS_PER_ROUND,
-		},
+	"salp": { "initialMultisigAccount": Some(salp_multisig_key) },
+	"collatorSelection": {
+		"invulnerables": candidates
+			.iter()
+			.cloned()
+			.map(|(account, _, _bond)| account)
+			.collect::<Vec<_>>(),
+		"candidacyBond": 10_000 * DOLLARS,
+		"desiredCandidates": 4,
+	},
 		"pkBridge": {
 			"bridgeConfig": bifrost_p_k_bridge::BridgeConfig {
 				send_enabled: true,
@@ -252,8 +248,17 @@ pub fn local_testnet_config() -> ChainSpec {
 				get_from_seed::<AuraId>("Bob"),
 				ENDOWMENT() / 4,
 			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_from_seed::<AuraId>("Charlie"),
+				ENDOWMENT() / 4,
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+				get_from_seed::<AuraId>("Dave"),
+				ENDOWMENT() / 4,
+			),
 		],
-		vec![],
 		balances,
 		vestings,
 		BifrostKusamaChainId::get().into(),
@@ -357,7 +362,6 @@ pub fn chainspec_config() -> ChainSpec {
 	.with_chain_type(ChainType::Live)
 	.with_genesis_config_patch(bifrost_genesis(
 		invulnerables,
-		vec![],
 		balances,
 		vesting_configs
 			.into_iter()

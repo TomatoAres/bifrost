@@ -84,9 +84,7 @@ impl<T: Config, IsKusamaRuntime: Get<bool>> OnRuntimeUpgrade
 					VtokenIssuance::<T>::insert(vtoken, total_issuance);
 					count += 1;
 					log::info!(
-						"Initialized VtokenIssuance for {:?} with amount {:?}",
-						vtoken,
-						total_issuance
+						"Initialized VtokenIssuance for {vtoken:?} with amount {total_issuance:?}",
 					);
 				}
 			}
@@ -113,13 +111,10 @@ impl<T: Config, IsKusamaRuntime: Get<bool>> OnRuntimeUpgrade
 				let total_issuance = T::MultiCurrency::total_issuance(*vtoken);
 				if !total_issuance.is_zero() {
 					count += 1;
-					log::info!("Vtoken {:?} has issuance: {:?}", vtoken, total_issuance);
+					log::info!("Vtoken {vtoken:?} has issuance: {total_issuance:?}");
 				}
 			}
-			log::info!(
-				"Vtokens with non-zero issuance count before migration: {:?}",
-				count
-			);
+			log::info!("Vtokens with non-zero issuance count before migration: {count:?}",);
 		}
 
 		Ok(Vec::new())
@@ -148,18 +143,11 @@ impl<T: Config, IsKusamaRuntime: Get<bool>> OnRuntimeUpgrade
 				if vtoken_issuance != total_issuance {
 					return Err("VtokenIssuance should be initialized".into());
 				}
-				log::info!(
-					"Verified VtokenIssuance for {:?}: {:?}",
-					vtoken,
-					vtoken_issuance
-				);
+				log::info!("Verified VtokenIssuance for {vtoken:?}: {vtoken_issuance:?}",);
 			}
 		}
 
-		log::info!(
-			"Vtokens with non-zero issuance count after migration: {:?}",
-			count
-		);
+		log::info!("Vtokens with non-zero issuance count after migration: {count:?}",);
 		Ok(())
 	}
 }
@@ -189,16 +177,12 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 							TokenToVToken::<T>::insert(token, vtoken);
 
 							log::info!(
-								"Created VTokenToTokens mapping for token {:?} -> vtoken {:?}",
-								token,
-								vtoken
+								"Created VTokenToTokens mapping for token {token:?} -> vtoken {vtoken:?}",
 							);
 						}
 						Err(_) => {
 							log::error!(
-								"Failed to create bounded vec for token {:?} -> vtoken {:?}",
-								token,
-								vtoken
+								"Failed to create bounded vec for token {token:?} -> vtoken {vtoken:?}",
 							);
 						}
 					}
@@ -219,11 +203,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 
 					migrated_count += 1;
 					log::info!(
-						"Migrated pool for token {:?} ({:?}) to vtoken {:?} ({:?})",
-						token,
-						pool_amount,
-						vtoken,
-						new_vtoken_pool
+						"Migrated pool for token {token:?} ({pool_amount:?}) to vtoken {vtoken:?} ({new_vtoken_pool:?})",
 					);
 				}
 			}
@@ -232,7 +212,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 		weight.saturating_accrue(
 			T::DbWeight::get().reads_writes(migrated_count * 3, migrated_count * 3),
 		);
-		log::info!("Migrated {} token pools to vtoken pools", migrated_count);
+		log::info!("Migrated {migrated_count} token pools to vtoken pools");
 
 		weight
 	}
@@ -249,7 +229,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 			let token_pool = TokenPool::<T>::get(token);
 			if !token_pool.is_zero() {
 				token_pools_to_migrate += 1;
-				log::info!("Will migrate pool for token {:?}: {:?}", token, token_pool);
+				log::info!("Will migrate pool for token {token:?}: {token_pool:?}");
 			}
 		}
 
@@ -257,14 +237,12 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 		for (token, pool) in TokenPool::<T>::iter() {
 			if !pool.is_zero() {
 				total_token_pools += 1;
-				log::info!("Existing pool: {:?} -> {:?}", token, pool);
+				log::info!("Existing pool: {token:?} -> {pool:?}");
 			}
 		}
 
 		log::info!(
-			"Pre-migration: {} token pools to migrate, {} total token pools",
-			token_pools_to_migrate,
-			total_token_pools
+			"Pre-migration: {token_pools_to_migrate} token pools to migrate, {total_token_pools} total token pools",
 		);
 
 		Ok(Vec::new())
@@ -281,11 +259,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 		for (token, _) in TokenToVToken::<T>::iter() {
 			let token_pool = TokenPool::<T>::get(token);
 			if !token_pool.is_zero() {
-				log::error!(
-					"Token {:?} still has pool after migration: {:?}",
-					token,
-					token_pool
-				);
+				log::error!("Token {token:?} still has pool after migration: {token_pool:?}",);
 				return Err("Token still has pool after migration".into());
 			}
 		}
@@ -295,18 +269,16 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenPoolToVTokenPool<T> {
 			if !pool.is_zero() {
 				if currency.is_vtoken() {
 					vtoken_pools += 1;
-					log::info!("VToken pool: {:?} -> {:?}", currency, pool);
+					log::info!("VToken pool: {currency:?} -> {pool:?}");
 				} else {
 					remaining_token_pools += 1;
-					log::info!("Remaining token pool: {:?} -> {:?}", currency, pool);
+					log::info!("Remaining token pool: {currency:?} -> {pool:?}");
 				}
 			}
 		}
 
 		log::info!(
-			"Post-migration verification: {} vtoken pools, {} remaining token pools",
-			vtoken_pools,
-			remaining_token_pools
+			"Post-migration verification: {vtoken_pools} vtoken pools, {remaining_token_pools} remaining token pools",
 		);
 
 		Ok(())
@@ -338,16 +310,12 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenUnlockNextIdToVToken<T> {
 							TokenToVToken::<T>::insert(token, vtoken);
 
 							log::info!(
-								"Created VTokenToTokens mapping for token {:?} -> vtoken {:?}",
-								token,
-								vtoken
+								"Created VTokenToTokens mapping for token {token:?} -> vtoken {vtoken:?}",
 							);
 						}
 						Err(_) => {
 							log::error!(
-								"Failed to create bounded vec for token {:?} -> vtoken {:?}",
-								token,
-								vtoken
+								"Failed to create bounded vec for token {token:?} -> vtoken {vtoken:?}",
 							);
 						}
 					}
@@ -376,11 +344,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenUnlockNextIdToVToken<T> {
 
 				migrated_count += 1;
 				log::info!(
-					"Migrated TokenUnlockNextId for token {:?} ({:?}) to vtoken {:?} ({:?})",
-					token,
-					next_id,
-					vtoken,
-					new_next_id
+					"Migrated TokenUnlockNextId for token {token:?} ({next_id:?}) to vtoken {vtoken:?} ({new_next_id:?})",
 				);
 			}
 		}
@@ -388,10 +352,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenUnlockNextIdToVToken<T> {
 		weight.saturating_accrue(
 			T::DbWeight::get().reads_writes(migrated_count * 4, migrated_count * 3),
 		);
-		log::info!(
-			"Migrated {} TokenUnlockNextId entries to vtoken keys",
-			migrated_count
-		);
+		log::info!("Migrated {migrated_count} TokenUnlockNextId entries to vtoken keys",);
 
 		weight
 	}
@@ -405,17 +366,10 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenUnlockNextIdToVToken<T> {
 		// Count TokenUnlockNextId entries that need migration
 		for (token, next_id) in TokenUnlockNextId::<T>::iter() {
 			token_unlock_next_ids += 1;
-			log::info!(
-				"Will migrate TokenUnlockNextId for token {:?}: {:?}",
-				token,
-				next_id
-			);
+			log::info!("Will migrate TokenUnlockNextId for token {token:?}: {next_id:?}",);
 		}
 
-		log::info!(
-			"Pre-migration: {} TokenUnlockNextId entries to migrate",
-			token_unlock_next_ids
-		);
+		log::info!("Pre-migration: {token_unlock_next_ids} TokenUnlockNextId entries to migrate",);
 
 		Ok(Vec::new())
 	}
@@ -430,10 +384,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenUnlockNextIdToVToken<T> {
 		// Verify that all configured tokens no longer have TokenUnlockNextId
 		for (token, _) in TokenToVToken::<T>::iter() {
 			if TokenUnlockNextId::<T>::contains_key(token) {
-				log::error!(
-					"Token {:?} still has TokenUnlockNextId after migration",
-					token
-				);
+				log::error!("Token {token:?} still has TokenUnlockNextId after migration",);
 				return Err("Token still has TokenUnlockNextId after migration".into());
 			}
 		}
@@ -442,21 +393,15 @@ impl<T: Config> OnRuntimeUpgrade for MigrateTokenUnlockNextIdToVToken<T> {
 		for (currency, next_id) in TokenUnlockNextId::<T>::iter() {
 			if currency.is_vtoken() {
 				vtoken_unlock_next_ids += 1;
-				log::info!("VToken TokenUnlockNextId: {:?} -> {:?}", currency, next_id);
+				log::info!("VToken TokenUnlockNextId: {currency:?} -> {next_id:?}");
 			} else {
 				remaining_token_unlock_next_ids += 1;
-				log::info!(
-					"Remaining token TokenUnlockNextId: {:?} -> {:?}",
-					currency,
-					next_id
-				);
+				log::info!("Remaining token TokenUnlockNextId: {currency:?} -> {next_id:?}",);
 			}
 		}
 
 		log::info!(
-			"Post-migration verification: {} vtoken TokenUnlockNextId entries, {} remaining token TokenUnlockNextId entries",
-			vtoken_unlock_next_ids,
-			remaining_token_unlock_next_ids
+			"Post-migration verification: {vtoken_unlock_next_ids} vtoken TokenUnlockNextId entries, {remaining_token_unlock_next_ids} remaining token TokenUnlockNextId entries",
 		);
 
 		Ok(())

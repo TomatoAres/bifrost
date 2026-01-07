@@ -37,8 +37,8 @@ use bifrost_primitives::{
 	currency::{BNC, KSM, MANTA, MOVR, PHA},
 	traits::XcmDestWeightAndFeeHandler,
 	CurrencyId, CurrencyIdMapping, DerivativeAccountHandler, DerivativeIndex,
-	SlpHostingFeeProvider, SlpOperator, TimeUnit, VtokenMintingOperator, XcmOperationType, ASTR,
-	DOT, GLMR,
+	SlpHostingFeeProvider, SlpOperator, TimeUnit, VtokenMintingOperator, XChainSender,
+	XcmOperationType, ASTR, DOT, GLMR,
 };
 use bifrost_stable_pool::traits::StablePoolHandler;
 use cumulus_primitives_core::{relay_chain::HashT, ParaId};
@@ -97,14 +97,12 @@ pub mod pallet {
 	use crate::agents::{AstarAgent, ParachainStakingAgent, PhalaAgent};
 	use bifrost_primitives::{SlpxOperator, TargetChain};
 	use frame_support::dispatch::GetDispatchInfo;
-	use orml_traits::XcmTransfer;
 	use pallet_xcm::ensure_response;
 	use sp_runtime::traits::BlockNumberProvider;
 	use xcm::v3::{MaybeErrorCode, Response};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_xcm::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
@@ -131,8 +129,7 @@ pub mod pallet {
 			TimeUnit,
 		>;
 
-		/// xtokens xcm transfer interface
-		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
+		type XChainSender: XChainSender<AccountIdOf<Self>, BalanceOf<Self>>;
 
 		/// Substrate account converter, which can convert a u16 number into a sub-account with
 		/// MultiLocation format.
@@ -1237,6 +1234,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(18)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::refund_currency_due_unbond())]
 		pub fn refund_currency_due_unbond(
 			_origin: OriginFor<T>,

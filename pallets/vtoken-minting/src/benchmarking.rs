@@ -234,6 +234,29 @@ benchmarks! {
 		let blocks = Some(BlockNumberFor::<T>::from(1000u32));
 	}: _<T::RuntimeOrigin>(origin, VKSM, blocks)
 
+	set_exchange_rate_check_config {
+		let n in 1 .. 10;
+		let origin = T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
+
+		// Build a vector of ExchangeRateCheckConfig with n items
+		let mut configs_vec = Vec::new();
+		// Use different vTokens for each config
+		// Generate n unique vTokens for each config
+		for i in 0..n as usize {
+			configs_vec.push(ExchangeRateCheckConfig {
+				vtoken: CurrencyId::VToken2(i as u8),
+				max_rate_change: Permill::from_percent(1),
+			});
+		}
+
+		let configs: BoundedVec<ExchangeRateCheckConfig, ConstU32<20>> = BoundedVec::try_from(configs_vec).unwrap();
+		let period = BlockNumberFor::<T>::from(100u32);
+	}: _<T::RuntimeOrigin>(origin, period, configs)
+
+	set_exchange_rate_check_switch {
+		let origin = T::ControlOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
+	}: _<T::RuntimeOrigin>(origin, true)
+
 	impl_benchmark_test_suite!(
 	VtokenMinting,
 	crate::mock::ExtBuilder::default().one_hundred_for_alice_n_bob().build(),

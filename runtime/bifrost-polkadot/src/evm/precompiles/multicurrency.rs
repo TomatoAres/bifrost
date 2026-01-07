@@ -72,7 +72,7 @@ where
 	fn execute(handle: &mut impl PrecompileHandle) -> pallet_evm::PrecompileResult {
 		let address = handle.code_address();
 		if let Some(asset_id) = BifrostErc20Mapping::decode_evm_address(address) {
-			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);
+			log::debug!(target: "evm", "multicurrency: currency id: {asset_id:?}");
 
 			let selector = handle.read_selector()?;
 
@@ -178,7 +178,7 @@ where
 
 		let total_issuance = Currencies::total_issuance(currency_id);
 
-		log::debug!(target: "evm", "multicurrency: totalSupply: {:?}", total_issuance);
+		log::debug!(target: "evm", "multicurrency: totalSupply: {total_issuance:?}");
 
 		let encoded = Output::encode_uint::<u128>(total_issuance);
 
@@ -197,7 +197,7 @@ where
 
 		let free_balance = Currencies::free_balance(currency_id, &who);
 
-		log::debug!(target: "evm", "multicurrency: balanceOf: {:?}", free_balance);
+		log::debug!(target: "evm", "multicurrency: balanceOf: {free_balance:?}");
 
 		let encoded = Output::encode_uint::<u128>(free_balance);
 
@@ -217,7 +217,7 @@ where
 		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
 		let to = ExtendedAddressMapping::into_account_id(to);
 
-		log::debug!(target: "evm", "multicurrency: transfer from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
+		log::debug!(target: "evm", "multicurrency: transfer from: {origin:?}, to: {to:?}, amount: {amount:?}");
 
 		<bifrost_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			currency_id,

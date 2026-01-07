@@ -68,13 +68,11 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		// print out the pre-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"UserDefaultFeeCurrency pre-migrate storage total count: {:?}",
-			total_count
+			"UserDefaultFeeCurrency pre-migrate storage total count: {total_count:?}",
 		);
 		log::info!(
 			target: LOG_TARGET,
-			"UserDefaultFeeCurrency pre-migrate storage vbnc count: {:?}",
-			vbnc_count
+			"UserDefaultFeeCurrency pre-migrate storage vbnc count: {vbnc_count:?}",
 		);
 		Ok((total_count as u64).encode())
 	}
@@ -96,13 +94,11 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		// print out the post-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"UserDefaultFeeCurrency post-migrate storage total count: {:?}",
-			new_total_count
+			"UserDefaultFeeCurrency post-migrate storage total count: {new_total_count:?}",
 		);
 		log::info!(
 			target: LOG_TARGET,
-			"UserDefaultFeeCurrency post-migrate storage vbnc count: {:?}",
-			new_vbnc_count
+			"UserDefaultFeeCurrency post-migrate storage vbnc count: {new_vbnc_count:?}",
 		);
 
 		ensure!(

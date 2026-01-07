@@ -26,8 +26,7 @@ use frame_support::traits::OnInitialize;
 // Cumulus
 use emulated_integration_tests_common::{
 	impl_accounts_helpers_for_parachain, impl_assert_events_helpers_for_parachain,
-	impl_bridge_helpers_for_chain, impl_xcm_helpers_for_parachain, impls::Parachain,
-	xcm_emulator::decl_test_parachains,
+	impl_xcm_helpers_for_parachain, impls::Parachain, xcm_emulator::decl_test_parachains,
 };
 
 // BifrostPolkadot Parachain declaration
@@ -53,6 +52,8 @@ decl_test_parachains! {
 			AssetRegistry: bifrost_polkadot_runtime::AssetRegistry,
 			VtokenMinting: bifrost_polkadot_runtime::VtokenMinting,
 			PKBridge: bifrost_polkadot_runtime::PKBridge,
+			SlpV2: bifrost_polkadot_runtime::SlpV2,
+			Tokens: bifrost_polkadot_runtime::Tokens,
 		}
 	},
 }

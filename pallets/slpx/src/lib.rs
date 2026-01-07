@@ -26,15 +26,22 @@ use crate::types::{
 #[cfg(feature = "polkadot")]
 use crate::types::{HYDRATION_EMA_ORACLE_CALL_INDEX, HYDRATION_EMA_ORACLE_PALLET_INDEX};
 use bifrost_asset_registry::AssetMetadata;
+use bifrost_primitives::AssetHubLocation;
+use bifrost_primitives::BridgeAsset;
+use bifrost_primitives::BridgeType;
+#[cfg(feature = "polkadot")]
+use bifrost_primitives::HydrationChainId;
+use bifrost_primitives::XChainSender;
 use bifrost_primitives::{
-	currency::{BNC, DOT_U, MOVR},
-	AstarChainId, AstarEvmChainId, Balance, BifrostKusamaChainId, CurrencyId, CurrencyIdMapping,
-	HydrationChainId, HyperBridgeSender, InterlayChainId, MantaChainId, MoonbeamEvmChainId,
+	currency::{BNC, DOT, DOT_U, ETH, KSM, MOVR},
+	AssetHubChainId, AstarChainId, AstarEvmChainId, Balance, BifrostKusamaChainId, CurrencyId,
+	CurrencyIdMapping, EthereumLocation, HyperBridgeSender, MoonbeamEvmChainId,
 	MoonriverEvmChainId, OraclePriceProvider, RedeemType, SlpxOperator, SupportChain, TargetChain,
 	TokenInfo, VtokenMintingInterface, GLMR, HYPERBRIDGE_TIMEOUT,
 };
 use cumulus_primitives_core::ParaId;
 use ethereum::TransactionAction;
+use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::ExistenceRequirement;
 use frame_support::{
 	dispatch::{DispatchResult, DispatchResultWithPostInfo},
@@ -49,13 +56,14 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use ismp::host::StateMachine;
-use orml_traits::{MultiCurrency, XcmTransfer};
+use orml_traits::MultiCurrency;
 pub use pallet::*;
 use pallet_ismp::ModuleId;
 use parity_scale_codec::{Decode, Encode};
 use polkadot_parachain_primitives::primitives::{Id, Sibling};
 use sp_core::H160;
 use sp_core::{Hasher, U256};
+use sp_runtime::traits::Dispatchable;
 use sp_runtime::{
 	traits::{
 		AccountIdConversion, BlakeTwo256, BlockNumberProvider, CheckedSub, Saturating,
@@ -63,13 +71,16 @@ use sp_runtime::{
 	},
 	BoundedVec, DispatchError, FixedU128,
 };
+use sp_std::boxed::Box;
 use sp_std::{vec, vec::Vec};
 use token_gateway_primitives::token_gateway_id;
 use xcm::v5::{prelude::*, Location};
+use xcm::VersionedXcm;
 #[cfg(feature = "polkadot")]
 use xcm::{DoubleEncoded, VersionedLocation};
 use xcm_builder::{DescribeAllTerminal, DescribeFamily, HashedDescription};
 use xcm_executor::traits::ConvertLocation;
+use xcm_executor::traits::TransferType;
 
 pub mod migration;
 pub mod types;
@@ -105,11 +116,16 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+	pub trait Config: frame_system::Config + pallet_xcm::Config {
 		type RuntimeOrigin: From<pallet_xcm::Origin>
 			+ From<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+		type RuntimeCall: IsType<<Self as pallet_xcm::Config>::RuntimeCall>
+			+ Parameter
+			+ From<Call<Self>>
+			+ From<pallet_xcm::Call<Self>>
+			+ Dispatchable<RuntimeOrigin = <Self as frame_system::Config>::RuntimeOrigin>
+			+ GetDispatchInfo;
 		type WeightInfo: WeightInfo;
 		type ControlOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
@@ -122,8 +138,6 @@ pub mod pallet {
 		>;
 		/// The current block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
-		/// xtokens xcm transfer interface
-		type XcmTransfer: XcmTransfer<AccountIdOf<Self>, BalanceOf<Self>, CurrencyIdOf<Self>>;
 		/// Send Xcm
 		type XcmSender: SendXcm;
 		/// Convert Location to `T::CurrencyId`.
@@ -505,6 +519,7 @@ pub mod pallet {
 		/// - `support_chain`: The support chain of Slpx
 		/// - `contract_address`: The contract address of the contract
 		#[pallet::call_index(4)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_whitelist())]
 		pub fn add_whitelist(
 			origin: OriginFor<T>,
@@ -540,6 +555,7 @@ pub mod pallet {
 		/// - `support_chain`: The support chain of Slpx
 		/// - `contract_address`: The contract address of the contract
 		#[pallet::call_index(5)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_whitelist())]
 		pub fn remove_whitelist(
 			origin: OriginFor<T>,
@@ -570,6 +586,7 @@ pub mod pallet {
 		/// - `currency_id`: The currency id of the token
 		/// - `execution_fee`: The execution fee of the token
 		#[pallet::call_index(6)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_execution_fee())]
 		pub fn set_execution_fee(
 			origin: OriginFor<T>,
@@ -591,6 +608,7 @@ pub mod pallet {
 		/// - `support_chain`: The support chain of Slpx
 		/// - `transfer_to_fee`: The transfer fee of the token
 		#[pallet::call_index(7)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
 		pub fn set_transfer_to_fee(
 			origin: OriginFor<T>,
@@ -612,6 +630,7 @@ pub mod pallet {
 		/// - `currency_id`: The currency id of the token
 		/// - `is_support`: Whether to support the Ethereum call switch
 		#[pallet::call_index(8)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
 		pub fn support_xcm_oracle(
 			origin: OriginFor<T>,
@@ -654,6 +673,7 @@ pub mod pallet {
 		/// - `period`: The period of Sending Xcm
 		/// - `contract`: The address of XcmOracle
 		#[pallet::call_index(9)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
 		pub fn set_xcm_oracle_configuration(
 			origin: OriginFor<T>,
@@ -684,6 +704,7 @@ pub mod pallet {
 		/// - `currency_id`: The currency id of the token
 		/// - `is_support`: Whether to support the XCM fee
 		#[pallet::call_index(10)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::DbWeight::get().reads(1) + T::DbWeight::get().writes(1))]
 		pub fn set_currency_support_xcm_fee(
 			origin: OriginFor<T>,
@@ -721,6 +742,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `delay_block`: The delay block
 		#[pallet::call_index(11)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::DbWeight::get().reads(1) + T::DbWeight::get().writes(1))]
 		pub fn set_delay_block(
 			origin: OriginFor<T>,
@@ -742,6 +764,7 @@ pub mod pallet {
 		/// - `remark`: The remark of the order
 		/// - `channel_id`: The channel id of the order
 		#[pallet::call_index(12)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(T::DbWeight::get().reads(1) + T::DbWeight::get().writes(1))]
 		pub fn force_add_order(
 			origin: OriginFor<T>,
@@ -774,6 +797,7 @@ pub mod pallet {
 		/// - `remark`: The remark of the order
 		/// - `channel_id`: The channel id of the order
 		#[pallet::call_index(13)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::mint_with_channel_id())]
 		pub fn mint_with_channel_id(
 			origin: OriginFor<T>,
@@ -810,6 +834,7 @@ pub mod pallet {
 		/// - `remark`: The remark of the order
 		/// - `channel_id`: The channel id of the order
 		#[pallet::call_index(14)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::mint())]
 		pub fn evm_create_order(
 			origin: OriginFor<T>,
@@ -856,6 +881,7 @@ pub mod pallet {
 		/// - `fee`: The fee of the oracle
 		/// - `tokens`: The tokens of the oracle
 		#[pallet::call_index(15)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
 		pub fn set_hyperbridge_oracle(
 			origin: OriginFor<T>,
@@ -895,6 +921,7 @@ pub mod pallet {
 		/// - `period`: The period of Sending Xcm
 		/// - `tokens`: The tokens of the oracle
 		#[pallet::call_index(16)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_transfer_to_fee())]
 		pub fn set_hydration_oracle(
 			origin: OriginFor<T>,
@@ -944,6 +971,7 @@ pub mod pallet {
 
 		/// Update Async Mint configuration
 		#[pallet::call_index(20)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_async_mint_config())]
 		pub fn update_async_mint_config(
 			origin: OriginFor<T>,
@@ -962,6 +990,7 @@ pub mod pallet {
 		/// - `currency_id`: The currency ID of the vToken
 		/// - `amount`: The amount of vToken to mint and transfer
 		#[pallet::call_index(21)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::async_mint())]
 		pub fn force_increase_hyperbridge_reserve(
 			origin: OriginFor<T>,
@@ -1015,6 +1044,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `accounts`: The accounts to exempt from Hyperbridge fee
 		#[pallet::call_index(22)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_hyperbridge_fee_exempt_accounts())]
 		pub fn set_hyperbridge_fee_exempt_accounts(
 			origin: OriginFor<T>,
@@ -1049,11 +1079,6 @@ impl<T: Config> Pallet<T> {
 		remark: BoundedVec<u8, ConstU32<32>>,
 		channel_id: u32,
 	) -> DispatchResult {
-		let mut currency_amount = currency_amount;
-		if let TargetChain::HyperBridge(dest, _) = target_chain {
-			currency_amount =
-				Self::charge_hyperbridge_fee(caller.clone(), currency_id, currency_amount, dest)?;
-		};
 		let (v_currency_id, v_currency_amount) = T::VtokenMintingInterface::mint(
 			caller.clone(),
 			currency_id,
@@ -1064,8 +1089,6 @@ impl<T: Config> Pallet<T> {
 		.map_err(|_| Error::<T>::ErrorVtokenMiting)?;
 
 		Self::transfer_to(caller, v_currency_id, v_currency_amount, &target_chain)
-			.map_err(|_| Error::<T>::ErrorTransferTo)?;
-		Ok(())
 	}
 
 	pub fn do_redeem(
@@ -1075,15 +1098,6 @@ impl<T: Config> Pallet<T> {
 		v_currency_amount: BalanceOf<T>,
 		target_chain: TargetChain<AccountIdOf<T>>,
 	) -> DispatchResult {
-		let mut v_currency_amount = v_currency_amount;
-		if let TargetChain::HyperBridge(dest, _) = target_chain {
-			v_currency_amount = Self::charge_hyperbridge_fee(
-				caller.clone(),
-				v_currency_id,
-				v_currency_amount,
-				dest,
-			)?;
-		};
 		let redeem_type = match target_chain.clone() {
 			TargetChain::Astar(receiver) => {
 				let receiver = Self::h160_to_account_id(&receiver);
@@ -1093,6 +1107,7 @@ impl<T: Config> Pallet<T> {
 			TargetChain::Hydradx(receiver) => RedeemType::Hydradx(receiver),
 			TargetChain::Interlay(receiver) => RedeemType::Interlay(receiver),
 			TargetChain::Manta(receiver) => RedeemType::Manta(receiver),
+			TargetChain::AssetHub(receiver) => RedeemType::AssetHub(receiver),
 			TargetChain::HyperBridge(dest, receiver) => RedeemType::HyperBridge(dest, receiver),
 		};
 		T::VtokenMintingInterface::slpx_redeem(
@@ -1397,91 +1412,11 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 		target_chain: &TargetChain<AccountIdOf<T>>,
 	) -> DispatchResult {
-		if let TargetChain::HyperBridge(dest, to) = target_chain {
-			let (payer, fee) = Self::get_hyperbridge_payer_and_fee(*dest)?;
-			T::HyperBridgeSender::send_and_call(
-				currency_id,
-				caller,
-				*to,
-				StateMachine::Evm(*dest),
-				amount,
-				HYPERBRIDGE_TIMEOUT,
-				None,
-				payer,
-				fee,
-			)?;
-			return Ok(());
-		};
-
-		let dest = match target_chain {
-			TargetChain::Astar(receiver) => Location::new(
-				1,
-				[
-					Parachain(AstarChainId::get()),
-					AccountId32 {
-						network: None,
-						id: Self::h160_to_account_id(receiver)
-							.encode()
-							.try_into()
-							.map_err(|_| Error::<T>::ErrorEncode)?,
-					},
-				],
-			),
-			TargetChain::Moonbeam(receiver) => Location::new(
-				1,
-				[
-					Parachain(T::VtokenMintingInterface::get_moonbeam_parachain_id()),
-					AccountKey20 {
-						network: None,
-						key: receiver.to_fixed_bytes(),
-					},
-				],
-			),
-			TargetChain::Hydradx(receiver) => Location::new(
-				1,
-				[
-					Parachain(HydrationChainId::get()),
-					AccountId32 {
-						network: None,
-						id: receiver
-							.encode()
-							.try_into()
-							.map_err(|_| Error::<T>::ErrorEncode)?,
-					},
-				],
-			),
-			TargetChain::Interlay(receiver) => Location::new(
-				1,
-				[
-					Parachain(InterlayChainId::get()),
-					AccountId32 {
-						network: None,
-						id: receiver
-							.encode()
-							.try_into()
-							.map_err(|_| Error::<T>::ErrorEncode)?,
-					},
-				],
-			),
-			TargetChain::Manta(receiver) => Location::new(
-				1,
-				[
-					Parachain(MantaChainId::get()),
-					AccountId32 {
-						network: None,
-						id: receiver
-							.encode()
-							.try_into()
-							.map_err(|_| Error::<T>::ErrorEncode)?,
-					},
-				],
-			),
-			_ => unreachable!(),
-		};
-
+		let bridge_type =
+			target_chain.bridge_type(T::VtokenMintingInterface::get_moonbeam_parachain_id());
 		if let TargetChain::Moonbeam(_) = target_chain {
 			if SupportXcmFeeList::<T>::get().contains(&currency_id) {
-				T::XcmTransfer::transfer(caller, currency_id, amount, dest, Unlimited)?;
+				Self::do_transfer_assets(caller, bridge_type, vec![(currency_id, amount).into()], 0)
 			} else {
 				let fee_amount = Self::get_moonbeam_transfer_to_fee();
 				let payer = Self::get_moonbeam_transfer_payer()?;
@@ -1492,13 +1427,16 @@ impl<T: Config> Pallet<T> {
 					fee_amount,
 					ExistenceRequirement::AllowDeath,
 				)?;
-				let assets = vec![(currency_id, amount), (BNC, fee_amount)];
-				T::XcmTransfer::transfer_multicurrencies(caller, assets, 1, dest, Unlimited)?;
+				Self::do_transfer_assets(
+					caller,
+					bridge_type,
+					vec![(BNC, fee_amount).into(), (currency_id, amount).into()],
+					0,
+				)
 			}
 		} else {
-			T::XcmTransfer::transfer(caller, currency_id, amount, dest, Unlimited)?;
+			Self::do_transfer_assets(caller, bridge_type, vec![(currency_id, amount).into()], 0)
 		}
-		Ok(())
 	}
 
 	fn get_moonbeam_transfer_payer() -> Result<T::AccountId, Error<T>> {
@@ -1743,9 +1681,7 @@ impl<T: Config> Pallet<T> {
 					let v_currency_total_supply =
 						T::VtokenMintingInterface::get_v_currency_issuance(v_currency_id)?;
 					log::debug!(
-						"staking_currency_amount: {:?}, v_currency_total_supply: {:?}",
-						staking_currency_amount,
-						v_currency_total_supply
+						"staking_currency_amount: {staking_currency_amount:?}, v_currency_total_supply: {v_currency_total_supply:?}",
 					);
 
 					let location_a_v4 = location_a
@@ -1773,7 +1709,7 @@ impl<T: Config> Pallet<T> {
 						.refund_surplus()
 						.deposit_asset(AssetFilter::Wild(WildAsset::All), refund_location)
 						.build();
-					log::debug!("xcm_message: {:?}", xcm_message);
+					log::debug!("xcm_message: {xcm_message:?}");
 					let dest_location = Location::new(1, [Parachain(HydrationChainId::get())]);
 					let (ticket, _price) =
 						T::XcmSender::validate(&mut Some(dest_location), &mut Some(xcm_message))
@@ -1947,6 +1883,231 @@ impl<T: Config> Pallet<T> {
 		ensure!(currency_amount >= fee, Error::<T>::FreeBalanceTooLow);
 		Ok(currency_amount.saturating_sub(fee))
 	}
+
+	/// Transfer assets to parachain
+	/// from: who transfer the assets
+	/// parachain_id: destination parachain id
+	/// account: destination account
+	/// assets: assets to be transferred
+	/// fee_asset_item: fee asset index in assets
+	fn transfer_assets_by_parachain(
+		from: T::AccountId,
+		parachain_id: u32,
+		beneficiary: Location,
+		assets: Vec<BridgeAsset<BalanceOf<T>>>,
+		fee_asset_item: u32,
+	) -> Result<(), DispatchError> {
+		let mut xcm_assets: Assets = vec![].into();
+		let mut is_network_native_asset = false;
+		for asset in assets.iter() {
+			let currency_location = T::CurrencyIdConvert::get_location(&asset.currency_id)
+				.ok_or(Error::<T>::Unsupported)?;
+			xcm_assets.push(Asset {
+				id: AssetId::from(currency_location),
+				fun: Fungible(asset.amount.saturated_into::<u128>()),
+			});
+			if asset.currency_id == DOT || asset.currency_id == KSM {
+				is_network_native_asset = true;
+			}
+		}
+		let dest = Location::new(1, [Parachain(parachain_id)]);
+		if is_network_native_asset {
+			ensure!(assets.len() == 1, Error::<T>::Unsupported);
+			let (assets_transfer_type, fees_transfer_type) =
+				if parachain_id == AssetHubChainId::get() {
+					(
+						TransferType::DestinationReserve,
+						TransferType::DestinationReserve,
+					)
+				} else {
+					(
+						TransferType::RemoteReserve(AssetHubLocation::get().into()),
+						TransferType::RemoteReserve(AssetHubLocation::get().into()),
+					)
+				};
+			let remote_fees_id = Location::parent();
+			let custom_xcm_on_dest = Xcm::<()>::builder_unsafe()
+				.deposit_asset(AllCounted(1), beneficiary)
+				.build();
+			Self::dispatch_transfer_assets_using_type_and_then(
+				from,
+				dest,
+				xcm_assets,
+				assets_transfer_type,
+				remote_fees_id,
+				fees_transfer_type,
+				custom_xcm_on_dest,
+			)
+		} else {
+			Self::dispatch_transfer_assets(from, dest, beneficiary, xcm_assets, fee_asset_item)
+		}
+	}
+
+	/// Transfer assets by hyperbridge
+	/// from: who transfer the assets
+	/// chain_id: destination chain id
+	/// to: destination account
+	/// assets: assets to be transferred
+	fn transfer_assets_by_hyperbridge(
+		from: T::AccountId,
+		chain_id: u32,
+		to: H160,
+		assets: Vec<BridgeAsset<BalanceOf<T>>>,
+	) -> Result<(), DispatchError> {
+		let (payer, fee) = Self::get_hyperbridge_payer_and_fee(chain_id)?;
+		for asset in assets.iter() {
+			let amount = Self::charge_hyperbridge_fee(
+				from.clone(),
+				asset.currency_id,
+				asset.amount,
+				chain_id,
+			)?;
+			T::HyperBridgeSender::send_and_call(
+				asset.currency_id,
+				from.clone(),
+				to,
+				StateMachine::Evm(chain_id),
+				amount,
+				HYPERBRIDGE_TIMEOUT,
+				None,
+				payer.clone(),
+				fee,
+			)?;
+		}
+		Ok(())
+	}
+
+	/// Transfer assets by snowbridge
+	/// from: who transfer the assets
+	/// to: destination account
+	/// assets: assets to be transferred
+	/// Only support DOT and native ETH transfer
+	fn transfer_assets_by_snowbridge(
+		from: T::AccountId,
+		to: H160,
+		assets: Vec<BridgeAsset<BalanceOf<T>>>,
+		fee_asset_item: u32,
+	) -> Result<(), DispatchError> {
+		let mut xcm_assets: Assets = vec![].into();
+		let mut exclude_fee_xcm_assets: Assets = vec![].into();
+		ensure!(assets.len() == 2, Error::<T>::ErrorArguments);
+		ensure!(fee_asset_item == 0, Error::<T>::ErrorArguments);
+		ensure!(assets[0].currency_id == DOT, Error::<T>::ErrorArguments);
+		ensure!(assets[1].currency_id == ETH, Error::<T>::ErrorArguments);
+		let native_eth_location = T::CurrencyIdConvert::get_location(&assets[1].currency_id)
+			.ok_or(Error::<T>::Unsupported)?;
+		xcm_assets.push(Asset {
+			id: AssetId::from(Location::parent()),
+			fun: Fungible(assets[0].amount.saturated_into::<u128>()),
+		});
+		xcm_assets.push(Asset {
+			id: AssetId::from(native_eth_location.clone()),
+			fun: Fungible(assets[1].amount.saturated_into::<u128>()),
+		});
+		exclude_fee_xcm_assets.push(Asset {
+			id: AssetId::from(native_eth_location),
+			fun: Fungible(assets[1].amount.saturated_into::<u128>()),
+		});
+		let dest = Location::new(1, [Parachain(AssetHubChainId::get())]);
+		let eth_dest = EthereumLocation::get();
+		let assets_transfer_type = TransferType::DestinationReserve;
+		let remote_fees_id = Location::parent();
+		let fees_transfer_type = TransferType::DestinationReserve;
+		let from_beneficiary = Location::new(
+			0,
+			[AccountId32 {
+				network: None,
+				id: from
+					.encode()
+					.try_into()
+					.map_err(|_| DispatchError::Other("Invalid account"))?,
+			}],
+		);
+		let to_beneficiary = Location::new(
+			0,
+			[AccountKey20 {
+				network: None,
+				key: to.to_fixed_bytes(),
+			}],
+		);
+		let custom_xcm_on_dest = Xcm::<()>::builder_unsafe()
+			.set_appendix(
+				Xcm::<()>::builder_unsafe()
+					.refund_surplus()
+					.deposit_asset(AllCounted(2), from_beneficiary)
+					.build(),
+			)
+			.initiate_reserve_withdraw(
+				exclude_fee_xcm_assets,
+				eth_dest,
+				Xcm::<()>::builder_unsafe()
+					.buy_execution(
+						Asset {
+							id: AssetId::from(Location::here()),
+							fun: Fungible(1),
+						},
+						Unlimited,
+					)
+					.deposit_asset(AllCounted(1), to_beneficiary)
+					.build(),
+			)
+			.build();
+		Self::dispatch_transfer_assets_using_type_and_then(
+			from,
+			dest,
+			xcm_assets,
+			assets_transfer_type,
+			remote_fees_id,
+			fees_transfer_type,
+			custom_xcm_on_dest,
+		)
+	}
+
+	fn dispatch_transfer_assets(
+		from: T::AccountId,
+		dest: Location,
+		beneficiary: Location,
+		assets: Assets,
+		fee_asset_item: u32,
+	) -> DispatchResult {
+		let runtime_call: pallet_xcm::Call<T> = pallet_xcm::Call::transfer_assets {
+			dest: Box::new(dest.into()),
+			beneficiary: Box::new(beneficiary.into()),
+			assets: Box::new(assets.into()),
+			fee_asset_item,
+			weight_limit: Unlimited,
+		};
+		let runtime_call = <T as Config>::RuntimeCall::from(runtime_call);
+		runtime_call
+			.dispatch(frame_system::RawOrigin::Signed(from).into())
+			.map_err(|e| DispatchError::Other(e.into()))?;
+		Ok(())
+	}
+
+	fn dispatch_transfer_assets_using_type_and_then(
+		from: T::AccountId,
+		dest: Location,
+		assets: Assets,
+		assets_transfer_type: TransferType,
+		remote_fees_id: Location,
+		fees_transfer_type: TransferType,
+		custom_xcm_on_dest: Xcm<()>,
+	) -> DispatchResult {
+		let runtime_call = pallet_xcm::Call::transfer_assets_using_type_and_then {
+			dest: Box::new(dest.into()),
+			assets: Box::new(assets.into()),
+			assets_transfer_type: Box::new(assets_transfer_type),
+			remote_fees_id: Box::new(remote_fees_id.into()),
+			fees_transfer_type: Box::new(fees_transfer_type),
+			custom_xcm_on_dest: Box::new(VersionedXcm::from(custom_xcm_on_dest)),
+			weight_limit: Unlimited,
+		};
+		let runtime_call = <T as Config>::RuntimeCall::from(runtime_call);
+		runtime_call
+			.dispatch(frame_system::RawOrigin::Signed(from).into())
+			.map_err(|e| DispatchError::Other(e.into()))?;
+		Ok(())
+	}
 }
 
 // Functions to be called by other pallets.
@@ -2004,7 +2165,7 @@ impl<T: Config>
 
 			for (currency, token) in tokens.iter() {
 				// Only process the specified currency, or all if not specified
-				if target_currency.map_or(true, |c| c == *currency) {
+				if target_currency.is_none_or(|c| c == *currency) {
 					let staking_currency_amount =
 						T::VtokenMintingInterface::get_token_pool(*currency);
 					let v_currency_id = T::VtokenMintingInterface::convert_to_vtoken(*currency)
@@ -2072,5 +2233,71 @@ impl<T: Config>
 			from_chain_id,
 			slpx_input_v_currency_amount,
 		)
+	}
+}
+
+impl<T: Config> XChainSender<T::AccountId, BalanceOf<T>> for Pallet<T> {
+	fn do_transfer_assets(
+		from: T::AccountId,
+		to: BridgeType<T::AccountId>,
+		assets: Vec<BridgeAsset<BalanceOf<T>>>,
+		fee_asset_item: u32,
+	) -> Result<(), DispatchError> {
+		match to {
+			BridgeType::Parachain(parachain_id, to) => {
+				let beneficiary = Location::new(
+					0,
+					[AccountId32 {
+						network: None,
+						id: to
+							.encode()
+							.try_into()
+							.map_err(|_| Error::<T>::ErrorEncode)?,
+					}],
+				);
+				Self::transfer_assets_by_parachain(
+					from,
+					parachain_id,
+					beneficiary,
+					assets,
+					fee_asset_item,
+				)
+			}
+			BridgeType::ParachainEvm(parachain_id, to) => {
+				let beneficiary = if parachain_id == AstarChainId::get() {
+					Location::new(
+						0,
+						[AccountId32 {
+							network: None,
+							id: Self::h160_to_account_id(&to)
+								.encode()
+								.try_into()
+								.map_err(|_| Error::<T>::ErrorEncode)?,
+						}],
+					)
+				} else {
+					Location::new(
+						0,
+						[AccountKey20 {
+							network: None,
+							key: to.to_fixed_bytes(),
+						}],
+					)
+				};
+				Self::transfer_assets_by_parachain(
+					from,
+					parachain_id,
+					beneficiary,
+					assets,
+					fee_asset_item,
+				)
+			}
+			BridgeType::HyperBridge(chain_id, to) => {
+				Self::transfer_assets_by_hyperbridge(from, chain_id, to, assets)
+			}
+			BridgeType::SnowBridge(to) => {
+				Self::transfer_assets_by_snowbridge(from, to, assets, fee_asset_item)
+			}
+		}
 	}
 }

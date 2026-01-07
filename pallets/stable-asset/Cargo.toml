@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-stable-asset"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
+authors.workspace = true
 description = "Substrate-based runtime version of NUTS stable assets."
-edition = "2021"
+edition.workspace = true
 version = "0.8.0"
 
 [package.metadata.docs.rs]

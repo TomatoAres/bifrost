@@ -65,7 +65,6 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Currencies: bifrost_currencies,
 		Tokens: orml_tokens,
-		XTokens: orml_xtokens,
 		Slp: bifrost_slp,
 		VtokenMinting: bifrost_vtoken_minting,
 		AssetRegistry: bifrost_asset_registry,
@@ -96,7 +95,6 @@ impl bifrost_stable_asset::traits::ValidateAssetId<CurrencyId> for EnsurePoolAss
 }
 
 impl bifrost_stable_asset::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = CurrencyId;
 	type Balance = Balance;
 	type Assets = Currencies;
@@ -184,7 +182,6 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = ();
@@ -207,31 +204,6 @@ parameter_type_with_key! {
 	pub ParachainMinFee: |_location: xcm::v5::Location| -> Option<u128> {
 		Some(u128::MAX)
 	};
-}
-
-parameter_types! {
-	pub SelfRelativeLocation: xcm::v5::Location = xcm::v5::Location::here();
-	pub const BaseXcmWeight: Weight = Weight::from_parts( 1_000_000_000u64, 0);
-	pub const MaxAssetsForTransfer: usize = 2;
-}
-
-impl orml_xtokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = CurrencyIdConvert;
-	type AccountIdToLocation = ();
-	type UniversalLocation = UniversalLocation;
-	type SelfLocation = SelfRelativeLocation;
-	type XcmExecutor = MockXcmExecutor;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type BaseXcmWeight = BaseXcmWeight;
-	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MinXcmFee = ParachainMinFee;
-	type LocationsFilter = Everything;
-	type ReserveProvider = RelativeReserveProvider;
-	type RateLimiter = ();
-	type RateLimiterId = ();
 }
 
 parameter_types! {
@@ -270,7 +242,6 @@ impl
 }
 
 impl bifrost_vtoken_minting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type ControlOrigin = EnsureSignedBy<One, AccountId>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -283,7 +254,7 @@ impl bifrost_vtoken_minting::Config for Runtime {
 	type BifrostSlpx = SlpxInterface;
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = XTokens;
+	type XChainSender = ();
 	type MoonbeamChainId = MoonbeamChainId;
 	type ChannelCommission = ();
 	type MaxLockRecords = ConstU32<100>;
@@ -314,7 +285,6 @@ parameter_types! {
 	pub InitSeedStk: u128 = 10;
 }
 impl bifrost_parachain_staking::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type MinBlocksPerRound = MinBlocksPerRound;
@@ -346,7 +316,6 @@ ord_parameter_types! {
 	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
 }
 impl bifrost_asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
@@ -537,7 +506,6 @@ parameter_types! {
 }
 
 impl Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type MultiCurrency = Currencies;
@@ -549,7 +517,7 @@ impl Config for Runtime {
 	type MaxTypeEntryPerBlock = MaxTypeEntryPerBlock;
 	type MaxRefundPerBlock = MaxRefundPerBlock;
 	type ParachainStaking = ParachainStaking;
-	type XcmTransfer = XTokens;
+	type XChainSender = ();
 	type MaxLengthLimit = MaxLengthLimit;
 	type XcmWeightAndFeeHandler = XcmDestWeightAndFee;
 	type ChannelCommission = ();

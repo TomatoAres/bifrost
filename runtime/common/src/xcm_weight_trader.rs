@@ -83,7 +83,7 @@ impl<
 		payment: AssetsInHolding,
 		_context: &XcmContext,
 	) -> Result<AssetsInHolding, XcmError> {
-		log::trace!(target: "xcm-weight-trader", "buy_weight weight: {:?}, payment: {:?}", weight, payment);
+		log::trace!(target: "xcm-weight-trader", "buy_weight weight: {weight:?}, payment: {payment:?}");
 
 		// only support first fungible assets now.
 		let first_asset = payment
@@ -94,7 +94,7 @@ impl<
 
 		match (first_asset.id, first_asset.fun) {
 			(AssetId(location), Fungible(_)) => {
-				log::trace!(target: "xcm::weight", "buy_weight location: {:?}", location);
+				log::trace!(target: "xcm::weight", "buy_weight location: {location:?}");
 				let amount = Self::compute_amount_to_charge(&weight, &location)?;
 
 				// We don't need to proceed if the amount is 0
@@ -155,8 +155,7 @@ impl<
 				});
 				log::trace!(
 					target: "xcm-weight-trader",
-					"refund_weight amount to refund: {:?}",
-					amount_to_refund
+					"refund_weight amount to refund: {amount_to_refund:?}",
 				);
 				Some(Asset {
 					fun: Fungible(amount_to_refund),

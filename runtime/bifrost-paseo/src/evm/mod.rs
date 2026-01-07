@@ -26,8 +26,8 @@ pub use crate::evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTrun
 use crate::{
 	evm::runner::{FeeAssetBalanceInCurrency, WrapRunner},
 	governance::TechAdminOrRoot,
-	Aura, ConstU32, DynamicFee, EVMChainId, Runtime, RuntimeEvent, Timestamp, Weight, EVM,
-	MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO, WEIGHT_REF_TIME_PER_SECOND,
+	Aura, ConstU32, EVMChainId, Runtime, Timestamp, Weight, EVM, MAXIMUM_BLOCK_WEIGHT,
+	NORMAL_DISPATCH_RATIO, WEIGHT_REF_TIME_PER_SECOND,
 };
 use bifrost_primitives::{currency::ETH, CurrencyId};
 
@@ -76,10 +76,23 @@ parameter_types! {
 	pub GasLimitStorageGrowthRatio: u64 = 366;
 
 	pub const SuicideQuickClearLimit: u32 = 0;
+	/// The minimum gas price (in Wei) that the EVM will accept for transactions.
+	/// This value effectively defines the base transaction fee floor.
+	pub const MinGasPrice: U256 = U256([83_102_775u64, 0, 0, 0]);
+}
+
+pub struct FeeCalculator;
+impl fp_evm::FeeCalculator for FeeCalculator {
+	fn min_gas_price() -> (U256, Weight) {
+		(
+			MinGasPrice::get(),
+			<Runtime as frame_system::Config>::DbWeight::get().reads(1),
+		)
+	}
 }
 
 impl pallet_evm::Config for Runtime {
-	type FeeCalculator = DynamicFee;
+	type FeeCalculator = FeeCalculator;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type WeightPerGas = WeightPerGas;
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
@@ -87,7 +100,6 @@ impl pallet_evm::Config for Runtime {
 	type WithdrawOrigin = EnsureAddressTruncated;
 	type AddressMapping = ExtendedAddressMapping;
 	type Currency = WethCurrency;
-	type RuntimeEvent = RuntimeEvent;
 	type PrecompilesType = precompiles::BifrostPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
 	type ChainId = EVMChainId;
@@ -125,7 +137,6 @@ parameter_types! {
 }
 
 impl pallet_ethereum::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self::Version>;
 	type PostLogContent = PostBlockAndTxnHashes;
 	type ExtraDataLength = ConstU32<30>;
@@ -139,7 +150,6 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 }
 
 impl pallet_evm_accounts::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
 	type ControllerOrigin = TechAdminOrRoot;
@@ -148,8 +158,4 @@ impl pallet_evm_accounts::Config for Runtime {
 
 parameter_types! {
 	pub BoundDivision: U256 = U256::from(1024);
-}
-
-impl pallet_dynamic_fee::Config for Runtime {
-	type MinGasPriceBoundDivisor = BoundDivision;
 }

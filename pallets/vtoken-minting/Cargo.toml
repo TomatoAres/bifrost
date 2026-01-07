@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-vtoken-minting"
 version = "0.8.0"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -28,7 +28,6 @@ ismp = { workspace = true, default-features = false }
 [dev-dependencies]
 orml-tokens = { workspace = true }
 bifrost-currencies = { workspace = true }
-orml-xtokens = { workspace = true}
 orml-traits = { workspace = true }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true }
@@ -50,7 +49,6 @@ std = [
 	"frame-benchmarking/std",
 	"bifrost-primitives/std",
 	"orml-traits/std",
-	"orml-xtokens/std",
 	"bifrost-asset-registry/std",
 	"bifrost-runtime-common/std",
 	"ismp/std",

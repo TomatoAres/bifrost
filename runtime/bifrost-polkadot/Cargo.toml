@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-polkadot-runtime"
 version = "0.8.0"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 build = "build.rs"
 
 [dependencies]
@@ -88,6 +88,7 @@ parachains-common = { workspace = true }
 # Polkadot dependencies
 pallet-xcm = { workspace = true }
 pallet-xcm-benchmarks = { workspace = true, optional = true }
+pallet-revive = { workspace = true }
 polkadot-parachain-primitives = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-runtime-common = { workspace = true }
@@ -99,9 +100,6 @@ xcm-runtime-apis = { workspace = true }
 # orml
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
-orml-xtokens = { workspace = true }
-orml-unknown-tokens = { workspace = true }
-orml-xcm = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-oracle = { workspace = true }
 orml-benchmarking = { workspace = true, optional = true }
@@ -123,7 +121,6 @@ fp-evm = { workspace = true, features = ["serde"] }
 fp-rpc = { workspace = true }
 fp-self-contained = { workspace = true, features = ["serde"] }
 pallet-base-fee = { workspace = true }
-pallet-dynamic-fee = { workspace = true }
 pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }
 pallet-evm-chain-id = { workspace = true }
@@ -203,6 +200,7 @@ std = [
 	"frame-system-rpc-runtime-api/std",
 	"frame-system/std",
 	"frame-try-runtime/std",
+	"pallet-revive/std",
 	"pallet-aura/std",
 	"pallet-balances/std",
 	"pallet-bounties/std",
@@ -265,11 +263,8 @@ std = [
 	"orml-tokens/std",
 	"orml-benchmarking/std",
 	"orml-traits/std",
-	"orml-unknown-tokens/std",
 	"orml-xcm-support/std",
 	"orml-oracle/std",
-	"orml-xcm/std",
-	"orml-xtokens/std",
 
 	"zenlink-protocol-runtime-api/std",
 	"zenlink-protocol/std",
@@ -311,7 +306,6 @@ std = [
 	"fp-account/std",
 	"fp-self-contained/std",
 	"pallet-base-fee/std",
-	"pallet-dynamic-fee/std",
 	"pallet-ethereum/std",
 	"pallet-evm/std",
 	"pallet-evm-chain-id/std",
@@ -390,6 +384,8 @@ runtime-benchmarks = [
 	"bifrost-parachain-staking/runtime-benchmarks",
 	"bifrost-farming/runtime-benchmarks",
 	"pallet-evm-accounts/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
+	"pallet-revive/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -427,9 +423,6 @@ try-runtime = [
 	"leverage-staking/try-runtime",
 	"orml-oracle/try-runtime",
 	"orml-tokens/try-runtime",
-	"orml-unknown-tokens/try-runtime",
-	"orml-xcm/try-runtime",
-	"orml-xtokens/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
@@ -462,12 +455,12 @@ try-runtime = [
 	"pallet-evm-accounts/try-runtime",
 	"pallet-evm/try-runtime",
 	"pallet-evm-chain-id/try-runtime",
-	"pallet-dynamic-fee/try-runtime",
 	"bifrost-parachain-staking/try-runtime",
 	"pallet-ismp/try-runtime",
 	"pallet-hyperbridge/try-runtime",
 	"pallet-token-gateway/try-runtime",
 	"ismp-parachain/try-runtime",
+	"pallet-revive/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.

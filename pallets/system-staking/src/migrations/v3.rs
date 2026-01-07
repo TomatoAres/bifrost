@@ -143,7 +143,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		use parity_scale_codec::Encode;
 		let cnt = TokenStatus::<T>::iter().count();
 		// print out the pre-migrate storage count
-		log::info!(target: LOG_TARGET, "TokenStatus pre-migrate storage count: {:?}", cnt);
+		log::info!(target: LOG_TARGET, "TokenStatus pre-migrate storage count: {cnt:?}");
 		Ok((cnt as u64).encode())
 	}
 
@@ -159,8 +159,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		// print out the post-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"TokenStatus post-migrate storage count: {:?}",
-			new_count
+			"TokenStatus post-migrate storage count: {new_count:?}",
 		);
 
 		ensure!(

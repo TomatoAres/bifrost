@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-salp"
 version = "0.8.0"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 parity-scale-codec = { workspace = true, features = ["derive"] }
@@ -29,7 +29,6 @@ bifrost-stable-pool = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-sudo = { workspace = true }
 pallet-collective = { workspace = true }
-orml-xtokens = { workspace = true }
 bifrost-asset-registry = { workspace = true }
 
 
@@ -57,7 +56,6 @@ std = [
 	"xcm/std",
 	"pallet-multisig/std",
 	"pallet-collective/std",
-	"orml-xtokens/std",
 ]
 
 runtime-benchmarks = [

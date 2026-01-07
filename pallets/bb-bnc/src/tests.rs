@@ -4262,3 +4262,467 @@ fn test_checkpoint_with_negative_block_diff() {
 			}
 		});
 }
+
+#[test]
+fn set_permanent_lock_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock with 1 year duration
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				365 * DAYS,
+			));
+
+			let locked_before = Locked::<Runtime>::get(POSITIONID0);
+			assert!(locked_before.end < System::block_number() + 4 * 365 * DAYS);
+
+			// Enable permanent lock
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				true
+			));
+
+			// Check that permanent lock is enabled
+			assert!(PermanentLock::<Runtime>::contains_key(POSITIONID0));
+
+			// Check that lock time has been extended to maximum
+			let locked_after = Locked::<Runtime>::get(POSITIONID0);
+			let max_block =
+				(4 * 365 * DAYS + System::block_number()) / (7 * DAYS) * (7 * DAYS) + 7 * DAYS;
+			assert_eq!(locked_after.end, max_block);
+
+			// Check event emitted
+			System::assert_has_event(RuntimeEvent::BbBNC(Event::PermanentLockSet {
+				who: BOB,
+				position: POSITIONID0,
+				enabled: true,
+			}));
+		});
+}
+
+#[test]
+fn set_permanent_lock_disable_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				365 * DAYS,
+			));
+
+			// Enable permanent lock first
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				true
+			));
+			assert!(PermanentLock::<Runtime>::contains_key(POSITIONID0));
+
+			// Disable permanent lock
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				false
+			));
+
+			// Check that permanent lock is disabled
+			assert!(!PermanentLock::<Runtime>::contains_key(POSITIONID0));
+
+			// Check event emitted
+			System::assert_has_event(RuntimeEvent::BbBNC(Event::PermanentLockSet {
+				who: BOB,
+				position: POSITIONID0,
+				enabled: false,
+			}));
+		});
+}
+
+#[test]
+fn set_permanent_lock_should_fail_for_non_owner() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// BOB creates a lock
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				365 * DAYS,
+			));
+
+			// ALICE tries to set permanent lock on BOB's position - should fail
+			assert_noop!(
+				BbBNC::set_permanent_lock(RuntimeOrigin::signed(ALICE), POSITIONID0, true),
+				Error::<Runtime>::LockNotExist
+			);
+		});
+}
+
+#[test]
+fn set_permanent_lock_should_fail_for_nonexistent_position() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Try to set permanent lock on non-existent position
+			assert_noop!(
+				BbBNC::set_permanent_lock(RuntimeOrigin::signed(BOB), 999, true),
+				Error::<Runtime>::LockNotExist
+			);
+		});
+}
+
+#[test]
+fn set_permanent_lock_should_fail_for_expired_position() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock with minimum duration
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				7 * DAYS + 1,
+			));
+
+			// Move time to after lock expires
+			System::set_block_number(System::block_number() + 2 * 7 * DAYS);
+
+			// Try to set permanent lock on expired position - should fail
+			assert_noop!(
+				BbBNC::set_permanent_lock(RuntimeOrigin::signed(BOB), POSITIONID0, true),
+				Error::<Runtime>::Expired
+			);
+		});
+}
+
+#[test]
+fn refresh_permanent_locks_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock with 1 year duration
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				365 * DAYS,
+			));
+
+			// Enable permanent lock
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				true
+			));
+
+			let locked_after_enable = Locked::<Runtime>::get(POSITIONID0);
+			let max_block_initial = locked_after_enable.end;
+
+			// Move time forward by some weeks
+			System::set_block_number(System::block_number() + 4 * 7 * DAYS);
+
+			// Calculate new expected max block
+			let new_max_block =
+				(4 * 365 * DAYS + System::block_number()) / (7 * DAYS) * (7 * DAYS) + 7 * DAYS;
+			assert!(new_max_block > max_block_initial);
+
+			// Anyone can call refresh_permanent_locks
+			assert_ok!(BbBNC::refresh_permanent_locks(
+				RuntimeOrigin::signed(ALICE),
+				BoundedVec::try_from(vec![POSITIONID0]).unwrap()
+			));
+
+			// Check that lock time has been extended to new maximum
+			let locked_after_refresh = Locked::<Runtime>::get(POSITIONID0);
+			assert_eq!(locked_after_refresh.end, new_max_block);
+
+			// Check event emitted
+			System::assert_has_event(RuntimeEvent::BbBNC(Event::PermanentLockRefreshed {
+				position: POSITIONID0,
+				new_unlock_time: new_max_block,
+			}));
+		});
+}
+
+#[test]
+fn refresh_permanent_locks_should_skip_non_permanent_positions() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock without enabling permanent lock
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				365 * DAYS,
+			));
+
+			let locked_before = Locked::<Runtime>::get(POSITIONID0);
+
+			// Move time forward
+			System::set_block_number(System::block_number() + 4 * 7 * DAYS);
+
+			// Call refresh_permanent_locks - should succeed but not change anything
+			assert_ok!(BbBNC::refresh_permanent_locks(
+				RuntimeOrigin::signed(ALICE),
+				BoundedVec::try_from(vec![POSITIONID0]).unwrap()
+			));
+
+			// Lock time should not change since permanent lock is not enabled
+			let locked_after = Locked::<Runtime>::get(POSITIONID0);
+			assert_eq!(locked_after.end, locked_before.end);
+		});
+}
+
+#[test]
+fn refresh_permanent_locks_multiple_positions() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create two locks for BOB
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				5_000_000_000_000,
+				365 * DAYS,
+			));
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				5_000_000_000_000,
+				2 * 365 * DAYS,
+			));
+
+			// Enable permanent lock for position 0 only
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				true
+			));
+
+			let locked0_before = Locked::<Runtime>::get(POSITIONID0);
+			let locked1_before = Locked::<Runtime>::get(POSITIONID1);
+
+			// Move time forward
+			System::set_block_number(System::block_number() + 4 * 7 * DAYS);
+
+			// Refresh both positions
+			assert_ok!(BbBNC::refresh_permanent_locks(
+				RuntimeOrigin::signed(ALICE),
+				BoundedVec::try_from(vec![POSITIONID0, POSITIONID1]).unwrap()
+			));
+
+			// Position 0 should be extended (has permanent lock)
+			let locked0_after = Locked::<Runtime>::get(POSITIONID0);
+			assert!(locked0_after.end > locked0_before.end);
+
+			// Position 1 should not be changed (no permanent lock)
+			let locked1_after = Locked::<Runtime>::get(POSITIONID1);
+			assert_eq!(locked1_after.end, locked1_before.end);
+		});
+}
+
+#[test]
+fn refresh_permanent_locks_empty_array_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			// Calling with empty array should succeed
+			assert_ok!(BbBNC::refresh_permanent_locks(
+				RuntimeOrigin::signed(BOB),
+				BoundedVec::try_from(vec![]).unwrap()
+			));
+		});
+}
+
+#[test]
+fn refresh_permanent_locks_nonexistent_position_should_skip() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			// Calling with non-existent position should succeed (just skip)
+			assert_ok!(BbBNC::refresh_permanent_locks(
+				RuntimeOrigin::signed(BOB),
+				BoundedVec::try_from(vec![999, 1000]).unwrap()
+			));
+		});
+}
+
+#[test]
+fn permanent_lock_cleaned_up_on_withdraw() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				7 * DAYS + 1,
+			));
+
+			// Enable permanent lock
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				true
+			));
+			assert!(PermanentLock::<Runtime>::contains_key(POSITIONID0));
+
+			// Move time past lock expiration
+			let locked = Locked::<Runtime>::get(POSITIONID0);
+			System::set_block_number(locked.end + 1);
+
+			// Withdraw the position
+			assert_ok!(BbBNC::withdraw(RuntimeOrigin::signed(BOB), POSITIONID0));
+
+			// Permanent lock should be cleaned up
+			assert!(!PermanentLock::<Runtime>::contains_key(POSITIONID0));
+		});
+}
+
+#[test]
+fn set_permanent_lock_already_at_max_should_work() {
+	ExtBuilder::default()
+		.one_hundred_for_alice_n_bob()
+		.build()
+		.execute_with(|| {
+			asset_registry();
+			System::set_block_number(System::block_number() + 20);
+
+			assert_ok!(BbBNC::set_config(
+				RuntimeOrigin::root(),
+				Some(0),
+				Some(7 * DAYS),
+				Some(10)
+			));
+
+			// Create a lock with maximum duration
+			assert_ok!(BbBNC::create_lock_inner(
+				&BOB,
+				10_000_000_000_000,
+				4 * 365 * DAYS - 7 * DAYS,
+			));
+
+			let locked_before = Locked::<Runtime>::get(POSITIONID0);
+
+			// Enable permanent lock - should still succeed even if already at max
+			assert_ok!(BbBNC::set_permanent_lock(
+				RuntimeOrigin::signed(BOB),
+				POSITIONID0,
+				true
+			));
+
+			// Permanent lock should be enabled
+			assert!(PermanentLock::<Runtime>::contains_key(POSITIONID0));
+
+			// Lock end time should be the same or slightly adjusted to week boundary
+			let locked_after = Locked::<Runtime>::get(POSITIONID0);
+			assert!(locked_after.end >= locked_before.end);
+		});
+}

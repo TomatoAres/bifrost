@@ -35,7 +35,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 			// We transform the storage values from the old into the new format.
 			log::info!(target: LOG_TARGET, "Start to migrate PeriodClearedCommissions storage...");
 			CommissionTokens::<T>::iter_values().for_each(|commission_token| {
-				log::info!(target: LOG_TARGET, "Init PeriodClearedCommissions for {:?}...", commission_token);
+				log::info!(target: LOG_TARGET, "Init PeriodClearedCommissions for {commission_token:?}...");
 				// Init the PeriodClearedCommissions of commission_token to 0.
 				PeriodClearedCommissions::<T>::insert(commission_token, BalanceOf::<T>::zero());
 			});
@@ -57,7 +57,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 	fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 		let cnt = PeriodClearedCommissions::<T>::iter().count();
 		// print out the pre-migrate storage count
-		log::info!(target: LOG_TARGET, "PeriodClearedCommissions pre-migrate storage count: {:?}", cnt);
+		log::info!(target: LOG_TARGET, "PeriodClearedCommissions pre-migrate storage count: {cnt:?}");
 		Ok((cnt as u64).encode())
 	}
 
@@ -69,8 +69,8 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 		// print out the post-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"PeriodClearedCommissions post-migrate storage count: {:?}",
-			new_count
+			"PeriodClearedCommissions post-migrate storage count: {new_count:?}",
+
 		);
 
 		ensure!(

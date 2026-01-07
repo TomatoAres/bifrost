@@ -28,6 +28,7 @@ use crate::{
 	ValidatorsByStakingProtocolAndDelegator,
 };
 use bifrost_primitives::VtokenMintingOperator;
+use frame_support::dispatch::PostDispatchInfo;
 use frame_support::{dispatch::DispatchResultWithPostInfo, ensure};
 use parity_scale_codec::Encode;
 use sp_std::{cmp::Ordering, vec::Vec};
@@ -49,7 +50,7 @@ impl<T: Config> Pallet<T> {
 				_ => false,
 			});
 		ensure!(is_exist, Error::<T>::ValidatorNotFound);
-		Ok(().into())
+		Ok(PostDispatchInfo::default())
 	}
 
 	pub fn do_dapp_staking(
@@ -125,14 +126,19 @@ impl<T: Config> Pallet<T> {
 			PendingStatusByQueryId::<T>::insert(query_id, pending_status.clone());
 		}
 		Self::send_xcm_message(ASTAR_DAPP_STAKING, xcm_message)?;
+
+		let info = ASTAR_DAPP_STAKING
+			.info()
+			.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+
 		Self::deposit_event(Event::<T>::SendXcmTask {
 			query_id,
 			delegator,
 			task: XcmTask::AstarDappStaking(task),
 			pending_status,
-			dest_location: ASTAR_DAPP_STAKING.info().remote_dest_location,
+			dest_location: info.remote_dest_location,
 		});
-		Ok(().into())
+		Ok(PostDispatchInfo::default())
 	}
 
 	pub fn get_query_id_and_xcm_message(
@@ -140,8 +146,14 @@ impl<T: Config> Pallet<T> {
 		delegator_index: DelegatorIndex,
 		pending_status: &Option<PendingStatus<T::AccountId>>,
 	) -> Result<(Option<QueryId>, Xcm), Error<T>> {
-		let call =
-			Self::wrap_utility_as_derivative_call_data(&ASTAR_DAPP_STAKING, delegator_index, call);
+		let info = ASTAR_DAPP_STAKING
+			.info()
+			.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
+		let call = Self::wrap_utility_as_derivative_call_data(
+			delegator_index,
+			call,
+			info.utility_pallet_index,
+		);
 		let mut query_id = None;
 		let xcm_message = if pending_status.is_some() {
 			let notify_call =
@@ -182,6 +194,9 @@ impl<T: Config> Pallet<T> {
 			delegator,
 			|ledger| -> Result<(), Error<T>> {
 				if let Some(Ledger::AstarDappStaking(mut pending_ledger)) = ledger.clone() {
+					let info = ASTAR_DAPP_STAKING
+						.info()
+						.ok_or(Error::<T>::UnsupportedStakingProtocol)?;
 					match pending_status.clone() {
 						PendingStatus::AstarDappStaking(AstarDappStakingPendingStatus::Lock(
 							_,
@@ -198,7 +213,7 @@ impl<T: Config> Pallet<T> {
 							pending_ledger
 								.subtract_lock_amount(amount)
 								.map_err(|_| Error::<T>::ArithmeticOverflow)?;
-							let currency_id = ASTAR_DAPP_STAKING.info().currency_id;
+							let currency_id = info.currency_id;
 							let current_time_unit =
 								T::VtokenMinting::get_ongoing_time_unit(currency_id)
 									.ok_or(Error::<T>::TimeUnitNotFound)?;
@@ -219,7 +234,7 @@ impl<T: Config> Pallet<T> {
 						PendingStatus::AstarDappStaking(
 							AstarDappStakingPendingStatus::ClaimUnlocked(_),
 						) => {
-							let currency_id = ASTAR_DAPP_STAKING.info().currency_id;
+							let currency_id = info.currency_id;
 							let current_time_unit =
 								T::VtokenMinting::get_ongoing_time_unit(currency_id)
 									.ok_or(Error::<T>::TimeUnitNotFound)?;

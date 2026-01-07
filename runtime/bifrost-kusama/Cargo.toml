@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-kusama-runtime"
 version = "0.8.0"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 build = "build.rs"
 
 [dependencies]
@@ -54,6 +54,7 @@ pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
+pallet-revive = { workspace = true }
 pallet-whitelist = { workspace = true }
 sp-api = { workspace = true }
 sp-arithmetic = { workspace = true }
@@ -98,10 +99,7 @@ xcm-runtime-apis = { workspace = true }
 # orml
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
-orml-unknown-tokens = { workspace = true }
-orml-xcm = { workspace = true }
 orml-xcm-support = { workspace = true }
-orml-xtokens = { workspace = true }
 orml-oracle = { workspace = true }
 
 # zenlink
@@ -189,6 +187,7 @@ std = [
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
+	"pallet-revive/std",
 	"pallet-utility/std",
 	"pallet-whitelist/std",
 	"sp-api/std",
@@ -229,11 +228,8 @@ std = [
 
 	"orml-tokens/std",
 	"orml-traits/std",
-	"orml-unknown-tokens/std",
 	"orml-xcm-support/std",
 	"orml-oracle/std",
-	"orml-xcm/std",
-	"orml-xtokens/std",
 
 	"zenlink-protocol/std",
 	"zenlink-protocol-runtime-api/std",
@@ -294,6 +290,7 @@ runtime-benchmarks = [
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
+	"pallet-revive/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"bifrost-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -320,6 +317,7 @@ runtime-benchmarks = [
 	"leverage-staking/runtime-benchmarks",
 	"bifrost-channel-commission/runtime-benchmarks",
 	"bifrost-vbnc-convert/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -357,13 +355,11 @@ try-runtime = [
 	"pallet-bounties/try-runtime",
 	"pallet-tips/try-runtime",
 	"pallet-tx-pause/try-runtime",
+	"pallet-revive/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-whitelist/try-runtime",
-	"orml-xtokens/try-runtime",
 	"orml-tokens/try-runtime",
 	"bifrost-currencies/try-runtime",
-	"orml-unknown-tokens/try-runtime",
-	"orml-xcm/try-runtime",
 	"orml-oracle/try-runtime",
 	"zenlink-protocol/try-runtime",
 	"bifrost-flexible-fee/try-runtime",

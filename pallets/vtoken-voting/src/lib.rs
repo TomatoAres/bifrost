@@ -135,8 +135,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_xcm::Config + pallet_referenda::Config {
-		type RuntimeEvent: IsType<<Self as frame_system::Config>::RuntimeEvent> + From<Event<Self>>;
-
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
@@ -624,7 +622,7 @@ pub mod pallet {
 						ReferendumTimeoutV3::<T>::remove(vtoken, time_out_block_number);
 					}
 				} else {
-					log::error!("The current token: {:?} is not supported.", vtoken);
+					log::error!("The current token: {vtoken:?} is not supported.");
 				}
 			}
 
@@ -698,7 +696,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			Self::ensure_vtoken(&vtoken)?;
 			ensure!(
-				DelegatorVotes::<T>::get(vtoken, poll_index).len() > 0,
+				!DelegatorVotes::<T>::get(vtoken, poll_index).is_empty(),
 				Error::<T>::NoData
 			);
 
@@ -987,6 +985,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(13)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::delegate(T::MaxVotes::get()) + <T as Config>::WeightInfo::notify_vote())]
 		pub fn delegate(
 			origin: OriginFor<T>,
@@ -1007,6 +1006,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(14)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::undelegate(T::MaxVotes::get()) + <T as Config>::WeightInfo::notify_vote())]
 		pub fn undelegate(
 			origin: OriginFor<T>,

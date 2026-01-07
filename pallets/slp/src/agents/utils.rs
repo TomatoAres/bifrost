@@ -139,6 +139,16 @@ impl<T: Config> Pallet<T> {
 		Ok(*account_32)
 	}
 
+	pub fn multilocation_to_parachain_id(who: &MultiLocation) -> Result<u32, Error<T>> {
+		match who {
+			MultiLocation {
+				parents: _,
+				interior: X2(Parachain(parachain_id), _),
+			} => Ok(*parachain_id),
+			_ => Err(Error::<T>::AccountNotExist)?,
+		}
+	}
+
 	pub fn account_id_to_account_32(account_id: AccountIdOf<T>) -> Result<[u8; 32], Error<T>> {
 		let account_32 = T::AccountId::encode(&account_id)
 			.try_into()

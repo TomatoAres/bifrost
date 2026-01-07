@@ -21,6 +21,7 @@ mod bifrost_bridge_setup;
 mod bk_to_bp_xcm;
 mod bp_to_bk_xcm;
 mod register_bridged_assets;
+mod slp_v2;
 mod transfers;
 mod xcm;
 

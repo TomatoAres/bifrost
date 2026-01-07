@@ -83,7 +83,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -114,7 +113,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
@@ -143,7 +141,6 @@ impl Get<ParaId> for ParachainId {
 }
 
 impl xcm_interface::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type WeightInfo = ();
 	type UpdateOrigin = EnsureRoot<AccountId>;

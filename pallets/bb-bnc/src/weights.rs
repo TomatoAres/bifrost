@@ -66,6 +66,8 @@ pub trait WeightInfo {
 	fn withdraw_markup() -> Weight;
 	fn redeem_unlock() -> Weight;
 	fn refresh() -> Weight;
+	fn set_permanent_lock() -> Weight;
+	fn refresh_permanent_locks(n: u32) -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -585,5 +587,101 @@ impl WeightInfo for () {
 		Weight::from_parts(307_151_000, 7779)
 			.saturating_add(RocksDbWeight::get().reads(21_u64))
 			.saturating_add(RocksDbWeight::get().writes(12_u64))
+	}
+	/// Storage: `BbBNC::UserPositions` (r:1 w:0)
+	/// Proof: `BbBNC::UserPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Locked` (r:1 w:1)
+	/// Proof: `BbBNC::Locked` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::ExpiringPositions` (r:2 w:2)
+	/// Proof: `BbBNC::ExpiringPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::NextExpiringBlock` (r:1 w:1)
+	/// Proof: `BbBNC::NextExpiringBlock` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Supply` (r:1 w:1)
+	/// Proof: `BbBNC::Supply` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Tokens::Accounts` (r:1 w:0)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
+	/// Storage: `BbBNC::UserMarkupInfos` (r:1 w:0)
+	/// Proof: `BbBNC::UserMarkupInfos` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::IncentiveConfigs` (r:1 w:1)
+	/// Proof: `BbBNC::IncentiveConfigs` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Epoch` (r:1 w:1)
+	/// Proof: `BbBNC::Epoch` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::PointHistory` (r:1 w:1)
+	/// Proof: `BbBNC::PointHistory` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPointEpoch` (r:1 w:1)
+	/// Proof: `BbBNC::UserPointEpoch` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPointHistory` (r:1 w:1)
+	/// Proof: `BbBNC::UserPointHistory` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Rewards` (r:1 w:1)
+	/// Proof: `BbBNC::Rewards` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserRewardPerTokenPaid` (r:1 w:1)
+	/// Proof: `BbBNC::UserRewardPerTokenPaid` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::SlopeChanges` (r:2 w:2)
+	/// Proof: `BbBNC::SlopeChanges` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::UserFarmingPool` (r:1 w:1)
+	/// Proof: `Farming::UserFarmingPool` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::PermanentLock` (r:0 w:1)
+	/// Proof: `BbBNC::PermanentLock` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn set_permanent_lock() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1654`
+		//  Estimated: `7594`
+		// Minimum execution time: 108_949_000 picoseconds.
+		Weight::from_parts(112_426_000, 0)
+			.saturating_add(Weight::from_parts(0, 7594))
+			.saturating_add(RocksDbWeight::get().reads(18))
+			.saturating_add(RocksDbWeight::get().writes(16))
+	}
+	/// Storage: `BbBNC::PermanentLock` (r:10 w:0)
+	/// Proof: `BbBNC::PermanentLock` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::PositionOwner` (r:10 w:0)
+	/// Proof: `BbBNC::PositionOwner` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Locked` (r:10 w:10)
+	/// Proof: `BbBNC::Locked` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::ExpiringPositions` (r:2 w:2)
+	/// Proof: `BbBNC::ExpiringPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::NextExpiringBlock` (r:1 w:1)
+	/// Proof: `BbBNC::NextExpiringBlock` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Supply` (r:1 w:1)
+	/// Proof: `BbBNC::Supply` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Tokens::Accounts` (r:10 w:0)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(118), added: 2593, mode: `MaxEncodedLen`)
+	/// Storage: `BbBNC::UserMarkupInfos` (r:10 w:0)
+	/// Proof: `BbBNC::UserMarkupInfos` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::IncentiveConfigs` (r:1 w:1)
+	/// Proof: `BbBNC::IncentiveConfigs` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Epoch` (r:1 w:1)
+	/// Proof: `BbBNC::Epoch` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::PointHistory` (r:1 w:11)
+	/// Proof: `BbBNC::PointHistory` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::SlopeChanges` (r:4 w:2)
+	/// Proof: `BbBNC::SlopeChanges` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPositions` (r:10 w:0)
+	/// Proof: `BbBNC::UserPositions` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPointEpoch` (r:10 w:10)
+	/// Proof: `BbBNC::UserPointEpoch` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserPointHistory` (r:10 w:10)
+	/// Proof: `BbBNC::UserPointHistory` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::Rewards` (r:10 w:10)
+	/// Proof: `BbBNC::Rewards` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `BbBNC::UserRewardPerTokenPaid` (r:10 w:10)
+	/// Proof: `BbBNC::UserRewardPerTokenPaid` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Farming::UserFarmingPool` (r:10 w:10)
+	/// Proof: `Farming::UserFarmingPool` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// The range of component `n` is `[1, 10]`.
+	fn refresh_permanent_locks(n: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1271 + n * (861 ±0)`
+		//  Estimated: `12152 + n * (3335 ±0)`
+		// Minimum execution time: 126_793_000 picoseconds.
+		Weight::from_parts(41_393_104, 0)
+			.saturating_add(Weight::from_parts(0, 12152))
+			// Standard Error: 189_730
+			.saturating_add(Weight::from_parts(91_047_177, 0).saturating_mul(n.into()))
+			.saturating_add(RocksDbWeight::get().reads(11))
+			.saturating_add(RocksDbWeight::get().reads((11_u64).saturating_mul(n.into())))
+			.saturating_add(RocksDbWeight::get().writes(9))
+			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(n.into())))
+			.saturating_add(Weight::from_parts(0, 3335).saturating_mul(n.into()))
 	}
 }

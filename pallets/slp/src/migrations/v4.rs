@@ -86,7 +86,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigration<T> {
 			ValidatorBoostList::<T>::translate(
 				|k: CurrencyId,
 				 old_list: BoundedVec<(MultiLocation, BlockNumberFor<T>), T::MaxLengthLimit>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
+					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {k:?}...");
 
 					match k {
 						k if k == BNC => {
@@ -167,8 +167,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigration<T> {
 		let validator_boost_list_cnt = ValidatorBoostList::<T>::iter().count();
 		log::info!(
 			target: LOG_TARGET,
-			"ValidatorBoostList pre-migrate storage count: {:?}",
-			validator_boost_list_cnt
+			"ValidatorBoostList pre-migrate storage count: {validator_boost_list_cnt:?}",
 		);
 
 		let cnt = validator_boost_list_cnt as u32;

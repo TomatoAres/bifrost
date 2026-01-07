@@ -68,9 +68,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 							record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
 								log::error!(
 									target: LOG_TARGET,
-									"Missing mapping for currency_id={:?}, multiloc={:?}",
-									currency_id,
-									multiloc
+									"Missing mapping for currency_id={currency_id:?}, multiloc={multiloc:?}",
 								);
 								panic!("Missing mapping, cannot continue without unwrap");
 							});
@@ -88,7 +86,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			//migrate the value type of Validators
 			Validators::<T>::translate(
 				|k: CurrencyId, old_list: BoundedVec<MultiLocation, T::MaxLengthLimit>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
+					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {k:?}...");
 					count += 1;
 					match k {
 						k if k == DOT || k == KSM => Some(map_location::<T, _>(
@@ -105,7 +103,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			ValidatorBoostList::<T>::translate(
 				|k: CurrencyId,
 				 old_list: BoundedVec<(MultiLocation, BlockNumberFor<T>), T::MaxLengthLimit>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
+					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {k:?}...");
 					count += 1;
 					match k {
 						k if k == DOT || k == KSM => Some(map_location_block::<T, _>(
@@ -131,9 +129,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 						record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
 							log::error!(
 								target: LOG_TARGET,
-								"Missing mapping for currency_id={:?}, multiloc={:?}",
-								currency_id,
-								multiloc
+								"Missing mapping for currency_id={currency_id:?}, multiloc={multiloc:?}",
 							);
 							panic!("Missing mapping, cannot continue without unwrap");
 						});
@@ -162,9 +158,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 						record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
 							log::error!(
 								target: LOG_TARGET,
-								"Missing mapping for currency_id={:?}, multiloc={:?}",
-								currency_id,
-								multiloc
+								"Missing mapping for currency_id={currency_id:?}, multiloc={multiloc:?}",
 							);
 							panic!("Missing mapping, cannot continue without unwrap");
 						});
@@ -187,9 +181,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 						record_map.get(&(currency_id, multiloc)).unwrap_or_else(|| {
 							log::error!(
 								target: LOG_TARGET,
-								"Missing mapping for currency_id={:?}, multiloc={:?}",
-								currency_id,
-								multiloc
+								"Missing mapping for currency_id={currency_id:?}, multiloc={multiloc:?}",
 							);
 							panic!("Missing mapping, cannot continue without unwrap");
 						});
@@ -219,60 +211,52 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			DelegatorsIndex2Multilocation::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorsIndex2Multilocation pre-migrate storage count: {:?}",
-			delegators_index_2_multilocation_cnt
+			"DelegatorsIndex2Multilocation pre-migrate storage count: {delegators_index_2_multilocation_cnt:?}",
 		);
 
 		let delegators_multilocation_2_index_cnt =
 			DelegatorsMultilocation2Index::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorsMultilocation2Index pre-migrate storage count: {:?}",
-			delegators_multilocation_2_index_cnt
+			"DelegatorsMultilocation2Index pre-migrate storage count: {delegators_multilocation_2_index_cnt:?}",
 		);
 
 		let validators_cnt = Validators::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"Validators pre-migrate storage count: {:?}",
-			validators_cnt
+			"Validators pre-migrate storage count: {validators_cnt:?}",
 		);
 
 		let validator_boost_list_cnt = ValidatorBoostList::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"ValidatorBoostList pre-migrate storage count: {:?}",
-			validator_boost_list_cnt
+			"ValidatorBoostList pre-migrate storage count: {validator_boost_list_cnt:?}",
 		);
 
 		let validators_by_delegator_cnt = ValidatorsByDelegator::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"ValidatorsByDelegator pre-migrate storage count: {:?}",
-			validators_by_delegator_cnt
+			"ValidatorsByDelegator pre-migrate storage count: {validators_by_delegator_cnt:?}",
 		);
 
 		let delegator_ledgers_cnt = DelegatorLedgers::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorLedgers pre-migrate storage count: {:?}",
-			delegator_ledgers_cnt
+			"DelegatorLedgers pre-migrate storage count: {delegator_ledgers_cnt:?}",
 		);
 
 		let delegator_latest_tune_record_cnt =
 			DelegatorLatestTuneRecord::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorLatestTuneRecord pre-migrate storage count: {:?}",
-			delegator_latest_tune_record_cnt
+			"DelegatorLatestTuneRecord pre-migrate storage count: {delegator_latest_tune_record_cnt:?}",
 		);
 
 		let supplement_fee_account_whitelist_cnt =
 			SupplementFeeAccountWhitelist::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"SupplementFeeAccountWhitelist pre-migrate storage count: {:?}",
-			supplement_fee_account_whitelist_cnt
+			"SupplementFeeAccountWhitelist pre-migrate storage count: {supplement_fee_account_whitelist_cnt:?}",
 		);
 
 		let combined_data = (
@@ -307,8 +291,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			DelegatorsIndex2Multilocation::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorsIndex2Multilocation pre-migrate storage count: {:?}",
-			new_delegators_index_2_multilocation_cnt
+			"DelegatorsIndex2Multilocation pre-migrate storage count: {new_delegators_index_2_multilocation_cnt:?}",
 		);
 		ensure!(
 			new_delegators_index_2_multilocation_cnt == old_delegators_index_2_multilocation_cnt,
@@ -319,8 +302,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			DelegatorsMultilocation2Index::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorsMultilocation2Index pre-migrate storage count: {:?}",
-			new_delegators_multilocation_2_index_cnt
+			"DelegatorsMultilocation2Index pre-migrate storage count: {new_delegators_multilocation_2_index_cnt:?}",
 		);
 		ensure!(
 			new_delegators_multilocation_2_index_cnt == old_delegators_multilocation_2_index_cnt,
@@ -330,8 +312,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 		let new_validators_cnt = Validators::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"Validators pre-migrate storage count: {:?}",
-			new_validators_cnt
+			"Validators pre-migrate storage count: {new_validators_cnt:?}",
 		);
 		ensure!(
 			new_validators_cnt == old_validators_cnt,
@@ -341,8 +322,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 		let new_validator_boost_list_cnt = ValidatorBoostList::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"ValidatorBoostList pre-migrate storage count: {:?}",
-			new_validator_boost_list_cnt
+			"ValidatorBoostList pre-migrate storage count: {new_validator_boost_list_cnt:?}",
 		);
 		ensure!(
 			new_validator_boost_list_cnt == old_validator_boost_list_cnt,
@@ -352,8 +332,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 		let new_validators_by_delegator_cnt = ValidatorsByDelegator::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"ValidatorsByDelegator pre-migrate storage count: {:?}",
-			new_validators_by_delegator_cnt
+			"ValidatorsByDelegator pre-migrate storage count: {new_validators_by_delegator_cnt:?}",
 		);
 		ensure!(
 			new_validators_by_delegator_cnt == old_validators_by_delegator_cnt,
@@ -363,8 +342,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 		let new_delegator_ledgers_cnt = DelegatorLedgers::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorLedgers pre-migrate storage count: {:?}",
-			new_delegator_ledgers_cnt
+			"DelegatorLedgers pre-migrate storage count: {new_delegator_ledgers_cnt:?}",
 		);
 		ensure!(
 			new_delegator_ledgers_cnt == old_delegator_ledgers_cnt,
@@ -375,8 +353,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			DelegatorLatestTuneRecord::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"DelegatorLatestTuneRecord pre-migrate storage count: {:?}",
-			new_delegator_latest_tune_record_cnt
+			"DelegatorLatestTuneRecord pre-migrate storage count: {new_delegator_latest_tune_record_cnt:?}",
 		);
 		ensure!(
 			new_delegator_latest_tune_record_cnt == old_delegator_latest_tune_record_cnt,
@@ -387,8 +364,7 @@ impl<T: Config> OnRuntimeUpgrade for SlpMigrationV6<T> {
 			SupplementFeeAccountWhitelist::<T>::iter().count() as u32;
 		log::info!(
 			target: LOG_TARGET,
-			"SupplementFeeAccountWhitelist pre-migrate storage count: {:?}",
-			new_supplement_fee_account_whitelist_cnt
+			"SupplementFeeAccountWhitelist pre-migrate storage count: {new_supplement_fee_account_whitelist_cnt:?}",
 		);
 		ensure!(
 			new_supplement_fee_account_whitelist_cnt == old_supplement_fee_account_whitelist_cnt,

@@ -77,7 +77,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = i64;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -286,7 +285,6 @@ impl crate::traits::ValidateAssetId<i64> for EnsurePoolAssetId {
 }
 
 impl stable_asset::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = i64;
 	type Balance = Balance;
 	type Assets = TestAssets;

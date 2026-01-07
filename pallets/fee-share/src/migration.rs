@@ -43,7 +43,7 @@ impl<T: Config> OnRuntimeUpgrade for FeeShareOnRuntimeUpgrade<T> {
 
 		if StorageVersion::get::<Pallet<T>>() == 0 {
 			let (era_length, _next_era) = AutoEra::<T>::get();
-			log::info!("Old era_length is {:?}", era_length);
+			log::info!("Old era_length is {era_length:?}");
 			assert_eq!(era_length, 7200u32.into());
 		}
 
@@ -72,7 +72,7 @@ impl<T: Config> OnRuntimeUpgrade for FeeShareOnRuntimeUpgrade<T> {
 
 		if StorageVersion::get::<Pallet<T>>() == 1 {
 			let (era_length, _next_era) = AutoEra::<T>::get();
-			log::info!("New era_length is {:?}", era_length);
+			log::info!("New era_length is {era_length:?}");
 			assert_eq!(era_length, 14400u32.into());
 		}
 

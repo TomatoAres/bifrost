@@ -70,7 +70,6 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Currencies: bifrost_currencies,
 		Tokens: orml_tokens,
-		XTokens: orml_xtokens,
 		Multisig: pallet_multisig,
 		Salp: salp,
 		ZenlinkProtocol: zenlink_protocol,
@@ -163,7 +162,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = ();
@@ -203,7 +201,6 @@ ord_parameter_types! {
 	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
 }
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
@@ -336,7 +333,6 @@ impl bifrost_stable_asset::traits::ValidateAssetId<CurrencyId> for EnsurePoolAss
 }
 
 impl bifrost_stable_asset::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = CurrencyId;
 	type Balance = Balance;
 	type Assets = Tokens;
@@ -373,30 +369,6 @@ parameter_type_with_key! {
 	};
 }
 
-parameter_types! {
-	pub SelfRelativeLocation: Location = Location::here();
-	pub const MaxAssetsForTransfer: usize = 2;
-}
-
-impl orml_xtokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = ();
-	type AccountIdToLocation = ();
-	type UniversalLocation = UniversalLocation;
-	type SelfLocation = SelfRelativeLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type BaseXcmWeight = ();
-	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MinXcmFee = ParachainMinFee;
-	type LocationsFilter = Everything;
-	type ReserveProvider = RelativeReserveProvider;
-	type RateLimiter = ();
-	type RateLimiterId = ();
-}
-
 pub struct Slp;
 // Functions to be called by other pallets.
 impl SlpOperator<CurrencyId> for Slp {
@@ -406,7 +378,6 @@ impl SlpOperator<CurrencyId> for Slp {
 }
 
 impl bifrost_vtoken_minting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type ControlOrigin = EnsureConfirmAsGovernance;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -418,7 +389,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type RelayChainToken = RelayCurrencyId;
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = XTokens;
+	type XChainSender = ();
 	type MoonbeamChainId = MoonbeamChainId;
 	type BifrostSlpx = ();
 	type ChannelCommission = ();
@@ -539,7 +510,6 @@ impl Convert<AccountId, Location> for BifrostAccountIdToMultiLocation {
 }
 
 impl bifrost_xcm_interface::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = EnsureRoot<AccountId>;
 	type MultiCurrency = Currencies;
 	type RelayNetwork = RelayNetwork;

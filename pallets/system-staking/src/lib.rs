@@ -65,9 +65,6 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type MultiCurrency: MultiCurrency<AccountIdOf<Self>, CurrencyId = CurrencyId>;
 
 		type EnsureConfirmAsGovernance: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
@@ -349,7 +346,7 @@ pub mod pallet {
 						Self::process_token_info(pallet_account.clone(), token_info, i).ok();
 
 						if Self::do_payout(i).is_err() {
-							log::error!("System staking auto payout failed, token: {:?}", i);
+							log::error!("System staking auto payout failed, token: {i:?}");
 							Self::deposit_event(Event::PayoutFailed { token: i });
 						}
 					}
@@ -364,6 +361,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Update token config，take effect when next round begins
 		#[pallet::call_index(0)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::token_config())]
 		pub fn token_config(
 			origin: OriginFor<T>,
@@ -419,6 +417,7 @@ pub mod pallet {
 
 		/// Update token config，take effect when next round begins
 		#[pallet::call_index(1)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::delete_token())]
 		pub fn delete_token(
 			origin: OriginFor<T>,
@@ -440,6 +439,7 @@ pub mod pallet {
 		/// refresh token info，query farming pallet, and update TokenInfo, change to new
 		/// config，ignore exec_delay, execute immediately
 		#[pallet::call_index(2)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::refresh_token_info())]
 		pub fn refresh_token_info(
 			origin: OriginFor<T>,
@@ -469,6 +469,7 @@ pub mod pallet {
 
 		/// payout to receiving account
 		#[pallet::call_index(3)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight(<T as Config>::WeightInfo::payout())]
 		pub fn payout(origin: OriginFor<T>, token: CurrencyIdOf<T>) -> DispatchResultWithPostInfo {
 			T::EnsureConfirmAsGovernance::ensure_origin(origin)?;

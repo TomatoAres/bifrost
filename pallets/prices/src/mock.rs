@@ -182,7 +182,6 @@ parameter_types! {
 }
 
 impl crate::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Source = MockDataProvider;
 	type FeederOrigin = EnsureSignedBy<One, AccountId>;
 	type UpdateOrigin = EnsureSignedBy<One, AccountId>;
@@ -205,7 +204,6 @@ impl bifrost_currencies::Config for Test {
 }
 
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<One, AccountId>;
 	type WeightInfo = ();
@@ -222,7 +220,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();

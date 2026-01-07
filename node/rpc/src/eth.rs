@@ -167,6 +167,8 @@ where
 			relay_chain_state,
 			downward_messages: Default::default(),
 			horizontal_messages: Default::default(),
+			relay_parent_descendants: vec![],
+			collator_peer_id: None,
 		};
 		Ok((timestamp, parachain_inherent_data))
 	};

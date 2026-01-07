@@ -1,11 +1,11 @@
 [package]
 name = "bifrost-cli"
-version = "0.22.2"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
+version = "0.23.0"
+authors.workspace = true
 description = "Bifrost Parachain Node"
 build = "build.rs"
 default-run = "bifrost"
-edition = "2021"
+edition.workspace = true
 
 [[bin]]
 name = "bifrost"

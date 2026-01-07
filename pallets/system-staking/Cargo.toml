@@ -2,9 +2,9 @@
 name = "bifrost-system-staking"
 version = "4.0.0-dev"
 description = "System staking pallet"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
+authors.workspace = true
 homepage = "https://github.com/bifrost-io/bifrost"
-edition = "2021"
+edition.workspace = true
 publish = false
 repository = "https://github.com/bifrost-io/bifrost"
 readme = 'README.md'
@@ -32,7 +32,6 @@ sp-io = { workspace = true }
 pallet-balances = { workspace = true }
 bifrost-currencies = { workspace = true }
 orml-tokens = { workspace = true }
-orml-xtokens = { workspace = true }
 orml-traits = { workspace = true }
 bifrost-slp = { workspace = true }
 bifrost-farming = { workspace = true }

@@ -33,8 +33,6 @@ impl Get<AccountId> for AssetAdmin {
 }
 
 impl pallet_token_gateway::Config for Runtime {
-    // configure the runtime event
-    type RuntimeEvent = RuntimeEvent;
     // Pallet Ismp 
     type Dispatcher = Ismp;
     // Pallet Assets

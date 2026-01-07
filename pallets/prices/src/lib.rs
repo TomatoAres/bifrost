@@ -54,8 +54,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The data source, such as Oracle.
 		type Source: DataProvider<CurrencyId, TimeStampedPrice>
 			+ DataProviderExtended<CurrencyId, TimeStampedPrice>
@@ -130,6 +128,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Set emergency price
 		#[pallet::call_index(0)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight((<T as Config>::WeightInfo::set_price(), DispatchClass::Operational))]
 		#[transactional]
 		pub fn set_price(
@@ -146,6 +145,7 @@ pub mod pallet {
 
 		/// Reset emergency price
 		#[pallet::call_index(1)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight((<T as Config>::WeightInfo::reset_price(), DispatchClass::Operational))]
 		#[transactional]
 		pub fn reset_price(
@@ -161,6 +161,7 @@ pub mod pallet {
 
 		/// Set foreign vault token mapping
 		#[pallet::call_index(2)]
+		#[allow(clippy::useless_conversion)]
 		#[pallet::weight((<T as Config>::WeightInfo::set_foreign_asset(), DispatchClass::Operational))]
 		#[transactional]
 		pub fn set_foreign_asset(
@@ -182,9 +183,7 @@ impl<T: Config> Pallet<T> {
 			let mantissa = Self::get_asset_mantissa(asset_id)?;
 			log::trace!(
 				target: "prices::get_emergency_price",
-				"asset_id: {:?}, mantissa: {:?}",
-				asset_id,
-				mantissa
+				"asset_id: {asset_id:?}, mantissa: {mantissa:?}",
 			);
 			p.checked_div(&FixedU128::from_inner(mantissa))
 				.map(|price| (price, 0))

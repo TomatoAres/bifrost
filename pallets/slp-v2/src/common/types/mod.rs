@@ -60,6 +60,8 @@ pub struct ProtocolConfiguration<AccountId> {
 	pub update_time_unit_interval: BlockNumber,
 	/// Update exchange rate interval
 	pub update_exchange_rate_interval: BlockNumber,
+	/// Dest location for remote chain
+	pub remote_fee_location: Option<Location>,
 }
 
 /// Staking protocol information

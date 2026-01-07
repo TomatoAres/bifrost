@@ -2,8 +2,8 @@
 name = "bifrost-stable-pool"
 version = "0.8.0"
 description = "FRAME pallet template for defining custom runtime logic."
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -28,7 +28,6 @@ sp-io = { workspace = true }
 pallet-balances = { workspace = true }
 orml-tokens = { workspace = true }
 bifrost-currencies = { workspace = true }
-orml-xtokens = { workspace = true }
 env_logger = { workspace = true }
 bifrost-runtime-common = { workspace = true }
 bifrost-asset-registry = { workspace = true }
@@ -51,7 +50,6 @@ std = [
 	"bifrost-primitives/std",
 	"bifrost-asset-registry/std",
 	"bifrost-runtime-common/std",
-	"orml-xtokens/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

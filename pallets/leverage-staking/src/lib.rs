@@ -62,8 +62,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + lend_market::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type WeightInfo: WeightInfo;
 
 		type ControlOrigin: EnsureOrigin<Self::RuntimeOrigin>;

@@ -73,7 +73,6 @@ ord_parameter_types! {
 	pub const CouncilAccount: AccountId = AccountId::from([1u8; 32]);
 }
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<CouncilAccount, AccountId>;
 	type WeightInfo = ();
@@ -143,7 +142,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = ();
@@ -160,7 +158,6 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 }
 
 impl pallet_evm_accounts::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = ConstU32<10>;
 	type ControllerOrigin = EnsureRoot<AccountId>;
@@ -175,7 +172,6 @@ parameter_types! {
 
 impl crate::Config for Test {
 	type DexOperator = ZenlinkProtocol;
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type TreasuryAccount = TreasuryAccount;
 	type MaxFeeCurrencyOrderListLen = MaxFeeCurrencyOrderListLen;

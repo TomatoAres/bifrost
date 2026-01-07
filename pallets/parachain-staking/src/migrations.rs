@@ -105,7 +105,7 @@ impl<T: Config> OnRuntimeUpgrade for InitGenesisMigration<T> {
 				endowment,
 				candidate_count,
 			) {
-				log::warn!("Join candidates failed in genesis with error {:?}", error);
+				log::warn!("Join candidates failed in genesis with error {error:?}");
 			} else {
 				candidate_count += 1u32;
 			}
@@ -330,8 +330,7 @@ impl<T: Config> OnRuntimeUpgrade for SplitDelegatorStateIntoDelegationScheduledR
 				.expect("must exist");
 			assert_eq!(
 				expected_delegator_decrease_amount, state.less_total,
-				"decrease amount did not match for delegator {:?}",
-				delegator,
+				"decrease amount did not match for delegator {delegator:?}",
 			);
 			actual_delegator_state_entries = actual_delegator_state_entries.saturating_add(1);
 		}
@@ -451,7 +450,7 @@ impl<T: Config> OnRuntimeUpgrade for PatchIncorrectDelegationSums<T> {
 		// get total counted for all candidates
 		for (account, state) in <CandidateInfo<T>>::iter() {
 			candidate_total_counted_map.insert(
-				format!("Candidate{:?}TotalCounted", account)[..].to_string(),
+				format!("Candidate{account:?}TotalCounted")[..].to_string(),
 				state.total_counted,
 			);
 		}
@@ -467,7 +466,7 @@ impl<T: Config> OnRuntimeUpgrade for PatchIncorrectDelegationSums<T> {
 		// ensure new total counted = top_delegations.sum() + collator self bond
 		for (account, state) in <CandidateInfo<T>>::iter() {
 			let old_count = *candidate_total_counted_map
-				.get(&format!("Candidate{:?}TotalCounted", account)[..])
+				.get(&format!("Candidate{account:?}TotalCounted")[..])
 				.expect("qed");
 			let new_count = state.total_counted;
 			let top_delegations_sum = <TopDelegations<T>>::get(account)
@@ -480,8 +479,7 @@ impl<T: Config> OnRuntimeUpgrade for PatchIncorrectDelegationSums<T> {
 			if new_count != old_count {
 				log::info!(
 					target: "PatchIncorrectDelegationSums",
-					"Corrected total from {:?} to {:?}",
-					old_count, new_count
+					"Corrected total from {old_count:?} to {new_count:?}",
 				);
 			}
 		}
@@ -528,13 +526,11 @@ impl<T: Config> OnRuntimeUpgrade for PurgeStaleStorage<T> {
 		let delay = T::RewardPaymentDelay::get();
 		assert_eq!(
 			staked_count, delay,
-			"Expected {} for `Staked` count, Found: {}",
-			delay, staked_count
+			"Expected {delay} for `Staked` count, Found: {staked_count}",
 		);
 		assert_eq!(
 			points_count, delay,
-			"Expected {} for `Points` count, Found: {}",
-			delay, staked_count
+			"Expected {delay} for `Points` count, Found: {staked_count}",
 		);
 		Ok(())
 	}
@@ -559,12 +555,12 @@ impl<T: Config> OnRuntimeUpgrade for RemoveDelegatorReserveToLockAndCollatorRese
 		let mut db_weight = Weight::zero();
 		DelegatorReserveToLockMigrations::<T>::iter_keys().for_each(|k| {
 			DelegatorReserveToLockMigrations::<T>::remove(k.clone());
-			log::info!(target: "DelegatorReserveToLock", "running migration to remove {:?}", k);
+			log::info!(target: "DelegatorReserveToLock", "running migration to remove {k:?}");
 			db_weight = db_weight.saturating_add(T::DbWeight::get().writes(1));
 		});
 		CollatorReserveToLockMigrations::<T>::iter_keys().for_each(|k| {
 			CollatorReserveToLockMigrations::<T>::remove(k.clone());
-			log::info!(target: "CollatorReserveToLock", "running migration to remove {:?}", k);
+			log::info!(target: "CollatorReserveToLock", "running migration to remove {k:?}");
 			db_weight = db_weight.saturating_add(T::DbWeight::get().writes(1));
 		});
 		db_weight
@@ -647,11 +643,7 @@ impl<T: Config + pallet_balances::Config> OnRuntimeUpgrade for LeaveAllCandidate
 					total_candidates += 1;
 				}
 				Err(e) => {
-					log::warn!(
-						"Migration: failed to make candidate {:?} leave: {:?}",
-						account,
-						e
-					);
+					log::warn!("Migration: failed to make candidate {account:?} leave: {e:?}",);
 				}
 			}
 			let delegation_count = state.delegation_count;
@@ -680,9 +672,7 @@ impl<T: Config + pallet_balances::Config> OnRuntimeUpgrade for LeaveAllCandidate
 
 		log::info!(
 		target: "parachain-staking-migration",
-		"✔️ Migration complete. {} candidates processed, total weight = {:?}",
-		total_candidates,
-		weight
+		"✔️ Migration complete. {total_candidates} candidates processed, total weight = {weight:?}",
 		);
 		weight
 	}
@@ -745,11 +735,7 @@ impl<T: Config + pallet_balances::Config> OnRuntimeUpgrade for LeaveAllCandidate
 
 			log::info!(
 			target: "parachain-staking-migration",
-			"🔍 Account: {:?}, balance = {:?}, total = {:?}, locks = {:?}",
-			acc,
-			balance,
-			total,
-			locks);
+			"🔍 Account: {acc:?}, balance = {balance:?}, total = {total:?}, locks = {locks:?}");
 
 			ensure!(
 				!has_collator_lock,

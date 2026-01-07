@@ -22,6 +22,7 @@ use crate::{
 	Config, Error, Event, LedgerByStakingProtocolAndDelegator, Pallet,
 };
 use frame_support::dispatch::DispatchResultWithPostInfo;
+use frame_support::dispatch::PostDispatchInfo;
 
 pub const ETHEREUM_STAKING: StakingProtocol = StakingProtocol::EthereumStaking;
 
@@ -60,6 +61,6 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		Self::deposit_event(Event::EthereumStaking { delegator, task });
-		Ok(().into())
+		Ok(PostDispatchInfo::default())
 	}
 }

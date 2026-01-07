@@ -1,6 +1,6 @@
 [package]
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 name = "bifrost-buy-back"
 version = "0.8.0"
 
@@ -34,7 +34,6 @@ bifrost-currencies = { workspace = true }
 bifrost-runtime-common = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
-orml-xtokens = { workspace = true }
 pallet-xcm = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
@@ -54,7 +53,6 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
-	"orml-xtokens/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"sp-runtime/std",

@@ -20,8 +20,7 @@ use crate as slp_v2;
 use bifrost_asset_registry::AssetIdMaps;
 use bifrost_primitives::{
 	currency::DOT, Amount, Balance, BifrostEntranceAccount, BifrostExitAccount, BifrostFeeAccount,
-	BlockNumber, CommissionPalletId, CurrencyId, IncentivePoolAccount, MockXcmRouter,
-	MockXcmTransfer, BNC,
+	BlockNumber, CommissionPalletId, CurrencyId, IncentivePoolAccount, MockXcmRouter, BNC,
 };
 use frame_support::traits::Disabled;
 use frame_support::{
@@ -98,7 +97,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
@@ -115,7 +113,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ();
@@ -222,7 +219,6 @@ parameter_types! {
 }
 
 impl bifrost_vtoken_minting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type MaximumUnlockIdOfUser = MaximumUnlockIdOfUser;
@@ -235,7 +231,7 @@ impl bifrost_vtoken_minting::Config for Test {
 	type BifrostSlpx = ();
 	type WeightInfo = ();
 	type OnRedeemSuccess = ();
-	type XcmTransfer = MockXcmTransfer;
+	type XChainSender = ();
 	type MoonbeamChainId = ConstU32<2023>;
 	type ChannelCommission = ();
 	type MaxLockRecords = ConstU32<100>;
@@ -267,7 +263,6 @@ impl BlockNumberProvider for RelaychainDataProvider {
 }
 
 impl slp_v2::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = MockXcmRouter;
@@ -278,12 +273,15 @@ impl slp_v2::Config for Test {
 	type ResponseOrigin = EnsureResponse<Everything>;
 	type QueryTimeout = ConstU64<100>;
 	type VtokenMinting = VtokenMinting;
-	type XcmTransfer = MockXcmTransfer;
+	type XChainSender = ();
 	type CurrencyIdConversion = AssetIdMaps<Test>;
 	type CommissionPalletId = CommissionPalletId;
 	type RelaychainBlockNumberProvider = RelaychainDataProvider;
 	type MaxValidators = ConstU32<256>;
 	type HyperBridgeSender = ();
+	type ChannelCommission = ();
+	type MaxCallDataLength = ConstU32<32>;
+	type MaxCallDataPrefixItems = ConstU32<64>;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -110,7 +110,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl bifrost_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RegisterOrigin = EnsureSignedBy<AliceCreatePoolOrigin, AccountId>;
 	type WeightInfo = ();
@@ -136,7 +135,6 @@ impl orml_tokens::Config for Test {
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
 	type DustRemovalWhitelist = Nothing;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -308,7 +306,6 @@ impl pallet_assets::Config for Test {
 }
 
 impl pallet_prices::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Source = MockDataProvider;
 	type FeederOrigin = EnsureRoot<AccountId>;
 	type UpdateOrigin = EnsureRoot<AccountId>;
@@ -325,7 +322,6 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type OraclePriceProvider = MockOraclePriceProvider;
 	type PalletId = LendMarketPalletId;
 	type ReserveOrigin = EnsureRoot<AccountId>;

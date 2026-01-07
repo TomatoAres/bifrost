@@ -1,8 +1,8 @@
 [package]
 name = "bifrost-flexible-fee-rpc-runtime-api"
 version = "0.8.0"
-authors = ["Liebi Technologies <bifrost@liebi.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 
 [dependencies]
 parity-scale-codec = { workspace = true, features = ["derive"] }

@@ -36,15 +36,15 @@ impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
 		let mut weight: Weight = Weight::zero();
 
 		if on_chain_version == 4 && in_code_version == 5 {
-			log::info!(target: LOG_TARGET, "Start Removing OperateOrigin entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing OperateOrigin entry for {currency_id:?}");
 			OperateOrigins::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing HostingFees entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing HostingFees entry for {currency_id:?}");
 			HostingFees::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing DelegatorsIndex2Multilocation entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorsIndex2Multilocation entry for {currency_id:?}");
 			let res = DelegatorsIndex2Multilocation::<T>::clear_prefix(
 				currency_id,
 				REMOVE_TOKEN_LIMIT,
@@ -55,7 +55,7 @@ impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
 				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start Removing DelegatorsMultilocation2Index entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorsMultilocation2Index entry for {currency_id:?}");
 			let res = DelegatorsMultilocation2Index::<T>::clear_prefix(
 				currency_id,
 				REMOVE_TOKEN_LIMIT,
@@ -66,15 +66,15 @@ impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
 				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start Removing DelegatorNextIndex entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorNextIndex entry for {currency_id:?}");
 			DelegatorNextIndex::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing Validators entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing Validators entry for {currency_id:?}");
 			Validators::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing ValidatorsByDelegator entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing ValidatorsByDelegator entry for {currency_id:?}");
 			let res =
 				ValidatorsByDelegator::<T>::clear_prefix(currency_id, REMOVE_TOKEN_LIMIT, None);
 			assert!(res.maybe_cursor.is_none());
@@ -82,22 +82,22 @@ impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
 				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start Removing DelegatorLedgers entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorLedgers entry for {currency_id:?}");
 			let res = DelegatorLedgers::<T>::clear_prefix(currency_id, REMOVE_TOKEN_LIMIT, None);
 			assert!(res.maybe_cursor.is_none());
 			weight = weight.saturating_add(
 				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start Removing MinimumsAndMaximums entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing MinimumsAndMaximums entry for {currency_id:?}");
 			MinimumsAndMaximums::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing CurrencyDelays entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing CurrencyDelays entry for {currency_id:?}");
 			CurrencyDelays::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing DelegatorLatestTuneRecord entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing DelegatorLatestTuneRecord entry for {currency_id:?}");
 			let res =
 				DelegatorLatestTuneRecord::<T>::clear_prefix(currency_id, REMOVE_TOKEN_LIMIT, None);
 			assert!(res.maybe_cursor.is_none());
@@ -105,19 +105,19 @@ impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
 				T::DbWeight::get().reads_writes(res.loops as u64, res.unique as u64),
 			);
 
-			log::info!(target: LOG_TARGET, "Start Removing CurrencyLatestTuneRecord entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing CurrencyLatestTuneRecord entry for {currency_id:?}");
 			CurrencyLatestTuneRecord::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing CurrencyTuneExchangeRateLimit entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing CurrencyTuneExchangeRateLimit entry for {currency_id:?}");
 			CurrencyTuneExchangeRateLimit::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing LastTimeUpdatedOngoingTimeUnit entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing LastTimeUpdatedOngoingTimeUnit entry for {currency_id:?}");
 			LastTimeUpdatedOngoingTimeUnit::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
-			log::info!(target: LOG_TARGET, "Start Removing OngoingTimeUnitUpdateInterval entry for {:?}", currency_id);
+			log::info!(target: LOG_TARGET, "Start Removing OngoingTimeUnitUpdateInterval entry for {currency_id:?}");
 			OngoingTimeUnitUpdateInterval::<T>::remove(currency_id);
 			weight = weight.saturating_add(T::DbWeight::get().reads_writes(0, 1));
 
@@ -145,10 +145,9 @@ impl<T: Config> OnRuntimeUpgrade for RemoveFilStorage<T> {
 		let ledgers_count = DelegatorLedgers::<T>::iter_prefix(currency_id).count();
 		let tune_count = DelegatorLatestTuneRecord::<T>::iter_prefix(currency_id).count();
 
-		log::info!(target: LOG_TARGET, "pre_upgrade done: DelegatorsIndex2Multilocation={}, \
-		DelegatorsMultilocation2Index={}, ValidatorsByDelegator={}, \
-		DelegatorLedgers={}, DelegatorLatestTuneRecord={}",
-            delegators_index_count, delegators_count, validators_count, ledgers_count, tune_count);
+		log::info!(target: LOG_TARGET, "pre_upgrade done: DelegatorsIndex2Multilocation={delegators_index_count}, \
+		DelegatorsMultilocation2Index={delegators_count}, ValidatorsByDelegator={validators_count}, \
+		DelegatorLedgers={ledgers_count}, DelegatorLatestTuneRecord={tune_count}");
 
 		Ok(sp_std::vec![])
 	}

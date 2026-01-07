@@ -55,7 +55,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 			log::info!(target: LOG_TARGET, "Start to migrate MarketBond storage...");
 			MarketBond::<T>::translate::<Vec<AssetIdOf<T>>, _>(
 				|k: AssetIdOf<T>, value: Vec<AssetIdOf<T>>| {
-					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {:?}...", k);
+					log::info!(target: LOG_TARGET, "Migrated to boundedvec for {k:?}...");
 
 					let target_bounded_vec: BoundedVec<AssetIdOf<T>, T::MaxLengthLimit> =
 						if !value.is_empty() {
@@ -90,8 +90,8 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 		let market_bond_count = MarketBond::<T>::iter().count();
 
 		// print out the pre-migrate storage count
-		log::info!(target: LOG_TARGET, "LiquidationFreeCollaterals pre-migrate storage count: {:?}", liquidation_free_collaterals_count);
-		log::info!(target: LOG_TARGET, "MarketBond pre-migrate storage count: {:?}", market_bond_count);
+		log::info!(target: LOG_TARGET, "LiquidationFreeCollaterals pre-migrate storage count: {liquidation_free_collaterals_count:?}");
+		log::info!(target: LOG_TARGET, "MarketBond pre-migrate storage count: {market_bond_count:?}");
 		Ok((
 			liquidation_free_collaterals_count as u64,
 			market_bond_count as u64,
@@ -112,14 +112,12 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
 		// print out the post-migrate storage count
 		log::info!(
 			target: LOG_TARGET,
-			"LiquidationFreeCollaterals post-migrate storage count: {:?}",
-			new_liquidation_free_collaterals_count
+			"LiquidationFreeCollaterals post-migrate storage count: {new_liquidation_free_collaterals_count:?}",
 		);
 
 		log::info!(
 			target: LOG_TARGET,
-			"MarketBond post-migrate storage count: {:?}",
-			new_market_bond_count
+			"MarketBond post-migrate storage count: {new_market_bond_count:?}",
 		);
 
 		ensure!(

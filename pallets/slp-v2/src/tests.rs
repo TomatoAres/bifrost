@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::common::types::GeneralXCMStakingLedger;
 use crate::ethereum_staking::types::EthereumStaking;
 use crate::{
 	astar_dapp_staking::types::{
@@ -27,16 +28,18 @@ use crate::{
 		XcmFee, XcmTask,
 	},
 	mock::*,
-	DelegatorByStakingProtocolAndDelegatorIndex, DelegatorIndexByStakingProtocolAndDelegator,
-	Error as SlpV2Error, Event as SlpV2Event, LastUpdateOngoingTimeUnitBlockNumber,
-	LedgerByStakingProtocolAndDelegator, NextDelegatorIndexByStakingProtocol,
-	ValidatorsByStakingProtocolAndDelegator,
+	pallet, CallDataHeadListOf, CallDataOf, DelegatorByStakingProtocolAndDelegatorIndex,
+	DelegatorIndexByStakingProtocolAndDelegator, Error as SlpV2Error, Event as SlpV2Event,
+	LastUpdateOngoingTimeUnitBlockNumber, LedgerByStakingProtocolAndDelegator,
+	NextDelegatorIndexByStakingProtocol, ValidatorsByStakingProtocolAndDelegator,
+	XCMExecutorWhitelist,
 };
 use bifrost_primitives::{
 	CommissionPalletId, CurrencyId, TimeUnit, VtokenMintingOperator, ASTR, DOT, ETH, MANTA, VASTR,
 	V_ETH,
 };
 use bifrost_vtoken_minting::{VTokenMultiMap, VTokenTokenConfig};
+use cumulus_primitives_core::relay_chain::ChainId;
 use cumulus_primitives_core::Weight;
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
 use orml_traits::MultiCurrency;
@@ -57,6 +60,7 @@ pub const ASTAR_DAPP_STAKING: StakingProtocol = StakingProtocol::AstarDappStakin
 pub const ETHEREUM_STAKING: StakingProtocol = StakingProtocol::EthereumStaking;
 
 pub const GENERAL_PROXY_STAKING: StakingProtocol = StakingProtocol::GeneralProxyStaking(MANTA, 1);
+pub const GENERAL_XCM_STAKING: StakingProtocol = StakingProtocol::GeneralXCMStaking(ASTR, 2006u32);
 
 pub const CONFIGURATION: ProtocolConfiguration<AccountId> = ProtocolConfiguration {
 	xcm_task_fee: XcmFee {
@@ -69,6 +73,7 @@ pub const CONFIGURATION: ProtocolConfiguration<AccountId> = ProtocolConfiguratio
 	max_update_token_exchange_rate: Permill::from_perthousand(1),
 	update_time_unit_interval: 100u32,
 	update_exchange_rate_interval: 100u32,
+	remote_fee_location: Some(Location::here()),
 };
 
 fn set_protocol_configuration() {
@@ -124,6 +129,21 @@ fn set_configuration_should_work() {
 }
 
 #[test]
+fn set_general_xcm_configuration_should_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(SlpV2::set_protocol_configuration(
+			RuntimeOrigin::root(),
+			GENERAL_XCM_STAKING,
+			CONFIGURATION
+		));
+		expect_event(SlpV2Event::SetConfiguration {
+			staking_protocol: GENERAL_XCM_STAKING,
+			configuration: CONFIGURATION,
+		});
+	})
+}
+
+#[test]
 fn add_delegator_should_work() {
 	new_test_ext().execute_with(|| {
 		let delegator = Delegator::Substrate(
@@ -162,6 +182,57 @@ fn add_delegator_should_work() {
 		assert_eq!(
 			LedgerByStakingProtocolAndDelegator::<Test>::get(ASTAR_DAPP_STAKING, delegator),
 			Some(Ledger::AstarDappStaking(AstarDappStakingLedger {
+				locked: 0,
+				unlocking: Default::default()
+			}))
+		);
+	});
+}
+
+#[test]
+fn add_general_xcm_staking_delegator_should_work() {
+	new_test_ext().execute_with(|| {
+		let delegator = Delegator::Substrate(
+			AccountId::from_ss58check("YLF9AnL6V1vQRfuiB832NXNGZYCPAWkKLLkh7cf3KwXhB9o").unwrap(),
+		);
+		let delegator_index = 0;
+		let currency_id: CurrencyId = ASTR;
+		let chain_id: ChainId = 2006u32;
+		let staking_protocol = StakingProtocol::GeneralXCMStaking(currency_id, chain_id);
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			staking_protocol,
+			None
+		));
+		expect_event(SlpV2Event::AddDelegator {
+			staking_protocol,
+			delegator_index,
+			delegator: delegator.clone(),
+		});
+		assert_eq!(
+			DelegatorByStakingProtocolAndDelegatorIndex::<Test>::get(
+				staking_protocol,
+				delegator_index
+			),
+			Some(delegator.clone())
+		);
+		assert_eq!(
+			DelegatorIndexByStakingProtocolAndDelegator::<Test>::get(
+				staking_protocol,
+				delegator.clone()
+			),
+			Some(delegator_index)
+		);
+		assert_eq!(
+			NextDelegatorIndexByStakingProtocol::<Test>::get(staking_protocol),
+			1
+		);
+		assert_eq!(
+			LedgerByStakingProtocolAndDelegator::<Test>::get(staking_protocol, delegator),
+			Some(Ledger::GeneralXCM(GeneralXCMStakingLedger {
+				currency_id,
+				chain_id,
 				locked: 0,
 				unlocking: Default::default()
 			}))
@@ -364,6 +435,54 @@ fn remove_delegator_should_work() {
 }
 
 #[test]
+fn remove_general_xcm_staking_delegator_should_work() {
+	new_test_ext().execute_with(|| {
+		let delegator = Delegator::Substrate(
+			AccountId::from_ss58check("YLF9AnL6V1vQRfuiB832NXNGZYCPAWkKLLkh7cf3KwXhB9o").unwrap(),
+		);
+		let delegator_index = 0;
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			GENERAL_XCM_STAKING,
+			None
+		));
+		assert_ok!(SlpV2::remove_delegator(
+			RuntimeOrigin::root(),
+			GENERAL_XCM_STAKING,
+			delegator.clone()
+		));
+		expect_event(SlpV2Event::RemoveDelegator {
+			staking_protocol: GENERAL_XCM_STAKING,
+			delegator_index,
+			delegator: delegator.clone(),
+		});
+		assert_eq!(
+			DelegatorByStakingProtocolAndDelegatorIndex::<Test>::get(
+				GENERAL_XCM_STAKING,
+				delegator_index
+			),
+			None
+		);
+		assert_eq!(
+			DelegatorIndexByStakingProtocolAndDelegator::<Test>::get(
+				GENERAL_XCM_STAKING,
+				delegator.clone()
+			),
+			None
+		);
+		assert_eq!(
+			NextDelegatorIndexByStakingProtocol::<Test>::get(GENERAL_XCM_STAKING),
+			1
+		);
+		assert_eq!(
+			ValidatorsByStakingProtocolAndDelegator::<Test>::get(GENERAL_XCM_STAKING, delegator)
+				.to_vec(),
+			vec![]
+		);
+	});
+}
+
+#[test]
 fn remove_delegator_delegator_index_not_found() {
 	new_test_ext().execute_with(|| {
 		let delegator = Delegator::Substrate(
@@ -508,7 +627,7 @@ fn astar_dapp_staking_lock() {
 			delegator.clone(),
 			100,
 		));
-		let dest_location = ASTAR_DAPP_STAKING.info().remote_dest_location;
+		let dest_location = ASTAR_DAPP_STAKING.info().unwrap().remote_dest_location;
 
 		set_protocol_configuration();
 		assert_ok!(SlpV2::add_delegator(
@@ -562,7 +681,7 @@ fn repeat_astar_dapp_staking_lock() {
 			delegator.clone(),
 			200,
 		));
-		let dest_location = ASTAR_DAPP_STAKING.info().remote_dest_location;
+		let dest_location = ASTAR_DAPP_STAKING.info().unwrap().remote_dest_location;
 		set_protocol_configuration();
 
 		assert_ok!(SlpV2::add_delegator(
@@ -685,7 +804,7 @@ fn astar_dapp_staking_stake() {
 		let task = DappStaking::Stake(AstarValidator::Evm(H160::default()), 100);
 		let query_id = None;
 		let pending_status = None;
-		let dest_location = ASTAR_DAPP_STAKING.info().remote_dest_location;
+		let dest_location = ASTAR_DAPP_STAKING.info().unwrap().remote_dest_location;
 
 		assert_ok!(SlpV2::add_delegator(
 			RuntimeOrigin::root(),
@@ -756,7 +875,7 @@ fn astar_dapp_staking_unstake() {
 		let task = DappStaking::Unstake(AstarValidator::Evm(H160::default()), 100);
 		let query_id = None;
 		let pending_status = None;
-		let dest_location = ASTAR_DAPP_STAKING.info().remote_dest_location;
+		let dest_location = ASTAR_DAPP_STAKING.info().unwrap().remote_dest_location;
 
 		assert_ok!(SlpV2::add_delegator(
 			RuntimeOrigin::root(),
@@ -916,7 +1035,7 @@ fn set_ledger_error() {
 fn update_ongoing_time_unit_should_work() {
 	new_test_ext().execute_with(|| {
 		let staking_protocol = StakingProtocol::AstarDappStaking;
-		let currency_id = staking_protocol.info().currency_id;
+		let currency_id = staking_protocol.info().unwrap().currency_id;
 		set_protocol_configuration();
 		RelaychainDataProvider::set_block_number(100);
 		assert_ok!(SlpV2::update_ongoing_time_unit(
@@ -1069,7 +1188,7 @@ fn update_token_exchange_rate_should_work() {
 		));
 
 		let staking_protocol = StakingProtocol::AstarDappStaking;
-		let currency_id = staking_protocol.info().currency_id;
+		let currency_id = staking_protocol.info().unwrap().currency_id;
 		let delegator = Delegator::Substrate(
 			AccountId::from_ss58check("YLF9AnL6V1vQRfuiB832NXNGZYCPAWkKLLkh7cf3KwXhB9o").unwrap(),
 		);
@@ -1263,7 +1382,7 @@ fn update_token_exchange_rate_limt_error() {
 		));
 
 		let staking_protocol = StakingProtocol::AstarDappStaking;
-		let currency_id = staking_protocol.info().currency_id;
+		let currency_id = staking_protocol.info().unwrap().currency_id;
 		let delegator = Delegator::Substrate(
 			AccountId::from_ss58check("YLF9AnL6V1vQRfuiB832NXNGZYCPAWkKLLkh7cf3KwXhB9o").unwrap(),
 		);
@@ -1336,4 +1455,351 @@ fn test_ensure_parameter_correct() {
 			DOT
 		);
 	})
+}
+
+#[test]
+fn update_xcm_executor_whitelist_should_work() {
+	new_test_ext().execute_with(|| {
+		let currency_id: CurrencyId = ASTR;
+		let chain_id: ChainId = 2006u32;
+
+		// 1. First register the GeneralXCMStaking delegator, otherwise the call will fail
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		// Using a simple prefix head
+		let head: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![1u8].try_into().unwrap();
+
+		// Put two in add_heads for easy testing of push + contains
+		let mut add_heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		add_heads.try_push(head.clone()).unwrap();
+
+		let head2: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![2u8].try_into().unwrap();
+		add_heads.try_push(head2.clone()).unwrap();
+
+		let add_heads = Some(add_heads);
+
+		// remove_heads deletes one of them
+		let mut remove_heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		remove_heads.try_push(head.clone()).unwrap();
+		let remove_heads = Some(remove_heads);
+
+		assert_ok!(SlpV2::update_xcm_executor_whitelist(
+			RuntimeOrigin::root(),
+			currency_id,
+			chain_id,
+			add_heads,
+			remove_heads,
+		));
+
+		let stored = XCMExecutorWhitelist::<Test>::get(currency_id, chain_id).unwrap_or_default();
+		expect_event(SlpV2Event::XCMExecutorWhitelistUpdated {
+			currency_id,
+			chain_id,
+			current_head: stored.clone(),
+		});
+
+		assert_eq!(stored.len(), 1);
+		assert_eq!(stored[0], head2);
+	});
+}
+
+#[test]
+fn update_whitelist_without_delegator_should_fail() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id = 2006u32;
+
+		assert_noop!(
+			SlpV2::update_xcm_executor_whitelist(
+				RuntimeOrigin::root(),
+				currency_id,
+				chain_id,
+				None,
+				None,
+			),
+			SlpV2Error::<Test>::DelegatorNotFound
+		);
+	});
+}
+
+#[test]
+fn update_whitelist_remove_non_existent_should_work() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id = 2006u32;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let stored_head: BoundedVec<u8, _> = vec![1u8].try_into().unwrap();
+		let non_exist: BoundedVec<u8, _> = vec![9u8].try_into().unwrap();
+
+		let mut heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		heads.try_push(stored_head.clone()).unwrap();
+		XCMExecutorWhitelist::<Test>::insert(currency_id, chain_id, heads.clone());
+
+		let mut remove_heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		remove_heads.try_push(non_exist.clone()).unwrap();
+
+		assert_ok!(SlpV2::update_xcm_executor_whitelist(
+			RuntimeOrigin::root(),
+			currency_id,
+			chain_id,
+			None,
+			Some(remove_heads),
+		));
+
+		let after = XCMExecutorWhitelist::<Test>::get(currency_id, chain_id).unwrap();
+		assert_eq!(after, heads);
+	});
+}
+
+#[test]
+fn update_whitelist_should_ignore_duplicate_heads() {
+	new_test_ext().execute_with(|| {
+		let cid = ASTR;
+		let chid = 2006u32;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(cid, chid),
+			None
+		));
+
+		let head: BoundedVec<u8, _> = vec![1u8].try_into().unwrap();
+
+		let mut add_heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		add_heads.try_push(head.clone()).unwrap();
+		add_heads.try_push(head.clone()).unwrap();
+
+		assert_ok!(SlpV2::update_xcm_executor_whitelist(
+			RuntimeOrigin::root(),
+			cid,
+			chid,
+			Some(add_heads),
+			None,
+		));
+
+		let stored = XCMExecutorWhitelist::<Test>::get(cid, chid).unwrap();
+		assert_eq!(stored.len(), 1);
+		assert_eq!(stored[0], head);
+	});
+}
+
+#[test]
+fn update_xcm_executor_whitelist_noop_when_both_none() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Token2(0);
+		let chain_id: ChainId = 2006;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let initial_heads: CallDataHeadListOf<Test> =
+			vec![vec![1, 2, 3].try_into().unwrap()].try_into().unwrap();
+
+		XCMExecutorWhitelist::<Test>::insert(currency_id, chain_id, initial_heads.clone());
+
+		assert_ok!(SlpV2::update_xcm_executor_whitelist(
+			RuntimeOrigin::root(),
+			currency_id,
+			chain_id,
+			None,
+			None,
+		));
+
+		let stored = XCMExecutorWhitelist::<Test>::get(currency_id, chain_id).unwrap();
+
+		assert_eq!(stored, initial_heads);
+	});
+}
+
+#[test]
+fn general_xcm_executor_should_work() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id: ChainId = 2006;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let head: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![1u8, 2u8, 3u8].try_into().unwrap();
+
+		let mut heads: BoundedVec<
+			BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength>,
+			<Test as pallet::Config>::MaxCallDataPrefixItems,
+		> = BoundedVec::default();
+
+		heads.try_push(head.clone()).unwrap();
+
+		XCMExecutorWhitelist::<Test>::insert(currency_id, chain_id, heads);
+
+		let mut call_data_vec = head.to_vec();
+		call_data_vec.push(9u8); // append any payload
+
+		let call_data: CallDataOf<Test> = call_data_vec.clone().try_into().unwrap();
+
+		assert_noop!(
+			SlpV2::general_xcm_executor(
+				RuntimeOrigin::root(),
+				currency_id,
+				chain_id,
+				call_data.clone(),
+			),
+			SlpV2Error::<Test>::ConfigurationNotFound
+		);
+
+		assert_ok!(SlpV2::set_protocol_configuration(
+			RuntimeOrigin::root(),
+			GENERAL_XCM_STAKING,
+			CONFIGURATION
+		));
+
+		assert_ok!(SlpV2::general_xcm_executor(
+			RuntimeOrigin::root(),
+			currency_id,
+			chain_id,
+			call_data.clone(),
+		));
+
+		expect_event(SlpV2Event::SendGeneralXcmExecutorTask {
+			call_data: call_data.clone(),
+			dest_chain_id: chain_id,
+		});
+	});
+}
+
+#[test]
+fn general_xcm_executor_should_fail_when_not_whitelisted() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id: ChainId = 2006;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let call_data_raw = vec![9u8, 9u8, 9u8];
+		let call_data: CallDataOf<Test> = call_data_raw.try_into().unwrap();
+
+		assert_noop!(
+			SlpV2::general_xcm_executor(RuntimeOrigin::root(), currency_id, chain_id, call_data),
+			SlpV2Error::<Test>::CallDataIsNotSupported
+		);
+	});
+}
+
+#[test]
+fn general_xcm_executor_should_fail_if_delegator_not_registered() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id: ChainId = 2006;
+
+		let call_data_raw = vec![1u8, 2u8, 3u8];
+		let call_data: CallDataOf<Test> = call_data_raw.try_into().unwrap();
+
+		assert_noop!(
+			SlpV2::general_xcm_executor(RuntimeOrigin::root(), currency_id, chain_id, call_data),
+			SlpV2Error::<Test>::DelegatorNotFound
+		);
+	});
+}
+
+#[test]
+fn general_xcm_executor_should_match_one_of_multiple_heads() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id: ChainId = 2006;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let head1: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![0u8, 0u8, 0u8].try_into().unwrap();
+		let head2: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![1u8, 2u8, 3u8].try_into().unwrap();
+
+		let mut heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		heads.try_push(head1).unwrap();
+		heads.try_push(head2.clone()).unwrap();
+
+		XCMExecutorWhitelist::<Test>::insert(currency_id, chain_id, heads);
+
+		let mut call_data_raw = head2.to_vec();
+		call_data_raw.push(100);
+		let call_data: CallDataOf<Test> = call_data_raw.clone().try_into().unwrap();
+
+		assert_ok!(SlpV2::set_protocol_configuration(
+			RuntimeOrigin::root(),
+			GENERAL_XCM_STAKING,
+			CONFIGURATION
+		));
+
+		assert_ok!(SlpV2::general_xcm_executor(
+			RuntimeOrigin::root(),
+			currency_id,
+			chain_id,
+			call_data.clone(),
+		));
+
+		expect_event(SlpV2Event::SendGeneralXcmExecutorTask {
+			call_data,
+			dest_chain_id: chain_id,
+		});
+	});
+}
+
+#[test]
+fn general_xcm_executor_should_fail_if_no_heads_match() {
+	new_test_ext().execute_with(|| {
+		let currency_id = ASTR;
+		let chain_id: ChainId = 2006;
+
+		assert_ok!(SlpV2::add_delegator(
+			RuntimeOrigin::root(),
+			StakingProtocol::GeneralXCMStaking(currency_id, chain_id),
+			None
+		));
+
+		let head1: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![1u8, 1u8].try_into().unwrap();
+		let head2: BoundedVec<u8, <Test as pallet::Config>::MaxCallDataLength> =
+			vec![2u8, 2u8].try_into().unwrap();
+
+		let mut heads: CallDataHeadListOf<Test> = BoundedVec::default();
+		heads.try_push(head1).unwrap();
+		heads.try_push(head2).unwrap();
+
+		XCMExecutorWhitelist::<Test>::insert(currency_id, chain_id, heads);
+
+		// call_data that does not match any head
+		let call_data_raw = vec![9u8, 9u8, 9u8];
+		let call_data: CallDataOf<Test> = call_data_raw.try_into().unwrap();
+
+		assert_noop!(
+			SlpV2::general_xcm_executor(RuntimeOrigin::root(), currency_id, chain_id, call_data,),
+			SlpV2Error::<Test>::CallDataIsNotSupported
+		);
+	});
 }
