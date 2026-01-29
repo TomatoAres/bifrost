@@ -105,7 +105,6 @@ use constants::currency::*;
 use cumulus_primitives_core::AggregateMessageOrigin;
 use fp_evm::FeeCalculator;
 use fp_rpc::TransactionStatus;
-use frame_support::migrations::{FailedMigrationHandler, FailedMigrationHandling};
 use frame_support::{
 	dispatch::DispatchClass,
 	genesis_builder_helper::{build_state, get_preset},
@@ -202,7 +201,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("bifrost_polkadot"),
 	impl_name: Cow::Borrowed("bifrost_polkadot"),
 	authoring_version: 0,
-	spec_version: 23000,
+	spec_version: 23001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -306,7 +305,7 @@ impl frame_system::Config for Runtime {
 	type MaxConsumers = ConstU32<16>;
 	type RuntimeTask = ();
 	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = MultiBlockMigrations;
+	type MultiBlockMigrator = ();
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
@@ -1452,36 +1451,6 @@ impl bifrost_p_k_bridge::Config for Runtime {
 	type Fungible = Balances;
 }
 
-parameter_types! {
-	pub MbmServiceWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
-}
-
-/// Unfreeze chain on failed migration and continue with extrinsic execution.
-/// Migration must be tested and make sure it doesn't fail. If it happens, we don't have other
-/// choices but unfreeze chain and continue with extrinsic execution.
-pub struct UnfreezeChainOnFailedMigration;
-impl FailedMigrationHandler for UnfreezeChainOnFailedMigration {
-	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
-		log::error!(target: "mbm", "Migration failed at cursor: {migration:?}");
-		FailedMigrationHandling::ForceUnstuck
-	}
-}
-
-impl pallet_migrations::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Migrations = ();
-	// Benchmarks need mocked migrations to guarantee that they succeed.
-	#[cfg(feature = "runtime-benchmarks")]
-	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
-	type CursorMaxLen = ConstU32<65_536>;
-	type IdentifierMaxLen = ConstU32<256>;
-	type MigrationStatusHandler = ();
-	type FailedMigrationHandler = UnfreezeChainOnFailedMigration;
-	type MaxServiceWeight = MbmServiceWeight;
-	type WeightInfo = pallet_migrations::weights::SubstrateWeight<Runtime>;
-}
-
 // Below is the implementation of tokens manipulation functions other than native token.
 pub struct LocalAssetAdaptor<Local>(PhantomData<Local>);
 
@@ -1614,7 +1583,6 @@ construct_runtime! {
 		ParachainSystem: cumulus_pallet_parachain_system = 5,
 		ParachainInfo: parachain_info = 6,
 		TxPause: pallet_tx_pause = 7,
-		MultiBlockMigrations: pallet_migrations = 8,
 
 		// Monetary stuff
 		Balances: pallet_balances = 10,
@@ -1773,10 +1741,7 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 }
 
 parameter_types! {
-	pub const DynamicFeeName: &'static str = "DynamicFee";
-	pub const OrmlXcmName: &'static str = "OrmlXcm";
-	pub const UnknownTokensName: &'static str = "UnknownTokens";
-	pub const XTokens: &'static str = "XTokens";
+	pub const MultiBlockMigrationsName: &'static str = "MultiBlockMigrations";
 }
 
 /// All migrations that will run on the next runtime upgrade.
@@ -1794,11 +1759,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		// permanent migration, do not remove
 		pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-		frame_support::migrations::RemovePallet<DynamicFeeName, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<OrmlXcmName, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<UnknownTokensName, RocksDbWeight>,
-		frame_support::migrations::RemovePallet<XTokens, RocksDbWeight>,
-		bifrost_slp_v2::migrations::v1::SlpV2Migration<Runtime>,
+		frame_support::migrations::RemovePallet<MultiBlockMigrationsName, RocksDbWeight>,
 	);
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "bifrost-cli"
-version = "0.23.0"
+version = "0.23.1"
 authors.workspace = true
 description = "Bifrost Parachain Node"
 build = "build.rs"

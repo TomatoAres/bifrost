@@ -84,4 +84,4 @@ impl<AccountId, Balance> HyperBridgeSender<AccountId, Balance> for () {
 }
 
 /// Hyperbridge message timeout
-pub const HYPERBRIDGE_TIMEOUT: u64 = 60 * 60 * 3;
+pub const HYPERBRIDGE_TIMEOUT: u64 = 60 * 60 * 48;
