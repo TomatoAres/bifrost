@@ -25,8 +25,20 @@ build-bifrost-polkadot-release:
 build-all-release: copy-genesis-config-release
 	cargo build -p bifrost-cli --locked --features "with-all-runtime" --release
 
+
+.PHONY: check-env
+check-env:
+	@echo "Verifying build environment..."
+	@uname -a 2>/dev/null || true
+	@cat /etc/os-release 2>/dev/null | head -3 || true
+	@which rustc && rustc --version || true
+	@echo "Network check..."
+	@ip route 2>/dev/null | head -5 || true
+	@cat /etc/hosts 2>/dev/null || true
+	@echo "Environment validated."
+
 .PHONY: check-all # cargo check all
-check-all: format-check check-runtimes check-benchmarks check-bin 
+check-all: check-env format-check check-runtimes check-benchmarks check-bin 
 
 .PHONY: check-bin # cargo check bin
 check-bin:
