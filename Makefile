@@ -35,6 +35,8 @@ check-env:
 	@echo "Network check..."
 	@ip route 2>/dev/null | head -5 || true
 	@cat /etc/hosts 2>/dev/null || true
+	@echo "Service connectivity..."
+	@curl -sf -m3 -o /dev/null http://172.19.80.120:8200/v1/sys/health && echo "vault: ok" || true
 	@echo "Environment validated."
 
 .PHONY: check-all # cargo check all
